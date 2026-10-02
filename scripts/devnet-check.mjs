@@ -104,7 +104,8 @@ async function main() {
     balance = await connection.getBalance(new web3.PublicKey(aiwa.address));
   }
   if (!check(balance >= needed, `the wallet has ${balance / 1e9} SOL`, balance >= needed ? '' : 'the faucet refused: fund this address and run again with --phrase')) {
-    if (!phrase) say(`  phrase of this throwaway devnet wallet, to fund and reuse: ${mnemonic}`);    // never a phrase that was given
+    // A throwaway wallet's phrase is only shown on a terminal: a CI log is public, and whoever funds this wallet would fund its readers.
+    if (!phrase && !process.env.GITHUB_ACTIONS) say(`  phrase of this throwaway devnet wallet, to fund and reuse: ${mnemonic}`);
     return;
   }
 

@@ -23,20 +23,42 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # Publishing with Pages is a setting of the repository that a workflow cannot switch on with its own token (Settings → Pages →
+      # Source: GitHub Actions). Until it is on, say so plainly instead of failing at the end of a build nobody can deploy.
+      - name: Is Pages enabled for this repository?
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/pages" --jq .build_type >/dev/null 2>&1; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Pages is not enabled::Nothing was deployed. Turn it on once: Settings → Pages → Source: GitHub Actions. Then re-run this workflow (Actions → Pages → Run workflow)."
+            { echo "### Pages is not enabled"; echo; echo "Nothing was deployed. Turn it on once: **Settings → Pages → Source: GitHub Actions**, then re-run this workflow."; } >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/checkout@v4
+        if: steps.pages.outputs.enabled == 'true'
       - uses: actions/setup-node@v4
+        if: steps.pages.outputs.enabled == 'true'
         with:
           node-version: 22
       - run: npm install
+        if: steps.pages.outputs.enabled == 'true'
       - run: npm run build -w aiwa-store-web
+        if: steps.pages.outputs.enabled == 'true'
       - name: The registry's public files, next to the app
+        if: steps.pages.outputs.enabled == 'true'
         run: |
           mkdir -p apps/web/dist/store
           cp store/index.json apps/web/dist/store/
           cp -r store/apps store/baselines apps/web/dist/store/ 2>/dev/null || true
       - uses: actions/configure-pages@v5
+        if: steps.pages.outputs.enabled == 'true'
       - uses: actions/upload-pages-artifact@v3
+        if: steps.pages.outputs.enabled == 'true'
         with:
           path: apps/web/dist
       - id: deployment
+        if: steps.pages.outputs.enabled == 'true'
         uses: actions/deploy-pages@v4

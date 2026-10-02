@@ -1,7 +1,11 @@
 name: Devnet check
-# The one run that uses the REAL Solana network (devnet): burn with the creator fee, verification by the registry's own code.
-# Start it by hand (Actions → Devnet check → Run workflow). The faucet may refuse a shared runner: then set the repository
-# secret DEVNET_PHRASE to the recovery phrase of a wallet funded with a little devnet SOL.
+# The one check that uses the REAL Solana network (devnet): burn with the creator fee, verification by the registry's own code.
+#
+# It needs a wallet that has devnet SOL: the faucet refuses shared runners (it limits each address and each IP per day), so the
+# real run uses the recovery phrase of a wallet you funded yourself (faucet.solana.com), stored once as the repository secret
+# DEVNET_PHRASE. Without it, the real run is skipped with a warning, and the script is still run against a stand-in network so that
+# the script itself is known to work (that dry run proves nothing about Solana).
+# Start it by hand: Actions → Devnet check → Run workflow.
 on:
   workflow_dispatch:
     inputs:
@@ -25,6 +29,22 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - run: node scripts/devnet-check.mjs --sol "${{ inputs.sol }}" --T "${{ inputs.T }}" --epochs "${{ inputs.epochs }}"
+      - name: Dry run against a stand-in network (the script itself)
+        run: node scripts/devnet-check.mjs --fake
+      - name: Is there a funded wallet to burn with?
+        id: wallet
+        env:
+          DEVNET_PHRASE: ${{ secrets.DEVNET_PHRASE }}
+        run: |
+          if [ -n "$DEVNET_PHRASE" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Real devnet run skipped::No DEVNET_PHRASE secret. Fund a devnet wallet at faucet.solana.com, then add its 12 words as the repository secret DEVNET_PHRASE (Settings → Secrets and variables → Actions) and run this workflow again."
+            { echo "### The real devnet run was skipped"; echo; echo "No \`DEVNET_PHRASE\` secret. Fund a devnet wallet at https://faucet.solana.com, add its 12 words as the repository secret \`DEVNET_PHRASE\`, run again."; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Real run on devnet
+        if: steps.wallet.outputs.present == 'true'
+        run: node scripts/devnet-check.mjs --sol "${{ inputs.sol }}" --T "${{ inputs.T }}" --epochs "${{ inputs.epochs }}"
         env:
           DEVNET_PHRASE: ${{ secrets.DEVNET_PHRASE }}
