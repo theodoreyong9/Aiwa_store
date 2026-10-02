@@ -1436,7 +1436,7 @@ in the loser's phone about the money, only about the **count**.
 *What it does not do.* Each phone reports its own count: a modified app can lie, and the live view only lets the other side notice.
 There is no escrow: the loser can spend the claim elsewhere before the payment is applied (§13.5). The amount a player can lose
 is not capped by anything but their balance. Both are left for later, on purpose: the first demonstrations are between people in
-the same room. Finding players nearby (geolocation) is not built. Not tried on real phones: the link between two phones, and the camera scan, which the Android shell does not allow yet (codes are pasted).
+the same room. Finding players nearby (geolocation) is not built. Not tried on real phones: the link between two phones, and the camera in the WebView (a code can always be pasted).
 
 ---
 
@@ -1774,9 +1774,9 @@ without a Rust toolchain. It cross-checks the fundamentals; it is not a second i
 ## Appendix D. Verification status
 
 **What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 85 in `aiwa-platform`,
-100 in `aiwa-lib`, 17 in `aiwa-registry`, 37 in `aiwa-store-web` (20 of them drive the app in Chromium: ranking, the sandbox refusing
+100 in `aiwa-lib`, 17 in `aiwa-registry`, 40 in `aiwa-store-web` (21 of them drive the app in Chromium: ranking, the sandbox refusing
 `parent.document`, a tampering host, offline use, the wallet starting and restoring by itself, the burn with its fee, publishing both
-kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK, an app using the wallet through the door, and a click duel between two pages that pays the winner),
+kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK, an app using the wallet through the door, a click duel between two pages that pays the winner, and a QR code read by the page from a fake camera),
 73 for the dictation backend. `node scripts/devnet-check.mjs --fake` plays the whole path (burn, record, mine, evidence, registry) against
 a stand-in Solana that decodes the real transaction the wallet builds, 11 checks; it also runs in CI. Every part is testable on its own,
 none needs a hosted server.
@@ -1791,5 +1791,5 @@ none needs a hosted server.
   widget. The Kotlin that is not plain JVM is compiled in CI only.
 - No pull request opened by the Store's sheet on GitHub, end to end; the registry workflow has not run on GitHub with a real pull request;
   the site needs GitHub Pages enabled to be served.
-- The click duel (§18.8) between two real phones: the camera scan (the Android shell grants no camera to the WebView yet, so codes are pasted) and the WebRTC link between two phones. It is tested between two pages of one Chromium.
+- The click duel (§18.8) between two real phones: the camera in the Android WebView (written, compiled in CI, never run; in Chromium the scan is tested against a fake camera) and the WebRTC link between two phones. It is tested between two pages of one Chromium.
 - Economic parameters are not validated in the field; no prior-art search; the creator fee and the store have not had a legal review.

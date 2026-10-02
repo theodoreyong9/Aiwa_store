@@ -19,3 +19,6 @@
 - Fix, `aiwa-lib`: the wallet's folded state could be left stale when a read overlapped a mining step or a confirmed burn (the commitment then looked unbacked, the position vanished from the screen and from payments). Reads of the state now go one at a time and a fold overtaken by a reset is done again. A test that interleaves them (it failed three times in four before the fix). lib 100 tests.
 - Documentation rewritten around how the system works (README with real screenshots and the install steps, plain-words explanation in English and French, the yellow paper in seven parts); every diagram and every `§` reference is checked in CI (`scripts/check-diagrams.mjs`).
 - Workflows: *Pages* and *Devnet check* fail, with the reason and the link, instead of passing without doing anything.
+- The Store reads QR codes with the camera: decoded in JavaScript (jsQR, tested in Chromium against a fake camera), and `StoreActivity` grants the camera to the page's own origin, for video only, after Android's permission (compiled in CI, never run on a phone). Web tests 40.
+- The widget's logo opens the app (the Store), not the dictation text screen; inside the app a **Dictate** tab opens that screen.
+- The README's introduction: a distributed ecosystem (build, submit, store, token, play and pay), not only a store.

@@ -6,6 +6,10 @@
     <!-- Real voice dictation (MainActivity's mic button) needs this at
          runtime, requested on first tap. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- The Store reads QR codes with the camera (a payment received, two phones pairing for an app): asked once, when the page first
+         opens the camera (StoreActivity.kt). Not every phone has one, and nothing but scanning needs it. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- Android 11+ package-visibility: without declaring this,
          resolving/launching RecognizerIntent.ACTION_RECOGNIZE_SPEECH can
          silently fail to find a handler even when one is installed. -->
@@ -48,7 +52,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- The dictation module's screen (optional): opened from the Store's footer, or by the widget's logo. -->
+        <!-- The dictation module's screen (optional): opened from the Store's Dictate tab. -->
         <activity android:name=".MainActivity" android:exported="false" android:label="Dictée Aiwa" android:windowSoftInputMode="adjustResize" />
         <!-- Reported live: the widget's mic opening the full app first,
              then dictation, looked slow and "moche" — a real trampoline

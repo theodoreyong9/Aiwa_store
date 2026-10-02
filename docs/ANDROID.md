@@ -20,6 +20,8 @@ included). The page sends requests with an id and the app answers `{ id, result 
 | `save` | a text file into Downloads |
 | `dictation` | open the dictation module's screen |
 
+The camera is not a command: the page reads QR codes with `getUserMedia` (a payment received, two phones pairing for an app), which the WebView asks of `StoreActivity` as a permission request. It is granted to the Store's own origin only, for video only, once Android's camera permission is given.
+
 The back button closes what is open on top (the sheet, an app) before it leaves. Links out of the Store open in the browser.
 
 **Backup.** Android's automatic backup is on: the WebView's storage, where the wallet's journal lives, follows its owner to a new phone
@@ -32,7 +34,7 @@ the wallet asks the registry for the last state it validated of this author. Nei
 A widget for the home screen to dictate to Claude Code (Claude's cloud sessions, `claude --cloud`), not specific to Aiwa. It needs
 **Termux** (the local backend, `android/backend/aiwa_server.py`, runs there) and the user's own Claude login; nothing about it is
 needed for the Store or the wallet. It runs only once it has been turned on — by adding the widget, or by opening its screen from
-the Store's footer ("Dictation (optional)"). Until then there is no service, no permission request and no notification.
+the Store's **Dictate** tab. Until then there is no service, no permission request and no notification.
 
 Install the backend in Termux (one command, also for updates):
 
@@ -63,6 +65,6 @@ of a rolling release, `android-latest`. Locally: `npm run build -w aiwa-store-we
 
 ## Not verified
 
-The WebView host and the Termux backend on a real device; the keystore and the GitHub login on a real device (the device flow's logic is
+The WebView host, the camera for scanning codes and the Termux backend on a real device; the keystore and the GitHub login on a real device (the device flow's logic is
 unit-tested against a stand-in of GitHub, not against GitHub); the automatic backup; the widget on real launchers; Google Play policy (the APK
 is meant to be installed by hand). No Android SDK is available where this was written: the Kotlin that is not plain JVM is compiled in CI only.

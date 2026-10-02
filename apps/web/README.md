@@ -24,7 +24,7 @@ has no storage that survives; it is not reviewed.
 An app that declares `<meta name="aiwa-wallet" content="pay">` gets a banner ("This app uses your wallet") and a door to the page
 (`src/app-door.js`): `{aiwa: 1, id, cmd, args}` from the frame, answered to that frame only. Commands: `whoami`, `pay { to, amount }`
 (a payment signed by a channel's session key, returned as an offline bundle), `receive { blob }`, `showCode`, `hideCode`, `scanCode`
-(`src/qr.js`: QR on screen, camera or paste), `config`. The door has no cap and asks nothing; the banner is the only signal. An app that
+(`src/qr.js`: QR on screen; the camera, decoded in JavaScript with jsQR; or paste), `config`. The door has no cap and asks nothing; the banner is the only signal. An app that
 does not declare the wallet is not answered. `docs/demo-apps/click-duel.html` is one (two phones linked by WebRTC through two codes);
 yellow paper §18.8.
 

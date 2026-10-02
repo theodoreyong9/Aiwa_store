@@ -1,6 +1,6 @@
 # Aiwa Store
 
-**A pocket app store with its own wallet. Apps open in a sealed box, and the list is ranked by the work each author has done: no ads, no ratings, nobody editing it.**
+**A distributed app ecosystem in your pocket: build an app by talking to it, publish it in one tap, get ranked by the work behind it, and pay people directly. No server of ours, no shared ledger.**
 
 <p align="center">
   <img src="docs/img/store.png" width="23%" alt="The Store: apps ranked">
@@ -14,35 +14,43 @@ The real screens at phone size. The apps and the Solana network are demo stand-i
 > **Where it stands.** Pre-release. Everything is tested in CI, but it has **never run on a phone** and **never on the real Solana network**.
 > [What that means exactly](#where-it-stands).
 
-## What you do with it
+## One Android app, five things
 
-- **Open apps.** Each one is signed by its author and checked before it opens. It runs in a sealed box: it cannot touch your wallet, unless it says it uses it, and then the Store shows a banner.
-- **Earn AIWA.** Burn a little SOL once (send it to an address nobody controls). Then your phone computes while the app is open, and what you
-  can claim grows with time.
-- **Play.** [Click duel](docs/demo-apps/click-duel.html), an app that uses the wallet: two phones side by side, a price per click, 20 seconds of clicking. Whoever clicked less pays what they clicked, in AIWA, with nothing to sign per click.
-- **Publish an app.** Dictate it to Claude Code with the widget, press ▦, read it, press **Publish**. The Store signs it with your wallet and
-  opens the pull request for you. No form, no file to carry.
+| | |
+|---|---|
+| **Build** | Dictate to Claude Code with the home-screen widget. It writes the app; you read it and try it before anything leaves the phone. *(Optional: needs Termux and your own Claude account.)* |
+| **Submit** | One tap. The Store signs the app with your wallet, adds proof of the work you have done, and opens the pull request on your GitHub account. No form, no file to carry. |
+| **Store** | A list ranked by what each author has *mined*, not by ads or ratings, and nobody edits it. Every app is checked against its author's signature before it opens, and runs in a sealed box. Works offline. |
+| **Token** | **AIWA** is created by your phone doing verifiable work, after one burn of SOL: no miners' network, no exchange. Send it by QR code or text, even with no connection. |
+| **Play and pay** | An app can use your wallet. [Click duel](docs/demo-apps/click-duel.html): two phones, a price per click, 20 seconds, whoever clicked less pays what they clicked, and nothing is signed per click. |
+
+**Underneath, a distributed system with no central part.** Each phone keeps its own history of signed events and shows it to others when it
+matters. Because anyone can check a stranger's work in milliseconds, an ordinary GitHub repository can be the registry and the ranking, a
+payment can be a file, and two phones can settle a game with nothing in between. Solana is used once, for the burn. The pieces are known
+(signed logs, proofs of sequential work, burning as a cost); putting them together this way is the point.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  A["1. You burn SOL<br/>on Solana, once"] --> B["2. Your phone works<br/>while the app is open"]
-  B --> C["3. You publish<br/>a signed app + proof of the work"]
-  C --> D["4. A GitHub workflow<br/>checks it and ranks you"]
-  D --> E["5. Every Store lists it,<br/>checks it, opens it sealed"]
+  A["1. Build<br/>dictate, Claude Code<br/>writes the app"] --> B["2. Earn<br/>burn SOL once, your phone<br/>works while the app is open"]
+  B --> C["3. Submit<br/>one tap: signed app<br/>+ proof of the work"]
+  C --> D["4. Rank<br/>a GitHub workflow checks it<br/>and ranks you"]
+  D --> E["5. Use<br/>every Store checks it,<br/>opens it sealed, apps can pay"]
 ```
 
-1. **Burn.** The only thing that costs anything, and the only thing that needs Solana. 0.1 % of the part of the burn you choose to set aside
-   (called T) goes to the creator of the software, in the same transaction, shown before you sign. At T = 0, nothing.
-2. **Work.** Each unit of work is signed, and anyone can check it in milliseconds. The more time since your last action, the more you can claim.
-3. **Publish.** Your app, signed with your wallet, with proof of your work.
+1. **Build.** The widget sends your voice to Claude Code, which writes one self-contained app (or one published through Aiwa, signed and pinned by hash).
+2. **Earn.** The only thing that costs anything, and the only thing that needs Solana, is the burn. 0.1 % of the part you choose to set aside
+   (called T) goes to the creator of the software, in the same transaction, shown before you sign. At T = 0, nothing. Then each unit of work is
+   signed, anyone can check it in milliseconds, and what you can claim grows with time.
+3. **Submit.** Your app, signed with your wallet, with proof of your work, as a pull request.
 4. **Rank.** The registry is a GitHub workflow: it checks the signature, the proof and the burn on Solana itself, then ranks you by
    `score / laps` (what you can claim, over the epochs since your last action).
-5. **Read.** Each Store checks every app against its author's signature before it opens it.
+5. **Use.** Each Store checks every app against its author's signature before it opens it. An app that says it uses your wallet gets a banner,
+   and can ask it to pay.
 
-There is no server of ours and no shared ledger: GitHub keeps the list, Solana keeps the burns, and each phone keeps its own signed history.
-All of it, with pictures, in [docs/EXPLAINED.md](docs/EXPLAINED.md) ([en français](docs/EXPLICATION.md)).
+GitHub keeps the list, Solana keeps the burns, each phone keeps its own signed history. All of it, with pictures, in
+[docs/EXPLAINED.md](docs/EXPLAINED.md) ([en français](docs/EXPLICATION.md)).
 
 ## Install (Android)
 
@@ -69,6 +77,8 @@ The widget talks to Claude Code, which runs in **Termux** on the same phone. You
    Termux commands, and notifications.
 4. Tap **Connecter Claude** on the widget and log in with your Claude account (a page opens, the code goes back into the same window).
 5. Tap **Dicter un message** and say what the app should do. When Claude has written it, press **▦** on the widget: the Store opens its publish sheet.
+
+The widget's logo opens the app. Inside the app, the **Dictate** tab opens the dictation screen (the same one the widget uses).
 
 The widget is in French for now. Not verified on a real phone: Claude Code has no Android build, so the backend installs it in a Linux layer
 inside Termux, which the script itself marks as experimental. More in [docs/ANDROID.md](docs/ANDROID.md).
@@ -105,9 +115,9 @@ These are settings and accounts. Until they are done, the matching workflow is *
 | The protocol: identity, signed events, proofs of work, accrual, claims, double spend (421 tests, with a cross-check against an independent Rust implementation) | A real burn on Solana |
 | The wallet, the creator's share, backup and restore (100 + 85 tests) | The Android app on a real phone: keystore, GitHub sign-in, Android's backup, the widget (it is compiled in CI, never run) |
 | The registry: signatures, proofs, burns, ranking (17 tests) | A real pull request through the registry workflow |
-| The web app in a real Chromium: ranking, sandbox, tampering, offline, restore, burn, publishing of both kinds, an app using the wallet, a click duel between two pages (37 tests) | The legal status of the creator's share |
+| The web app in a real Chromium: ranking, sandbox, tampering, offline, restore, burn, publishing of both kinds, an app using the wallet, a click duel between two pages, a scan against a fake camera (40 tests) | The legal status of the creator's share |
 | The whole path against a stand-in Solana (`devnet-check --fake`) | The economic parameters in the field |
-| | The click duel between two real phones. Today the APK gives the page no camera, so codes are pasted, not scanned |
+| | The click duel between two real phones, and the camera in the APK (the code that grants it is written and compiled in CI, never run) |
 
 [docs/PLAN.md](docs/PLAN.md) has the full list.
 

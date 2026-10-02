@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 private var restartedOutdatedBackend=false
 class MainActivity:ComponentActivity(){override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);enableDictation(applicationContext);setContent{MaterialTheme{AiwaScreen()}}}}
 /**
- * The dictation module's screen (optional: the Store opens it from its footer): a full-page text field and a send button, nothing else (asked for:
+ * The dictation module's screen (optional: the Store opens it from its Dictate tab): a full-page text field and a send button, nothing else (asked for:
  * "uniquement un champ texte pleine page et envoi"). Everything else lives on the
  * widget: session, model, mic, repository, Push, Deploy, the links, "Claude ↗".
  * A banner at the top says that every function is in the widget, to be put on the

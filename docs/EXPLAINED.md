@@ -5,9 +5,10 @@ what is not solved. The same thing, formally, is in the [yellow paper](YELLOWPAP
 
 ## The whole thing in one minute
 
-**Aiwa Store** is one Android app with three parts: a **Store** of small apps, a **wallet**, and an optional **widget** to dictate to
-Claude Code. Behind the wallet is a protocol with **no shared ledger**: everyone keeps their own notebook of signed events, shows it to
-others when useful, and anyone can check what they are shown, by themselves.
+**Aiwa Store** is one Android app that does five things. You can **build** an app by dictating to Claude Code (with an optional widget),
+**submit** it in one tap, find it in a **Store** ranked by the work behind each app, earn the **AIWA** token by letting your phone
+compute, and let apps **pay** people directly. Behind it is a protocol with **no shared ledger**: everyone keeps their own notebook of
+signed events, shows it to others when useful, and anyone can check what they are shown, by themselves.
 
 Three outside things are used, each for one job:
 
@@ -468,8 +469,8 @@ cost, hash-locked vouchers, session keys. No prior-art search has been done. Wha
 ## 9. What has been verified, and what has not
 
 **Verified by tests** (all run in CI): the protocol (421 tests, including a cross-check against an independent Rust implementation of its
-core computations), the distribution layer (85), the wallet API (100), the registry (17), the web app (37, 20 of them in a real Chromium:
-ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds, an app using the wallet, a click duel between two pages), the dictation backend (73), and a whole
+core computations), the distribution layer (85), the wallet API (100), the registry (17), the web app (40, 21 of them in a real Chromium:
+ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds, an app using the wallet, a click duel between two pages, a QR code read from a fake camera), the dictation backend (73), and a whole
 dry run against a stand-in Solana (`node scripts/devnet-check.mjs --fake`).
 
 **Not verified:** a real burn on Solana (it needs a funded devnet wallet); the Android app on a real phone (it is compiled in CI only),

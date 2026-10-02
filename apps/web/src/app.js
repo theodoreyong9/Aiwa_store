@@ -12,7 +12,7 @@ window.addEventListener('unhandledrejection', (event) => {
   $('store-status').textContent = `Unexpected error: ${event.reason?.message ?? event.reason}`;
 });
 
-for (const btn of document.querySelectorAll('#app-nav button')) btn.addEventListener('click', () => switchView(btn.dataset.view));
+for (const btn of document.querySelectorAll('#app-nav button[data-view]')) btn.addEventListener('click', () => switchView(btn.dataset.view));
 
 $('link-source').href = `https://github.com/${config.repository}`;
 $('link-yellowpaper').href = `https://github.com/${config.repository}/blob/main/docs/YELLOWPAPER.md`;
@@ -21,10 +21,11 @@ initPublish();
 initStore();
 initWallet();
 
-// Inside the Android app: a button to the dictation module (optional), and a back button that closes what is open first.
+// Inside the Android app: the Dictate tab (the dictation module's screen, where the widget is used from), and a back button that
+// closes what is open first. The tab opens that screen and leaves the page where it was.
 if (hostAvailable()) {
-  $('btn-dictation').hidden = false;
-  $('btn-dictation').addEventListener('click', () => hostPost({ cmd: 'dictation' }));
+  $('tab-dictate').hidden = false;
+  $('tab-dictate').addEventListener('click', () => hostPost({ cmd: 'dictation' }));
 }
 setBackHandler(() => {
   if (!$('viewer').hidden) { closeViewer(); return true; }

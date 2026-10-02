@@ -1,13 +1,17 @@
 package com.aiwa.store
+import android.Manifest
 import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.content.pm.PackageManager
 import android.os.Environment
 import android.provider.MediaStore
 import android.view.ViewGroup
+import android.webkit.PermissionRequest
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -15,6 +19,8 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.JavaScriptReplyProxy
@@ -44,12 +50,23 @@ import org.json.JSONObject
  *   "github-login"  GitHub's device flow: the code to type is sent as progress, the token as the result
  *   "save"          a text file into Downloads
  *   "dictation"     open the dictation module's screen, which is optional
+ * The camera is not a command: the page reads a QR code with getUserMedia (an app's pairing, a payment received), which the
+ * WebView asks of this activity as a permission request. It is granted to the page's own origin only, for video only, and only
+ * once Android's own camera permission has been given.
  *
  * Links that leave the Store open in the browser; the Store itself never navigates away.
  */
 class StoreActivity : ComponentActivity() {
     private lateinit var web: WebView
     private val secrets by lazy { SecretStore(this) }
+
+    // The page asked for the camera before the phone had given it: the request waits here for the answer.
+    private var cameraRequest: PermissionRequest? = null
+    private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val request = cameraRequest ?: return@registerForActivityResult
+        cameraRequest = null
+        if (granted) request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) else request.deny()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,6 +91,28 @@ class StoreActivity : ComponentActivity() {
             allowFileAccess = false
             allowContentAccess = false
             setSupportMultipleWindows(false)
+            mediaPlaybackRequiresUserGesture = false      // the camera's preview starts by itself
+        }
+        web.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest) {
+                // Only the Store's own page, only the camera. An app in its frame has another origin and gets nothing.
+                val own = request.origin.toString().startsWith("https://appassets.androidplatform.net")
+                val onlyCamera = request.resources.isNotEmpty() && request.resources.all { it == PermissionRequest.RESOURCE_VIDEO_CAPTURE }
+                if (!own || !onlyCamera) { request.deny(); return }
+                runOnUiThread {
+                    if (ContextCompat.checkSelfPermission(this@StoreActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                        request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
+                    } else {
+                        cameraRequest?.deny()
+                        cameraRequest = request
+                        cameraPermission.launch(Manifest.permission.CAMERA)
+                    }
+                }
+            }
+
+            override fun onPermissionRequestCanceled(request: PermissionRequest) {
+                if (cameraRequest == request) cameraRequest = null
+            }
         }
         web.webViewClient = object : WebViewClientCompat() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =

@@ -13,6 +13,7 @@ import { join, extname, resolve, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import QRCode from 'qrcode';
 import { deflateRawSync } from 'node:zlib';
 import { buildAppPackage, buildBundle, validateSubmission, applyAccepted, emptyStore, writeStore, rankApps } from 'aiwa-registry';
 import { CREATOR, deployment as testDeployment, fakeSolana, minedWallet } from '../../../registry/support/helpers.mjs';
@@ -24,6 +25,7 @@ const site = join(tmp, 'site');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 
 let server, base, browser;
+globalThis.cameraText = `duel1.${Buffer.from(Array.from({ length: 450 }, (_, i) => (i * 53 + 7) % 251)).toString('base64url')}`;   // what the fake camera shows
 const control = { down: false, tamper: null };     // what a flaky or dishonest host does
 
 const html = (title, script = '') => `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head><body><h1>${title}</h1><p id="r">…</p><script>${script}</script></body></html>`;
@@ -97,8 +99,21 @@ before(async () => {
   await new Promise((r) => server.once('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
 
+  // A camera that films a QR code (a .y4m video: one Y plane of black and white, flat colour planes), for the scan
+  const { size, data } = QRCode.create(globalThis.cameraText, { errorCorrectionLevel: 'L' }).modules;
+  const [W, H] = [640, 480];
+  const scale = Math.floor(440 / (size + 8));
+  const frame = Buffer.alloc(W * H * 3 / 2, 128);
+  frame.fill(235, 0, W * H);
+  for (let row = 0; row < size; row++) for (let col = 0; col < size; col++) {
+    if (!data[row * size + col]) continue;
+    for (let y = 0; y < scale; y++) for (let x = 0; x < scale; x++) frame[(((H - size * scale) >> 1) + row * scale + y) * W + (((W - size * scale) >> 1) + col * scale + x)] = 16;
+  }
+  const video = join(tmp, 'qr.y4m');
+  writeFileSync(video, Buffer.concat([Buffer.from(`YUV4MPEG2 W${W} H${H} F10:1 Ip A1:1 C420jpeg\n`), ...Array.from({ length: 5 }, () => Buffer.concat([Buffer.from('FRAME\n'), frame]))]));
+
   // WebRTC between two pages of one browser (the click duel): real addresses, not mDNS names, and loopback allowed
-  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--disable-features=WebRtcHideLocalIpsWithMdns', '--allow-loopback-in-peer-connection'] });
+  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--disable-features=WebRtcHideLocalIpsWithMdns', '--allow-loopback-in-peer-connection', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${video}`] });
 });
 
 after(async () => { await browser?.close(); server?.close(); });
@@ -546,10 +561,11 @@ test('refreshing a ranking, from the wallet\'s list of the author\'s apps, is th
 
 // ---------- inside the Android app ----------
 
-test('inside the Android app: the dictation button appears, back closes the sheet or the app on top, then leaves the tab', async () => {
+test('inside the Android app: the Dictate tab appears, back closes the sheet or the app on top, then leaves the tab', async () => {
   const { page, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
-  assert.equal(await page.locator('#btn-dictation').isVisible(), true);
-  await page.click('#btn-dictation');
+  assert.equal(await page.locator('#tab-dictate').isVisible(), true);
+  await page.click('#tab-dictate');
+  assert.equal(await page.locator('#view-store').isVisible(), true, 'the Dictate tab opens the screen, the page stays where it was');
   assert.deepEqual(await page.evaluate(() => window.__posted.filter((m) => m.cmd === 'dictation').map((m) => m.cmd)), ['dictation']);
 
   await page.waitForSelector('#store-list .app');
@@ -767,4 +783,16 @@ test('click duel: two phones link by two codes, click for 20 seconds, and the on
   assert.ok(Math.abs((await spendable(B.page)) - (b0 - cost)) < 1e-9, 'and the loser paid it');
   await A.context.close();
   await B.context.close();
+});
+
+test('scanning: the page opens the camera, reads the code it shows, and hands the text to the app', async () => {
+  const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  await fundInPage(page, { epoch: 1 });
+  const frame = await tryApp(page, 'Scanner', doorProbe(true, "const read = await door('scanCode', { title: 'Scan it' }); out(read.error ? 'error: ' + read.error : read.result);"));
+  await page.waitForSelector('#door-scan:not([hidden])');
+  const text = await until(() => frame.locator('#r').textContent().then((t) => t !== '…' && t), { ms: 20000, what: 'the camera to be read' });
+  assert.equal(text, globalThis.cameraText);
+  assert.equal(await page.locator('#door-sheet').isHidden(), true, 'the sheet closes by itself once a code is read');
+  assert.deepEqual(errors, []);
+  await context.close();
 });

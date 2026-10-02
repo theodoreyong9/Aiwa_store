@@ -50,8 +50,7 @@ Tests pass in CI; documentation says exactly what was and was not verified; no c
 
 ## Known risks
 
-- **The Android app grants no camera to the page yet.** Scanning a code (the wallet's *Scan QR*, and the duel's pairing) does not work in the APK as built: the codes are copied and pasted. It needs the camera permission in `StoreActivity` and a QR decoder that runs in a WebView (`BarcodeDetector` is not there on every device).
-
+- **The camera in the Android app has never run.** The page reads QR codes with `getUserMedia` and decodes them in JavaScript (jsQR, tested in Chromium against a fake camera that films a code); `StoreActivity` grants the camera to the page's own origin, for video only, after Android's permission (written, compiled in CI). Whether a phone's WebView then delivers frames is not known. Pasting a code always works.
 - **An app that declares the wallet can spend it.** The door has no cap, no expiry and asks nothing; the Store only shows a banner. Kept apart from the sandbox on purpose, to be decided later.
 
 - Everything involving real Solana has only been played against a stand-in. The first real run is a prerequisite for any claim.

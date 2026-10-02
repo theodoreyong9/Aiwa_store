@@ -291,11 +291,11 @@ private fun FullContent(state: AiwaState) {
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            // The logo (a round PNG with real transparency): opens the app.
+            // The logo (a round PNG with real transparency): opens the app, the Store. The dictation screen is its Dictate tab.
             Image(
                 provider = ImageProvider(R.drawable.logo_round),
                 contentDescription = "Ouvrir Aiwa",
-                modifier = GlanceModifier.size(avatar.dp).clickable(actionStartActivity<MainActivity>()),
+                modifier = GlanceModifier.size(avatar.dp).clickable(actionStartActivity<StoreActivity>()),
             )
             Spacer(GlanceModifier.width(8.dp))
             Column(
@@ -485,7 +485,7 @@ private fun CompactContent(state: AiwaState) {
             Image(
                 provider = ImageProvider(R.drawable.logo_round),
                 contentDescription = "Ouvrir Aiwa",
-                modifier = GlanceModifier.size(36.dp).clickable(actionStartActivity<MainActivity>()),
+                modifier = GlanceModifier.size(36.dp).clickable(actionStartActivity<StoreActivity>()),
             )
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(

@@ -6,9 +6,10 @@ jusqu'au store d'applications, et dit ce qui n'est pas résolu. Le même contenu
 
 ## Tout en une minute
 
-**Aiwa Store** est une seule application Android avec trois parties : un **Store** de petites applications, un **portefeuille**, et un
-**widget** optionnel pour dicter à Claude Code. Derrière le portefeuille, il y a un protocole **sans registre commun** : chacun garde
-son propre carnet d'événements signés, le montre aux autres quand c'est utile, et chacun peut vérifier seul ce qu'on lui montre.
+**Aiwa Store** est une seule application Android qui fait cinq choses. Tu peux **construire** une app en dictant à Claude Code (avec un widget
+optionnel), la **soumettre** en un geste, la retrouver dans un **Store** classé selon le travail derrière chaque app, gagner le jeton **AIWA**
+en laissant ton téléphone calculer, et laisser des apps **payer** des gens directement. Derrière, il y a un protocole **sans registre commun** :
+chacun garde son propre carnet d'événements signés, le montre aux autres quand c'est utile, et chacun peut vérifier seul ce qu'on lui montre.
 
 Trois choses extérieures servent, chacune pour un seul travail :
 
@@ -490,9 +491,9 @@ qui est inhabituel, c'est la combinaison :
 ## 9. Ce qui a été vérifié, et ce qui ne l'a pas été
 
 **Vérifié par des tests** (tous exécutés en CI) : le protocole (421 tests, dont un recoupement avec une implémentation Rust indépendante de
-ses calculs de base), la couche de distribution (85), l'API du portefeuille (100), le registre (17), l'application web (37, dont 20 dans un
+ses calculs de base), la couche de distribution (85), l'API du portefeuille (100), le registre (17), l'application web (40, dont 21 dans un
 vrai Chromium : classement, bac à sable, falsification, hors ligne, restauration du portefeuille, brûlage avec sa part, publication des deux
-types, une app qui utilise le portefeuille, un duel de clics entre deux pages), le backend de dictée (73), et une répétition complète contre un Solana de substitution (`node scripts/devnet-check.mjs --fake`).
+types, une app qui utilise le portefeuille, un duel de clics entre deux pages, un QR code lu par une fausse caméra), le backend de dictée (73), et une répétition complète contre un Solana de substitution (`node scripts/devnet-check.mjs --fake`).
 
 **Non vérifié :** un vrai brûlage sur Solana (il faut un portefeuille devnet alimenté) ; l'application Android sur un vrai téléphone (elle
 n'est compilée qu'en CI), la connexion d'appareil de GitHub contre le vrai GitHub, la sauvegarde d'Android qui porte le journal ; une vraie
