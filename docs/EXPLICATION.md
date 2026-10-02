@@ -421,11 +421,11 @@ sequenceDiagram
     R->>R: les vérifie contre le manifeste signé
   end
   R->>F: l'ouvre dans un cadre isolé
-  Note over F: aucun accès à ton portefeuille, à ton stockage ni au téléphone
+  Note over F: aucun accès à ton stockage ni au téléphone, et aucun à ton portefeuille sauf si l'app le dit
 ```
 
 Le cadre est un bac à sable standard du navigateur, avec sa propre identité vide : quoi que fasse l'app, elle **ne peut pas atteindre ton
-portefeuille**, et cela ne dépend pas du bon comportement de l'auteur. Un hébergeur qui sert un autre fichier que celui qui a été signé est
+portefeuille toute seule**, et cela ne dépend pas du bon comportement de l'auteur. Une exception, plus bas : une app qui dit utiliser le portefeuille. Un hébergeur qui sert un autre fichier que celui qui a été signé est
 refusé. Une app peut utiliser le réseau, et elle n'est pas relue.
 
 ### 6.6 L'application Android autour
@@ -439,6 +439,31 @@ ce canal.** La sauvegarde d'Android porte le journal du portefeuille vers un nou
 Le widget de dictée est optionnel : il demande Termux et ta propre connexion à Claude, et rien dans le Store ou le portefeuille n'en a besoin.
 
 ---
+
+### 6.7 Une app qui utilise le portefeuille : le duel de clics
+
+Une app peut dire qu'elle utilise ton portefeuille. Le Store affiche alors une bannière, et l'app peut lui demander quelques choses : qui tu es,
+payer quelqu'un, recevoir un paiement, montrer ou lire un code. **Click duel** est une app de ce genre : deux téléphones côte à côte, un prix
+par clic, 20 secondes de clics. Celui qui a cliqué le moins paie ce qu'il a cliqué.
+
+```mermaid
+sequenceDiagram
+  participant A as Téléphone A
+  participant B as Téléphone B
+  A->>B: un code (QR ou texte) montre le défi
+  B->>A: un code montre la réponse : les téléphones sont reliés, sans serveur
+  A->>B: le prix par clic
+  B->>A: accepte
+  Note over A,B: 3, 2, 1, puis 20 secondes de clics, chaque téléphone voit le score de l'autre en direct
+  Note over A,B: B a cliqué moins, donc B doit ses clics fois le prix
+  B->>A: un seul paiement, signé par une clé de session : rien n'est signé par clic
+  A->>A: vérifie sur Solana d'où vient l'argent, le solde monte
+```
+
+Ce que ça montre : rien n'est signé par clic. Le premier paiement à quelqu'un signe une délégation (section 2.2), et le paiement lui-même est
+signé par une clé de session. Ce que ça ne fait pas, exprès pour l'instant : chaque téléphone compte ses propres clics, donc une app modifiée
+peut mentir ; l'argent n'est pas mis de côté avant la course, donc le perdant pourrait le dépenser ailleurs avant ; il n'y a pas de recherche de
+joueurs à proximité. Essayé entre deux pages du navigateur d'un ordinateur, pas entre deux vrais téléphones.
 
 ## 7. Ce qui est nouveau, et ce qui ne l'est pas
 
@@ -458,16 +483,16 @@ qui est inhabituel, c'est la combinaison :
 - Une double dépense entre des gens qui n'échangent jamais d'événements ne peut pas être empêchée, seulement détectée et résolue de la même
   façon pour tout le monde.
 - Il n'y a pas de moyen automatique pour que des inconnus se trouvent.
-- Les apps ne sont pas relues, et peuvent utiliser le réseau (elles ne peuvent pas atteindre le portefeuille).
+- Les apps ne sont pas relues, et peuvent utiliser le réseau. Une app qui dit utiliser ton portefeuille peut le dépenser : le Store affiche seulement une bannière.
 - Une machine plus rapide gagne des époques plus vite.
 - Solana est la seule dépendance extérieure du protocole (GitHub héberge le registre et le site de ce déploiement).
 
 ## 9. Ce qui a été vérifié, et ce qui ne l'a pas été
 
 **Vérifié par des tests** (tous exécutés en CI) : le protocole (421 tests, dont un recoupement avec une implémentation Rust indépendante de
-ses calculs de base), la couche de distribution (85), l'API du portefeuille (99), le registre (17), l'application web (35, dont 18 dans un
+ses calculs de base), la couche de distribution (85), l'API du portefeuille (100), le registre (17), l'application web (37, dont 20 dans un
 vrai Chromium : classement, bac à sable, falsification, hors ligne, restauration du portefeuille, brûlage avec sa part, publication des deux
-types), le backend de dictée (73), et une répétition complète contre un Solana de substitution (`node scripts/devnet-check.mjs --fake`).
+types, une app qui utilise le portefeuille, un duel de clics entre deux pages), le backend de dictée (73), et une répétition complète contre un Solana de substitution (`node scripts/devnet-check.mjs --fake`).
 
 **Non vérifié :** un vrai brûlage sur Solana (il faut un portefeuille devnet alimenté) ; l'application Android sur un vrai téléphone (elle
 n'est compilée qu'en CI), la connexion d'appareil de GitHub contre le vrai GitHub, la sauvegarde d'Android qui porte le journal ; une vraie

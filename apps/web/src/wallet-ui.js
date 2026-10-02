@@ -9,6 +9,7 @@ import { keptPhrase, startWallet, restoreHistory, keepRunning, solanaConnection 
 import { secretsAreSafe } from './keys.js';
 import { $, short, setId, showError, flash } from './ui.js';
 import { openRefresh } from './publish-ui.js';
+import { drawQr, scanQr } from './qr.js';
 
 let displayRefreshTimer = null;
 let lastOfflineBlob = null;
@@ -148,32 +149,7 @@ async function burn() {
 
 // ---------- send / receive ----------
 
-async function renderQr(text) {
-  const QRCode = (await import('qrcode')).default;
-  const canvas = document.createElement('canvas');
-  await QRCode.toCanvas(canvas, text, { width: 240 });
-  $('qr').replaceChildren(canvas);
-}
-
-/** Scans a QR code via the camera into `targetInput`. False (no camera opened) when BarcodeDetector is not supported. */
-async function scanQrInto(videoEl, targetInput) {
-  if (!('BarcodeDetector' in window)) return false;
-  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-  videoEl.srcObject = stream;
-  videoEl.hidden = false;
-  await videoEl.play();
-  const detector = new BarcodeDetector({ formats: ['qr_code'] });
-  const interval = setInterval(async () => {
-    const codes = await detector.detect(videoEl).catch(() => []);
-    if (codes.length > 0) {
-      clearInterval(interval);
-      stream.getTracks().forEach((t) => t.stop());
-      videoEl.hidden = true;
-      targetInput.value = codes[0].rawValue;
-    }
-  }, 300);
-  return true;
-}
+const renderQr = (text) => drawQr($('qr'), text);
 
 async function send() {
   const to = $('send-to').value.trim();
@@ -359,10 +335,13 @@ export async function initWallet() {
   });
   $('btn-receive').addEventListener('click', receive);
   $('btn-scan').addEventListener('click', async () => {
-    const ok = await scanQrInto($('scan-video'), $('receive-blob'));
-    if (!ok) $('receive-result').textContent = 'No camera scanning in this browser: paste the code.';
+    const text = await scanQr($('scan-video'));
+    if (text === null) $('receive-result').textContent = 'No camera scanning in this browser: paste the code.';
+    else $('receive-blob').value = text;
   });
   recoverySection();
+  // an app that uses the wallet (app-door.js) moved some AIWA: show it
+  window.addEventListener('aiwa:wallet-changed', () => { refreshLocalState().then(renderHistory).catch(() => {}); });
 
   // The wallet starts by itself when this phone already has one; a phone that has none makes the person choose once.
   try {

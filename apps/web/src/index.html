@@ -31,7 +31,7 @@
   <p class="muted" id="store-status"></p>
   <div id="store-list"></div>
   <p class="hint" id="store-empty" hidden>No app here yet. Dictate one with the widget, then press ▦ to publish it.</p>
-  <p class="hint">Apps run in a sandbox: they cannot see your wallet. They are not reviewed; the list is ordered by what their authors have mined (<code>score / laps</code>).</p>
+  <p class="hint">Apps run in a sandbox: they cannot see your wallet unless they say they use it, and then a banner tells you. They are not reviewed; the list is ordered by what their authors have mined (<code>score / laps</code>).</p>
 </main>
 
 <!-- ============ WALLET ============ -->
@@ -191,7 +191,26 @@
     <div class="viewer-title"><b id="viewer-name"></b> <span class="muted" id="viewer-meta"></span></div>
     <button id="viewer-close" class="sm">Close</button>
   </div>
+  <div id="viewer-flag" class="flag" hidden>⚠ This app uses your wallet: it can move your AIWA.</div>
   <div id="viewer-frame-host"></div>
+  <!-- what an app that uses the wallet asks the Store to show: a code, or a code to read -->
+  <div id="door-sheet" class="sheet door" hidden role="dialog" aria-modal="true" aria-labelledby="door-title">
+    <div class="sheet-card">
+      <h2 id="door-title"></h2>
+      <div id="door-show" hidden>
+        <div id="door-qr" class="qr"></div>
+        <textarea id="door-text" rows="3" readonly aria-label="The code, as text"></textarea>
+        <button id="door-copy" type="button" class="sm">Copy</button>
+        <button id="door-next" type="button" class="primary" hidden></button>
+      </div>
+      <div id="door-scan" hidden>
+        <video id="door-video" hidden playsinline muted></video>
+        <textarea id="door-paste" rows="3" placeholder="Point the camera at the code, or paste it here" aria-label="The code, pasted"></textarea>
+        <button id="door-use" type="button" class="primary">Use this code</button>
+      </div>
+      <button id="door-close" type="button" class="sm">Close</button>
+    </div>
+  </div>
 </div>
 
 <script type="module" src="app.js"></script>

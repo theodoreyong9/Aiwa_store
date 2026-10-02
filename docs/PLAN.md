@@ -26,13 +26,14 @@ A fixed share of the burn is sent to a creator address that is a constant of the
 
 | Step | State |
 |---|---|
-| Protocol, distribution and wallet packages in one workspace, one lock file | done — core 421 tests, platform 85, lib 99. The protocol was rewritten for clarity without changing a byte it signs (one signing module; the wallet class split into focused modules); the signed messages' bytes are pinned by a test |
+| Protocol, distribution and wallet packages in one workspace, one lock file | done — core 421 tests, platform 85, lib 100. The protocol was rewritten for clarity without changing a byte it signs (one signing module; the wallet class split into focused modules); the signed messages' bytes are pinned by a test |
 | The creator fee in the burn: rule, verification, wallet transaction | done, with tests (core 8 + lib 5); the creator address is set in `deployment.json` |
 | The yellow paper, standalone, with the fee (§11) and the order of conflicting branches (§13.4) | done |
 | The documents: the README, the plain-words explanation (EN and FR) and the yellow paper (seven parts and four appendices, in the order the system works: foundations, the three pillars, creating value, agreement without a clock, applications, observation, assessment), each with diagrams of how it **functions**; `scripts/check-diagrams.mjs` renders every diagram and checks every `§` reference in CI | done |
 | The registry: signed packages of two kinds (code, or a pointer to a bundle published through Aiwa), validation with the protocol's own checks, ranking `score / laps`, public baselines, workflow | done, 17 tests against a stand-in Solana; the workflow itself has not run on GitHub |
-| The web app: store, wallet that starts and restores by itself, one publish sheet with the author's GitHub login, an SDK module for contract apps | done, unit tests and 18 in Chromium (ranking, sandbox, tampering host, offline, the wallet starting by itself and its history coming back, the burn with the fee, publishing of both kinds through stand-ins of the Android host and of GitHub whose pull request is given to the real registry code, an app that uses the SDK) |
+| The web app: store, wallet that starts and restores by itself, one publish sheet with the author's GitHub login, an SDK module for contract apps | done, unit tests and 20 in Chromium (ranking, sandbox, tampering host, offline, the wallet starting by itself and its history coming back, the burn with the fee, publishing of both kinds through stand-ins of the Android host and of GitHub whose pull request is given to the real registry code, an app that uses the SDK) |
 | The Android app: the web app in a WebView, keystore and GitHub device login for the page, the dictation module as an option | written; compiled in CI; the device flow's logic and the hand-off link unit-tested; **never run on a phone**; backend 73 Python tests |
+| Apps that use the wallet: a declared `<meta name="aiwa-wallet">`, a banner, a door (who I am, pay, receive, show or scan a code); the **click duel** between two phones (WebRTC linked by two codes, a price per click, 20 s, the one who clicked less pays, no signature per click) | done and tested between two pages of one Chromium, against a stand-in Solana. **Not** between real phones. Left for later, on purpose: nobody is stopped from lying about their count, no escrow, no cap, no search for players nearby |
 | The business model, with its real numbers | [docs/BUSINESS.md](docs/BUSINESS.md) |
 
 ## Not verified
@@ -48,6 +49,10 @@ A fixed share of the burn is sent to a creator address that is a constant of the
 Tests pass in CI; documentation says exactly what was and was not verified; no claim without a check.
 
 ## Known risks
+
+- **The Android app grants no camera to the page yet.** Scanning a code (the wallet's *Scan QR*, and the duel's pairing) does not work in the APK as built: the codes are copied and pasted. It needs the camera permission in `StoreActivity` and a QR decoder that runs in a WebView (`BarcodeDetector` is not there on every device).
+
+- **An app that declares the wallet can spend it.** The door has no cap, no expiry and asks nothing; the Store only shows a banner. Kept apart from the sandbox on purpose, to be decided later.
 
 - Everything involving real Solana has only been played against a stand-in. The first real run is a prerequisite for any claim.
 - A permissionless store attracts abuse: sandbox by design, plus listing rules and reporting.

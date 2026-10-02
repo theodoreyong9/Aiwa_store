@@ -16,9 +16,10 @@ The real screens at phone size. The apps and the Solana network are demo stand-i
 
 ## What you do with it
 
-- **Open apps.** Each one is signed by its author and checked before it opens. It runs in a sealed box: it cannot touch your wallet.
+- **Open apps.** Each one is signed by its author and checked before it opens. It runs in a sealed box: it cannot touch your wallet, unless it says it uses it, and then the Store shows a banner.
 - **Earn AIWA.** Burn a little SOL once (send it to an address nobody controls). Then your phone computes while the app is open, and what you
   can claim grows with time.
+- **Play.** [Click duel](docs/demo-apps/click-duel.html), an app that uses the wallet: two phones side by side, a price per click, 20 seconds of clicking. Whoever clicked less pays what they clicked, in AIWA, with nothing to sign per click.
 - **Publish an app.** Dictate it to Claude Code with the widget, press ▦, read it, press **Publish**. The Store signs it with your wallet and
   opens the pull request for you. No form, no file to carry.
 
@@ -102,10 +103,11 @@ These are settings and accounts. Until they are done, the matching workflow is *
 | Tested in CI | Not verified |
 |---|---|
 | The protocol: identity, signed events, proofs of work, accrual, claims, double spend (421 tests, with a cross-check against an independent Rust implementation) | A real burn on Solana |
-| The wallet, the creator's share, backup and restore (99 + 85 tests) | The Android app on a real phone: keystore, GitHub sign-in, Android's backup, the widget (it is compiled in CI, never run) |
+| The wallet, the creator's share, backup and restore (100 + 85 tests) | The Android app on a real phone: keystore, GitHub sign-in, Android's backup, the widget (it is compiled in CI, never run) |
 | The registry: signatures, proofs, burns, ranking (17 tests) | A real pull request through the registry workflow |
-| The web app in a real Chromium: ranking, sandbox, tampering, offline, restore, burn, publishing of both kinds (35 tests) | The legal status of the creator's share |
+| The web app in a real Chromium: ranking, sandbox, tampering, offline, restore, burn, publishing of both kinds, an app using the wallet, a click duel between two pages (37 tests) | The legal status of the creator's share |
 | The whole path against a stand-in Solana (`devnet-check --fake`) | The economic parameters in the field |
+| | The click duel between two real phones. Today the APK gives the page no camera, so codes are pasted, not scanned |
 
 [docs/PLAN.md](docs/PLAN.md) has the full list.
 

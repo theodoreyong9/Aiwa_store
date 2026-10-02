@@ -41,6 +41,7 @@ before(async () => {
   deployment.rpc = 'http://127.0.0.1:1';
   deployment.progress = { intervalMs: 150 };
   deployment.github = { clientId: 'test-client' };
+  deployment.nearby = { iceServers: [] };                // two phones in the same room need no outside help
   deployment.rewardParams = { ...deployment.rewardParams, epochIterations: 150 };
   deployment.creatorFee = { address: CREATOR, rateOfT: 0.001 };
   mkdirSync(tmp, { recursive: true });
@@ -96,7 +97,8 @@ before(async () => {
   await new Promise((r) => server.once('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
 
-  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+  // WebRTC between two pages of one browser (the click duel): real addresses, not mDNS names, and loopback allowed
+  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--disable-features=WebRtcHideLocalIpsWithMdns', '--allow-loopback-in-peer-connection'] });
 });
 
 after(async () => { await browser?.close(); server?.close(); });
@@ -111,37 +113,46 @@ async function openPage(extra = async () => {}) {
   return { page, errors, context };
 }
 
-// A Solana that decodes the transaction the wallet built, as aiwa-lib's own tests do; it lives in the page.
-const injectSolana = (page) => page.addInitScript(() => {
-  const transactions = {};
-  let count = 0;
-  window.__aiwaTest = {
-    connection: {
-      transactions,
-      getLatestBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 1 }),
-      sendRawTransaction: async (raw) => {
-        const w3 = window.solanaWeb3;
-        const tx = w3.Transaction.from(raw);
-        const keys = [tx.feePayer.toBase58()];
-        const transfers = tx.instructions.map((ix) => {
-          const d = w3.SystemInstruction.decodeTransfer(ix);
-          return { from: d.fromPubkey.toBase58(), to: d.toPubkey.toBase58(), lamports: Number(d.lamports) };
-        });
-        for (const t of transfers) for (const k of [t.from, t.to]) if (!keys.includes(k)) keys.push(k);
-        const pre = keys.map((_, i) => (i === 0 ? 50e9 : 0));
-        const post = [...pre];
-        for (const t of transfers) { post[keys.indexOf(t.from)] -= t.lamports; post[keys.indexOf(t.to)] += t.lamports; }
-        post[0] -= 5000;
-        const signature = `browsersig${++count}`;
-        transactions[signature] = { slot: 10, transaction: { message: { accountKeys: keys } }, meta: { err: null, fee: 5000, preBalances: pre, postBalances: post } };
-        return signature;
+// A Solana that decodes the transaction the wallet built, as aiwa-lib's own tests do. It lives in the page, unless a `chain` is
+// given: then the transactions are kept in the test, so that two pages (two phones) see each other's burns, as on one network.
+const injectSolana = async (page, chain = null) => {
+  if (chain) {
+    await page.exposeFunction('__chainPut', (signature, tx) => { chain.set(signature, tx); });
+    await page.exposeFunction('__chainGet', (signature) => chain.get(signature) ?? null);
+  }
+  await page.addInitScript((shared) => {
+    const transactions = {};
+    let count = 0;
+    const put = async (signature, tx) => { if (shared) await window.__chainPut(signature, tx); else transactions[signature] = tx; };
+    const get = async (signature) => (shared ? window.__chainGet(signature) : (transactions[signature] ?? null));
+    window.__aiwaTest = {
+      connection: {
+        transactions,
+        getLatestBlockhash: async () => ({ blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 1 }),
+        sendRawTransaction: async (raw) => {
+          const w3 = window.solanaWeb3;
+          const tx = w3.Transaction.from(raw);
+          const keys = [tx.feePayer.toBase58()];
+          const transfers = tx.instructions.map((ix) => {
+            const d = w3.SystemInstruction.decodeTransfer(ix);
+            return { from: d.fromPubkey.toBase58(), to: d.toPubkey.toBase58(), lamports: Number(d.lamports) };
+          });
+          for (const t of transfers) for (const k of [t.from, t.to]) if (!keys.includes(k)) keys.push(k);
+          const pre = keys.map((_, i) => (i === 0 ? 50e9 : 0));
+          const post = [...pre];
+          for (const t of transfers) { post[keys.indexOf(t.from)] -= t.lamports; post[keys.indexOf(t.to)] += t.lamports; }
+          post[0] -= 5000;
+          const signature = `browsersig${Math.random().toString(36).slice(2, 8)}${++count}`;
+          await put(signature, { slot: 10, transaction: { message: { accountKeys: keys } }, meta: { err: null, fee: 5000, preBalances: pre, postBalances: post } });
+          return signature;
+        },
+        confirmTransaction: async () => ({}),
+        getTransaction: get,
+        getBalance: async () => 50e9,
       },
-      confirmTransaction: async () => ({}),
-      getTransaction: async (signature) => transactions[signature] ?? null,
-      getBalance: async () => 50e9,
-    },
-  };
-});
+    };
+  }, !!chain);
+};
 
 test('the store lists the apps ranked by score / laps, and search narrows the list', async () => {
   const { page, errors, context } = await openPage();
@@ -269,14 +280,15 @@ const pack = (text) => deflateRawSync(Buffer.from(text, 'utf8')).toString('base6
 const handoff = (page, kind, name, text) => page.evaluate((hash) => { location.hash = hash; }, `#publish=${kind};${name};${pack(text)}`);
 
 /** A wallet that burned and mined in the page, ready to publish. */
-async function mineInPage(page, { epoch = 3 } = {}) {
+async function mineInPage(page, { epoch = 3, timeout = 40000 } = {}) {
   await page.click('#app-nav [data-view="wallet"]');
   await page.click('#btn-create');
   await page.waitForSelector('#wallet-section:not([hidden])');
   await page.fill('#burn-amount', '1');
   await page.click('#btn-burn');
   await page.waitForFunction(() => /Burned and committed/.test(document.getElementById('burn-result').textContent));
-  await page.waitForFunction((n) => new RegExp(`epoch ${n}|epoch [${n}-9]`).test(document.getElementById('out-mining').textContent), epoch, { timeout: 40000 });
+  await page.waitForFunction((n) => new RegExp(`epoch ${n}|epoch [${n}-9]`).test(document.getElementById('out-mining').textContent), epoch, { timeout })
+    .catch(async (error) => { throw new Error(`the wallet did not reach epoch ${epoch}; it shows: ${await page.locator('#out-mining').textContent()}`, { cause: error }); });
 }
 
 /** What the registry says about the submission a pull request carried. */
@@ -623,4 +635,136 @@ test('an app that uses the Aiwa SDK runs in the sandbox: it imports the module b
   await frame.locator('#tally').filter({ hasText: 'Yes 1 · No 1' }).waitFor();
   assert.deepEqual(errors, []);
   await context.close();
+});
+
+// ---------- an app that uses the wallet ----------
+
+/** A wallet that mined and claimed in the page: it has something to spend. */
+async function fundInPage(page, { epoch = 4 } = {}) {
+  await mineInPage(page, { epoch, timeout: 120000 });
+  await page.click('#btn-claim');
+  await page.waitForFunction(() => Number(document.getElementById('out-spendable').textContent) > 0, null, { timeout: 30000 });
+}
+
+/** Opens an app in the viewer the way the publish sheet's "Try it" does, and returns its frame. */
+async function tryApp(page, name, html) {
+  await handoff(page, 'code', name, html);
+  await page.waitForSelector('#sheet:not([hidden])');
+  await page.click('#sheet-try');
+  await page.locator('#viewer iframe').waitFor();
+  return page.frameLocator('#viewer iframe');
+}
+
+async function until(read, { ms = 15000, every = 100, what = 'something' } = {}) {
+  const end = Date.now() + ms;
+  for (;;) {
+    try { const value = await read(); if (value) return value; } catch { /* not there yet */ }
+    if (Date.now() > end) throw new Error(`timed out waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, every));
+  }
+}
+
+const doorProbe = (declared, script) => `<!doctype html><html><head><meta charset="utf-8">${declared ? '<meta name="aiwa-wallet" content="pay">' : ''}<title>Probe</title></head><body><p id="r">…</p><script>
+  let n = 0; const wait = new Map();
+  addEventListener('message', (e) => { const m = e.data; if (m && m.aiwa === 1 && wait.has(m.id)) { wait.get(m.id)(m); wait.delete(m.id); } });
+  const door = (cmd, args = {}) => new Promise((resolve) => { const id = ++n; wait.set(id, resolve); parent.postMessage({ aiwa: 1, id, cmd, args }, '*'); });
+  const out = (v) => { document.getElementById('r').textContent = typeof v === 'string' ? v : JSON.stringify(v); };
+  setTimeout(() => { if (document.getElementById('r').textContent === '…') out('no answer'); }, 2500);
+  (async () => { ${script} })();
+</script></body></html>`;
+
+test('an app that says it uses the wallet gets a banner and a door; one that does not gets neither', async () => {
+  const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  await fundInPage(page);
+  const identity = await page.locator('#out-identity-id').getAttribute('data-full');
+  const before = Number(await page.locator('#out-spendable').textContent());
+  const stranger = 'ab'.repeat(32);
+
+  // it does not say so: no banner, and the door does not answer
+  let frame = await tryApp(page, 'Quiet', doorProbe(false, "out(await door('whoami'));"));
+  assert.equal(await page.locator('#viewer-flag').isHidden(), true);
+  assert.equal(await until(() => frame.locator('#r').textContent().then((t) => t !== '…' && t), { what: 'the quiet app to give up' }), 'no answer');
+  await page.click('#viewer-close');
+  await page.click('#sheet-close').catch(() => {});
+
+  // it says so: the banner, and the door answers: who the player is, a payment, a refusal
+  frame = await tryApp(page, 'Loud', doorProbe(true, `
+    const who = await door('whoami');
+    const paid = await door('pay', { to: '${stranger}', amount: '0.0001' });
+    const again = await door('pay', { to: '${stranger}', amount: '0.0001' });
+    const bad = await door('pay', { to: 'nobody', amount: '1' });
+    const unknown = await door('format-the-phone');
+    out({ who, paid: !!(paid.result && paid.result.blob), paidError: paid.error, again: !!(again.result && again.result.blob), againError: again.error, bad: bad.error, unknown: unknown.error });`));
+  assert.equal(await page.locator('#viewer-flag').isVisible(), true);
+  assert.match(await page.locator('#viewer-flag').textContent(), /uses your wallet/);
+  const seen = JSON.parse(await until(() => frame.locator('#r').textContent().then((t) => t.startsWith('{') && t), { what: 'the door to answer' }));
+  assert.equal(seen.who.result.id, identity);
+  assert.equal(seen.paid, true, `a payment came back as a code (${seen.paidError}; spendable ${before})`);
+  assert.equal(seen.again, true, `and a second one, through the same channel (${seen.againError})`);
+  assert.match(seen.bad, /identity id/);
+  assert.match(seen.unknown, /unknown command/);
+  await page.click('#viewer-close');
+  assert.equal(await page.locator('#viewer-flag').isHidden(), true);
+  await until(async () => Math.abs(Number(await page.locator('#out-spendable').textContent()) - (before - 0.0002)) < 1e-9, { what: `the wallet to show what the app paid (${before} - 0.0002)` });
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('click duel: two phones link by two codes, click for 20 seconds, and the one who clicked less pays what they clicked', { timeout: 180000 }, async () => {
+  const duel = readFileSync(join(root, 'docs/demo-apps/click-duel.html'), 'utf8');
+  const chain = new Map();                                // one Solana for both phones
+  const A = await openPage(async (p) => { await injectSolana(p, chain); await injectHost(p); });
+  const B = await openPage(async (p) => { await injectSolana(p, chain); await injectHost(p); });
+  await fundInPage(A.page);
+  await fundInPage(B.page);
+  const spendable = async (page) => Number(await page.locator('#out-spendable').textContent());
+  const [a0, b0] = [await spendable(A.page), await spendable(B.page)];
+  const RATE = 0.00002;
+
+  const a = await tryApp(A.page, 'Duel', duel);
+  const b = await tryApp(B.page, 'Duel', duel);
+  assert.equal(await A.page.locator('#viewer-flag').isVisible(), true, 'the Store says the duel uses the wallet');
+
+  // A challenges: a code on A's screen; B scans it (here: pastes it) and shows an answer; A scans that
+  await a.locator('#rate').fill(String(RATE));
+  await a.locator('#challenge').click();
+  await A.page.waitForSelector('#door-show:not([hidden])');
+  const offer = await A.page.inputValue('#door-text');
+  assert.match(offer, /^duel1\./);
+  await b.locator('#join').click();
+  await B.page.waitForSelector('#door-scan:not([hidden])');
+  await B.page.fill('#door-paste', offer);
+  await B.page.click('#door-use');
+  await B.page.waitForFunction(() => !document.getElementById('door-show').hidden && document.getElementById('door-text').value.startsWith('duel1.'));
+  const answer = await B.page.inputValue('#door-text');
+  await A.page.click('#door-next');
+  await A.page.waitForSelector('#door-scan:not([hidden])');
+  await A.page.fill('#door-paste', answer);
+  await A.page.click('#door-use');
+
+  // linked: B is told the price of a click and accepts
+  await b.locator('#accept').waitFor({ state: 'visible', timeout: 40000 });
+  assert.match(await b.locator('#status').textContent(), /0\.00002 AIWA/);
+  await b.locator('#accept').click();
+
+  // 20 seconds: A clicks 12 times, B clicks 5 times
+  await until(async () => (await a.locator('#disc').isEnabled()) && (await b.locator('#disc').isEnabled()), { ms: 15000, what: 'the countdown to end' });
+  for (let i = 0; i < 12; i++) { await a.locator('#disc').click(); if (i < 5) await b.locator('#disc').click(); }
+  assert.equal(await a.locator('#mine').textContent(), '12');
+  await until(async () => (await b.locator('#theirs').textContent()) === '12', { ms: 5000, what: 'B to see A\'s clicks' });   // B sees A's clicks live
+
+  for (const [name, frame] of [['A', a], ['B', b]]) {
+    await frame.locator('#end').waitFor({ state: 'visible', timeout: 60000 }).catch(async (error) => {
+      throw new Error(`${name} never reached the end of the duel. It shows: ${(await frame.locator('body').innerText()).replace(/\s+/g, ' ')}`, { cause: error });
+    });
+  }
+  assert.match(await a.locator('#result').textContent(), /You won 0\.0001 AIWA/);
+  assert.match(await b.locator('#result').textContent(), /You lost 0\.0001 AIWA/);
+
+  // and the wallets agree
+  const cost = 5 * RATE;
+  assert.ok(Math.abs((await until(async () => { const v = await spendable(A.page); return v > a0 && v; }, { what: 'A\'s wallet to show the payment' })) - (a0 + cost)) < 1e-9, 'the winner received what the loser clicked');
+  assert.ok(Math.abs((await spendable(B.page)) - (b0 - cost)) < 1e-9, 'and the loser paid it');
+  await A.context.close();
+  await B.context.close();
 });

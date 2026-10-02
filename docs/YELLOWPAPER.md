@@ -1214,6 +1214,11 @@ security code: the frame gets an opaque origin with no access to the parent page
 by the browser. A malicious application's JavaScript can run; it cannot reach the wallet that opened it, and the isolation does not
 depend on its author behaving.
 
+**The one exception: the door.** An application that says it uses the wallet (`<meta name="aiwa-wallet" content="pay">`) is given a
+narrow way out: it posts requests to the page, which answers them (§18.8). The frame is otherwise the same: no storage, no DOM
+access, no secret. The Store signals the declaration with a banner and does nothing more. The door has no cap and no expiry, so a
+hostile application that declares the wallet can spend it. That is a known gap, kept apart from the isolation, which is unchanged.
+
 *Does not guarantee.* That the application cannot use the network (it can), or that it is not malicious towards its own user (it
 is not reviewed). Storage inside a fully opaque origin is unreliable: an application cannot count on `IndexedDB` persisting
 across sessions; an in-memory event log is the safe default for its internal state.
@@ -1341,7 +1346,7 @@ sequenceDiagram
     R->>R: assemble: scripts and styles put inside index.html
   end
   R->>FR: ‹iframe sandbox="allow-scripts"› with the verified HTML
-  Note over FR: opaque origin: no wallet, no page storage, no AiwaHost
+  Note over FR: opaque origin: no page storage, no AiwaHost, and no wallet unless it declares it (§18.8)
 ```
 
 A host that serves another file than the one signed is refused. A cached package is never stale (it is content-addressed) and is
@@ -1371,7 +1376,7 @@ flowchart TB
   PGE --> SV
   PGE --> DM
   PGE -- "srcdoc, nothing else" --> APP
-  APP -. "no channel" .-x PGE
+  APP -. "only if it declares the wallet:<br/>messages the page answers (§18.8)" .-> PGE
 ```
 
 The request/response protocol is `{id, command}` → `{id, result}`, `{id, error}` or `{id, progress}`. Android's automatic backup
@@ -1380,9 +1385,58 @@ carries the WebView's storage (the wallet's journal) to a new phone; the secrets
 
 ### 18.7 What the store does not solve
 
-Nothing is reviewed. An app can use the network (it cannot reach the wallet). The ranking favours capital and time, not quality. The
+Nothing is reviewed. An app can use the network. It reaches the wallet only through the door and only if it declares it (§18.8), with a banner as the only protection. The ranking favours capital and time, not quality. The
 figure is a snapshot the author chooses to refresh, so a submission can leave out a burn made after the last epoch shown (§12.4).
 Nothing says two authors are two people: the cost of publishing is the mining an author has to show, not an identity.
+
+
+### 18.8 An app that uses the wallet: the door, and the click duel
+
+**The door.** An app that declares `<meta name="aiwa-wallet" content="pay">` gets a banner ("This app uses your wallet: it can move
+your AIWA") and a channel to the page: it posts `{aiwa: 1, id, cmd, args}`, the page answers `{aiwa: 1, id, result | error}` to that
+frame only. An app that does not declare it is not answered.
+
+| Command | Answer |
+|---|---|
+| `whoami` | the player's identity id, address, balance and spendable balance |
+| `pay { to, amount }` | a payment of `amount` AIWA to the identity `to`, as an offline bundle (§13.6) signed by a **channel session key**: the first payment to a peer signs one delegation with the wallet's key (§7.5), every later one does not use it |
+| `receive { blob }` | appends a payment received, confirms the burns it depends on against Solana (§9.2), returns the balance |
+| `showCode { text, title, action }` · `hideCode` | a code on screen (QR and text); with `action`, it answers when that button is pressed |
+| `scanCode { title }` | a code read by the camera, or pasted |
+| `config` | how to reach a phone nearby (the deployment's STUN servers) |
+
+The door asks nothing of the player and has no cap or expiry: that is the gap named in §17.2.
+
+**The click duel** (`docs/demo-apps/click-duel.html`) is an app that uses it. Two phones side by side, a price per click, 20 seconds.
+Nobody signs anything per click: clicks are counted, and at the end the one who clicked **less** pays what they clicked, once.
+
+```mermaid
+sequenceDiagram
+  participant A as Phone A (challenger)
+  participant B as Phone B
+  A->>A: price per click R, a WebRTC offer
+  A->>B: code 1 (QR or text): the offer
+  B->>A: code 2 (QR or text): the answer
+  Note over A,B: a direct link, no server between the phones
+  A->>B: hello { id, R }
+  B->>A: accept { id }
+  Note over A,B: 3, 2, 1, then 20 seconds: each phone counts its own clicks and shows the other's live
+  A->>B: final { clicks }
+  B->>A: final { clicks }
+  Note over A,B: say B clicked less: B owes (B's clicks × R)
+  B->>B: door pay: a delegated transfer, signed by the session key
+  B->>A: payment { offline bundle }
+  A->>A: door receive: append, confirm B's burn on Solana, balance up
+```
+
+*What it shows.* "Sign once, click many": the player is asked for no signature at all. The wallet signs one delegation the first
+time, and the session key signs the payment. The receiver checks the origin of the claim itself (§9.2), so the winner needs no trust
+in the loser's phone about the money, only about the **count**.
+
+*What it does not do.* Each phone reports its own count: a modified app can lie, and the live view only lets the other side notice.
+There is no escrow: the loser can spend the claim elsewhere before the payment is applied (§13.5). The amount a player can lose
+is not capped by anything but their balance. Both are left for later, on purpose: the first demonstrations are between people in
+the same room. Finding players nearby (geolocation) is not built. Not tried on real phones: the link between two phones, and the camera scan, which the Android shell does not allow yet (codes are pasted).
 
 ---
 
@@ -1531,7 +1585,7 @@ else only while a copy of its events is reachable, such as a hosted export.
 | An action is left out of a history | the mining events are one signed chain (§6.5) | an action after the last epoch shown and followed by none |
 | A second history is shown | the chain makes it cost the work again; witnesses force it to contain what others hold (§12.4) | no witness, no protection beyond the work |
 | A host swaps an app's file | the package hash and the author's signature are checked before it opens (§18.5) | — |
-| An app is hostile | sandbox with an opaque origin: no wallet, no page storage (§17.2) | it can use the network; it is not reviewed |
+| An app is hostile | sandbox with an opaque origin: no page storage, no secret; no wallet unless it declares it (§17.2) | it can use the network; it is not reviewed; **an app that declares the wallet can spend it**, and only a banner says so (§18.8) |
 | A pull request runs attacker code in the registry | the workflow runs `main`'s code and reads the file as data, never executes it (§18.2) | — |
 | An old signed package is replayed to the registry | signatures older than 24 h are refused (§18.3) | — |
 | A device is lost | a backup signed by the key, a registry baseline, Android's backup, peers (§15) | no backup, no node, no peer: the journal is lost |
@@ -1642,6 +1696,7 @@ Files of the registry: `store/index.json`, `store/apps/<id>/<version>.json`, `st
 | Offline bundle | `btoa(encodeURIComponent(JSON.stringify(bundle)))`: text for a QR code, NFC, Bluetooth or a paste |
 | Replicator | `HELLO { heads }`, `HELLO_ACK { heads }`, `EVENTS { chunk }`, `ACK` (JSON, UTF-8) |
 | Publish hand-off | `#publish=<kind>;<name>;<file raw-deflated, base64url>` (`<kind>`: `code` or `aiwa`; `<name>` without spaces) |
+| App door | request `{ aiwa: 1, id, cmd, args }` → `{ aiwa: 1, id, result }` or `{ aiwa: 1, id, error }` between the page and the frame of an app that declares `<meta name="aiwa-wallet">`; commands in §18.8 |
 | Host channel | request `{ id, command, … }` → `{ id, result }` / `{ id, error }` / `{ id, progress }`; commands `secret-get`, `secret-set`, `secret-delete`, `github-login`, `save`, `dictation` |
 | Channel session key | `HMAC-SHA256(rootSecret, "aiwa-lib-channel-session-v1:" ‖ peerId)` |
 
@@ -1702,7 +1757,7 @@ Where each concept lives:
 | Recovery | §15 | `solana-wallet.js` (`generateBip39Mnemonic`); `lib/src/backup.js`; `platform/src/archive.js`, `archive-server.js`, `node/aiwa-node.js`; `apps/web/src/wallet.js`, `keys.js`; `android/.../SecretStore.kt` |
 | Contracts | §16 | `wallet.js` (`contractVerifiers`, `contract-payout`), `contract-registry.js`; `lib/src/contract.js` |
 | Bundles | §17 | `platform/src/bundle.js`, `serve-worker.js` |
-| The store | §18 | `registry/src/` (`app-package.js`, `bundle.js`, `validate.js`, `rank.js`, `store-files.js`), `.github/workflows/registry.yml`; `apps/web/src/` (`store.js`, `viewer.js`, `assemble.js`, `publish.js`, `github.js`, `host.js`) |
+| The store | §18 | `registry/src/` (`app-package.js`, `bundle.js`, `validate.js`, `rank.js`, `store-files.js`), `.github/workflows/registry.yml`; `apps/web/src/` (`store.js`, `viewer.js`, `app-door.js`, `qr.js`, `assemble.js`, `publish.js`, `github.js`, `host.js`) |
 | The shell | §18.6 | `android/app/`, `android/bridge/`, `android/backend/` |
 | Causal Tick, hardware roots, relative rate, triangulation | §19 | `causal-tick.js`, `weighted-median.js`, `hardware-attestation.js`, `relative-rate.js`, `triangulation.js`, `position.js` |
 | Cross-runtime check | App. D | `core/interop/rust-vdf/`, `core/test/rust-interop.test.mjs` |
@@ -1719,9 +1774,9 @@ without a Rust toolchain. It cross-checks the fundamentals; it is not a second i
 ## Appendix D. Verification status
 
 **What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 85 in `aiwa-platform`,
-99 in `aiwa-lib`, 17 in `aiwa-registry`, 35 in `aiwa-store-web` (18 of them drive the app in Chromium: ranking, the sandbox refusing
+100 in `aiwa-lib`, 17 in `aiwa-registry`, 37 in `aiwa-store-web` (20 of them drive the app in Chromium: ranking, the sandbox refusing
 `parent.document`, a tampering host, offline use, the wallet starting and restoring by itself, the burn with its fee, publishing both
-kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK),
+kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK, an app using the wallet through the door, and a click duel between two pages that pays the winner),
 73 for the dictation backend. `node scripts/devnet-check.mjs --fake` plays the whole path (burn, record, mine, evidence, registry) against
 a stand-in Solana that decodes the real transaction the wallet builds, 11 checks; it also runs in CI. Every part is testable on its own,
 none needs a hosted server.
@@ -1736,4 +1791,5 @@ none needs a hosted server.
   widget. The Kotlin that is not plain JVM is compiled in CI only.
 - No pull request opened by the Store's sheet on GitHub, end to end; the registry workflow has not run on GitHub with a real pull request;
   the site needs GitHub Pages enabled to be served.
+- The click duel (§18.8) between two real phones: the camera scan (the Android shell grants no camera to the WebView yet, so codes are pasted) and the WebRTC link between two phones. It is tested between two pages of one Chromium.
 - Economic parameters are not validated in the field; no prior-art search; the creator fee and the store have not had a legal review.

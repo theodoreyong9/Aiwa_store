@@ -70,11 +70,13 @@ export class Ledger {
     this.domainId = null;
     // Optional (current, total) => void, called while a potentially large backlog is folded.
     this.onProgress = null;
+    this._reading = null;
     this.reset();
   }
 
   /** Forget the folded state: the next state() folds again from the last checkpoint. */
   reset() {
+    this._generation = (this._generation ?? 0) + 1;       // a fold that began before this must not leave its result behind
     this._folded = null;
     this._foldedHeads = null;
     // Everything already folded, by id, not just the last heads: a progression event may cite its domain's last
@@ -88,22 +90,41 @@ export class Ledger {
     this.reset();
   }
 
-  /** The wallet state of everything in the log: the cache, plus what was appended since. */
-  async state() {
+  /**
+   * The wallet state of everything in the log: the cache, plus what was appended since. Several things read it at once (the
+   * screen, the mining loop, an app) while others append, so reads go one at a time, and a fold that was overtaken by a reset
+   * (a burn confirmed meanwhile) is done again rather than kept: a stale cache would make every later fold wrong, for good.
+   */
+  state() {
+    const run = (this._reading ?? Promise.resolve()).then(() => this._latest());
+    this._reading = run.catch(() => {});
+    return run;
+  }
+
+  async _latest() {
+    for (;;) {
+      const generation = this._generation;
+      const state = await this._fold(generation);
+      if (generation === this._generation) return state;
+    }
+  }
+
+  async _fold(generation) {
     const heads = await this.log.head();
     if (this._foldedHeads && sameHeadSet(this._foldedHeads, heads)) return this._folded;
 
     let base = this._folded;
+    let covered = this._covered;
     if (!base) {
       const domain = this.domainId;
       const checkpoint = domain ? await findLatestCheckpoint(this.log, domain) : null;
       if (checkpoint) {
         base = checkpointWalletState(checkpoint);
-        this._covered = new Set(checkpoint.payload.coveredHeads);
+        covered = new Set(checkpoint.payload.coveredHeads);
       }
     }
 
-    const newEvents = await collectAncestors(this.log, heads, { excludeIds: this._covered });
+    const newEvents = await collectAncestors(this.log, heads, { excludeIds: covered });
     // The fold order is canonical (the same for every reader holding the same events), so that a conflict between two
     // branches has the same winner everywhere. Folding new events on top of the folded state equals folding everything
     // in that order only when they all come after it, i.e. descend from everything folded. One that does not (a
@@ -111,15 +132,18 @@ export class Ledger {
     // Rare, and bounded by the checkpoint; a wallet's own events, each citing every head, stay incremental.
     if (this._folded && !descendsFromAll(newEvents, this._foldedHeads)) {
       this.reset();
-      return this.state();
+      return this._fold(this._generation);
     }
     // The wire events, not adapted ones: a checkpoint's signature needs the event's `author`.
     const state = await materializeWalletFromWireEvents(
       this.rewardParams, newEvents, this.onProgress, undefined, {}, withConfirmedBurns(base ?? initialWalletState(), this.burnRecords),
     );
-    for (const event of newEvents) this._covered.add(event.id);
-    this._folded = state;
-    this._foldedHeads = heads;
+    if (generation === this._generation) {          // kept only if nothing dropped the cache while this fold ran
+      for (const event of newEvents) covered.add(event.id);
+      this._covered = covered;
+      this._folded = state;
+      this._foldedHeads = heads;
+    }
     return state;
   }
 

@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="aiwa-wallet" content="pay">
+<title>Click duel</title>
+<meta name="description" content="Two phones side by side. Click the disc for 20 seconds: whoever clicked less pays what they clicked, in AIWA.">
+<!--
+  CLICK DUEL, an app that uses the wallet (the meta above says so: the Store shows a banner when it opens).
+  - The link between the two phones is WebRTC, set up by two codes (a QR code or text): no server, nothing between the phones.
+  - Nobody signs anything per click. Clicks are only counted. At the end the one who clicked less pays what they clicked, once,
+    through the wallet's door (`pay`): the first payment to a peer signs a delegation, the payment itself is signed by a session key.
+  - It trusts the other phone to count honestly. A phone that cheats is not stopped here (see docs/PLAN.md).
+-->
+<style>
+  :root { --accent: #7c5cff; --accent-2: #22c7b8; --ink: #1d1b26; --soft: #f3f1fb; --danger: #d93a63; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body { margin: 0; padding: 18px 18px 24px; font: 16px/1.4 system-ui, sans-serif; color: var(--ink); background: #fff; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; }
+  header { display: flex; align-items: baseline; justify-content: space-between; }
+  h1 { font-size: 22px; margin: 0; }
+  #balance { font-size: 13px; color: #6b677a; }
+  main { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  section[hidden] { display: none; }
+  label { display: block; font-size: 13px; color: #6b677a; }
+  input { width: 100%; margin-top: 6px; font: 600 24px system-ui; padding: 10px 14px; border: 2px solid var(--soft); border-radius: 12px; background: var(--soft); color: var(--ink); }
+  button.big { width: 100%; font: 700 18px system-ui; padding: 16px; border: 0; border-radius: 16px; background: var(--ink); color: #fff; margin-top: 10px; }
+  button.big.accent { background: var(--accent); }
+  button.big.quiet { background: var(--soft); color: var(--ink); }
+  .note { font-size: 13px; color: #6b677a; margin: 6px 0 0; }
+  #status { text-align: center; font-size: 17px; min-height: 48px; }
+  #status b { font-size: 22px; }
+  #clock { text-align: center; font: 700 38px system-ui; font-variant-numeric: tabular-nums; }
+  #disc { width: min(66vw, 300px); aspect-ratio: 1; margin: 0 auto; border: 0; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 800 64px system-ui; background: radial-gradient(circle at 35% 30%, #a99bff, var(--accent) 55%, var(--accent-2) 130%); box-shadow: 0 14px 40px rgba(124, 92, 255, .35), inset 0 0 0 10px rgba(255, 255, 255, .22); touch-action: manipulation; transition: transform .06s, opacity .2s; }
+  #disc:active { transform: scale(.96); }
+  #disc[disabled] { opacity: .35; }
+  .score { display: flex; justify-content: space-between; font-size: 15px; color: #6b677a; }
+  .score b { color: var(--ink); font-size: 20px; }
+  .bar { height: 10px; border-radius: 6px; background: var(--soft); overflow: hidden; display: flex; }
+  .bar i { display: block; height: 100%; background: var(--accent); transition: width .15s; }
+  .bar i + i { background: var(--accent-2); }
+  #result { text-align: center; font-size: 17px; }
+  #result b { display: block; font-size: 30px; margin: 6px 0; }
+  .lose b { color: var(--danger); }
+  .win b { color: #16a37a; }
+  #error { color: var(--danger); font-size: 14px; text-align: center; min-height: 20px; }
+</style>
+</head>
+<body>
+<header><h1>Click duel</h1><span id="balance"></span></header>
+<main>
+  <section id="lobby">
+    <label for="rate">AIWA per click</label>
+    <input id="rate" value="0.001" inputmode="decimal" autocomplete="off">
+    <button id="challenge" class="big accent">Challenge someone</button>
+    <button id="join" class="big">Join a challenge</button>
+    <p class="note">Phones side by side. You click for 20 seconds; whoever clicked less pays what they clicked. Nobody signs anything per click.</p>
+  </section>
+
+  <section id="arena" hidden>
+    <div id="status"></div>
+    <button id="accept" class="big accent" hidden>Accept</button>
+    <div id="clock" hidden></div>
+    <button id="disc" disabled><span id="mine">0</span></button>
+    <div class="score"><span>You <b id="mine2">0</b></span><span><b id="theirs">0</b> Them</span></div>
+    <div class="bar"><i id="bar-mine" style="width:50%"></i><i id="bar-theirs" style="width:50%"></i></div>
+  </section>
+
+  <section id="end" hidden>
+    <div id="result"></div>
+    <button id="again" class="big">New duel</button>
+  </section>
+  <div id="error"></div>
+</main>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const RACE_MS = 20000;
+
+// ---------- the door to the Store's wallet ----------
+let counter = 0;
+const pending = new Map();
+addEventListener('message', (event) => {
+  const m = event.data;
+  if (event.source !== parent || !m || m.aiwa !== 1) return;
+  const wait = pending.get(m.id);
+  if (!wait) return;
+  pending.delete(m.id);
+  if (m.error) wait.reject(new Error(m.error)); else wait.resolve(m.result);
+});
+const door = (cmd, args = {}) => new Promise((resolve, reject) => {
+  const id = ++counter;
+  pending.set(id, { resolve, reject });
+  parent.postMessage({ aiwa: 1, id, cmd, args }, '*');
+});
+
+// ---------- codes: a WebRTC description, squeezed into something a QR code can hold ----------
+const toB64 = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const fromB64 = (text) => Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+async function through(stream, bytes) {
+  const writer = stream.writable.getWriter();
+  writer.write(bytes); writer.close();
+  return new Uint8Array(await new Response(stream.readable).arrayBuffer());
+}
+const pack = async (description) => 'duel1.' + toB64(await through(new CompressionStream('deflate-raw'), new TextEncoder().encode(JSON.stringify({ type: description.type, sdp: description.sdp }))));
+async function unpack(code, expected) {
+  if (!code.startsWith('duel1.')) throw new Error('this is not a duel code');
+  const description = JSON.parse(new TextDecoder().decode(await through(new DecompressionStream('deflate-raw'), fromB64(code.slice(6).trim()))));
+  if (description.type !== expected) throw new Error(`this is not ${expected === 'offer' ? 'a challenge' : 'an answer'}`);
+  return description;
+}
+
+// ---------- the link between the two phones ----------
+let pc = null, channel = null;
+const partial = new Map();
+
+function gathered(connection) {
+  return new Promise((resolve) => {
+    if (connection.iceGatheringState === 'complete') return resolve();
+    const timer = setTimeout(resolve, 6000);
+    connection.addEventListener('icegatheringstatechange', () => { if (connection.iceGatheringState === 'complete') { clearTimeout(timer); resolve(); } });
+  });
+}
+
+async function send(message) {
+  const text = JSON.stringify(message);
+  const SIZE = 12000;
+  if (text.length <= SIZE) return channel.send(text);
+  const id = Math.random().toString(36).slice(2);
+  const count = Math.ceil(text.length / SIZE);
+  for (let i = 0; i < count; i++) {
+    while (channel.bufferedAmount > 1_000_000) await new Promise((r) => setTimeout(r, 20));
+    channel.send(JSON.stringify({ t: 'chunk', id, i, count, data: text.slice(i * SIZE, (i + 1) * SIZE) }));
+  }
+}
+
+function listen(dataChannel) {
+  channel = dataChannel;
+  channel.onmessage = (event) => {
+    const m = JSON.parse(event.data);
+    if (m.t !== 'chunk') return handle(m);
+    const parts = partial.get(m.id) ?? [];
+    parts[m.i] = m.data;
+    partial.set(m.id, parts);
+    if (parts.filter((p) => p !== undefined).length === m.count) { partial.delete(m.id); handle(JSON.parse(parts.join(''))); }
+  };
+  channel.onclose = () => { if (phase !== 'end' && phase !== 'lobby') fail('The link to the other phone was lost.'); };
+}
+
+const opened = (dataChannel) => new Promise((resolve, reject) => {
+  const timer = setTimeout(() => reject(new Error('The phones did not link up. Same Wi-Fi? Try again.')), 30000);
+  const ok = () => { clearTimeout(timer); resolve(); };
+  if (dataChannel.readyState === 'open') ok(); else dataChannel.onopen = ok;
+});
+
+// ---------- the duel ----------
+let phase = 'lobby';          // lobby, linking, offered, racing, settling, end
+let host = false, rate = '0.001', me = null, other = null;
+let mine = 0, theirs = 0, theirFinal = null, myFinal = null, startedAt = 0, timer = null, settled = false;
+
+const show = (name) => { for (const id of ['lobby', 'arena', 'end']) $(id).hidden = id !== name; };
+const say = (html) => { $('status').innerHTML = html; };
+const fail = (text) => { $('error').textContent = text; if (phase !== 'end') { phase = 'lobby'; closeLink(); show('lobby'); } };
+function closeLink() { try { channel?.close(); pc?.close(); } catch {} pc = channel = null; }
+
+async function refreshBalance() {
+  try { const w = await door('whoami'); me = w.id; $('balance').textContent = `${Number(w.spendable)} AIWA to play with`; return w; } catch (error) { $('balance').textContent = error.message; throw error; }
+}
+
+const AMOUNT = /^\d{1,6}(\.\d{1,9})?$/;
+function costOf(clicks) {                       // clicks × rate, exactly, as a decimal string
+  const [whole, fraction = ''] = rate.split('.');
+  const nano = BigInt(whole) * 1_000_000_000n + BigInt(fraction.padEnd(9, '0'));
+  const total = nano * BigInt(clicks);
+  return `${total / 1_000_000_000n}.${String(total % 1_000_000_000n).padStart(9, '0')}`;
+}
+
+async function newConnection() {
+  const { iceServers } = await door('config');
+  pc = new RTCPeerConnection({ iceServers });
+  return pc;
+}
+
+// the challenger: shows a code, scans the answer
+async function challenge() {
+  $('error').textContent = '';
+  rate = $('rate').value.trim();
+  if (!AMOUNT.test(rate) || Number(rate) <= 0) return fail('The price of a click is a positive number, like 0.001.');
+  try {
+    await refreshBalance();
+    host = true; phase = 'linking';
+    const connection = await newConnection();
+    listen(connection.createDataChannel('duel'));
+    await connection.setLocalDescription(await connection.createOffer());
+    await gathered(connection);
+    show('arena'); say('Linking…');
+    await door('showCode', { text: await pack(connection.localDescription), title: 'Let your opponent scan this', action: 'They scanned it: scan their answer' });
+    const answer = await unpack(await door('scanCode', { title: 'Scan their answer' }), 'answer');
+    await connection.setRemoteDescription(answer);
+    await opened(channel);
+    other = null;
+    if (phase === 'linking') say('Waiting for your opponent to accept…');
+    await send({ t: 'hello', id: me, rate });
+  } catch (error) { if (error.message !== 'cancelled') fail(error.message); else fail(''); }
+}
+
+// the opponent: scans the challenge, shows an answer
+async function join() {
+  $('error').textContent = '';
+  try {
+    await refreshBalance();
+    host = false; phase = 'linking';
+    const offer = await unpack(await door('scanCode', { title: 'Scan the challenger\'s code' }), 'offer');
+    const connection = await newConnection();
+    const linked = new Promise((resolve) => { connection.ondatachannel = (event) => { listen(event.channel); resolve(event.channel); }; });
+    await connection.setRemoteDescription(offer);
+    await connection.setLocalDescription(await connection.createAnswer());
+    await gathered(connection);
+    show('arena'); say('Linking…');
+    await door('showCode', { text: await pack(connection.localDescription), title: 'Show this to the challenger' });
+    await opened(await linked);
+    if (phase === 'linking') say('Linked. Waiting for the challenge…');    // the challenge may already be here
+    await door('hideCode');
+  } catch (error) { if (error.message !== 'cancelled') fail(error.message); else fail(''); }
+}
+
+function handle(m) {
+  if (m.t === 'hello') {                                           // the opponent, on the other end
+    other = m.id;
+    if (!host) {
+      rate = m.rate;
+      if (!AMOUNT.test(String(rate)) || Number(rate) <= 0) return fail('The challenge has a strange price per click.');
+      phase = 'offered';
+      say(`<b>${rate} AIWA</b> per click.<br>You pay what you click if you click less.`);
+      $('accept').hidden = false;
+    }
+  } else if (m.t === 'accept') {
+    other = m.id;
+    send({ t: 'start' }); begin();
+  } else if (m.t === 'start') {
+    begin();
+  } else if (m.t === 'tick') {
+    theirs = m.n; draw();
+  } else if (m.t === 'final') {
+    theirs = m.n; theirFinal = m.n; draw(); settle();
+  } else if (m.t === 'payment') {
+    receivePayment(m);
+  } else if (m.t === 'unpaid') {
+    finish(`<b>Not paid</b>${m.reason}`, 'lose');
+  }
+}
+
+function draw() {
+  $('mine').textContent = $('mine2').textContent = mine;
+  $('theirs').textContent = theirs;
+  const total = Math.max(1, mine + theirs);
+  $('bar-mine').style.width = `${(100 * mine) / total || 50}%`;
+  $('bar-theirs').style.width = `${(100 * theirs) / total || 50}%`;
+}
+
+$('accept').addEventListener('click', () => { $('accept').hidden = true; send({ t: 'hello', id: me }); send({ t: 'accept', id: me }); say('Get ready…'); });
+
+async function begin() {
+  mine = theirs = 0; myFinal = theirFinal = null; settled = false; draw();
+  $('accept').hidden = true; $('clock').hidden = false;
+  phase = 'racing';
+  for (const n of [3, 2, 1]) { say(`<b>${n}</b>`); $('clock').textContent = ''; await new Promise((r) => setTimeout(r, 800)); }
+  say('<b>Click!</b>');
+  $('disc').disabled = false;
+  startedAt = performance.now();
+  timer = setInterval(() => {
+    const left = Math.max(0, RACE_MS - (performance.now() - startedAt));
+    $('clock').textContent = (left / 1000).toFixed(1);
+    if (left <= 0) { clearInterval(timer); endRace(); }
+  }, 100);
+}
+
+$('disc').addEventListener('pointerdown', (event) => {
+  if (phase !== 'racing' || $('disc').disabled) return;
+  event.preventDefault();
+  mine += 1; draw();
+  navigator.vibrate?.(6);
+  send({ t: 'tick', n: mine }).catch(() => {});
+});
+
+function endRace() {
+  $('disc').disabled = true;
+  myFinal = mine;
+  phase = 'settling';
+  say('Time! Counting…');
+  send({ t: 'final', n: myFinal }).catch(() => {});
+  settle();
+}
+
+// the one who clicked less pays what they clicked; the other receives
+async function settle() {
+  if (settled || myFinal === null || theirFinal === null) return;
+  settled = true;
+  const iClicked = myFinal, theyClicked = theirFinal;
+  if (iClicked === theyClicked) return finish(`<b>Tie</b>${iClicked} each. Nobody pays.`, '');
+  if (iClicked > theyClicked) { say(`You won, ${iClicked} to ${theyClicked}. Waiting for the payment…`); return; }   // the opponent's `payment` ends it
+  if (iClicked === 0) return finish(`<b>You lost</b>0 to ${theyClicked}. You clicked nothing, so you pay nothing.`, 'lose');
+  const amount = costOf(iClicked);
+  try {
+    const { blob } = await door('pay', { to: other, amount });
+    await send({ t: 'payment', blob, amount });
+    await refreshBalance().catch(() => {});
+    finish(`<b>You lost ${Number(amount)} AIWA</b>${iClicked} to ${theyClicked}, at ${rate} per click.`, 'lose');
+  } catch (error) {
+    send({ t: 'unpaid', reason: error.message }).catch(() => {});
+    finish(`<b>You lost</b>but could not pay: ${error.message}`, 'lose');
+  }
+}
+
+async function receivePayment(m) {
+  try {
+    const before = Number((await door('whoami')).balance);
+    const { balance } = await door('receive', { blob: m.blob });
+    await refreshBalance().catch(() => {});
+    const got = Number(balance) - before;
+    const expected = Number(costOf(theirFinal ?? theirs));
+    const note = got + 1e-9 < expected ? `<br>(${expected} was due)` : '';
+    finish(`<b>You won ${Number(m.amount)} AIWA</b>${myFinal} to ${theirFinal}, at ${rate} per click.${note}`, 'win');
+  } catch (error) { finish(`<b>You won</b>but the payment was refused: ${error.message}`, 'win'); }
+}
+
+function finish(html, kind) {
+  phase = 'end';
+  clearInterval(timer);
+  $('result').innerHTML = html;
+  $('result').className = kind;
+  show('end');
+}
+
+$('again').addEventListener('click', () => { closeLink(); phase = 'lobby'; $('error').textContent = ''; show('lobby'); refreshBalance().catch(() => {}); });
+$('challenge').addEventListener('click', challenge);
+$('join').addEventListener('click', join);
+refreshBalance().catch(() => {});
+</script>
+</body>
+</html>

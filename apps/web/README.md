@@ -19,6 +19,15 @@ store checks the package: its hash is that of its content, the author's signatur
 lists (`src/store.js`). A host that serves another file than the one signed is refused. An app can use the network, and
 has no storage that survives; it is not reviewed.
 
+## Apps that use the wallet
+
+An app that declares `<meta name="aiwa-wallet" content="pay">` gets a banner ("This app uses your wallet") and a door to the page
+(`src/app-door.js`): `{aiwa: 1, id, cmd, args}` from the frame, answered to that frame only. Commands: `whoami`, `pay { to, amount }`
+(a payment signed by a channel's session key, returned as an offline bundle), `receive { blob }`, `showCode`, `hideCode`, `scanCode`
+(`src/qr.js`: QR on screen, camera or paste), `config`. The door has no cap and asks nothing; the banner is the only signal. An app that
+does not declare the wallet is not answered. `docs/demo-apps/click-duel.html` is one (two phones linked by WebRTC through two codes);
+yellow paper §18.8.
+
 ## Build and test
 
 ```

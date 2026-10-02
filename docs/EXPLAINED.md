@@ -402,11 +402,11 @@ sequenceDiagram
     R->>R: verifies them against the signed manifest
   end
   R->>F: opens it in an isolated frame
-  Note over F: no access to your wallet, your storage or the phone
+  Note over F: no access to your storage or the phone, and none to your wallet unless the app says so
 ```
 
-The frame is a standard browser sandbox with its own empty identity: whatever the app does, it **cannot reach your wallet**, and this does
-not depend on the author behaving. A host that serves another file than the one signed is refused. It can use the network, and it is not
+The frame is a standard browser sandbox with its own empty identity: whatever the app does, it **cannot reach your wallet by itself**, and
+this does not depend on the author behaving. One exception, below: an app that says it uses the wallet. A host that serves another file than the one signed is refused. It can use the network, and it is not
 reviewed.
 
 ### 6.6 The Android app around it
@@ -419,6 +419,31 @@ new phone; the secrets are left out on purpose (a Keystore key does not move), s
 The dictation widget is optional: it needs Termux and your own Claude login, and nothing about the Store or the wallet needs it.
 
 ---
+
+### 6.7 An app that uses the wallet: the click duel
+
+An app can say it uses your wallet. The Store then shows a banner, and the app can ask a few things of it: who you are, to pay someone, to
+receive a payment, to show or read a code. **Click duel** is such an app: two phones side by side, a price per click, 20 seconds of
+clicking. Whoever clicked less pays what they clicked.
+
+```mermaid
+sequenceDiagram
+  participant A as Phone A
+  participant B as Phone B
+  A->>B: a code (QR or text) shows the challenge
+  B->>A: a code shows the answer: the phones are linked, with no server
+  A->>B: the price per click
+  B->>A: accept
+  Note over A,B: 3, 2, 1, then 20 seconds of clicking, each phone shows the other's count live
+  Note over A,B: B clicked less, so B owes its clicks times the price
+  B->>A: one payment, signed by a session key: nothing is signed per click
+  A->>A: checks where the money comes from on Solana, the balance goes up
+```
+
+What it shows: nothing is signed per click. The first payment to someone signs one delegation (section 2.2), and the payment itself is
+signed by a session key. What it does not do, on purpose for now: each phone counts its own clicks, so a modified app can lie; the money
+is not set aside before the race, so the loser could spend it elsewhere first; there is no search for players nearby. It has been tried
+between two pages of a computer's browser, not between two real phones.
 
 ## 7. What is new, and what is not
 
@@ -436,15 +461,15 @@ cost, hash-locked vouchers, session keys. No prior-art search has been done. Wha
 - Nobody is paid to keep other people's data; a lost notebook with no copy is lost.
 - A double spend between people who never exchange events cannot be prevented, only detected and resolved identically for everyone.
 - There is no automatic way for strangers to find each other.
-- Apps are not reviewed, and can use the network (they cannot reach the wallet).
+- Apps are not reviewed, and can use the network. An app that says it uses your wallet can spend it: the Store only shows a banner.
 - A faster machine earns epochs faster.
 - Solana is the only outside dependency of the protocol (GitHub hosts this deployment's registry and site).
 
 ## 9. What has been verified, and what has not
 
 **Verified by tests** (all run in CI): the protocol (421 tests, including a cross-check against an independent Rust implementation of its
-core computations), the distribution layer (85), the wallet API (99), the registry (17), the web app (35, 18 of them in a real Chromium:
-ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds), the dictation backend (73), and a whole
+core computations), the distribution layer (85), the wallet API (100), the registry (17), the web app (37, 20 of them in a real Chromium:
+ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds, an app using the wallet, a click duel between two pages), the dictation backend (73), and a whole
 dry run against a stand-in Solana (`node scripts/devnet-check.mjs --fake`).
 
 **Not verified:** a real burn on Solana (it needs a funded devnet wallet); the Android app on a real phone (it is compiled in CI only),
