@@ -1,18 +1,20 @@
-// The web app in a real browser (Chromium), against a registry that a real run of aiwa-registry produced, and a Solana
-// stand-in. What it checks: the store lists apps ranked by score / laps; an app opens in a sandbox that cannot reach the
-// page; a package the host tampered with is not opened; the last list and opened apps work offline; the wallet shows
-// what a burn does with the creator fee before signing, burns, and mines; and what the browser's wallet submits is what
-// the registry accepts.
+// The web app in a real browser (Chromium), against a registry that a real run of aiwa-registry produced, a Solana
+// stand-in, a stand-in for the Android app's host channel and one for GitHub. What it checks: the store lists apps of both
+// kinds ranked by score / laps; an app opens in a sandbox that cannot reach the page; a package the host tampered with is
+// not opened; the last list and opened apps work offline; the wallet starts by itself, comes back by itself, and its
+// history comes back from the registry on a new phone; the wallet says what a burn does with the creator fee before
+// signing; and what the publish sheet sends as a pull request is what the registry accepts.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, extname, resolve, dirname } from 'node:path';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { buildAppPackage, validateSubmission, applyAccepted, emptyStore, writeStore, rankApps } from 'aiwa-registry';
+import { deflateRawSync } from 'node:zlib';
+import { buildAppPackage, buildBundle, validateSubmission, applyAccepted, emptyStore, writeStore, rankApps } from 'aiwa-registry';
 import { CREATOR, deployment as testDeployment, fakeSolana, minedWallet } from '../../../registry/support/helpers.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -25,6 +27,11 @@ let server, base, browser;
 const control = { down: false, tamper: null };     // what a flaky or dishonest host does
 
 const html = (title, script = '') => `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head><body><h1>${title}</h1><p id="r">…</p><script>${script}</script></body></html>`;
+const GAMMA_FILES = [
+  { path: 'index.html', content: '<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="g.css"></head><body><h1>Gamma</h1><p id="r">…</p><script src="g.js"></script></body></html>' },
+  { path: 'g.css', content: 'h1 { color: #7c5cff; }' },
+  { path: 'g.js', content: 'document.getElementById("r").textContent = "from a file";' },
+];
 const ESCAPE_PROBE = `try { window.parent.document.title; document.getElementById('r').textContent = 'ESCAPED'; } catch (e) { document.getElementById('r').textContent = 'isolated'; }`;
 
 before(async () => {
@@ -33,6 +40,7 @@ before(async () => {
   deployment.registryUrl = './store';
   deployment.rpc = 'http://127.0.0.1:1';
   deployment.progress = { intervalMs: 150 };
+  deployment.github = { clientId: 'test-client' };
   deployment.rewardParams = { ...deployment.rewardParams, epochIterations: 150 };
   deployment.creatorFee = { address: CREATOR, rateOfT: 0.001 };
   mkdirSync(tmp, { recursive: true });
@@ -45,15 +53,25 @@ before(async () => {
   let at = Date.now();
   const alice = await minedWallet(connection, { epochs: 6 });
   const bob = await minedWallet(connection, { epochs: 2 });
+  const carol = await minedWallet(connection, { epochs: 4 });
+  globalThis.alicePhrase = alice.recoveryPhrase;
+  globalThis.aliceAddress = alice.address;
   for (const [wallet, fields] of [
     [alice, { id: 'alpha', name: 'Alpha', description: 'tries to reach the wallet', html: html('Alpha', ESCAPE_PROBE) }],
     [bob, { id: 'beta', name: 'Beta', description: 'says hello', html: html('Beta') }],
+    [carol, { id: 'gamma', name: 'Gamma', description: 'code through Aiwa', files: GAMMA_FILES }],
   ]) {
-    const submission = {
-      format: 'aiwa-submission/1', kind: 'publish',
-      package: await buildAppPackage(wallet.identity, { version: '1.0.0', ...fields }),
-      evidence: await wallet.submissionEvidence(),
-    };
+    const { files, ...fields2 } = fields;
+    let pkg;
+    let bundle;
+    if (files) {
+      const built = await buildBundle(wallet.identity, { name: fields2.name, version: '1.0.0', files });
+      bundle = built.bundle;
+      pkg = await buildAppPackage(wallet.identity, { version: '1.0.0', ...fields2, manifestId: built.manifestId });
+    } else {
+      pkg = await buildAppPackage(wallet.identity, { version: '1.0.0', ...fields2 });
+    }
+    const submission = { format: 'aiwa-submission/1', kind: 'publish', package: pkg, ...(bundle ? { bundle } : {}), evidence: await wallet.submissionEvidence() };
     const result = await validateSubmission({ submission, store, deployment: testDeployment, connection, now: at += 1000 });
     assert.equal(result.ok, true, result.reason);
     writeStore(join(site, 'store'), (store = applyAccepted(store, result.accepted)), result.accepted);
@@ -131,7 +149,7 @@ test('the store lists the apps ranked by score / laps, and search narrows the li
   const names = await page.locator('#store-list .app .title').evaluateAll((els) => els.map((e) => e.firstChild.textContent));
   assert.deepEqual(names, globalThis.expectedOrder);
   const ranks = await page.locator('#store-list .app .rank').allTextContents();
-  assert.deepEqual(ranks, ['1', '2']);
+  assert.deepEqual(ranks, ['1', '2', '3']);
   assert.match(await page.locator('#store-list .app .meta').first().textContent(), /score\/laps [\d.e+-]+ \(/);
 
   await page.fill('#store-search', 'hello');
@@ -183,7 +201,7 @@ test('offline: the last list is shown and an app already opened still opens', as
   try {
     await page.click('#store-refresh');
     await page.waitForFunction(() => /Offline/.test(document.getElementById('store-status').textContent));
-    assert.equal(await page.locator('#store-list .app').count(), 2, 'the last list seen');
+    assert.equal(await page.locator('#store-list .app').count(), 3, 'the last list seen');
     await page.locator('#store-list .app[data-id="beta"] button').click();
     await page.locator('#viewer iframe').waitFor();
     assert.equal(await page.frameLocator('#viewer iframe').locator('h1').textContent(), 'Beta');
@@ -194,10 +212,144 @@ test('offline: the last list is shown and an app already opened still opens', as
   await context.close();
 });
 
-test('the wallet says what a burn does with the creator fee before signing, burns, and mines; what it submits, the registry accepts', async () => {
+
+// ---------- the Android host and GitHub, as stand-ins ----------
+
+// The host channel the Android app gives the page, with a keystore that outlives a reload (as the phone's does).
+const injectHost = (page, { loginDelayMs = 120 } = {}) => page.addInitScript(({ loginDelayMs }) => {
+  const key = '__fake_keystore';
+  const read = () => JSON.parse(localStorage.getItem(key) ?? '{}');
+  window.__posted = [];
+  const reply = (id, body) => setTimeout(() => window.AiwaHost.onmessage?.({ data: JSON.stringify({ id, ...body }) }), 0);
+  window.AiwaHost = {
+    onmessage: null,
+    postMessage(raw) {
+      const m = JSON.parse(raw);
+      window.__posted.push(m);
+      if (m.cmd === 'secret-get') reply(m.id, { result: { value: read()[m.key] ?? null } });
+      else if (m.cmd === 'secret-set') { localStorage.setItem(key, JSON.stringify({ ...read(), [m.key]: m.value })); reply(m.id, { result: {} }); }
+      else if (m.cmd === 'secret-delete') { const all = read(); delete all[m.key]; localStorage.setItem(key, JSON.stringify(all)); reply(m.id, { result: {} }); }
+      else if (m.cmd === 'github-login') {
+        reply(m.id, { progress: { userCode: 'WXYZ-1234', verificationUri: 'https://github.com/login/device' } });
+        setTimeout(() => reply(m.id, { result: { token: 'gho_test' } }), loginDelayMs);
+      }
+    },
+  };
+}, { loginDelayMs });
+
+// GitHub's API, for what a submission needs: the account, a fork, a branch, a file, a pull request. It keeps what it is given.
+async function fakeGitHub(context, { login = 'author' } = {}) {
+  const seen = { files: {}, pulls: [], tokens: new Set(), valid: new Set(['gho_test']) };
+  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'content-type': 'application/json' };
+  await context.route('https://api.github.com/**', async (route) => {
+    const request = route.request();
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    const path = new URL(request.url()).pathname;
+    const token = (request.headers().authorization ?? '').replace('Bearer ', '');
+    seen.tokens.add(token);
+    const send = (body, status = 200) => route.fulfill({ status, headers: cors, body: JSON.stringify(body) });
+    if (!seen.valid.has(token)) return send({ message: 'Bad credentials' }, 401);
+    const data = request.postData() ? JSON.parse(request.postData()) : null;
+    if (path === '/user') return send({ login });
+    if (path === `/repos/${REPO}` && request.method() === 'GET') return send({ default_branch: 'main' });
+    if (path === `/repos/${REPO}/git/ref/heads/main`) return send({ object: { sha: 'base-sha' } });
+    if (path === `/repos/${REPO}/forks`) return send({ full_name: `${login}/Aiwa_store` }, 202);
+    if (path === `/repos/${login}/Aiwa_store` && request.method() === 'GET') return send({});
+    if (path.endsWith('/git/refs')) return send({}, 201);
+    if (path.includes('/contents/')) { seen.files[decodeURIComponent(path.split('/contents/')[1])] = Buffer.from(data.content, 'base64').toString('utf8'); return send({}, 201); }
+    if (path === `/repos/${REPO}/pulls`) { seen.pulls.push(data); return send({ html_url: `https://github.com/${REPO}/pull/${seen.pulls.length}`, number: seen.pulls.length }, 201); }
+    return send({ message: `unexpected ${request.method()} ${path}` }, 500);
+  });
+  return seen;
+}
+const REPO = 'theodoreyong9/Aiwa_store';
+
+const pack = (text) => deflateRawSync(Buffer.from(text, 'utf8')).toString('base64url');
+const handoff = (page, kind, name, text) => page.evaluate((hash) => { location.hash = hash; }, `#publish=${kind};${name};${pack(text)}`);
+
+/** A wallet that burned and mined in the page, ready to publish. */
+async function mineInPage(page, { epoch = 3 } = {}) {
+  await page.click('#app-nav [data-view="wallet"]');
+  await page.click('#btn-create');
+  await page.waitForSelector('#wallet-section:not([hidden])');
+  await page.fill('#burn-amount', '1');
+  await page.click('#btn-burn');
+  await page.waitForFunction(() => /Burned and committed/.test(document.getElementById('burn-result').textContent));
+  await page.waitForFunction((n) => new RegExp(`epoch ${n}|epoch [${n}-9]`).test(document.getElementById('out-mining').textContent), epoch, { timeout: 40000 });
+}
+
+/** What the registry says about the submission a pull request carried. */
+async function registryVerdict(page, seen, file) {
+  const transactions = await page.evaluate(() => window.__aiwaTest.connection.transactions);
+  const connection = { getTransaction: async (signature) => transactions[signature] ?? null };
+  const submission = JSON.parse(seen.files[file]);
+  return { submission, result: await validateSubmission({ submission, store: emptyStore(), deployment: testDeployment, connection, now: Date.now() }) };
+}
+
+// ---------- the wallet ----------
+
+test('the wallet starts by itself: one tap the first time, never again; the 12 words are shown once and can be shown again', async () => {
+  const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  await page.click('#app-nav [data-view="wallet"]');
+  await page.waitForSelector('#welcome:not([hidden])');
+  assert.equal(await page.locator('#wallet-section').isHidden(), true, 'a phone with no wallet is asked once');
+  await page.click('#btn-create');
+  await page.waitForSelector('#wallet-section:not([hidden])');
+  const phrase = (await page.locator('#phrase-words').textContent()).trim();
+  assert.equal(phrase.split(' ').length, 12);
+  assert.equal(await page.locator('#phrase-notice').isVisible(), true);
+  const address = await page.locator('#out-address').getAttribute('data-full');
+  assert.equal((await page.evaluate(() => window.__posted.filter((m) => m.cmd === 'secret-set'))).length, 1, 'the phrase went to the phone\'s keystore');
+  assert.equal(await page.evaluate(() => localStorage.getItem('aiwa-store:phrase')), null, 'and not to the page\'s own storage');
+
+  await page.click('#btn-phrase-done');
+  await page.reload();
+  await page.click('#app-nav [data-view="wallet"]');
+  await page.waitForSelector('#wallet-section:not([hidden])');
+  assert.equal(await page.locator('#welcome').isHidden(), true, 'no question the second time');
+  assert.equal(await page.locator('#out-address').getAttribute('data-full'), address, 'the same wallet came back by itself');
+  assert.equal(await page.locator('#phrase-notice').isHidden(), true, 'the words are not pushed again once acknowledged');
+  assert.equal(await page.locator('#btn-disconnect').count(), 0, 'there is nothing to connect or disconnect');
+  assert.equal(await page.locator('text=Restore from the nodes').count(), 0);
+
+  await page.click('#recovery-section summary');
+  await page.click('#btn-show-phrase');
+  assert.equal((await page.locator('#out-phrase').textContent()).trim(), phrase);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('on a new phone the 12 words bring the wallet back, and the registry brings its mining back by itself', async () => {
+  const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  await page.click('#app-nav [data-view="wallet"]');
+  await page.waitForSelector('#welcome:not([hidden])');
+  await page.click('#welcome summary');
+  await page.fill('#mnemonic', globalThis.alicePhrase);
+  await page.click('#btn-restore');
+  await page.waitForSelector('#wallet-section:not([hidden])');
+  assert.equal(await page.locator('#out-address').getAttribute('data-full'), globalThis.aliceAddress);
+  await page.waitForFunction(() => /Mining 1 SOL/.test(document.getElementById('out-mining').textContent), null, { timeout: 40000 });
+  assert.match(await page.locator('#restore-note').textContent(), /came back from the registry: epoch [1-9]/);
+  await page.waitForSelector('#my-apps-section:not([hidden])');
+  assert.match(await page.locator('#my-apps-list').textContent(), /Alpha v1\.0\.0/, 'and the author\'s own app is listed');
+  assert.deepEqual(errors, []);
+  await context.close();
+
+  // a phrase that is not one is refused, and the page stays as it was
+  const second = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  await second.page.click('#app-nav [data-view="wallet"]');
+  await second.page.click('#welcome summary');
+  await second.page.fill('#mnemonic', 'these are not twelve real words');
+  await second.page.click('#btn-restore');
+  await second.page.waitForFunction(() => document.getElementById('connect-error').textContent.length > 0);
+  assert.equal(await second.page.locator('#wallet-section').isHidden(), true);
+  await second.context.close();
+});
+
+test('the wallet says what a burn does with the creator fee before signing, burns, and mines', async () => {
   const { page, errors, context } = await openPage(injectSolana);
   await page.click('#app-nav [data-view="wallet"]');
-  await page.click('#btn-connect');
+  await page.click('#btn-create');
   await page.waitForSelector('#wallet-section:not([hidden])');
   assert.match(await page.locator('#out-mining').textContent(), /No burn yet/);
 
@@ -217,102 +369,238 @@ test('the wallet says what a burn does with the creator fee before signing, burn
   });
   assert.equal(transfers.find((t) => t.key === CREATOR).delta, 400_000, 'the creator received 0.0004 SOL in the same transaction');
   await page.waitForFunction(() => /Mining 0\.6 SOL · T 40 %/.test(document.getElementById('out-mining').textContent));
-  await page.waitForFunction(() => /epoch [2-9]/.test(document.getElementById('out-mining').textContent), null, { timeout: 15000 });
-
-  // Publish: sign, with the mining evidence, and give the file to the registry
-  await page.click('#app-nav [data-view="publish"]');
-  await page.fill('#app-name', 'Taps');
-  await page.fill('#app-description', 'counts taps');
-  await page.click('#btn-prepare');
-  await page.waitForSelector('#publish-next:not([hidden])');
-  const download = page.waitForEvent('download');
-  await page.click('#btn-download');
-  const file = join(tmp, 'from-browser.json');
-  await (await download).saveAs(file);
-  assert.match(await page.locator('#link-pr').getAttribute('href'), /github\.com\/theodoreyong9\/Aiwa_store\/new\/main\?filename=submissions%2Ftaps-1\.0\.0\.json/);
-
-  const browserTransactions = await page.evaluate(() => window.__aiwaTest.connection.transactions);
-  const connection = { getTransaction: async (signature) => browserTransactions[signature] ?? null };
-  const submission = JSON.parse(readFileSync(file, 'utf8'));
-  const result = await validateSubmission({ submission, store: emptyStore(), deployment: testDeployment, connection, now: Date.now() });
-  assert.equal(result.ok, true, result.reason);
-  assert.equal(result.accepted.entry.id, 'taps');
-  assert.equal(result.accepted.entry.score > 0, true);
+  await page.waitForFunction(() => /epoch [2-9]/.test(document.getElementById('out-mining').textContent), null, { timeout: 40000 });
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('inside the Android app: saving goes through the host, the dictation button appears, back closes what is open', async () => {
-  const { page, context } = await openPage(async (p) => {
-    await injectSolana(p);
-    await p.addInitScript(() => { window.__posted = []; window.AiwaHost = { postMessage: (m) => window.__posted.push(JSON.parse(m)) }; });
-  });
+// ---------- the publish sheet ----------
+
+const SAMPLE_APP = `<!doctype html><html><head><meta charset="utf-8"><meta name="description" content="counts taps"><title>Taps</title></head><body><h1>Taps</h1></body></html>`;
+
+test('publishing from the widget\'s hand-off: one sheet, a GitHub login once, a pull request the registry accepts', async () => {
+  const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  const github = await fakeGitHub(context);
+  await mineInPage(page);
+
+  await handoff(page, 'code', 'Taps', SAMPLE_APP);
+  await page.waitForSelector('#sheet:not([hidden])');
+  assert.equal(await page.inputValue('#app-name'), 'Taps');
+  assert.equal(await page.inputValue('#app-id'), 'taps');
+  assert.equal(await page.inputValue('#app-version'), '1.0.0');
+  assert.equal(await page.inputValue('#app-description'), 'counts taps', 'taken from the app\'s own description');
+  await page.waitForFunction(() => !document.getElementById('sheet-go').disabled);
+
+  await page.click('#sheet-go');
+  await page.waitForFunction(() => document.getElementById('sheet-code-text').textContent === 'WXYZ-1234', null, { timeout: 5000 });
+  assert.match(await page.locator('#sheet-code-uri').textContent(), /github\.com\/login\/device/);
+  await page.waitForSelector('#sheet-result:not([hidden])', { timeout: 10000 });
+  assert.match(await page.locator('#sheet-result').getAttribute('href'), new RegExp(`github\\.com/${REPO}/pull/1`));
+  assert.deepEqual(Object.keys(github.files), ['submissions/taps-1.0.0.json']);
+  assert.equal(github.pulls[0].head.split(':')[0], 'author');
+  assert.deepEqual([...github.tokens], ['gho_test']);
+
+  const { submission, result } = await registryVerdict(page, github, 'submissions/taps-1.0.0.json');
+  assert.equal(submission.package.kind, 'code');
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.accepted.entry.id, 'taps');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('an app of several files is published through Aiwa: the pull request carries a pointer and the signed bundle', async () => {
+  const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  const github = await fakeGitHub(context);
+  await mineInPage(page);
+
+  const files = [
+    { path: 'index.html', content: '<!doctype html><html><head><link rel="stylesheet" href="s.css"></head><body><h1>Tally</h1><script src="t.js"></script></body></html>' },
+    { path: 's.css', content: 'h1{color:red}' },
+    { path: 't.js', content: 'document.title="Tally"' },
+  ];
+  await handoff(page, 'aiwa', 'Tally', JSON.stringify({ files }));
+  await page.waitForSelector('#sheet:not([hidden])');
+  assert.match(await page.locator('#sheet-summary').textContent(), /3 files, published through Aiwa/);
+  await page.click('#sheet-go');
+  await page.waitForSelector('#sheet-result:not([hidden])', { timeout: 15000 });
+
+  const { submission, result } = await registryVerdict(page, github, 'submissions/tally-1.0.0.json');
+  assert.equal(submission.package.kind, 'aiwa');
+  assert.equal(submission.package.html, undefined, 'GitHub holds a pointer, not code');
+  assert.equal(submission.bundle.events.length, 4, 'three files and the manifest that pins them');
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.accepted.entry.kind, 'aiwa');
+  assert.equal(result.accepted.entry.manifestId, submission.package.manifestId);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('the GitHub login is asked once: a second publication reuses the token, and a token GitHub refuses is asked for again', async () => {
+  const { page, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  const github = await fakeGitHub(context);
+  await mineInPage(page);
+  const logins = () => page.evaluate(() => window.__posted.filter((m) => m.cmd === 'github-login').length);
+
+  await handoff(page, 'code', 'First', SAMPLE_APP);
+  await page.waitForSelector('#sheet:not([hidden])');
+  await page.click('#sheet-go');
+  await page.waitForSelector('#sheet-result:not([hidden])', { timeout: 10000 });
+  assert.equal(await logins(), 1);
+  await page.click('#sheet-close');
+
+  await handoff(page, 'code', 'Second', SAMPLE_APP);
+  await page.waitForSelector('#sheet:not([hidden])');
+  await page.waitForFunction(() => !document.getElementById('sheet-go').disabled);
+  await page.click('#sheet-go');
+  await page.waitForSelector('#sheet-result:not([hidden])', { timeout: 10000 });
+  assert.equal(await logins(), 1, 'no second login');
+  assert.equal(github.pulls.length, 2);
+  await page.click('#sheet-close');
+
+  github.valid.delete('gho_test');                       // GitHub no longer accepts it
+  github.valid.add('gho_second');
+  await handoff(page, 'code', 'Third', SAMPLE_APP);
+  await page.waitForSelector('#sheet:not([hidden])');
+  await page.waitForFunction(() => !document.getElementById('sheet-go').disabled);
+  await page.click('#sheet-go');
+  await page.waitForFunction(() => window.__posted.filter((m) => m.cmd === 'github-login').length === 2, null, { timeout: 5000 });
+  assert.equal(await logins(), 2, 'asked again, once');
+  await context.close();
+});
+
+test('the sheet says plainly when there is nothing to publish with yet, and shows an update as the next version', async () => {
+  const { page, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  await fakeGitHub(context);
+  await page.click('#app-nav [data-view="wallet"]');
+  await page.click('#btn-create');
+  await page.waitForSelector('#wallet-section:not([hidden])');
+  await handoff(page, 'code', 'Taps', SAMPLE_APP);
+  await page.waitForSelector('#sheet:not([hidden])');
+  await page.waitForFunction(() => document.getElementById('sheet-warning').textContent.length > 0);
+  assert.match(await page.locator('#sheet-warning').textContent(), /Nothing to publish with yet.*burn some SOL/);
+  assert.equal(await page.locator('#sheet-go').isDisabled(), true);
+  await context.close();
+
+  // an author with a listed app: the same name is the next patch
+  const author = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  await author.page.click('#app-nav [data-view="wallet"]');
+  await author.page.click('#welcome summary');
+  await author.page.fill('#mnemonic', globalThis.alicePhrase);
+  await author.page.click('#btn-restore');
+  await author.page.waitForSelector('#my-apps-section:not([hidden])');
+  await handoff(author.page, 'code', 'Alpha', SAMPLE_APP);
+  await author.page.waitForSelector('#sheet:not([hidden])');
+  assert.equal(await author.page.inputValue('#app-version'), '1.0.1');
+  await author.context.close();
+});
+
+test('in a plain browser the page cannot sign in to GitHub: it signs and hands over the file, which the registry accepts', async () => {
+  const { page, errors, context } = await openPage(injectSolana);
+  await mineInPage(page);
+  await handoff(page, 'code', 'Taps', SAMPLE_APP);
+  await page.waitForSelector('#sheet:not([hidden])');
+  await page.click('#sheet-go');
+  await page.waitForSelector('#sheet-manual:not([hidden])');
+  assert.match(await page.locator('#link-pr').getAttribute('href'), /github\.com\/theodoreyong9\/Aiwa_store\/new\/main\?filename=submissions%2Ftaps-1\.0\.0\.json/);
+  const download = page.waitForEvent('download');
+  await page.click('#btn-download');
+  const file = join(tmp, 'from-browser.json');
+  await (await download).saveAs(file);
+  const transactions = await page.evaluate(() => window.__aiwaTest.connection.transactions);
+  const result = await validateSubmission({ submission: JSON.parse(readFileSync(file, 'utf8')), store: emptyStore(), deployment: testDeployment, connection: { getTransaction: async (s) => transactions[s] ?? null }, now: Date.now() });
+  assert.equal(result.ok, true, result.reason);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('refreshing a ranking, from the wallet\'s list of the author\'s apps, is the same sheet and a signed request', async () => {
+  const { page, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  const github = await fakeGitHub(context);
+  await page.click('#app-nav [data-view="wallet"]');
+  await page.click('#welcome summary');
+  await page.fill('#mnemonic', globalThis.alicePhrase);
+  await page.click('#btn-restore');
+  await page.waitForSelector('#my-apps-section:not([hidden])');
+  await page.waitForFunction(() => /Mining 1 SOL/.test(document.getElementById('out-mining').textContent), null, { timeout: 40000 });
+  await page.click('#my-apps-list button');
+  await page.waitForSelector('#sheet:not([hidden])');
+  assert.equal(await page.locator('#sheet-fields').isHidden(), true, 'nothing to fill in');
+  assert.equal(await page.locator('#sheet-try').isHidden(), true);
+  await page.waitForFunction(() => !document.getElementById('sheet-go').disabled);
+  await page.click('#sheet-go');
+  await page.waitForSelector('#sheet-result:not([hidden])', { timeout: 15000 });
+  const [name] = Object.keys(github.files);
+  assert.match(name, /^submissions\/alpha-refresh-\d+\.json$/);
+  assert.equal(JSON.parse(github.files[name]).kind, 'refresh');
+  await context.close();
+});
+
+// ---------- inside the Android app ----------
+
+test('inside the Android app: the dictation button appears, back closes the sheet or the app on top, then leaves the tab', async () => {
+  const { page, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
   assert.equal(await page.locator('#btn-dictation').isVisible(), true);
   await page.click('#btn-dictation');
-  assert.deepEqual(await page.evaluate(() => window.__posted), [{ cmd: 'dictation' }]);
+  assert.deepEqual(await page.evaluate(() => window.__posted.filter((m) => m.cmd === 'dictation').map((m) => m.cmd)), ['dictation']);
 
-  // back: an app is open -> closed; not on the Store tab -> goes there; nothing to close -> the app may leave
   await page.waitForSelector('#store-list .app');
   await page.locator('#store-list .app[data-id="beta"] button').click();
   await page.locator('#viewer iframe').waitFor();
   assert.equal(await page.evaluate(() => window.aiwaHostBack()), true);
   assert.equal(await page.locator('#viewer').isHidden(), true);
+
+  await handoff(page, 'code', 'Taps', SAMPLE_APP);
+  await page.waitForSelector('#sheet:not([hidden])');
+  assert.equal(await page.evaluate(() => window.aiwaHostBack()), true, 'the sheet closes first');
+  assert.equal(await page.locator('#sheet').isHidden(), true);
+
   await page.click('#app-nav [data-view="wallet"]');
   assert.equal(await page.evaluate(() => window.aiwaHostBack()), true);
   assert.equal(await page.locator('#view-store').isVisible(), true);
-  assert.equal(await page.evaluate(() => window.aiwaHostBack()), false);
-
-  // saving: the file goes to the host (a blob download does not work in a WebView)
-  await page.click('#app-nav [data-view="wallet"]');
-  await page.click('#btn-connect');
-  await page.fill('#burn-amount', '1');
-  await page.click('#btn-burn');
-  await page.waitForFunction(() => /Burned and committed/.test(document.getElementById('burn-result').textContent));
-  await page.waitForFunction(() => /epoch [1-9]/.test(document.getElementById('out-mining').textContent), null, { timeout: 15000 });
-  await page.click('#app-nav [data-view="publish"]');
-  await page.fill('#app-name', 'Hosted');
-  await page.click('#btn-prepare');
-  await page.waitForSelector('#publish-next:not([hidden])');
-  await page.click('#btn-download');
-  const posted = await page.evaluate(() => window.__posted.filter((m) => m.cmd === 'save'));
-  assert.equal(posted.length, 1);
-  assert.equal(posted[0].name, 'hosted-1.0.0.json');
-  assert.equal(JSON.parse(posted[0].text).package.id, 'hosted');
+  assert.equal(await page.evaluate(() => window.aiwaHostBack()), false, 'nothing left to close: the app may leave');
   await context.close();
 });
 
-test('the hand-off: an app packed the way the Android app packs it (Java Deflater, base64url) fills the Publish form', async (t) => {
+test('an app of kind aiwa opens from the store: its files are assembled and run in the same sandbox', async () => {
+  const { page, errors, context } = await openPage();
+  await page.waitForSelector('#store-list .app');
+  assert.match(await page.locator('#store-list .app[data-id="gamma"] .meta').textContent(), /· Aiwa ·/);
+  await page.locator('#store-list .app[data-id="gamma"] button').click();
+  const frame = page.frameLocator('#viewer iframe');
+  await frame.locator('h1').waitFor();
+  assert.equal(await frame.locator('#r').textContent(), 'from a file', 'the script that lives in another file of the bundle ran');
+  assert.equal(await page.locator('#viewer iframe').getAttribute('sandbox'), 'allow-scripts');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('the hand-off packed by the Android app (Java\'s Deflater, base64url) opens the sheet with the app byte for byte', async (t) => {
   const code = readFileSync(join(root, 'docs/store-app-example.html'), 'utf8');
   const file = join(tmp, 'handoff.html');
   writeFileSync(file, code);
+  const { spawnSync } = await import('node:child_process');
   const java = spawnSync('java', [join(here, 'Pack.java'), file], { encoding: 'utf8' });
   if (java.error || java.status !== 0) { t.skip('no Java here: the packing of the Android app is not run'); return; }
-  const payload = java.stdout.trim();
-  const { page, context } = await openPage(injectSolana);
-  await page.goto(`${base}/index.html#publish=1;split-the-bill;${payload}`);
-  await page.waitForSelector('#handoff-note:not([hidden])');
-  await page.click('#app-nav [data-view="wallet"]');
-  await page.click('#btn-connect');
-  await page.waitForSelector('#wallet-section:not([hidden])');
-  await page.waitForFunction(() => document.getElementById('app-name').value === 'split-the-bill', null, { timeout: 5000 });
-  assert.equal(await page.inputValue('#app-id'), 'split-the-bill');
-  assert.equal(await page.inputValue('#app-html'), code, 'what Claude wrote arrives byte for byte');
-  assert.match(await page.locator('#handoff-note').textContent(), /read it, try it, then press Prepare submission/);
-  await context.close();
-});
-
-test('the example app of the docs opens in the sandbox and works', async () => {
-  const code = readFileSync(join(root, 'docs/store-app-example.html'), 'utf8');
-  const { page, errors, context } = await openPage();
-  await page.click('#app-nav [data-view="publish"]');
-  await page.evaluate(() => { document.getElementById('publish-section').hidden = false; });   // the form, without a wallet: only "Try it" is used
-  await page.fill('#app-html', code);
-  await page.click('#btn-try');
+  const { page, context } = await openPage();
+  await page.goto(`${base}/index.html#publish=code;split-the-bill;${java.stdout.trim()}`);
+  await page.waitForSelector('#sheet:not([hidden])');
+  assert.equal(await page.inputValue('#app-name'), 'split-the-bill');
+  await page.click('#sheet-try');
   const frame = page.frameLocator('#viewer iframe');
   await frame.locator('#out').waitFor();
   assert.match(await frame.locator('#out').textContent(), /Each pays 23\.10/);
   await frame.locator('#people').fill('3');
   assert.match(await frame.locator('#out').textContent(), /Each pays 30\.80/);
-  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('a hand-off that is damaged or too big is not opened, and says so', async () => {
+  const { page, context } = await openPage();
+  await page.waitForSelector('#store-list .app');
+  await page.evaluate(() => { location.hash = '#publish=code;Taps;AAAA'; });
+  await page.waitForFunction(() => /not opened/.test(document.getElementById('store-status').textContent));
+  assert.equal(await page.locator('#sheet').isHidden(), true);
+  await handoff(page, 'aiwa', 'Bad', JSON.stringify({ files: [{ path: '../x', content: '' }] }));
+  await page.waitForFunction(() => /not opened: .*file name/.test(document.getElementById('store-status').textContent));
   await context.close();
 });

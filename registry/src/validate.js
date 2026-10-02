@@ -1,7 +1,8 @@
 // Validating a submission to the store. Two kinds:
 //
 //   publish   a new app, or a higher version of the author's own: the package (app-package.js) and the author's mining
-//             evidence (aiwa-lib's wallet.submissionEvidence()).
+//             evidence (aiwa-lib's wallet.submissionEvidence()). A package of kind `aiwa` comes with its bundle of Aiwa
+//             events (bundle.js), which are verified against the manifest the package pins, then kept.
 //   refresh   no new content: the author's signed request to re-read the ranking figure of one of its apps from fresh
 //             evidence.
 //
@@ -19,6 +20,7 @@
 
 import { assessSubmission, ingestWitnesses, mergeWitnessStore, domainOfAddress } from 'aiwa-core';
 import { verifyAppPackage, verifyRefreshAuthorization, compareVersions } from './app-package.js';
+import { verifyBundle } from './bundle.js';
 import { ratioOf } from './rank.js';
 
 export const POLICY = {
@@ -56,12 +58,12 @@ async function witnessesFrom(evidence, domain, store) {
 
 /**
  * @param {object} args
- * @param {object} args.submission { format: 'aiwa-submission/1', kind: 'publish'|'refresh', package|appId+authorization, evidence }
+ * @param {object} args.submission { format: 'aiwa-submission/1', kind: 'publish'|'refresh', package(+bundle)|appId+authorization, evidence }
  * @param {{ index: object, baselines: object, witnesses: object }} args.store
  * @param {object} args.deployment as loadDeployment() returns it
  * @param {{ getTransaction: Function }} args.connection Solana
  * @param {number} [args.now] the registry's clock, ms
- * @returns {Promise<{ ok: boolean, reason: string, accepted?: object }>} `accepted`: { kind, entry, package?, baseline, author, witnesses }
+ * @returns {Promise<{ ok: boolean, reason: string, accepted?: object }>} `accepted`: { kind, entry, package?, bundle?, baseline, author, witnesses }
  */
 export async function validateSubmission({ submission, store, deployment, connection, now = Date.now() }) {
   if (!submission || typeof submission !== 'object' || submission.format !== 'aiwa-submission/1') return refuse('Not a store submission (format aiwa-submission/1)');
@@ -77,6 +79,13 @@ async function validatePublish({ submission, store, deployment, connection, now 
   const domain = verified.domain;
   if (domain !== await domainOfAddress(pkg.author)) return refuse('The author\'s address and domain do not match');
   if (Math.abs(now - pkg.authorization.timestamp) > POLICY.maxAuthorizationAgeMs) return refuse('The author\'s signature is too old or dated in the future: sign again');
+
+  let bundle = null;
+  if (pkg.kind === 'aiwa') {
+    const verifiedBundle = await verifyBundle(submission.bundle, { manifestId: pkg.manifestId, domain, name: pkg.name, version: pkg.version });
+    if (!verifiedBundle.ok) return refuse(verifiedBundle.reason);
+    bundle = submission.bundle;
+  }
 
   const existing = store.index.apps.find((app) => app.id === pkg.id) ?? null;
   const mine = store.index.apps.filter((app) => app.author === pkg.author);
@@ -109,12 +118,13 @@ async function validatePublish({ submission, store, deployment, connection, now 
   }
 
   const entry = {
-    id: pkg.id, name: pkg.name, version: pkg.version, description: pkg.description,
+    id: pkg.id, name: pkg.name, version: pkg.version, description: pkg.description, kind: pkg.kind,
     author: pkg.author, domain, bundleHash: pkg.bundleHash, path: `apps/${pkg.id}/${pkg.version}.json`,
+    ...(bundle ? { bundlePath: `apps/${pkg.id}/${pkg.version}.bundle.json`, manifestId: pkg.manifestId } : {}),
     score: ranking.score, laps: ranking.laps,
     publishedAt: existing ? existing.publishedAt : now, updatedAt: now,
   };
-  return { ok: true, reason: 'ok', accepted: { kind: 'publish', entry, package: pkg, baseline, author: pkg.author, domain, witnesses: witnesses.accepted } };
+  return { ok: true, reason: 'ok', accepted: { kind: 'publish', entry, package: pkg, bundle, baseline, author: pkg.author, domain, witnesses: witnesses.accepted } };
 }
 
 async function validateRefresh({ submission, store, deployment, connection, now }) {

@@ -249,3 +249,96 @@ test('the command\'s function: a submission file is read, refused with a reason 
   assert.ok(existsSync(join(storeDir, 'apps/hello/1.0.0.json')));
   assert.equal(JSON.parse(readFileSync(join(storeDir, 'index.json'), 'utf8')).apps[0].id, 'hello');
 });
+
+// --- the second kind of app: a pointer to code published through Aiwa ---------------------------------------------------
+
+import { buildBundle, verifyBundle, filesProblem } from '../src/bundle.js';
+
+const FILES = [
+  { path: 'index.html', content: '<!doctype html><html><head><link rel="stylesheet" href="style.css"></head><body><h1>Tally</h1><script src="app.js"></script></body></html>' },
+  { path: 'style.css', content: 'h1 { color: rebeccapurple; }' },
+  { path: 'app.js', content: 'document.title = "Tally";' },
+];
+const publishAiwa = async (aiwa, { files = FILES, version = '1.0.0', id = 'tally' } = {}) => {
+  const { manifestId, bundle } = await buildBundle(aiwa.identity, { name: 'Tally', version, files });
+  return {
+    format: 'aiwa-submission/1', kind: 'publish',
+    package: await buildAppPackage(aiwa.identity, { id, name: 'Tally', version, description: 'counts', manifestId }),
+    bundle,
+    evidence: await aiwa.submissionEvidence(),
+  };
+};
+
+test('an app of kind aiwa carries a pointer, not code: the package is signed over the manifest id', async () => {
+  const connection = fakeSolana();
+  const alice = await minedWallet(connection);
+  const { package: pkg } = await publishAiwa(alice);
+  assert.equal(pkg.kind, 'aiwa');
+  assert.equal(pkg.html, undefined);
+  assert.match(pkg.manifestId, /^[0-9a-f]{64}$/);
+  assert.equal((await verifyAppPackage(pkg)).ok, true);
+  const repointed = { ...pkg, manifestId: 'a'.repeat(64) };
+  assert.match((await verifyAppPackage(repointed)).reason, /hash does not match/, 'the pointer cannot be moved without the author');
+  assert.match((await verifyAppPackage({ ...pkg, manifestId: 'nope' })).reason, /64 hexadecimal/);
+});
+
+test('an app of kind aiwa is accepted with its bundle, and the registry keeps both', async () => {
+  const connection = fakeSolana();
+  const alice = await minedWallet(connection);
+  const { result, store } = await accept(await publishAiwa(alice), emptyStore(), connection, 1_000);
+  const entry = store.index.apps[0];
+  assert.equal(entry.kind, 'aiwa');
+  assert.equal(entry.manifestId, result.accepted.package.manifestId);
+  assert.equal(entry.bundlePath, 'apps/tally/1.0.0.bundle.json');
+
+  const dir = mkdtempSync(join(tmpdir(), 'store-'));
+  writeStore(dir, store, result.accepted);
+  const kept = JSON.parse(readFileSync(join(dir, entry.bundlePath), 'utf8'));
+  const verified = await verifyBundle(kept, { manifestId: entry.manifestId, domain: alice.identity.id, name: 'Tally', version: '1.0.0' });
+  assert.equal(verified.ok, true, verified.reason);
+  assert.deepEqual(verified.files, Object.fromEntries(FILES.map((f) => [f.path, f.content])), 'the kept events give back exactly the files');
+});
+
+test('a bundle is checked against what the package pins: the manifest, its author, its files, and nothing else', async () => {
+  const connection = fakeSolana();
+  const alice = await minedWallet(connection);
+  const bob = await minedWallet(connection);
+  const good = await publishAiwa(alice);
+  const run = (submission) => validateSubmission({ submission, store: emptyStore(), deployment, connection, now: T0 + 1_000 });
+
+  assert.match((await run({ ...good, bundle: undefined })).reason, /Not an Aiwa bundle/);
+
+  // another author's bundle under Alice's pointer
+  const theirs = await buildBundle(bob.identity, { name: 'Tally', version: '1.0.0', files: FILES });
+  assert.match((await run({ ...good, bundle: theirs.bundle })).reason, /pinned manifest is not in the bundle/);
+
+  // Alice's pointer to a manifest Bob signed
+  const pointsAtBob = { ...good, package: await buildAppPackage(alice.identity, { id: 'tally', name: 'Tally', version: '1.0.0', description: 'counts', manifestId: theirs.manifestId }), bundle: theirs.bundle };
+  assert.match((await run(pointsAtBob)).reason, /not signed by the app's author/);
+
+  // a file changed after signing: Aiwa itself refuses the event
+  const events = structuredClone(good.bundle.events);
+  const file = events.find((e) => e.type === 'bundle.file' && e.payload.path === 'app.js');
+  file.payload.content = 'steal()';
+  assert.match((await run({ ...good, bundle: { ...good.bundle, events } })).reason, /Aiwa refuses these events/);
+
+  // an event nobody listed
+  const extra = await buildBundle(alice.identity, { name: 'Tally', version: '1.0.0', files: [...FILES, { path: 'more.js', content: 'x' }] });
+  const padded = { ...good.bundle, events: [...good.bundle.events, extra.bundle.events.find((e) => e.payload.path === 'more.js')] };
+  assert.match((await run({ ...good, bundle: padded })).reason, /does not list/);
+
+  // the manifest names another version than the package
+  const other = await buildBundle(alice.identity, { name: 'Tally', version: '2.0.0', files: FILES });
+  const mismatched = { ...good, package: await buildAppPackage(alice.identity, { id: 'tally', name: 'Tally', version: '1.0.0', description: 'counts', manifestId: other.manifestId }), bundle: other.bundle };
+  assert.match((await run(mismatched)).reason, /another name or version/);
+});
+
+test('the files of an app: an index, safe names, a size', async () => {
+  assert.equal(filesProblem(FILES), null);
+  assert.match(filesProblem([{ path: 'a.js', content: '' }]), /no index\.html/);
+  assert.match(filesProblem([...FILES, { path: '../x', content: '' }]), /not allowed/);
+  assert.match(filesProblem([...FILES, { path: '/etc/passwd', content: '' }]), /not allowed/);
+  assert.match(filesProblem([...FILES, FILES[0]]), /twice/);
+  assert.match(filesProblem([{ path: 'index.html', content: 'x'.repeat(1100 * 1024) }]), /larger than 1024 KB/);
+  assert.match(filesProblem([]), /no files/);
+});

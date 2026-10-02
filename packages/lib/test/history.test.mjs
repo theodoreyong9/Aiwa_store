@@ -109,7 +109,6 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createArchiveServer } from 'aiwa-platform/archive-server';
-import { loadArchiveNodes, saveArchiveNodes } from '../src/archive-nodes.js';
 
 async function archiveNode() {
   const dir = mkdtempSync(join(tmpdir(), 'aiwa-lib-node-'));
@@ -170,17 +169,4 @@ test('startAutoArchive keeps the node up to date while the wallet changes, and d
     assert.equal(pushes.at(-1).epoch, 6);
     a.stopAutoArchive();
   } finally { node.close(); }
-});
-
-test('the list of archive nodes is kept in the browser, checked, and shared by everything that reads it', () => {
-  const store = {};
-  globalThis.localStorage = { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v; } };
-  try {
-    assert.deepEqual(loadArchiveNodes({ defaults: ['https://default.example'] }), ['https://default.example']);
-    assert.deepEqual(saveArchiveNodes(['https://a.example/', 'https://a.example', 'http://192.168.1.5:8787/x']), ['https://a.example', 'http://192.168.1.5:8787']);
-    assert.deepEqual(loadArchiveNodes(), ['https://a.example', 'http://192.168.1.5:8787']);
-    assert.throws(() => saveArchiveNodes(['http://example.com']), /https/);
-    store['aiwa-archive-nodes'] = JSON.stringify(['https://ok.example', 'garbage', 'http://example.com']);
-    assert.deepEqual(loadArchiveNodes(), ['https://ok.example'], 'invalid entries are dropped when read');
-  } finally { delete globalThis.localStorage; }
 });

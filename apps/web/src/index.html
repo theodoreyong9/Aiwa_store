@@ -19,10 +19,8 @@
   <nav class="tabs" id="app-nav">
     <button type="button" class="active" data-view="store">Store</button>
     <button type="button" data-view="wallet">Wallet</button>
-    <button type="button" data-view="publish">Publish</button>
   </nav>
 </header>
-<p class="note" id="handoff-note" hidden></p>
 
 <!-- ============ STORE ============ -->
 <main class="view" id="view-store" data-view="store">
@@ -32,30 +30,43 @@
   </div>
   <p class="muted" id="store-status"></p>
   <div id="store-list"></div>
-  <p class="hint" id="store-empty" hidden>No app here yet. <a href="#" id="go-publish">Publish the first one.</a></p>
+  <p class="hint" id="store-empty" hidden>No app here yet. Dictate one with the widget, then press ▦ to publish it.</p>
   <p class="hint">Apps run in a sandbox: they cannot see your wallet. They are not reviewed; the list is ordered by what their authors have mined (<code>score / laps</code>).</p>
 </main>
 
 <!-- ============ WALLET ============ -->
 <main class="view" id="view-wallet" data-view="wallet" hidden>
 
-  <section class="card" id="connect-section">
-    <input id="mnemonic" type="text" placeholder="Recovery phrase (empty creates a new identity)" autocomplete="off" aria-label="Recovery phrase, optional">
-    <button id="btn-connect" class="primary wide">Connect</button>
-    <div class="muted">New here? Leave it empty: a 12-word recovery phrase is made for you and shown once you are connected. Write it down — it is the only way to log back in.</div>
+  <section class="card" id="welcome" hidden>
+    <h2>Your wallet</h2>
+    <p class="muted">One tap makes it. It lives on this phone. Its 12 recovery words are shown once it exists: on another phone they are the only way back.</p>
+    <button id="btn-create" class="primary wide">Create my wallet</button>
+    <details class="plain">
+      <summary>I already have a recovery phrase</summary>
+      <input id="mnemonic" type="text" placeholder="The 12 words" autocomplete="off" aria-label="Recovery phrase">
+      <button id="btn-restore" class="wide">Use this phrase</button>
+    </details>
     <div id="connect-error" class="error"></div>
   </section>
 
   <div id="wallet-section" hidden>
 
+    <section class="card notice" id="phrase-notice" hidden>
+      <h2>Write down your 12 words</h2>
+      <p class="muted">They are your wallet. If this phone is lost, they are the only way to get it back; anyone who has them has your wallet.</p>
+      <code class="phrase" id="phrase-words"></code>
+      <button id="btn-phrase-done" class="wide">I wrote them down</button>
+    </section>
+
     <section class="card hero">
-      <div class="head"><span class="label">Spendable</span><button id="btn-disconnect" class="ghost sm">Disconnect</button></div>
+      <div class="head"><span class="label">Spendable</span></div>
       <div class="num" id="out-spendable">—</div>
       <div class="head">
         <span class="sub">Claimable <b id="out-claimable">—</b> · Total <span id="out-balance">—</span></span>
         <button id="btn-claim" class="light">Claim</button>
       </div>
       <div class="sub" id="out-mining">No burn yet</div>
+      <div class="sub" id="restore-note" hidden></div>
       <div id="sync-progress" hidden>
         <div class="sub"><span>Catching up</span> <span id="sync-progress-label">—</span></div>
         <div class="progress-bar"><div id="sync-progress-fill"></div></div>
@@ -65,11 +76,6 @@
     <section class="card ids">
       <div class="idrow"><span>Identity</span><code id="out-identity-id"></code><button type="button" class="icon" data-copy="out-identity-id">Copy</button></div>
       <div class="idrow"><span>Solana</span><code id="out-address"></code><button type="button" class="icon" data-copy="out-address">Copy</button></div>
-    </section>
-
-    <section class="card" id="safety-card">
-      <h2>Recovery</h2>
-      <div id="safety-panel"></div>
     </section>
 
     <section class="card">
@@ -111,53 +117,65 @@
       </section>
     </div>
 
+    <section class="card" id="my-apps-section" hidden>
+      <h2>My apps</h2>
+      <div id="my-apps-list"></div>
+    </section>
+
     <details class="card" id="history-section">
       <summary>History</summary>
       <div id="history-list"><p class="hint">Nothing yet.</p></div>
     </details>
 
+    <details class="card" id="recovery-section">
+      <summary>Recovery phrase</summary>
+      <p class="muted" id="recovery-where"></p>
+      <button id="btn-show-phrase" class="wide">Show my 12 words</button>
+      <code class="phrase" id="out-phrase" hidden></code>
+      <input id="replace-phrase" type="text" placeholder="Another phrase, to use it on this phone instead" autocomplete="off" aria-label="Another recovery phrase">
+      <p class="error" id="replace-confirm" hidden>This replaces the wallet on this phone. If its 12 words are not written down, it is gone.</p>
+      <button id="btn-replace" class="wide">Use this phrase</button>
+      <div id="replace-result" class="error"></div>
+    </details>
+
   </div>
 </main>
 
-<!-- ============ PUBLISH ============ -->
-<main class="view" id="view-publish" data-view="publish" hidden>
-  <p class="hint" id="publish-hint">Connect your wallet first (Wallet tab): publishing is signed with your identity, and ranked by what you have mined.</p>
-  <div id="publish-section" hidden>
-    <section class="card">
-      <h2>Publish an app</h2>
+<!-- ============ PUBLISH SHEET: opened by the widget's hand-off, or to refresh a ranking ============ -->
+<div id="sheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="sheet-card">
+    <h2 id="sheet-title">Publish this app</h2>
+    <div id="sheet-fields">
+      <input id="app-name" type="text" placeholder="Name" aria-label="Name">
       <div class="line">
         <input id="app-id" type="text" placeholder="id (a-z, 0-9, -)" autocomplete="off" aria-label="App id">
         <input id="app-version" class="narrow" type="text" value="1.0.0" aria-label="Version">
       </div>
-      <input id="app-name" type="text" placeholder="Name" aria-label="Name">
       <input id="app-description" type="text" placeholder="One line about it" aria-label="Description">
-      <textarea id="app-html" rows="12" spellcheck="false" aria-label="index.html: one self-contained file that loads its own dependencies"></textarea>
+    </div>
+    <p class="muted" id="sheet-summary"></p>
+    <div class="error" id="sheet-warning" hidden></div>
+    <div id="sheet-code" class="notice" hidden>
+      <p class="muted">On GitHub (the app opened it), enter this code:</p>
+      <div class="line"><code class="phrase" id="sheet-code-text"></code><button id="sheet-copy-code" class="icon" type="button">Copy</button></div>
+      <p class="muted" id="sheet-code-uri"></p>
+    </div>
+    <p class="muted" id="sheet-status"></p>
+    <div id="sheet-manual" hidden>
       <div class="line flow">
-        <button id="btn-try">Try it</button>
-        <button id="btn-prepare" class="primary">Prepare submission</button>
+        <button id="btn-download" type="button" class="primary">Download the file</button>
+        <button id="btn-copy-submission" type="button">Copy</button>
+        <a id="link-pr" class="button" href="#" target="_blank" rel="noopener">Open GitHub</a>
       </div>
-      <div id="publish-result" class="muted"></div>
-      <div id="publish-next" hidden>
-        <div class="line flow">
-          <button id="btn-download" class="primary">Download submission.json</button>
-          <button id="btn-copy-submission">Copy</button>
-          <a id="link-pr" class="button" href="#" target="_blank" rel="noopener">Open a pull request</a>
-        </div>
-        <p class="muted" id="publish-steps"></p>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Refresh my ranking</h2>
-      <div class="line">
-        <input id="refresh-id" type="text" placeholder="id of one of your apps" autocomplete="off" aria-label="App id to refresh">
-        <button id="btn-refresh-prepare">Prepare</button>
-      </div>
-      <p class="muted">Re-reads what you can claim and the epochs since your last action, for one app. Same pull request, no new content.</p>
-      <div id="refresh-result" class="muted"></div>
-    </section>
+    </div>
+    <a id="sheet-result" class="button primary" href="#" target="_blank" rel="noopener" hidden>See the pull request</a>
+    <div class="line flow">
+      <button id="sheet-try" type="button">Try it</button>
+      <button id="sheet-go" type="button" class="primary">Publish</button>
+      <button id="sheet-close" type="button">Close</button>
+    </div>
   </div>
-</main>
+</div>
 
 <footer class="foot">
   <button id="btn-dictation" class="ghost sm" type="button" hidden>Dictation (optional)</button>

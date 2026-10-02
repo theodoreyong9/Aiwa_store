@@ -9,6 +9,4 @@ export { AIWA } from './wallet.js';
 export { Channel } from './channel.js';
 export { encodeOfflineBundle, decodeOfflineBundle } from './offline-bundle.js';
 export { collectAncestors } from './ancestors.js';
-export { mountWalletSafety } from './safety-panel.js';
-export { loadArchiveNodes, saveArchiveNodes } from './archive-nodes.js';
 export { defineContract, Contract, signedAction, verifySignedAction } from './contract.js';

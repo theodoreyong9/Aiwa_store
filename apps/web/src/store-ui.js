@@ -1,7 +1,8 @@
 import { loadIndex, loadApp, filterApps, shortAddress, figureOf } from './store.js';
 import { openCache } from './kv.js';
 import { config } from './config.js';
-import { $, switchView } from './ui.js';
+import { $ } from './ui.js';
+import { setCatalog } from './session.js';
 import { openViewer } from './viewer.js';
 
 const cache = openCache('aiwa-store-cache');
@@ -35,7 +36,7 @@ function render() {
     desc.textContent = app.description;
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = `${shortAddress(app.author)} · score/laps ${figureOf(app)} (${Number(app.score).toPrecision(3)} / ${app.laps})`;
+    meta.textContent = `${shortAddress(app.author)}${app.kind === 'aiwa' ? ' · Aiwa' : ''} · score/laps ${figureOf(app)} (${Number(app.score).toPrecision(3)} / ${app.laps})`;
     body.append(title, desc, meta);
 
     const open = document.createElement('button');
@@ -69,9 +70,11 @@ export async function refreshStore() {
   try {
     const result = await loadIndex({ baseUrl: config.registryUrl, cache });
     apps = result.apps;
+    setCatalog(apps);
     $('store-status').textContent = result.source === 'cache' ? `Offline: the last list seen (${result.error}).` : '';
   } catch (err) {
     apps = [];
+    setCatalog(apps);
     $('store-status').textContent = `The registry could not be read: ${err.message}`;
   }
   render();
@@ -80,6 +83,5 @@ export async function refreshStore() {
 export function initStore() {
   $('store-search').addEventListener('input', render);
   $('store-refresh').addEventListener('click', refreshStore);
-  $('go-publish').addEventListener('click', (e) => { e.preventDefault(); switchView('publish'); });
   return refreshStore();
 }

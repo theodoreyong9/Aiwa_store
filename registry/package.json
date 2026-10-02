@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.js",
     "./app-package": "./src/app-package.js",
+    "./bundle": "./src/bundle.js",
     "./rank": "./src/rank.js",
     "./reward-params": "./src/reward-params.js"
   },
@@ -17,7 +18,8 @@
   "dependencies": {
     "@noble/hashes": "^2.4.0",
     "aiwa-core": "^0.1.0",
-    "aiwa-lib": "^0.1.0"
+    "aiwa-lib": "^0.1.0",
+    "aiwa-platform": "^0.1.0"
   },
   "optionalDependencies": {
     "@solana/web3.js": "^1.98.0"

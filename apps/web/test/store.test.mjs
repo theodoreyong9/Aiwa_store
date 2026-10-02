@@ -1,11 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateIdentity } from 'aiwa-core';
-import { buildAppPackage } from 'aiwa-registry';
+import { buildAppPackage, buildBundle } from 'aiwa-registry';
 import { loadIndex, loadApp, filterApps, rankApps } from '../src/store.js';
 
 const html = (t) => `<!doctype html><title>${t}</title><h1>${t}</h1>`;
-const entryOf = (pkg, extra = {}) => ({ id: pkg.id, name: pkg.name, version: pkg.version, description: pkg.description, author: pkg.author, bundleHash: pkg.bundleHash, path: `apps/${pkg.id}/${pkg.version}.json`, score: 1, laps: 1, publishedAt: 1, updatedAt: 1, ...extra });
+const entryOf = (pkg, extra = {}) => ({
+  id: pkg.id, name: pkg.name, version: pkg.version, description: pkg.description, kind: pkg.kind, author: pkg.author, bundleHash: pkg.bundleHash,
+  path: `apps/${pkg.id}/${pkg.version}.json`, ...(pkg.kind === 'aiwa' ? { manifestId: pkg.manifestId, bundlePath: `apps/${pkg.id}/${pkg.version}.bundle.json` } : {}),
+  score: 1, laps: 1, publishedAt: 1, updatedAt: 1, ...extra,
+});
 const json = (value, ok = true, status = 200) => ({ ok, status, json: async () => value });
 const memoryCache = () => { const m = new Map(); return { get: async (k) => m.get(k), set: async (k, v) => { m.set(k, v); }, m }; };
 
@@ -58,7 +62,7 @@ test('a package already opened is kept by its hash, checked again, and opens wit
   const again = await loadApp({ entry, baseUrl: 'x', cache, fetchFn: async () => { throw new Error('no network'); } });
   assert.equal(again.source, 'cache');
 
-  cache.m.set(`pkg:${entry.bundleHash}`, { ...pkg, html: html('tampered in the cache') });
+  cache.m.set(`pkg:${entry.bundleHash}`, { pkg: { ...pkg, html: html('tampered in the cache') }, bundle: null });
   await assert.rejects(loadApp({ entry, baseUrl: 'x', cache, fetchFn: async () => { throw new Error('no network'); } }), /hash does not match/);
 });
 
@@ -72,4 +76,50 @@ test('search needs every word, in the id, name, description or author', () => {
   assert.deepEqual(filterApps(apps, 'bbb222 coffee'), []);
   assert.equal(filterApps(apps, '  ').length, 2);
   assert.deepEqual(rankApps([]), []);
+});
+
+// --- the second kind: code published through Aiwa -------------------------------------------------------------------
+
+const FILES = [
+  { path: 'index.html', content: '<!doctype html><html><head><link rel="stylesheet" href="style.css"></head><body><h1>Tally</h1><script src="./app.js"></script></body></html>' },
+  { path: 'style.css', content: 'h1 { color: red; }' },
+  { path: 'app.js', content: 'document.title = "</script>";' },
+];
+async function aiwaApp() {
+  const author = await generateIdentity();
+  const { manifestId, bundle } = await buildBundle(author, { name: 'Tally', version: '1.0.0', files: FILES });
+  const pkg = await buildAppPackage(author, { id: 'tally', name: 'Tally', version: '1.0.0', manifestId });
+  return { author, pkg, bundle, entry: entryOf(pkg) };
+}
+const serveBoth = (pkg, bundle) => async (url) => json(url.endsWith('.bundle.json') ? bundle : pkg);
+
+test('an app of kind aiwa is opened from its pointer: the bundle is verified by Aiwa against the signed manifest, then assembled', async () => {
+  const { pkg, bundle, entry } = await aiwaApp();
+  const { html, source } = await loadApp({ entry, baseUrl: 'x', fetchFn: serveBoth(pkg, bundle) });
+  assert.equal(source, 'network');
+  assert.match(html, /<style>h1 \{ color: red; \}<\/style>/, 'the stylesheet is inside');
+  assert.match(html, /<script>document\.title = "<\\\/script>";<\/script>/, 'the script is inside, its closing tag defused');
+  assert.ok(!html.includes('href="style.css"') && !html.includes('src="./app.js"'));
+});
+
+test('an app of kind aiwa is refused when the host changed a file, swapped the bundle, or moved the pointer', async () => {
+  const { pkg, bundle, entry, author } = await aiwaApp();
+  const evil = structuredClone(bundle);
+  evil.events.find((e) => e.payload.path === 'app.js').payload.content = 'steal()';
+  await assert.rejects(loadApp({ entry, baseUrl: 'x', fetchFn: serveBoth(pkg, evil) }), /Aiwa refuses these events/);
+
+  const other = await buildBundle(author, { name: 'Tally', version: '1.0.0', files: [...FILES.slice(0, 2), { path: 'app.js', content: 'other()' }] });
+  await assert.rejects(loadApp({ entry, baseUrl: 'x', fetchFn: serveBoth(pkg, other.bundle) }), /pinned manifest is not in the bundle/);
+
+  await assert.rejects(loadApp({ entry: { ...entry, manifestId: 'a'.repeat(64) }, baseUrl: 'x', fetchFn: serveBoth(pkg, bundle) }), /another manifest than the registry lists/);
+  await assert.rejects(loadApp({ entry, baseUrl: 'x', fetchFn: async (url) => (url.endsWith('.bundle.json') ? json({}, false, 404) : json(pkg)) }), /does not serve this app \(404\)/);
+});
+
+test('the index lists apps of both kinds, and drops an aiwa entry that has no pointer', async () => {
+  const { entry } = await aiwaApp();
+  const author = await generateIdentity();
+  const code = await buildAppPackage(author, { id: 'a', name: 'A', version: '1.0.0', html: html('a') });
+  const index = { format: 'aiwa-store-index/1', apps: [entry, entryOf(code), { ...entry, id: 'x', manifestId: undefined }, { ...entryOf(code), kind: undefined, id: 'y' }] };
+  const { apps } = await loadIndex({ baseUrl: 'x', fetchFn: async () => json(index) });
+  assert.deepEqual(apps.map((e) => e.id).sort(), ['a', 'tally']);
 });

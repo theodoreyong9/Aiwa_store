@@ -1,37 +1,27 @@
-// The wallet tab: connect, balances, burn (with what it does shown first), claim, send and receive (a signed code,
-// carried by QR, copy or share), history, recovery. All on aiwa-lib; nothing here decides what is valid.
+// The wallet tab: balances, burn (with what it does shown first), claim, send and receive (a signed code, carried by QR,
+// copy or share), the author's apps, history, and the recovery phrase. All on aiwa-lib; nothing here decides what is valid.
+// The wallet starts by itself (wallet.js): this page only shows it, and asks for something when there is nothing to start from.
 
-import { AIWA, mountWalletSafety, loadArchiveNodes, encodeOfflineBundle, decodeOfflineBundle, fromUnits } from 'aiwa-lib';
+import { encodeOfflineBundle, decodeOfflineBundle, fromUnits } from 'aiwa-lib';
 import { config } from './config.js';
-import { session, setSession, connected } from './session.js';
+import { session, setSession, connected, onSession, onCatalog, catalog } from './session.js';
+import { keptPhrase, startWallet, restoreHistory, keepRunning, solanaConnection } from './wallet.js';
+import { secretsAreSafe } from './keys.js';
 import { $, short, setId, showError, flash } from './ui.js';
+import { openRefresh } from './publish-ui.js';
 
 let displayRefreshTimer = null;
 let lastOfflineBlob = null;
-let safety = null;
+export { solanaConnection };
 
-// ---------- Solana: one connection, made on first use ----------
-
-// @solana/web3.js is part of this app (a separate chunk, loaded when a burn or a balance needs it): aiwa-core looks
-// for it on window.solanaWeb3 before it would fetch it from a CDN.
-let connectionPromise = null;
-export function solanaConnection() {
-  connectionPromise ??= (async () => {
-    if (!window.solanaWeb3) window.solanaWeb3 = await import('@solana/web3.js');
-    if (window.__aiwaTest?.connection) return window.__aiwaTest.connection;       // tests only: a stand-in for Solana
-    return new window.solanaWeb3.Connection(config.rpc, 'confirmed');
-  })();
-  connectionPromise.catch(() => { connectionPromise = null; });
-  return connectionPromise;
-}
-
-// ---------- what is visible depends on one fact: is a key in memory ----------
+// ---------- what is visible depends on one fact: is a wallet running ----------
 
 function updateGates() {
   const on = connected();
-  $('connect-section').hidden = on;
+  $('welcome').hidden = on || starting;
   $('wallet-section').hidden = !on;
 }
+let starting = true;
 
 async function refreshLocalState() {
   const aiwa = session.aiwa;
@@ -112,16 +102,6 @@ async function renderHistory() {
     return;
   }
   for (const row of rows) list.append(historyRow(row));
-}
-
-// ---------- recovery (aiwa-lib's own panel, the same in every app with an Aiwa wallet) ----------
-
-function mountSafety() {
-  safety?.unmount();
-  safety = mountWalletSafety($('safety-panel'), session.aiwa, {
-    classes: { button: 'icon', box: 'phrase', note: 'muted' },
-    onRestored: () => refreshLocalState(),
-  });
 }
 
 // ---------- burn ----------
@@ -227,54 +207,125 @@ async function receive() {
   }
 }
 
-// ---------- connect / disconnect ----------
+// ---------- the author's apps ----------
 
-async function connect() {
-  showError($('connect-error'), '');
-  try {
-    const aiwa = new AIWA({ rewardParams: config.rewardParams, dbName: 'aiwa-store-wallet' });
-    const mnemonic = $('mnemonic').value.trim();
-    await aiwa.connect(mnemonic ? { mnemonic } : {});
-    setSession(aiwa);
-    // Burns that arrive with other domains' events are confirmed against Solana by themselves once the wallet has a
-    // connection. Never blocks connecting: offline, it just stays unset.
-    solanaConnection().then((connection) => { if (session.aiwa === aiwa) aiwa.connection = connection; }).catch(() => {});
-    updateGates();
-    // A real backlog since the last checkpoint is folded on the first balance read; a handful of events stays silent.
-    aiwa.onMaterializeProgress = (current, total) => {
-      if (total <= 5) { $('sync-progress').hidden = true; return; }
-      $('sync-progress').hidden = false;
-      $('sync-progress-label').textContent = `${current} / ${total}`;
-      $('sync-progress-fill').style.width = `${Math.round((current / total) * 100)}%`;
-      if (current >= total) setTimeout(() => { $('sync-progress').hidden = true; }, 500);
-    };
-    await refreshLocalState();
-    mountSafety();
-    aiwa.startProgressLoop({ intervalMs: config.progress?.intervalMs ?? 30_000, onError: (err) => console.error('progress loop:', err) });
-    aiwa.startAutoCheckpoint({ onError: (err) => console.error('auto-checkpoint:', err) });
-    // The backup goes to the archive nodes the user added (Recovery → Archive nodes), whenever the wallet changed.
-    aiwa.startAutoArchive({ nodes: () => loadArchiveNodes(), onError: (err) => console.error('auto-archive:', err) });
-    displayRefreshTimer = setInterval(() => { if (session.aiwa) refreshLocalState(); }, 5000);
-  } catch (err) {
-    showError($('connect-error'), err.message);
+/** The apps of the store whose author is this wallet. */
+function showMyApps(apps) {
+  const aiwa = session.aiwa;
+  const mine = aiwa?.identity ? apps.filter((app) => app.author === aiwa.address) : [];
+  $('my-apps-section').hidden = mine.length === 0;
+  const list = $('my-apps-list');
+  list.replaceChildren();
+  for (const app of mine) {
+    const row = document.createElement('div');
+    row.className = 'idrow';
+    const text = document.createElement('span');
+    text.textContent = `${app.name} v${app.version} · score/laps ${(app.score / Math.max(1, app.laps)).toPrecision(3)}`;
+    const refresh = document.createElement('button');
+    refresh.type = 'button';
+    refresh.className = 'icon';
+    refresh.textContent = 'Refresh ranking';
+    refresh.addEventListener('click', () => openRefresh(app));
+    row.append(text, refresh);
+    list.append(row);
   }
 }
 
-async function disconnect() {
-  safety?.unmount();
-  safety = null;
-  const aiwa = session.aiwa;
-  setSession(null);
-  await aiwa.disconnect(); // also stops the progress loop
-  clearInterval(displayRefreshTimer);
-  displayRefreshTimer = null;
-  $('sync-progress').hidden = true;
-  updateGates();
+// ---------- the recovery phrase ----------
+
+// A new wallet shows its 12 words once, and asks for them to be written down: on another phone they are the only way back.
+const ACK = 'aiwa-store:phrase-acknowledged';
+const acknowledged = () => { try { return localStorage.getItem(ACK) === '1'; } catch { return true; } };
+
+function showPhraseNotice() {
+  const notice = $('phrase-notice');
+  notice.hidden = acknowledged();
+  if (!notice.hidden) $('phrase-words').textContent = session.aiwa.recoveryPhrase;
 }
 
-export function initWallet() {
-  $('btn-connect').addEventListener('click', connect);
-  $('btn-disconnect').addEventListener('click', disconnect);
+function recoverySection() {
+  $('recovery-where').textContent = secretsAreSafe()
+    ? 'Kept in this phone\'s keystore.'
+    : 'Kept in this browser\'s storage: anyone who can read this browser profile can read it. The Android app keeps it in the keystore.';
+  $('btn-show-phrase').addEventListener('click', () => {
+    const out = $('out-phrase');
+    out.hidden = !out.hidden;
+    out.textContent = out.hidden ? '' : session.aiwa.recoveryPhrase;
+    $('btn-show-phrase').textContent = out.hidden ? 'Show my 12 words' : 'Hide';
+  });
+  $('btn-phrase-done').addEventListener('click', () => {
+    try { localStorage.setItem(ACK, '1'); } catch { /* shown again next time */ }
+    $('phrase-notice').hidden = true;
+  });
+  $('btn-replace').addEventListener('click', async () => {
+    const mnemonic = $('replace-phrase').value.trim();
+    if (!mnemonic) return;
+    if (!$('replace-confirm').hidden) { await switchWallet(mnemonic, $('replace-result')); return; }
+    $('replace-confirm').hidden = false;
+    $('btn-replace').textContent = 'Yes, replace it';
+  });
+}
+
+// ---------- start ----------
+
+function trackProgress(aiwa) {
+  // A real backlog since the last checkpoint is folded on the first balance read; a handful of events stays silent.
+  aiwa.onMaterializeProgress = (current, total) => {
+    if (total <= 5) { $('sync-progress').hidden = true; return; }
+    $('sync-progress').hidden = false;
+    $('sync-progress-label').textContent = `${current} / ${total}`;
+    $('sync-progress-fill').style.width = `${Math.round((current / total) * 100)}%`;
+    if (current >= total) setTimeout(() => { $('sync-progress').hidden = true; }, 500);
+  };
+}
+
+async function run(aiwa) {
+  setSession(aiwa);
+  trackProgress(aiwa);
+  starting = false;
+  updateGates();
+  const restored = await restoreHistory(aiwa);
+  $('restore-note').hidden = !restored;
+  if (restored) $('restore-note').textContent = `Your history came back from ${restored.source === 'archive' ? 'your archive node' : 'the registry'}: epoch ${restored.epoch}.`;
+  await refreshLocalState();
+  keepRunning(aiwa);     // after the restore: working epochs on an empty log would fork the history that was about to come back
+  showPhraseNotice();
+  displayRefreshTimer = setInterval(() => { if (session.aiwa) refreshLocalState(); }, 5000);
+}
+
+async function stop() {
+  clearInterval(displayRefreshTimer);
+  displayRefreshTimer = null;
+  const aiwa = session.aiwa;
+  setSession(null);
+  await aiwa?.disconnect();
+}
+
+/** Makes (no phrase) or restores (a phrase) the wallet; shows the problem in `errorEl` if it cannot. */
+async function switchWallet(mnemonic, errorEl) {
+  showError(errorEl, '');
+  try {
+    const aiwa = await startWallet({ mnemonic });
+    await stop();
+    try { localStorage.removeItem(ACK); } catch { /* cosmetic */ }
+    $('replace-phrase').value = '';
+    $('replace-confirm').hidden = true;
+    $('btn-replace').textContent = 'Use this phrase';
+    await run(aiwa);
+  } catch (err) {
+    showError(errorEl, err.message);
+  }
+}
+
+export async function initWallet() {
+  onCatalog(showMyApps);
+  onSession(() => showMyApps(catalog.apps));
+  $('btn-create').addEventListener('click', () => switchWallet(undefined, $('connect-error')));
+  $('btn-restore').addEventListener('click', () => {
+    const mnemonic = $('mnemonic').value.trim();
+    if (!mnemonic) { showError($('connect-error'), 'Type your 12 words.'); return; }
+    switchWallet(mnemonic, $('connect-error'));
+  });
   $('history-section').addEventListener('toggle', renderHistory);
   $('burn-amount').addEventListener('input', previewBurn);
   $('burn-t').addEventListener('input', previewBurn);
@@ -308,5 +359,15 @@ export function initWallet() {
     const ok = await scanQrInto($('scan-video'), $('receive-blob'));
     if (!ok) $('receive-result').textContent = 'No camera scanning in this browser: paste the code.';
   });
+  recoverySection();
+
+  // The wallet starts by itself when this phone already has one; a phone that has none makes the person choose once.
+  try {
+    const phrase = await keptPhrase();
+    if (phrase) await run(await startWallet({ mnemonic: phrase }));
+  } catch (err) {
+    showError($('connect-error'), err.message);
+  }
+  starting = false;
   updateGates();
 }

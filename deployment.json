@@ -5,6 +5,10 @@
   "cluster": "devnet",
   "rpc": "https://api.devnet.solana.com",
   "registryUrl": "https://theodoreyong9.github.io/Aiwa_store/store",
+  "github": {
+    "clientId": ""
+  },
+  "archiveNodes": [],
   "progress": {
     "intervalMs": 30000
   },

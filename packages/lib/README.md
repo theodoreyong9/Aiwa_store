@@ -3,7 +3,7 @@
 The public API for apps and wallets, composed from [aiwa-core](../core) and [aiwa-platform](../platform).
 
 ```
-npm test        # 100 tests
+npm test
 ```
 
 ## The wallet (`AIWA`)
@@ -25,7 +25,6 @@ await aiwa.send(recipientId, '1.0');        // also works fully offline, by bund
 | Recovery | `recoveryPhrase`, `recoveryKey`, `exportBackup` / `importBackup`, `adoptState`, `archiveNow` / `restoreFromArchive` / `startAutoArchive` |
 | Evidence for a verifier | `submissionEvidence({ afterEpoch })`, `witnesses` |
 | Delegation and vouchers | `openChannel` / `requestChannel`, `issueVoucher` / `redeemVoucher` |
-| Shared screen | `mountWalletSafety(container, aiwa)`: the recovery panel every app mounts instead of writing its own |
 
 ## The contract SDK
 
