@@ -39,30 +39,46 @@ body {
 }
 a { color: var(--accent); }
 
-.wrap { max-width: 720px; margin: 0 auto; padding: 0 14px 28px; }
+/* Everything starts at the bottom, where the thumb is: the title and the tabs are a bar at the bottom of the screen, and a page's
+   content grows upwards from it (its first block against the bar, the next above it, and so on). A page longer than the screen
+   scrolls, and starts scrolled to the bottom. */
+html, body { height: 100%; height: 100dvh; overflow: hidden; }
+.wrap { max-width: 720px; height: 100%; margin: 0 auto; padding: 0 14px; display: flex; flex-direction: column; }
+.view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column-reverse;
+  padding-top: 10px;
+  scrollbar-width: none;
+}
+.view::-webkit-scrollbar { display: none; }
+.view > *, #wallet-section > * { flex: none; }
+#wallet-section { display: flex; flex-direction: column-reverse; }
+.view > #wallet-section[hidden] { display: none; }
 
 /* ---------- bar ---------- */
 
 .bar {
-  position: sticky;
-  top: 0;
+  order: 3;
+  flex: none;
   z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding: 10px 0;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
 }
-.brand { display: flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: 0.02em; font-size: 16px; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: 0.02em; font-size: 15px; white-space: nowrap; }
 .mark { width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); flex: none; }
 
 .tabs { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--raised); }
 .tabs button {
   margin: 0;
-  padding: 6px 12px;
+  padding: 6px 10px;
   height: auto;
   border: 0;
   border-radius: 999px;
@@ -240,10 +256,10 @@ a.button { display: inline-flex; align-items: center; height: 38px; padding: 0 1
 
 #viewer { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; background: var(--bg); }
 #viewer[hidden] { display: none; }
-.viewer-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 14px; padding-top: max(8px, env(safe-area-inset-top)); border-bottom: 1px solid var(--border); }
+.viewer-bar { order: 3; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 14px; padding-bottom: max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); }
 .viewer-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#viewer-frame-host { flex: 1; min-height: 0; }
-#viewer .flag { padding: 6px 14px; font-size: 13px; background: var(--danger); color: #fff; }
+#viewer-frame-host { order: 1; flex: 1; min-height: 0; }
+#viewer .flag { order: 2; padding: 6px 14px; font-size: 13px; background: var(--danger); color: #fff; }
 #viewer .door { position: absolute; z-index: 5; }
 .door .qr canvas { display: block; margin: 0 auto; border-radius: 8px; background: #fff; }
 .door textarea { width: 100%; font: 12px ui-monospace, monospace; }
@@ -258,7 +274,7 @@ a.button { display: inline-flex; align-items: center; height: 38px; padding: 0 1
 .contract-list-row span { min-width: 0; overflow-wrap: anywhere; }
 #contract-frame { width: 100%; height: 420px; border: 1px solid var(--border); border-radius: 9px; background: #fff; }
 
-.foot { display: flex; justify-content: center; gap: 16px; margin-top: 18px; font-size: 12px; }
+.foot { order: 2; flex: none; display: flex; justify-content: center; gap: 16px; padding: 6px 0; font-size: 12px; }
 .foot a { color: var(--muted); text-decoration: none; }
 .foot a:hover { color: var(--accent); }
 

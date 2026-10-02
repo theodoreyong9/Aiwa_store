@@ -1426,7 +1426,7 @@ sequenceDiagram
   Note over A,B: say B clicked less: B owes (B's clicks × R)
   B->>B: door pay: a delegated transfer, signed by the session key
   B->>A: payment { offline bundle }
-  A->>A: door receive: append, confirm B's burn on Solana, balance up
+  A->>A: door receive: append B's events, balance up once B's burn is confirmed (§9.2)
 ```
 
 *What it shows.* "Sign once, click many": the player is asked for no signature at all. The wallet signs one delegation the first
@@ -1434,7 +1434,7 @@ time, and the session key signs the payment. The receiver checks the origin of t
 in the loser's phone about the money, only about the **count**.
 
 *What it does not do.* Each phone reports its own count: a modified app can lie, and the live view only lets the other side notice.
-There is no escrow: the loser can spend the claim elsewhere before the payment is applied (§13.5). The amount a player can lose
+The game itself never touches Solana; the wallet does, once per origin, for any AIWA it receives (§9.2): with no connection the payment is received and counts once the phone has been online. There is no escrow: the loser can spend the claim elsewhere before the payment is applied (§13.5). The amount a player can lose
 is not capped by anything but their balance. Both are left for later, on purpose: the first demonstrations are between people in
 the same room. Finding players nearby (geolocation) is not built. Not tried on real phones: the link between two phones, and the camera in the WebView (a code can always be pasted).
 

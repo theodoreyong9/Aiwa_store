@@ -10,7 +10,8 @@
 //   whoami                  { id, address, balance, spendable }       what the app may know of the player
 //   pay { to, amount }      { blob }                                  a payment of `amount` AIWA to the identity `to`, as an
 //                                                                      offline bundle, signed by the channel's session key
-//   receive { blob }        { balance }                               appends a payment received from someone
+//   receive { blob }        { balance, pending }                      appends a payment received from someone; `pending` is how many
+//                                                                      burns it depends on still wait to be confirmed against Solana
 //   showCode { text, title, action }  {}                              a code on screen (QR and text) until hideCode or Close; with
 //                                                                      `action` (a button label) it answers only when that is pressed
 //   hideCode                {}
@@ -118,10 +119,16 @@ const commands = {
     let bundle;
     try { bundle = decodeOfflineBundle(String(blob)); } catch { throw new Error('this is not an Aiwa payment'); }
     await aiwa.receiveOfflineBundle(bundle);
-    // A claim counts only once the burn it comes from is confirmed against Solana: do it now, rather than when the wallet gets to it.
-    if (aiwa.connection) await aiwa.confirmBurns(aiwa.connection).catch(() => {});
+    // AIWA counts for its receiver only once the burn it was created from is confirmed against Solana (§9.2): that is the one thing
+    // a received payment needs from outside, and it is asked once per origin. Do it now, rather than when the wallet gets to it. With
+    // no way to reach Solana the payment is received but stays uncounted: `pending` says how many burns still wait.
+    let pending = null;
+    if (aiwa.connection) {
+      const confirmation = await aiwa.confirmBurns(aiwa.connection).catch(() => null);
+      pending = confirmation ? confirmation.pending.length : null;
+    }
     walletChanged();
-    return { balance: String(await aiwa.balance()) };
+    return { balance: String(await aiwa.balance()), pending };
   },
   showCode,
   async hideCode() { if (!waiting) $('door-sheet').hidden = true; return {}; },

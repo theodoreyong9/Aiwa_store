@@ -22,3 +22,5 @@
 - The Store reads QR codes with the camera: decoded in JavaScript (jsQR, tested in Chromium against a fake camera), and `StoreActivity` grants the camera to the page's own origin, for video only, after Android's permission (compiled in CI, never run on a phone). Web tests 40.
 - The widget's logo opens the app (the Store), not the dictation text screen; inside the app a **Dictate** tab opens that screen.
 - The README's introduction: a distributed ecosystem (build, submit, store, token, play and pay), not only a store.
+- Layout from the bottom of the page: the title and the tabs are a bar at the bottom of the screen, a page's content grows upwards from it, the Store's search field is the lowest thing; the viewer's bar (name, Close) is at the bottom too. The README's screenshots are redrawn.
+- The click duel says plainly where Solana comes in: the game never touches it; the wallet checks once that received AIWA comes from a real burn, and with no connection a payment counts once the phone has been online (`receive` now answers `pending`).

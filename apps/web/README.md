@@ -11,6 +11,12 @@ There is no Publish tab. The **publish sheet** (`src/publish-ui.js`) opens when 
 what the author is looking at and open a pull request on their GitHub account (`src/github.js`: fork, branch, file, pull request;
 the login is GitHub's device flow, run by the Android app).
 
+## Layout
+
+Everything starts at the bottom, where the thumb is: the title and the tabs are a bar at the bottom of the screen, and a page's content grows upwards
+from it (its first block against the bar, the next above). The Store's search field is therefore the lowest thing on the page, and a page longer than
+the screen scrolls from the bottom. An app in the viewer has its own bar (name, Close) at the bottom too (`src/style.css`).
+
 ## How an app runs
 
 An app is untrusted code. It is loaded into `<iframe sandbox="allow-scripts">` — never `allow-same-origin` — so the

@@ -319,9 +319,10 @@ async function receivePayment(m) {
     const before = Number((await door('whoami')).balance);
     const { balance } = await door('receive', { blob: m.blob });
     await refreshBalance().catch(() => {});
-    const got = Number(balance) - before;
-    const expected = Number(costOf(theirFinal ?? theirs));
-    const note = got + 1e-9 < expected ? `<br>(${expected} was due)` : '';
+    // The payment is received. It counts in the wallet once the phone has checked, with Solana, that the AIWA comes from a real burn
+    // (once for a given origin): with no connection yet, that waits, and the game says so rather than pretending.
+    const counted = Number(balance) - before + 1e-9 >= Number(costOf(theirFinal ?? theirs));
+    const note = counted ? '' : '<br><small>Received. It shows in your wallet once this phone has been online, to check where this AIWA comes from.</small>';
     finish(`<b>You won ${Number(m.amount)} AIWA</b>${myFinal} to ${theirFinal}, at ${rate} per click.${note}`, 'win');
   } catch (error) { finish(`<b>You won</b>but the payment was refused: ${error.message}`, 'win'); }
 }

@@ -50,6 +50,8 @@ Tests pass in CI; documentation says exactly what was and was not verified; no c
 
 ## Known risks
 
+- **Receiving AIWA needs Solana once.** The receiving wallet confirms the burn the coin was created from (otherwise anyone could invent AIWA). With no connection a payment is received but counts only once the phone has been online: two phones in a room with no network cannot see the payment in the balance yet. A mode where a wallet accepts a payment from the person in front of it, flagged as unchecked, is not built.
+
 - **The camera in the Android app has never run.** The page reads QR codes with `getUserMedia` and decodes them in JavaScript (jsQR, tested in Chromium against a fake camera that films a code); `StoreActivity` grants the camera to the page's own origin, for video only, after Android's permission (written, compiled in CI). Whether a phone's WebView then delivers frames is not known. Pasting a code always works.
 - **An app that declares the wallet can spend it.** The door has no cap, no expiry and asks nothing; the Store only shows a banner. Kept apart from the sandbox on purpose, to be decided later.
 

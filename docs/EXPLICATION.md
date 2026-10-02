@@ -458,11 +458,13 @@ sequenceDiagram
   Note over A,B: 3, 2, 1, puis 20 secondes de clics, chaque téléphone voit le score de l'autre en direct
   Note over A,B: B a cliqué moins, donc B doit ses clics fois le prix
   B->>A: un seul paiement, signé par une clé de session : rien n'est signé par clic
-  A->>A: vérifie sur Solana d'où vient l'argent, le solde monte
+  A->>A: le solde monte (dès que l'on sait que ces AIWA viennent d'un vrai brûlage : voir plus bas)
 ```
 
 Ce que ça montre : rien n'est signé par clic. Le premier paiement à quelqu'un signe une délégation (section 2.2), et le paiement lui-même est
-signé par une clé de session. Ce que ça ne fait pas, exprès pour l'instant : chaque téléphone compte ses propres clics, donc une app modifiée
+signé par une clé de session. Le jeu ne touche jamais Solana. Le portefeuille, lui, y va une fois pour tout AIWA qu'il reçoit : il vérifie que le
+brûlage d'où il vient est réel (section 3.7), sinon n'importe qui pourrait inventer des AIWA et te payer avec. Sans internet à ce moment-là, le
+paiement est reçu et compte dès que le téléphone a été en ligne. Ce que ça ne fait pas, exprès pour l'instant : chaque téléphone compte ses propres clics, donc une app modifiée
 peut mentir ; l'argent n'est pas mis de côté avant la course, donc le perdant pourrait le dépenser ailleurs avant ; il n'y a pas de recherche de
 joueurs à proximité. Essayé entre deux pages du navigateur d'un ordinateur, pas entre deux vrais téléphones.
 

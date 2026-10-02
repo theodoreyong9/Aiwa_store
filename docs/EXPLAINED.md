@@ -438,11 +438,13 @@ sequenceDiagram
   Note over A,B: 3, 2, 1, then 20 seconds of clicking, each phone shows the other's count live
   Note over A,B: B clicked less, so B owes its clicks times the price
   B->>A: one payment, signed by a session key: nothing is signed per click
-  A->>A: checks where the money comes from on Solana, the balance goes up
+  A->>A: the balance goes up (once the AIWA is known to come from a real burn: see below)
 ```
 
 What it shows: nothing is signed per click. The first payment to someone signs one delegation (section 2.2), and the payment itself is
-signed by a session key. What it does not do, on purpose for now: each phone counts its own clicks, so a modified app can lie; the money
+signed by a session key. The game itself never touches Solana. The wallet does, once, for any AIWA it receives: it checks that the burn it
+was created from is real (section 3.7), otherwise anyone could invent AIWA and pay you with it. With no internet at that moment, the payment
+is received and counts as soon as the phone has been online. What it does not do, on purpose for now: each phone counts its own clicks, so a modified app can lie; the money
 is not set aside before the race, so the loser could spend it elsewhere first; there is no search for players nearby. It has been tried
 between two pages of a computer's browser, not between two real phones.
 
