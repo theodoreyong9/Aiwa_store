@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Focus</title>
+<meta name="description" content="A 25-minute focus timer with a short break.">
+<style>
+  :root { --accent: #7c5cff; --ink: #1d1b26; --soft: #f3f1fb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 22px 18px; font: 16px/1.4 system-ui, sans-serif; color: var(--ink); text-align: center; }
+  h1 { font-size: 22px; margin: 0 0 6px; text-align: left; }
+  .mode { display: flex; gap: 8px; margin: 14px 0 34px; }
+  .mode button { flex: 1; font: 600 15px system-ui; padding: 10px 0; border: 0; border-radius: 12px; background: var(--soft); color: var(--ink); }
+  .mode button.on { background: var(--ink); color: #fff; }
+  .ring { position: relative; width: 240px; height: 240px; margin: 0 auto; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 12; }
+  .ring .track { stroke: var(--soft); }
+  .ring .bar { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset .4s; }
+  .ring output { position: absolute; inset: 0; display: grid; place-items: center; font: 700 52px system-ui; font-variant-numeric: tabular-nums; }
+  .go { margin-top: 36px; width: 100%; font: 700 18px system-ui; padding: 16px; border: 0; border-radius: 16px; background: var(--accent); color: #fff; }
+</style>
+</head>
+<body>
+<h1>Focus</h1>
+<div class="mode"><button id="work" class="on">Focus 25</button><button id="rest">Break 5</button></div>
+<div class="ring">
+  <svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44"/><circle class="bar" id="bar" cx="50" cy="50" r="44" stroke-dasharray="276.46" stroke-dashoffset="0"/></svg>
+  <output id="clock">25:00</output>
+</div>
+<button class="go" id="go">Start</button>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let length = 25 * 60, left = length, timer = null;
+  function draw() {
+    const m = String(Math.floor(left / 60)).padStart(2, '0'), s = String(left % 60).padStart(2, '0');
+    $('clock').textContent = `${m}:${s}`;
+    $('bar').style.strokeDashoffset = 276.46 * (1 - left / length);
+    $('go').textContent = timer ? 'Pause' : left === length ? 'Start' : 'Resume';
+  }
+  function setMode(minutes) { clearInterval(timer); timer = null; length = left = minutes * 60; $('work').classList.toggle('on', minutes === 25); $('rest').classList.toggle('on', minutes === 5); draw(); }
+  $('work').onclick = () => setMode(25);
+  $('rest').onclick = () => setMode(5);
+  $('go').onclick = () => {
+    if (timer) { clearInterval(timer); timer = null; } else timer = setInterval(() => { left = Math.max(0, left - 1); if (left === 0) { clearInterval(timer); timer = null; } draw(); }, 1000);
+    draw();
+  };
+  draw();
+</script>
+</body>
+</html>

@@ -1,151 +1,139 @@
 # Aiwa Store
 
-**An app store you carry in your pocket, with its own wallet, on a protocol that needs no shared ledger.**
+**A pocket app store with its own wallet. Apps open in a sealed box, and the list is ranked by the work each author has done: no ads, no ratings, nobody editing it.**
 
-One Android app, three parts:
+<p align="center">
+  <img src="docs/img/store.png" width="23%" alt="The Store: apps ranked">
+  <img src="docs/img/app.png" width="23%" alt="An app, open in its sandbox">
+  <img src="docs/img/wallet.png" width="23%" alt="The wallet: a burn, with what the creator receives">
+  <img src="docs/img/publish.png" width="23%" alt="The publish sheet">
+</p>
+<p align="center"><sub>The Store · an app, open · the wallet's burn, showing what the creator receives before you sign · the publish sheet.<br>
+The real screens at phone size. The apps and the Solana network are demo stand-ins.</sub></p>
 
-- **A Store** of small apps. Each app is signed by its author, checked before it opens, and runs in a sandbox that cannot reach your
-  wallet. The list is ranked by what each author has *mined*; nobody edits it.
-- **A wallet** that makes itself on the first tap. Burn SOL once, and your phone mines AIWA by doing verifiable work, offline, while the app
-  is open. Everyone keeps their own notebook of signed events: there is no shared ledger, and anyone can check what they are shown.
-- **A widget** (optional, not specific to Aiwa) to dictate to Claude Code. Press ▦, read the app it wrote, press **Publish**: the Store signs it
-  with your wallet and opens the pull request on your GitHub account. No form, no file to carry.
+> **Where it stands.** Pre-release. Everything is tested in CI, but it has **never run on a phone** and **never on the real Solana network**.
+> [What that means exactly](#where-it-stands).
 
-**The business model, in one line:** 0.1 % of the T share of each burn goes to one fixed creator address, in the same transaction, in
-plain sight, enforced by every reader; at T = 0 nothing is paid ([docs/BUSINESS.md](docs/BUSINESS.md), with its numbers and its limits).
+## What you do with it
 
-> **Status, honestly.** Everything is tested in CI except the Android app, which is compiled in CI but has never run on a phone. Nothing has
-> run against the real Solana network or with real money: Solana is a stand-in that decodes the real transaction the wallet builds. The first
-> real run is a prerequisite for any claim. [What was and was not verified](#what-has-been-verified).
-
----
+- **Open apps.** Each one is signed by its author and checked before it opens. It runs in a sealed box: it cannot touch your wallet.
+- **Earn AIWA.** Burn a little SOL once (send it to an address nobody controls). Then your phone computes while the app is open, and what you
+  can claim grows with time.
+- **Publish an app.** Dictate it to Claude Code with the widget, press ▦, read it, press **Publish**. The Store signs it with your wallet and
+  opens the pull request for you. No form, no file to carry.
 
 ## How it works
 
 ```mermaid
-flowchart TB
-  subgraph phone["The phone: one Android app"]
-    direction LR
-    WI["Widget (optional)<br/>dictation → Claude Code"]
-    ST["Store<br/>list, search, open apps in a sandbox"]
-    WA["Wallet<br/>12 words → key, notebook of signed events<br/>burn · mine · claim · send · receive"]
-    KS[("Android Keystore<br/>12 words, GitHub token")]
-    WI -- "▦: the app it wrote" --> ST
-    ST --- WA
-    WA --- KS
-  end
-
-  subgraph github["GitHub: the open registry, no server of ours"]
-    PR["Pull request<br/>one file: submissions/…json"]
-    WF["Registry workflow<br/>reads the file as DATA, never runs it"]
-    FI[("store/<br/>list, packages,<br/>baselines")]
-    PG["GitHub Pages<br/>the site: web app + store/"]
-    PR --> WF --> FI --> PG
-  end
-
-  SOL["Solana<br/>the one outside gate:<br/>a burn of SOL"]
-  PEER["Other phones<br/>notebooks exchanged by any means"]
-
-  WA -- "1. burn SOL once" --> SOL
-  ST -- "2. publish: signed app + proof of mining" --> PR
-  WF -- "3. confirms your burn ITSELF" --> SOL
-  PG -- "4. list + packages" --> ST
-  WA <-. "events: a file, a QR code, a message" .-> PEER
+flowchart LR
+  A["1. You burn SOL<br/>on Solana, once"] --> B["2. Your phone works<br/>while the app is open"]
+  B --> C["3. You publish<br/>a signed app + proof of the work"]
+  C --> D["4. A GitHub workflow<br/>checks it and ranks you"]
+  D --> E["5. Every Store lists it,<br/>checks it, opens it sealed"]
 ```
 
-1. **Burn.** The wallet burns SOL on Solana. In the same transaction a small share goes to the creator. The burn is the only price of creating
-   AIWA, and the only thing that needs Solana.
-2. **Mine.** While the app is open, the wallet does a sequential computation (an *epoch*) and signs a proof anyone checks in ~3.6 ms. What you
-   can claim grows with capital and with time since your last action.
-3. **Publish.** The Store signs your app with your wallet and sends your proof of mining. The registry checks both and ranks you by
-   `score / laps`.
-4. **Read.** Anyone's Store lists the apps, verifies each one against its author's signature, and opens it in a sandbox.
+1. **Burn.** The only thing that costs anything, and the only thing that needs Solana. 0.1 % of the part of the burn you choose to set aside
+   (called T) goes to the creator of the software, in the same transaction, shown before you sign. At T = 0, nothing.
+2. **Work.** Each unit of work is signed, and anyone can check it in milliseconds. The more time since your last action, the more you can claim.
+3. **Publish.** Your app, signed with your wallet, with proof of your work.
+4. **Rank.** The registry is a GitHub workflow: it checks the signature, the proof and the burn on Solana itself, then ranks you by
+   `score / laps` (what you can claim, over the epochs since your last action).
+5. **Read.** Each Store checks every app against its author's signature before it opens it.
 
-### From a dictated idea to a listed app
+There is no server of ours and no shared ledger: GitHub keeps the list, Solana keeps the burns, and each phone keeps its own signed history.
+All of it, with pictures, in [docs/EXPLAINED.md](docs/EXPLAINED.md) ([en français](docs/EXPLICATION.md)).
 
-```mermaid
-sequenceDiagram
-  autonumber
-  actor U as You
-  participant W as Widget
-  participant S as Store (publish sheet)
-  participant H as GitHub
-  participant R as Registry workflow
-  U->>W: dictates, Claude Code writes the app
-  W->>S: ▦ opens the Store with the app in it
-  U->>S: reads it, presses Publish
-  S->>S: wallet signs the app, builds the proof of your mining
-  opt first time
-    S->>H: you sign in with a short code (device login)
-  end
-  S->>H: pull request on YOUR account with one file
-  H->>R: runs the registry's own code
-  R->>R: checks the signature, the proofs, the burn on Solana
-  alt accepted
-    R->>H: writes the list, republishes the site
-  end
-  R->>H: verdict on the pull request, closes it
-```
+## Install (Android)
 
-Two kinds of app are submitted on GitHub: **`code`** (the HTML file travels in the submission) or **`aiwa`** (the submission only *points* to a
-bundle published through Aiwa, signed and pinned by hash, which the registry and the Store each verify themselves).
+### The Store and the wallet
 
-**Where to learn the details, in order of depth:** [docs/EXPLAINED.md](docs/EXPLAINED.md) (plain words, with pictures, [en français](docs/EXPLICATION.md)) →
-[docs/YELLOWPAPER.md](docs/YELLOWPAPER.md) (the formal protocol, with the same pictures in precise form).
+1. On the phone, open the [latest release](https://github.com/theodoreyong9/Aiwa_store/releases/tag/android-latest) and download **Aiwa_store.apk**.
+2. Open it from Downloads and tap **Install**. Android asks once to allow installs from your browser or Files app. A new version installs over
+   the old one.
+3. Open **Aiwa Store**, tap **Wallet**, then **Create my wallet**. Write down the 12 words: they are the only way back on another phone.
 
----
+That is all the Store needs. The widget below is optional.
 
-## Try it
+### The widget, to dictate an app (optional)
+
+The widget talks to Claude Code, which runs in **Termux** on the same phone. You need your own Claude account.
+
+1. Install **Termux from F-Droid** (the Play Store version is no longer maintained).
+2. In Termux, paste this one line and wait: it installs the backend, and it also downloads the latest APK into Downloads (so it can replace step 1 above).
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh | bash
+   ```
+   Run the same line again later to update.
+3. On the home screen: press and hold → **Widgets** → **Aiwa Store** → drag the 4×2 widget. Android opens a short setup: allow Aiwa to run
+   Termux commands, and notifications.
+4. Tap **Connecter Claude** on the widget and log in with your Claude account (a page opens, the code goes back into the same window).
+5. Tap **Dicter un message** and say what the app should do. When Claude has written it, press **▦** on the widget: the Store opens its publish sheet.
+
+The widget is in French for now. Not verified on a real phone: Claude Code has no Android build, so the backend installs it in a Linux layer
+inside Termux, which the script itself marks as experimental. More in [docs/ANDROID.md](docs/ANDROID.md).
+
+## Try it from source
 
 ```sh
 npm install
-npm test                                  # protocol, registry and web app (a real Chromium: npx -w aiwa-store-web playwright install chromium)
+npm test                                  # protocol, registry, web app (needs Chromium: npx -w aiwa-store-web playwright install chromium)
 npm run build -w aiwa-store-web           # apps/web/dist
-node scripts/devnet-check.mjs --fake      # the whole path against a stand-in Solana; without --fake it burns devnet SOL (see below)
 npx http-server apps/web/dist -p 8080     # open http://localhost:8080
+node scripts/devnet-check.mjs --fake      # the whole path against a stand-in Solana
 ```
 
-The store lists nothing until the registry has accepted an app (`store/index.json` is empty at the start). To publish: the wallet makes
-itself, burn a little SOL in it and leave the app open while it mines (an app is only listed for an author who has something claimable), then
-publish from the widget (▦). In a plain browser the same sheet hands over the signed file to add to a pull request yourself
-(`submissions/`). See [`registry/README.md`](registry/README.md).
-
-**On Android:** the APK is built by the *Android* workflow and published at
-`https://github.com/theodoreyong9/Aiwa_store/releases/download/android-latest/Aiwa_store.apk` (installed by hand, outside Google Play). The
-dictation module is optional and needs Termux: see [docs/ANDROID.md](docs/ANDROID.md).
+The Store lists nothing until the registry has accepted an app. To publish from a plain browser, the same sheet hands over the signed file to
+add to a pull request yourself (`submissions/`, see [registry/README.md](registry/README.md)).
 
 ## What only the repository's owner can do
 
-These are settings and accounts, not code:
+These are settings and accounts. Until they are done, the matching workflow is **red**, with the reason on its page.
 
 | To get | Do this |
 |---|---|
-| The site served | GitHub → Settings → Pages → Source: **GitHub Actions**. Until then the *Pages* workflow says so and stops with a warning instead of failing |
-| GitHub login in the publish sheet | Create a GitHub OAuth App named *Aiwa Store* with **Device Flow** enabled, and put its Client ID in `deployment.json` (`github.clientId`) |
-| A real-network check | Fund a devnet wallet once (faucet.solana.com) and store its 12 words as the repository secret `DEVNET_PHRASE`. Without it, *Devnet check* runs the dry run and says the real burn was skipped |
-| A real run on a phone | Install the APK from the release above and try it: it is the main thing nobody has done |
+| The site served (workflow *Pages*) | [Settings → Pages](https://github.com/theodoreyong9/Aiwa_store/settings/pages) → Source: **GitHub Actions**. Then re-run *Pages* |
+| GitHub sign-in in the publish sheet | Create a GitHub OAuth App named *Aiwa Store* with **Device Flow** enabled, put its Client ID in `deployment.json` (`github.clientId`) |
+| A burn on the real network (workflow *Devnet check*) | Fund a devnet wallet once (faucet.solana.com) and add its 12 words as the secret [`DEVNET_PHRASE`](https://github.com/theodoreyong9/Aiwa_store/settings/secrets/actions) |
+| A first real run | Install the APK on a phone and try it: it is the main thing nobody has done |
 | Legal peace of mind | Advice on the creator's share and on running a store, before launch |
 
-## The GitHub workflows
+## Where it stands
 
-| Workflow | When | What it does | A warning or red means |
-|---|---|---|---|
-| **CI** | each push | the whole test suite and the dry run of the real-network check | a real failure |
-| **Android** | a push touching the app | builds the APK; from `main`, publishes it as `android-latest` | a real failure (it never ran on a phone, only compiles) |
-| **Registry** | a pull request adding `submissions/*.json` | validates the submission as data, writes `store/` if accepted, closes the pull request with the verdict | the verdict is on the pull request |
-| **Pages** | a push to `main`, or after the registry | publishes the site | *Pages is not enabled*: see the table above |
-| **Devnet check** | by hand | burn with the creator's share on real devnet, verified by the registry's own code | *no funded wallet*: see the table above |
+| Tested in CI | Not verified |
+|---|---|
+| The protocol: identity, signed events, proofs of work, accrual, claims, double spend (421 tests, with a cross-check against an independent Rust implementation) | A real burn on Solana |
+| The wallet, the creator's share, backup and restore (99 + 85 tests) | The Android app on a real phone: keystore, GitHub sign-in, Android's backup, the widget (it is compiled in CI, never run) |
+| The registry: signatures, proofs, burns, ranking (17 tests) | A real pull request through the registry workflow |
+| The web app in a real Chromium: ranking, sandbox, tampering, offline, restore, burn, publishing of both kinds (35 tests) | The legal status of the creator's share |
+| The whole path against a stand-in Solana (`devnet-check --fake`) | The economic parameters in the field |
 
-## What has been verified
+[docs/PLAN.md](docs/PLAN.md) has the full list.
 
-- **Tested in CI:** the protocol (421 tests, including a cross-check against an independent Rust implementation of its core computations), the
-  distribution layer (85), the wallet API (99), the registry (17), the web app (35, of which 18 in a real Chromium), the dictation backend (73), the
-  whole path against a stand-in Solana.
-- **Not verified:** a real burn on Solana · the Android app on a real phone (keystore, GitHub's device login, Android's backup) · a real pull request
-  through the registry workflow · the legal status of the creator's share · the economic parameters in the field. [docs/PLAN.md](docs/PLAN.md) says
-  exactly what exists and what does not.
+## Read more
 
-## What is in the repository
+| | |
+|---|---|
+| [docs/EXPLAINED.md](docs/EXPLAINED.md) · [EXPLICATION.md](docs/EXPLICATION.md) | how everything works, in plain words, with pictures |
+| [docs/YELLOWPAPER.md](docs/YELLOWPAPER.md) | the formal protocol, in the same order |
+| [docs/ANDROID.md](docs/ANDROID.md) | the Android app and the widget |
+| [docs/BUSINESS.md](docs/BUSINESS.md) | the business model, with numbers and limits |
+| [docs/PLAN.md](docs/PLAN.md) | what version 1 contains and leaves out |
+
+<details>
+<summary>The GitHub workflows</summary>
+
+| Workflow | When | What it does |
+|---|---|---|
+| **CI** | each push | the whole test suite, the dry run of the real-network check, and the documents (every diagram renders) |
+| **Android** | a push touching the app | builds the APK; from `main`, publishes it as the `android-latest` release |
+| **Registry** | a pull request adding `submissions/*.json` | validates the submission as data, writes `store/` if accepted, closes the pull request with the verdict |
+| **Pages** | a push to `main`, or after the registry | publishes the site. **Red until Pages is switched on** (see above) |
+| **Devnet check** | by hand | a burn with the creator's share on the real devnet. **Red until `DEVNET_PHRASE` exists** |
+
+</details>
+
+<details>
+<summary>What is in the repository</summary>
 
 | | |
 |---|---|
@@ -153,18 +141,12 @@ These are settings and accounts, not code:
 | [`packages/platform`](packages/platform) | transport, replication, storage, bundles, the archive node |
 | [`packages/lib`](packages/lib) | the wallet API (12-word recovery, backup, restore, burn, payments) and the contract SDK |
 | [`registry`](registry) | what decides which apps are listed and in what order |
-| [`apps/web`](apps/web) | the store and the wallet as one web app, tested in Chromium |
-| [`android`](android) | the APK: the web app in a WebView, plus the optional dictation module |
+| [`apps/web`](apps/web) | the Store and the wallet as one web app |
+| [`android`](android) | the APK: the web app in a WebView, plus the optional widget |
 | [`deployment.json`](deployment.json) | the parameters the wallet and the registry share, including the creator fee and its address |
-| [`docs`](docs) | below |
+| [`docs/demo-apps`](docs/demo-apps) | the demo apps of the screenshots (`node scripts/screenshots.mjs` redraws them) |
 
-| Document | What it is |
-|---|---|
-| [EXPLAINED.md](docs/EXPLAINED.md) · [EXPLICATION.md](docs/EXPLICATION.md) | how everything works, in plain words, with pictures |
-| [YELLOWPAPER.md](docs/YELLOWPAPER.md) | the formal protocol, in the same order |
-| [PLAN.md](docs/PLAN.md) | what version 1 contains, leaves out, and what was verified |
-| [BUSINESS.md](docs/BUSINESS.md) | the business model, with numbers and limits |
-| [ANDROID.md](docs/ANDROID.md) | the Android app and the dictation module |
+</details>
 
 ## License
 

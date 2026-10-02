@@ -5,6 +5,8 @@ assets at `https://appassets.androidplatform.net/assets/web/` — a real origin,
 scripts work. The wallet, the ranked list and the sandbox apps run in are the web app's; the activity only hosts it
 (`StoreActivity.kt`).
 
+**Install, step by step** (the Store and wallet, then the optional widget): [README → Install](../README.md#install-android).
+
 ## What the page may ask of the phone
 
 One channel, `window.AiwaHost`, added by the app to the page's own origin only. The frame an app runs in has another (opaque)

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tip split</title>
+<meta name="description" content="Split a restaurant bill with the tip, per person.">
+<style>
+  :root { --accent: #7c5cff; --ink: #1d1b26; --soft: #f3f1fb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 22px 18px; font: 16px/1.4 system-ui, sans-serif; color: var(--ink); background: #fff; }
+  h1 { font-size: 22px; margin: 0 0 18px; }
+  label { display: block; font-size: 13px; color: #6b677a; margin: 16px 0 6px; }
+  input[type=number] { width: 100%; font: 600 26px system-ui; padding: 10px 14px; border: 2px solid var(--soft); border-radius: 12px; background: var(--soft); }
+  .chips { display: flex; gap: 8px; }
+  .chips button { flex: 1; font: 600 16px system-ui; padding: 11px 0; border: 0; border-radius: 12px; background: var(--soft); color: var(--ink); }
+  .chips button.on { background: var(--accent); color: #fff; }
+  .people { display: flex; align-items: center; gap: 16px; }
+  .people button { width: 44px; height: 44px; border: 0; border-radius: 50%; font: 600 22px system-ui; background: var(--soft); }
+  .people output { font: 700 24px system-ui; min-width: 30px; text-align: center; }
+  .result { margin-top: 26px; padding: 20px; border-radius: 18px; background: var(--ink); color: #fff; }
+  .result small { color: #b9b4cf; }
+  .result strong { display: block; font: 700 40px system-ui; margin: 4px 0 8px; }
+</style>
+</head>
+<body>
+<h1>Tip split</h1>
+<label for="bill">Bill</label>
+<input id="bill" type="number" inputmode="decimal" value="86">
+<label>Tip</label>
+<div class="chips" id="chips"></div>
+<label>People</label>
+<div class="people"><button id="minus" aria-label="one less">−</button><output id="people">4</output><button id="plus" aria-label="one more">+</button></div>
+<div class="result"><small>Each person pays</small><strong id="each"></strong><small id="detail"></small></div>
+<script>
+  let tip = 15, people = 4;
+  const $ = (id) => document.getElementById(id);
+  const money = (x) => x.toLocaleString('en', { style: 'currency', currency: 'USD' });
+  function draw() {
+    const bill = parseFloat($('bill').value) || 0;
+    const total = bill * (1 + tip / 100);
+    $('people').textContent = people;
+    $('each').textContent = money(total / people);
+    $('detail').textContent = `${money(total)} in all, with ${money(total - bill)} of tip`;
+    [...$('chips').children].forEach((b) => b.classList.toggle('on', +b.dataset.tip === tip));
+  }
+  for (const t of [10, 15, 18, 20]) {
+    const b = document.createElement('button');
+    b.textContent = `${t}%`; b.dataset.tip = t;
+    b.onclick = () => { tip = t; draw(); };
+    $('chips').append(b);
+  }
+  $('minus').onclick = () => { people = Math.max(1, people - 1); draw(); };
+  $('plus').onclick = () => { people += 1; draw(); };
+  $('bill').oninput = draw;
+  draw();
+</script>
+</body>
+</html>

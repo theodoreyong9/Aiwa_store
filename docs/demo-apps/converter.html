@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit converter</title>
+<meta name="description" content="Kilometres and miles, kilograms and pounds, Celsius and Fahrenheit.">
+<style>
+  :root { --accent: #7c5cff; --ink: #1d1b26; --soft: #f3f1fb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 22px 18px; font: 16px/1.4 system-ui, sans-serif; color: var(--ink); }
+  h1 { font-size: 22px; margin: 0 0 16px; }
+  .kinds { display: flex; gap: 8px; margin-bottom: 22px; }
+  .kinds button { flex: 1; font: 600 15px system-ui; padding: 10px 0; border: 0; border-radius: 12px; background: var(--soft); color: var(--ink); }
+  .kinds button.on { background: var(--accent); color: #fff; }
+  .box { padding: 16px; border-radius: 16px; background: var(--soft); margin-bottom: 12px; }
+  .box small { color: #6b677a; }
+  .box input { width: 100%; margin-top: 4px; font: 700 30px system-ui; border: 0; background: transparent; color: var(--ink); outline: none; }
+</style>
+</head>
+<body>
+<h1>Unit converter</h1>
+<div class="kinds" id="kinds"></div>
+<div class="box"><small id="la"></small><input id="a" type="number" inputmode="decimal"></div>
+<div class="box"><small id="lb"></small><input id="b" type="number" inputmode="decimal"></div>
+<script>
+  const KINDS = {
+    Distance: { a: 'kilometres', b: 'miles', toB: (x) => x * 0.621371, toA: (x) => x / 0.621371 },
+    Weight: { a: 'kilograms', b: 'pounds', toB: (x) => x * 2.204623, toA: (x) => x / 2.204623 },
+    Temperature: { a: '°C', b: '°F', toB: (x) => x * 9 / 5 + 32, toA: (x) => (x - 32) * 5 / 9 },
+  };
+  const $ = (id) => document.getElementById(id);
+  const round = (x) => String(Math.round(x * 1000) / 1000);
+  let kind = KINDS.Distance;
+  function pick(name) {
+    kind = KINDS[name];
+    [...$('kinds').children].forEach((b) => b.classList.toggle('on', b.textContent === name));
+    $('la').textContent = kind.a; $('lb').textContent = kind.b;
+    $('a').value = 10; $('b').value = round(kind.toB(10));
+  }
+  for (const name of Object.keys(KINDS)) { const b = document.createElement('button'); b.textContent = name; b.onclick = () => pick(name); $('kinds').append(b); }
+  $('a').oninput = () => { $('b').value = round(kind.toB(parseFloat($('a').value) || 0)); };
+  $('b').oninput = () => { $('a').value = round(kind.toA(parseFloat($('b').value) || 0)); };
+  pick('Distance');
+</script>
+</body>
+</html>
