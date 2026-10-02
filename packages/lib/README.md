@@ -32,4 +32,4 @@ await aiwa.send(recipientId, '1.0');        // also works fully offline, by bund
 
 ## When two branches contradict each other
 
-The wallet and `Contract.state()` fold events in aiwa-core's canonical order, so a conflict (one voucher redeemed twice, one balance spent twice) has the same winner for every reader. A wallet that already folded part of its log and then receives a concurrent branch folds again from its last checkpoint. See `test/convergence.test.mjs` and the yellow paper §11.2.
+The wallet and `Contract.state()` fold events in aiwa-core's canonical order, so a conflict (one voucher redeemed twice, one balance spent twice) has the same winner for every reader. A wallet that already folded part of its log and then receives a concurrent branch folds again from its last checkpoint. See `test/convergence.test.mjs` and the yellow paper §13.4.

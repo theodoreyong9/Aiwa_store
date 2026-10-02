@@ -20,3 +20,5 @@ jobs:
       - run: npm test
       # the real-network script, against a stand-in: keeps the script itself working (the real run is the Devnet check workflow)
       - run: node scripts/devnet-check.mjs --fake
+      # the documents: every diagram renders, every § names a heading of the yellow paper
+      - run: node scripts/check-diagrams.mjs

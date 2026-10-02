@@ -27,4 +27,4 @@ A wallet pushes its backup (a checkpoint signed by its own key) to the nodes it 
 
 ## Not included on purpose
 
-Automatic discovery between strangers: the first connection between two peers is made by hand. See the yellow paper §13.2.
+Automatic discovery between strangers: the first connection between two peers is made by hand. See the yellow paper §19.5.

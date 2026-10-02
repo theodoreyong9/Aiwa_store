@@ -1,6 +1,6 @@
 // Where an app runs. The app is untrusted code: it goes into an iframe with sandbox="allow-scripts" and NEVER
 // allow-same-origin, so the browser gives it an opaque origin — no access to this page's storage, DOM or wallet
-// (yellow paper, §19). It can run and use the network; it cannot reach what opened it.
+// (yellow paper, §17.2). It can run and use the network; it cannot reach what opened it.
 import { $ } from './ui.js';
 
 let frame = null;

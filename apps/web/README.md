@@ -14,7 +14,7 @@ the login is GitHub's device flow, run by the Android app).
 ## How an app runs
 
 An app is untrusted code. It is loaded into `<iframe sandbox="allow-scripts">` — never `allow-same-origin` — so the
-browser gives it an opaque origin: no access to the page's storage, DOM or wallet (yellow paper §19). Before that, the
+browser gives it an opaque origin: no access to the page's storage, DOM or wallet (yellow paper §17.2). Before that, the
 store checks the package: its hash is that of its content, the author's signature covers it, and it is what the registry
 lists (`src/store.js`). A host that serves another file than the one signed is refused. An app can use the network, and
 has no storage that survives; it is not reviewed.

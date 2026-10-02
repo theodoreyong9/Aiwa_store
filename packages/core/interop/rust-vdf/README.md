@@ -28,7 +28,7 @@ specification, never by wrapping or transpiling the JS.
 The checks cover `vdf.js`, `weighted-median.js`, `conservation.js`'s split invariant, `mirror.js`'s monotonicity check,
 `relative-rate.js`'s central ratio, `causal-tick.js`'s consistency check, `wesolowski-vdf.js`, `bigint-math.js` and
 `reward.js`/`fixed-point-math.js`, and `event.js`'s canonical id format (`coreBytes()`) — together with a real, independently
-re-signed Ed25519 signature. This is the cross-runtime check described in the Yellow Paper (§16.1).
+re-signed Ed25519 signature. This is the cross-runtime check described in the yellow paper (Appendix C).
 
 `test/rust-interop.test.mjs` builds this, runs it, and compares its
 real output against the real, live aiwa-core JS modules' own output

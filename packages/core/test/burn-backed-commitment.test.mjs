@@ -15,7 +15,7 @@ import { buildSignedTransferEvent, spendableClaims } from '../src/wallet.js';
 import { fromUnits } from '../src/units.js';
 import { base58Encode } from '../src/base58.js';
 
-// The genesis commitment (yellow paper §8), enforced: a domain's committed capital b may not exceed what burns
+// The genesis commitment (yellow paper §9), enforced: a domain's committed capital b may not exceed what burns
 // THE READER confirmed for it. Mandatory unless the deployment says rewardParams.commitmentBacking = 'none'.
 const base = { alpha: 1.1, beta: 2.2, gamma: 3, C: Math.pow(33, 3), minQ: 1 };
 

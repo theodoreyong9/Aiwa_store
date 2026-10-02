@@ -11,6 +11,10 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "npm test --workspaces --if-present"
+    "test": "npm test --workspaces --if-present",
+    "check:docs": "node scripts/check-diagrams.mjs"
+  },
+  "devDependencies": {
+    "mermaid": "^11.17.2"
   }
 }

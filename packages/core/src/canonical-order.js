@@ -10,7 +10,7 @@
 //
 // It is agreement, not fairness: the winner is the smaller id, which is arbitrary (nothing here has a clock), and a
 // signer who writes two contradicting events can try variants until the one he wants has the smaller id. What stays is
-// the proof that he wrote both: two valid signatures on contradicting events. Yellow paper §11.2.
+// the proof that he wrote both: two valid signatures on contradicting events. Yellow paper §13.4.
 
 /**
  * @param {Array<{ id: string, parents?: string[] }>} events duplicates (same id) are kept once

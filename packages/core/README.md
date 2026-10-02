@@ -22,11 +22,11 @@ npm test        # 418 tests, including a cross-check against an independent Rust
 ## Things worth knowing
 
 - **Every event is signed and content-addressed.** A reader never trusts the author field of an event: authority lives in signatures embedded in the payload.
-- **A conflict has the same winner for every reader.** `canonicalOrder(events)` gives one order for the same events whatever order they arrived in (parents first, then the smaller id). It is agreement, not fairness; see the yellow paper §11.2.
+- **A conflict has the same winner for every reader.** `canonicalOrder(events)` gives one order for the same events whatever order they arrived in (parents first, then the smaller id). It is agreement, not fairness; see the yellow paper §13.4.
 - **A third party can verify a wallet's mining without trusting it.** `assessSubmission({ rewardParams, evidence, domain, baseline, witnessed, connection })` checks the envelopes, the work proofs and the burn on Solana, and returns the ranking figure.
-- **The creator fee.** A deployment may set `rewardParams.creatorFee = { address, rateOfT }`: a fixed part of the T share of every burn then goes to that one address, in the same transaction, and the reader counts it (`creatorFeeLamports`, `burnQuote`, `fetchBurnRecord(connection, signature, { creatorAddress })`). A commitment at T > 0 whose burn did not pay it is refused; a reader that does not look at the address sees no payment and refuses too. Yellow paper §7.3.
+- **The creator fee.** A deployment may set `rewardParams.creatorFee = { address, rateOfT }`: a fixed part of the T share of every burn then goes to that one address, in the same transaction, and the reader counts it (`creatorFeeLamports`, `burnQuote`, `fetchBurnRecord(connection, signature, { creatorAddress })`). A commitment at T > 0 whose burn did not pay it is refused; a reader that does not look at the address sees no payment and refuses too. Yellow paper §11.
 - **Formats are frozen (version 1)**: the payloads of progression, accrual and claim events, the starting point of an epoch's work, the checkpoint and the backup.
 
 ## Honest limits
 
-Everything involving real Solana has been played against a stand-in only. See [docs/YELLOWPAPER.md](../../docs/YELLOWPAPER.md) §12 for what is not claimed.
+Everything involving real Solana has been played against a stand-in only. See [docs/YELLOWPAPER.md](../../docs/YELLOWPAPER.md) §21 for what is not claimed.

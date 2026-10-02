@@ -18,7 +18,7 @@ import { rewardFixed } from '../src/reward.js';
 // Rust binary, then compares its output against the real,
 // live JS modules' own output for the identical test vectors, byte
 // for byte. This is the cross-runtime check described in the Yellow
-// Paper (§16.1), covering the current event format (with a real,
+// Paper (Appendix C), covering the current event format (with a real,
 // signed event, not just bare canonicalization).
 //
 // SKIPPED, not failed, if no Rust toolchain (cargo) is available

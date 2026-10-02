@@ -1,833 +1,1462 @@
 # AIWA Yellow Paper
 
-**Causal Coordination and Local Value Accrual for Partition-Tolerant Networks**
-Version 1.0 — formal specification and reference implementation
+**Causal coordination and local value accrual for partition-tolerant networks**
+Version 1.0 · formal specification, with its reference implementation
 
-*Not a specialist? Read [EXPLAINED.md](EXPLAINED.md) first ([EXPLICATION.md](EXPLICATION.md) en français): the same protocol in plain words.*
+*Not a specialist? [EXPLAINED.md](EXPLAINED.md) says the same things in plain words, with pictures ([EXPLICATION.md](EXPLICATION.md) en français).*
 
-This document specifies the protocol and says, for each mechanism, what it guarantees and what it does not. Every claim
-is checked against the reference implementation in this repository (`packages/`); where something is only designed or
-only experimental, it says so.
+---
+
+## Contents
+
+| | |
+|---|---|
+| **Front** | [Abstract](#abstract) · [How to read this document](#how-to-read-this-document) |
+| **1** | [Goals and non-goals](#1-goals-and-non-goals) |
+| **2** | [The protocol at a glance](#2-the-protocol-at-a-glance) — system model, one picture, the life of a value |
+| **I. Foundations** | [3 Identity](#3-identity) · [4 Events and the log](#4-events-and-the-log) · [5 Signed actions](#5-signed-actions) |
+| **II. The three pillars** | [6 Progression](#6-progression) · [7 Conservation](#7-conservation) · [8 Mirror](#8-mirror) |
+| **III. Creating value** | [9 The genesis commitment](#9-the-genesis-commitment) · [10 Accrual](#10-accrual) · [11 The creator fee](#11-the-creator-fee) · [12 What a third party can read of a domain](#12-what-a-third-party-can-read-of-a-domain) |
+| **IV. Agreement without a clock** | [13 Partition, branches and conflicts](#13-partition-branches-and-conflicts) · [14 Bounded storage](#14-bounded-storage) · [15 History recovery](#15-history-recovery) |
+| **V. Programs and applications** | [16 Contracts](#16-contracts) · [17 Bundles and sandboxed execution](#17-bundles-and-sandboxed-execution) · [18 The store](#18-the-store) |
+| **VI. Informational mechanisms** | [19 Observation: Causal Tick, hardware roots, relative rate](#19-observation-causal-tick-hardware-roots-relative-rate) |
+| **VII. Assessment** | [20 Threats and what answers them](#20-threats-and-what-answers-them) · [21 Limits and open problems](#21-limits-and-open-problems) |
+| **Appendices** | [A Wire formats](#appendix-a-wire-formats) · [B Parameters](#appendix-b-parameters) · [C Reference implementation](#appendix-c-reference-implementation) · [D Verification status](#appendix-d-verification-status) |
 
 ---
 
 ## Abstract
 
-AIWA is a value-accrual and causal-coordination primitive for networks
-under arbitrary delay, intermittent connectivity, and unbounded
-partition. It separates two properties conventionally coupled in
-distributed ledgers:
+AIWA is a primitive for creating and moving value, and for coordinating, in networks with arbitrary delay, intermittent
+connectivity and unbounded partition. It separates two things that distributed ledgers conventionally couple:
 
-**Coordination.** A deterministic causal layer over authenticated events,
-rooted in a common genesis. Domains operate while disconnected;
-reconciliation is deferred, not required.
+- **Coordination.** Every participant keeps its own log of signed events; events name their causal parents; nobody needs
+  everybody else's log. Participants operate while disconnected, and reconciliation is deferred, not required.
+- **Accrual.** Value is created locally and unconditionally by a domain, gated once by an external commitment (an
+  irreversible burn on Solana, §9) and thereafter driven by real sequential computation (§6), never by a shared clock.
 
-**Accrual.** Local, unconditional creation of value, gated at genesis by
-an external commitment (§8) and thereafter driven by real sequential
-computation (§6) — never by a shared clock.
+Three mechanisms, each answering one question, carry the whole design:
 
-$$\text{Progression} \to \text{claimable value} \qquad \text{Conservation} \to \text{ownership} \qquad \text{Mirror} \to \text{verifiable history}$$
+| Pillar | Question it answers | Section |
+|---|---|---|
+| **Progression** | How does a domain show that time (work) has passed, without a clock? | §6 |
+| **Conservation** | Who owns what, and how is it moved without being spent twice? | §7 |
+| **Mirror** | What has a domain seen of the others, verifiably? | §8 |
 
-No component requires a globally synchronized state. The reference
-implementation is split into three packages by concern — validation
-(`aiwa-core`), distributed infrastructure (`aiwa-platform`) and a
-developer-facing facade (`aiwa-lib`) — described in §0.
+No component requires a globally synchronized state, a consensus quorum or a trusted server. The one external dependency is
+the burn that opens accrual (§9); once it is made, a domain works offline.
+
+## How to read this document
+
+Each mechanism is specified in the same order: **what it is**, **the rules**, **what it guarantees**, **what it does not
+guarantee**. The last two are never omitted. Claims are checked against the reference implementation (`packages/`); where
+something is only designed or only experimental, the text says so, and the legend below marks it.
+
+| Mark | Meaning |
+|---|---|
+| *(none)* | specified, implemented and tested |
+| **[experimental]** | implemented and tested, but not part of what a deployment relies on |
+| **[not built]** | designed or discussed only |
+
+**Notation.** $D$ is a domain; $e$ an event; $\mathrm{id}(\cdot)$ a content hash; $b$ committed capital; $q$ the epochs since a
+domain's last action; $q_{\text{tot}}$ its total epochs; $T$ the patience rate; $E$ the work of one epoch; $\mathrm{prev}$ the
+mining event another follows. $\mathrm{SHA}$ is SHA-256 throughout; hex strings are lowercase. Amounts of AIWA are integers of
+$10^{-18}$ AIWA; amounts of SOL are lamports ($10^{-9}$ SOL).
 
 ---
 
-## 0. Architecture: three packages, one protocol
+## 1. Goals and non-goals
 
-The specification below is implemented once, in `aiwa-core`, and
-composed by everything above it — never reimplemented at a different
-layer:
+**Goals.**
 
-- **`aiwa-core`** — the protocol itself. Identity, the event log and its
-  content-addressing, progression, the sequential proof, accrual,
-  conservation, Mirror, Causal Tick, relative rate,
-  content-addressed contract publishing, delegation, and bearer
-  vouchers. Depends on nothing of its own — only `@noble/curves`,
-  `@noble/hashes`, `@scure/bip39`, and an optional `@solana/web3.js`
-  peer dependency for the genesis commitment (§8). 418 passing tests
-  (including a real Rust build+run cross-check when a toolchain is available — §16.1).
-- **`aiwa-platform`** — distributed infrastructure with no protocol
-  logic of its own: WebRTC transport, a replicator that syncs an
-  `aiwa-core` event log between peers, capability-gated data stores, a
-  graph materializer, multi-file bundle publishing (§19) and the **archive node** (§12.2), the always-on holder of wallets'
-  backups. 85 passing tests.
-- **`aiwa-lib`** — the public, developer-facing facade. A wallet
-  API (`AIWA`) composing `aiwa-core`'s validation with `aiwa-platform`'s
-  transport, and a smart-contract/token authoring SDK
-  (`defineContract`/`Contract`/`signedAction`), the wallet's recovery (recovery phrase, backup, restore — §12.2) and the shared
-  panel every app mounts for it. 100 passing tests.
+1. *Local issuance.* A domain creates value on its own, offline, from verifiable work, with one external gate.
+2. *Verifiable by anyone, cheaply.* A third party that holds a domain's events can derive its state, and check the work it
+   claims, in milliseconds per event, without trusting the domain.
+3. *No double spending that survives reconciliation.* Value is never duplicated in any reader's view, and all readers that
+   hold the same events agree on the outcome of a conflict.
+4. *Partition tolerance.* Nothing waits for a quorum, a clock or a server.
+5. *Applications on top, with no new protocol.* Contracts, published applications and a store are compositions of the above.
 
-Applications — the store, its registry, the Android app — compose `aiwa-lib` and add no protocol logic of their own.
+**Non-goals** (stated early because they are the usual objections; §21 returns to them).
 
+- *Real-time prevention of a double spend between parties who never exchange events.* The protocol detects and resolves it
+  once histories meet (§13); it cannot prevent it while they stay apart.
+- *Proof that two identities are two people.* Identity is a key.
+- *Durability of data nobody chooses to keep.* Nothing pays anyone to store (§21).
+- *A market price for AIWA.* The protocol creates and moves AIWA; what it is worth is not specified, and nothing here
+  implies it is worth anything.
+
+---
+
+## 2. The protocol at a glance
+
+### 2.1 System model
+
+A **domain** is an operational environment holding one identity (a keypair) and local state. Domains exchange information
+over links that may be continuous, intermittent, delayed, asymmetric or absent, for any duration.
+
+| | |
+|---|---|
+| **Assumed** | collision-resistant hashing; EUF-CMA-secure signatures (Ed25519); deterministic serialization; the sequential nature of repeated squaring in a group of unknown order (§6.3) |
+| **Not assumed** | a synchronized wall clock; continuous access to any external chain; a global consensus quorum; a globally replicated state; honest majorities |
+
+### 2.2 The whole protocol on one page
+
+```mermaid
+flowchart TB
+  subgraph local["Everything below happens on one device, offline"]
+    KEY["Key (12 words)<br/>identity = SHA-256 of the public key<br/>= the Solana address"]
+    LOG[("The log<br/>signed events, each naming its parents")]
+    KEY -- "signs" --> LOG
+    PROG["PROGRESSION<br/>sequential work, one proof per event<br/>→ epochs"]
+    CONS["CONSERVATION<br/>claims: split, transfer, voucher<br/>each proof usable once"]
+    MIR["MIRROR<br/>signed 'I received this of X'<br/>never a copy of X's log"]
+    ACC["ACCRUAL<br/>capital b × epochs → claimable AIWA"]
+    LOG --- PROG
+    LOG --- CONS
+    LOG --- MIR
+    PROG --> ACC
+    ACC -- "claim creates" --> CONS
+  end
+
+  SOL["Solana<br/>the one external gate:<br/>burn SOL to the incinerator"]
+  SOL -. "a finalized burn, confirmed by each reader itself,<br/>is the only thing that lets ACCRUAL start" .-> ACC
+
+  OTHER[("Another domain's log")]
+  LOG <-. "events travel by ANY means:<br/>a link, a file, a QR code, a pull request" .-> OTHER
+  OTHER -. "readers fold what they hold<br/>in one canonical order" .-> CONS
 ```
-        ┌──────────────────────────────────────────────┐
-        │ applications: store, registry, Android app   │
-        │ (no protocol logic of their own)             │
-        └──────────────────────────────────────────────┘
-                               │  call the wallet API
-                               ▼
-              ┌──────────────────────────────────┐
-              ▼                                  ▼
-┌───────────────────────────┐      ┌───────────────────────────┐
-│ aiwa-lib                  │      │ aiwa-platform             │
-│ public wallet API (AIWA), │      │ transport, replication,   │
-│ Channel, contract SDK     │      │ capability-gated storage, │
-│                           │      │ bundle publishing,        │
-│                           │      │ archive node              │
-└───────────────────────────┘      └───────────────────────────┘
-              │                                  │
-              └────────────────┬─────────────────┘
-                               ▼
-       ┌──────────────────────────────────────────────┐
-       │ aiwa-core                                    │
-       │ the protocol itself: identity, event log,    │
-       │ progression, accrual, conservation, Mirror,  │
-       │ Causal Tick, contracts, delegation, vouchers │
-       │                                              │
-       │ depends on nothing of its own - only         │
-       │ @noble/curves, @noble/hashes, @scure/bip39,  │
-       │ optional @solana/web3.js                     │
-       └──────────────────────────────────────────────┘
+
+Reading the picture: a domain's key signs events; the events are one log. Three mechanisms read that log. *Progression*
+turns work into epochs; *accrual* turns capital (a burn) and epochs into claimable AIWA; *conservation* says who owns each
+claim; *mirror* records what a domain has received from others. Events reach other domains by any transport, and each
+reader folds what it holds in one canonical order (§13.4) so that readers with the same events agree.
+
+### 2.3 The life of a value
+
+```mermaid
+flowchart LR
+  A["1. Burn<br/>SOL → incinerator (+ creator fee)<br/>chooses T"] --> B["2. Record<br/>'burn-record' event:<br/>the Solana signature"]
+  B --> C["3. Commit<br/>'accrual' event:<br/>capital b = burned × (1 − T)"]
+  C --> D["4. Work<br/>'progression' events:<br/>epochs, each with its proof"]
+  D --> E["5. Claim<br/>'claim' event:<br/>a spendable claim is created"]
+  E --> F["6. Move<br/>split · transfer · voucher<br/>(signed, once)"]
+  F --> G["7. Be read<br/>by anyone holding the events:<br/>mining state, ranking figure"]
+  E -. "a new burn replaces the position<br/>and pays the old one first" .-> A
 ```
 
-A consequence worth stating plainly: nothing above `aiwa-core` may alter
-what counts as a valid state transition. `aiwa-lib`'s `Channel` and
-bearer vouchers are real protocol extensions (§17, §18) — they live in
-`aiwa-core`, not layered on top of it, for exactly this reason.
+Steps 1–3 need the network once (to burn and to confirm the burn). Steps 4–6 are local. Step 7 is what applications such
+as the store build on (§12, §18).
 
-## 1. System model
+---
 
-A domain is an operational environment holding one or more identities
-and local state. An identity is a keypair. Communication between
-domains is continuous, intermittent, delayed, asymmetric, or absent, for
-arbitrary duration.
+# Part I — Foundations
 
-**Assumed:** collision-resistant hashing, EUF-CMA-secure signatures,
-deterministic serialization.
-**Not assumed:** a synchronized wall clock, continuous access to any
-external chain, a global consensus quorum, a globally replicated state.
+## 3. Identity
 
-## 2. Identity
+$$\mathrm{domain}(D) = \mathrm{SHA}(\mathrm{pk}_D)$$
 
-$$\mathrm{domain}(i) = \mathrm{SHA\text{-}256}(\mathrm{pk}_i)$$
+The full 256-bit digest, hex-encoded. The private key authorizes every state transition; nothing else (device, address,
+location) is part of identity. In the reference implementation the same Ed25519 key is also the domain's **Solana address**
+(base58 of the public key), so the wallet that burns and the identity that mines are one credential, derived from one BIP39
+recovery phrase (§15).
 
-Full 256-bit digest, hex-encoded, untruncated. The private key
-authorizes state transitions; no other binding — device, IP, location —
-is part of identity. In the current implementation the same Ed25519
-keypair also serves as the domain's real Solana address (`aiwa-lib`'s
-own `toIdentity()`) — one key, two roles, not two separate credentials
-to manage.
+*Guarantees.* Only the holder of the key can sign for the domain. *Does not guarantee.* That a key is one person, or that two
+keys are two (§21).
 
-## 3. Event log and content addressing
+## 4. Events and the log
 
-State transitions are signed events referencing causal parents. A
-participant need not hold every event, only what is relevant to its own
-state and observed relationships.
+### 4.1 The event
 
-$$\mathrm{id}(e) = \mathrm{SHA\text{-}256}\Big(\mathrm{JSON}\big(\{\mathrm{domain}, \mathrm{author}, \mathrm{authorPublicKey}, \mathrm{parents}: \mathrm{sort}(e.\mathrm{parents}), \mathrm{type}, \mathrm{payload}: \mathrm{canon}(e.\mathrm{payload}), \mathrm{createdAt}\}\big)\Big)$$
+A state transition is a signed event that names the events it depends on.
 
-where $\mathrm{canon}(v)$ is defined recursively: for an array, applied
-element-wise, order preserved; for an object, keys sorted
-lexicographically and applied to each value under its sorted key;
-otherwise unchanged. The event envelope (`packages/core/src/event.js`)
-binds `domain`, `author`, the embedded `authorPublicKey`, and `type` into
-the same id and the same signature. Binding `type` matters: an envelope
-that covered only $\{\mathrm{parents}, \mathrm{payload}\}$ would leave an
-event's `type` outside content-addressing, which is exactly the forgery
-class `packages/lib/src/contract.js` documents (§17's delegation payloads
-are deliberately signed over a message that does **not** include `type`,
-for the same reason spelled out there).
+$$e = \big(\mathrm{domain},\ \mathrm{author},\ \mathrm{authorPublicKey},\ \mathrm{parents},\ \mathrm{type},\ \mathrm{payload},\ \mathrm{createdAt},\ \mathrm{signature}\big)$$
 
-**Author, present but not blindly trusted.** `author` is carried
-directly in the event; a real verifier (`verifyEvent`) independently
-re-derives it from the embedded `authorPublicKey` and rejects any event
-where they disagree — an event cannot claim an author it cannot really
-sign for. A reducer folding events into state, however, is never handed
-`author` at all (`adapt-event.js`'s own `toReducerEvent` strips it
-before a reducer ever sees the event) — anything a reducer needs to
-attribute to a real signer must be a **separately embedded signature
-inside the payload itself**, checked by the reducer, never inferred
-from the outer envelope. Every payload-level signature scheme in this
-document (transfer, split, delegation, voucher redemption,
-`signedAction`) exists because of this exact separation.
+$$\mathrm{id}(e) = \mathrm{SHA}\Big(\mathrm{JSON}\big(\{\mathrm{domain}, \mathrm{author}, \mathrm{authorPublicKey}, \mathrm{sort}(\mathrm{parents}), \mathrm{type}, \mathrm{canon}(\mathrm{payload}), \mathrm{createdAt}\}\big)\Big)$$
 
-## 4. Mirror
+$\mathrm{canon}(v)$ is defined recursively: an array is mapped element-wise, order preserved; an object has its keys sorted
+lexicographically and $\mathrm{canon}$ applied to each value; anything else is unchanged. The **signature covers the same
+bytes as the id**: the event is signed by the key whose hash is `author`.
 
-$M_D \in \{\texttt{empty}, \texttt{full}\}$: a domain $D$'s own signed,
-per-epoch commitment to what it has observed of another domain, never a
-replica of the observed state.
+`domain` here is the *log domain* (the namespace of a log); `author` is the signer's identity (§3).
 
-**Reception monotonicity.** For domain $D$ observing $X$:
-$\mathrm{seen}_D(X, e_{i+1}) \geq \mathrm{seen}_D(X, e_i)$ for successive
-real commitments $e_i$. A claim of having seen less than previously
-committed is rejected.
+### 4.2 Verification
 
-Mirror does not establish that two domains are distinct real-world
-actors, nor rule out a coalition fabricating consistent history together
-at real cost. It is evidence about the structure of observed history —
-not an identity oracle.
+A verifier accepts an event only if all three hold:
 
-## 5. Progression
+1. $\mathrm{SHA}(\mathrm{authorPublicKey}) = \mathrm{author}$ (the embedded key really is the claimed author's);
+2. the recomputed id equals the event's id (the content is unchanged);
+3. the signature verifies against `authorPublicKey`.
 
-$$\mathrm{epoch}_D(n+1) = \mathrm{epoch}_D(n) + 1$$
+The type is inside the hashed and signed bytes: an envelope that covered only parents and payload would leave `type`
+outside content-addressing, which is a forgery class (a payload signed for one type, replayed as another).
 
-valid only if causally chained to $D$'s own last accepted transition,
-carrying a real sequential proof (§6), **and signed by a real Ed25519
-key that derives $D$ itself**. Progression is local: $\mathrm{epoch}_A$
-and $\mathrm{epoch}_B$ are never directly comparable.
+### 4.3 Parents, and what a log is
 
-**An epoch is a fixed amount of work (`epochIterations`).** A deployment that
-sets `rewardParams.epochIterations` $= E$ fixes the sequential work of one
-epoch, and an event may carry $k \ge 1$ epochs at once:
-$\mathrm{epoch}_D \mathrel{+}= k$, with exactly $k\cdot E$ iterations and
-one proof (§6.2). A deployment that does not set it accepts whatever
-iteration count the signer wrote ($\ge 1$) — then an epoch could cost one
-hash and $D$'s age ($q_{\text{total}}$, and so every ranking built on it)
-could be inflated for nothing; that is why a real deployment sets it. Time
-here is sequential work, not calendar time: a faster machine makes more
-epochs per second.
+`parents` encode **causal dependency**, never time: $B$ lists $A$ among its parents because $B$ depends on $A$. A timestamp
+would only encode arrival order. The events of a log therefore form a directed acyclic graph, and changing any past event
+changes its id and breaks every event that cites it.
 
-**The signature requirement.** The sequential proof (§6) is a public,
-deterministic function of
-$(\mathrm{domain}, \mathrm{output}_{n-1})$ — both already visible to
-anyone watching the log — so it was never, by itself, evidence of who
-submitted the transition: anyone could compute $D$'s own next-epoch
-proof and advance $D$'s progression without $D$'s consent. Not a theft
-of value, but a real, verified griefing vector against $q_{\text{total}}$
-(§7): since $q_{\text{total}}$ never resets and sits in $r$'s own
-denominator, inflating it lowers a domain's every future reward at zero
-cost to the attacker — concretely, $r(b{=}100, q{=}1, q_{\text{total}},
-T{=}0)$ falls from $\approx 0.087$ at $q_{\text{total}}{=}1$ to
-$\approx 0.0097$ at $q_{\text{total}}{=}20000$, a real $\sim\!9\times$
-reduction imposed by a third party for free. Closed the same way
-§7's accrual/claim signer-scoping is: `deriveId(signerPubkey) === D`,
-checked against a signature embedded in the payload itself
-(`buildSignedProgressionEvent`/`verifyProgressionAuthorization`), never
-against the outer event envelope alone.
+```mermaid
+flowchart LR
+  e0(("e0")) --> e1(("e1")) --> e2(("e2"))
+  e1 --> e3(("e3"))
+  e2 --> m(("e4<br/>names both heads<br/>as parents"))
+  e3 --> m
+```
 
-**Automatic in the reference wallet.** `aiwa-lib`'s `startProgressLoop()`
-calls `advanceProgress()` on a real timer for as long as a wallet stays
-connected, with no manual button. A domain that never calls
-`advanceProgress()` stays at epoch 0 and never accrues anything to claim,
-however much real wall-clock time passes.
+$e_2$ and $e_3$ do not know of each other: two **branches**, which is ordinary (two things happening on two devices). They
+meet again when a later event cites both. A log's **heads** are its events no other event cites.
 
-## 6. Sequential proof
+A participant need not hold every event: only what concerns its own state and its observed relationships. A log can also
+be pruned against a checkpoint (§14).
 
-$$h_0 = \mathrm{SHA\text{-}256}(\mathrm{seed}), \qquad h_i = \mathrm{SHA\text{-}256}(h_{i-1})$$
+### 4.4 The envelope's author is not what reducers see
 
-seeded from $(\mathrm{domain}, \mathrm{output}_{n-1})$. Symmetric —
-verification cost equals production cost — unlike an asymmetric VDF
-(Wesolowski, Pietrzak); what is unconditional is that the chain imposes
-$\mathrm{iterations}$ genuinely dependent, sequential steps — no amount
-of hardware lets a later step be computed before an earlier one. How
-much *real time* those steps take is not unconditional: real,
-independent SHA-256 benchmarks show roughly a 2–4$\times$ spread
-between common hardware with and without dedicated SHA acceleration.
+A *reducer* (the function that folds events into state) never receives `author`: it is handed only `{id, parents,
+payload}` with the payload's `type`. So anything a reducer must attribute to a real signer has to be a **separate signature
+inside the payload**, checked by the reducer itself, never inferred from the envelope. That is the reason for §5.
 
-**Locality.** Computation of $h_i$ occurs on exactly one real device at
-a time — never distributed, never assisted by other domains. Identity
-is the keypair (§2); the computing device may change without
-discontinuity in $\mathrm{epoch}_D$.
+## 5. Signed actions
 
-**Deployment-chosen iteration count.** `aiwa-lib`'s own
-`startProgressLoop()` defaults to 100,000 iterations every 30 real
-seconds per tick — a deployment's own choice; the mechanism (§6.1 below)
-is what is specified here, not any one deployment's constant.
+Every action that changes a domain's economic state carries its own signature in its payload:
 
-### 6.1 Asymmetric verification (Wesolowski)
+$$\mathrm{payload} = \big(\text{fields},\ \mathrm{nonce},\ \mathrm{timestamp},\ \mathrm{signerPubkey},\ \mathrm{signature}\big)$$
 
-The symmetric chain (above) costs a verifier exactly what it cost the
-prover. A real Wesolowski VDF, over $\mathbb{Z}_N^*$ for a 2048-bit RSA
-modulus $N$ of unknown factorization (the real, published RSA-2048
-challenge number), gives verification cost independent of the real
-iteration count $T$:
+where $\mathrm{signature} = \mathrm{Sign}\big(\mathrm{JSON}(\text{an ordered, fixed list of the action's fields})\big)$ and the field list is fixed per
+action type (Appendix A.2 gives every list; a field that is undefined is left out of the JSON). A reducer accepts an action only if
 
-$$y = x^{2^T} \bmod N \qquad \ell = \mathrm{HashToPrime}(x, T, y) \qquad \pi = x^{\lfloor 2^T/\ell \rfloor} \bmod N$$
+1. $\mathrm{SHA}(\mathrm{signerPubkey}) = $ the identity named as the action's **owner** (the `from` of a transfer, the
+   `owner` of a split, the `domain` of an accrual, claim or progression, the `to` of a voucher redemption), and
+2. the signature verifies, and
+3. the `nonce` has not been used (every action except a progression, which is single-use by construction: its epochs must
+   go past the ones already accepted, §6.1).
 
-$$r = 2^T \bmod \ell \qquad \text{Verify: } \pi^{\ell} \cdot x^{r} \stackrel{?}{=} y \pmod N$$
+```mermaid
+sequenceDiagram
+  participant K as Owner's key
+  participant E as Event envelope
+  participant R as Reducer
+  K->>K: sign(fields, nonce, timestamp) → payload signature
+  K->>E: wrap the payload in an event (signed again, envelope)
+  Note over E,R: the reducer sees only {id, parents, payload}
+  R->>R: SHA(signerPubkey) = owner ?
+  R->>R: payload signature valid ?
+  R->>R: nonce unused ?
+  R-->>K: accept, or reject with the reason (kept as a rejection)
+```
 
-Real prover cost is on the order of $2T$ modular multiplications. Real
-verifier cost is $O(\log T)$. $\ell$ is derived deterministically from
-$(x, T, y)$ — never accepted as prover-supplied input.
+**Delegation.** The owner may sign **once** a statement authorising another key, $\mathrm{Sign}_{\text{owner}}(\{\mathrm{delegate},
+\mathrm{from}\})$ (no amount, no expiry, by design: §7.5). An action signed by the delegate then carries that statement and a
+`delegate` field in its own signed list; a reducer checks **two** signatures, the owner's over the delegation and the
+delegate's over this very action, plus that the owner's key derives the owner identity and that the signer is exactly the
+delegated key.
 
-### 6.2 Succinct progression
+*Guarantees.* A real signature by the owner is required for each action (or for one delegation); an action cannot be
+replayed (nonce) or redirected (every destination is in the signed list). *Does not guarantee.* Anything about who held the
+key (a stolen key signs validly).
 
-With `epochIterations` $= E$, a progression event carries
-$(\mathrm{epoch}, \texttt{vdfIterations} = k E, y, \pi, \ell)$ and the
-reducer checks the Wesolowski proof (§6.1) instead of recomputing a hash
-chain. The work starts from $x = H(\mathrm{domain}\,\|\,\mathrm{output}_{n-1}) \bmod N$,
-so it cannot be done ahead, borrowed from another domain or reused; $y$, $\pi$
-and $\ell$ are canonical (one representation per value: $y$ and $y+N$ would
-both verify otherwise). Measured: verifying takes about 3.6 ms for $10^5$ and
-for $4\cdot 10^5$ squarings, against 0.5 s and 2.8 s to produce; the hash chain
-of §6 took 5.6 s to verify one $10^5$-step epoch. A third party — a validator, a
-registry — can therefore check a domain's age and its time since its last
-action (§7.2) at a cost of milliseconds per event, not the work the domain did.
-The cost it does pay is storage: one event per proof (about 1.7 KB), so the
-history that proves an age grows with the number of events, not of epochs
-($k$ epochs fit in one event).
+The same scheme, for the actions of a contract defined by an application, is `signedAction` (§16.2).
 
-**The mining events are one signed chain.** The work above started from the
-previous output alone, so the same stretch of proven work could be re-signed
-over any history: an action (a burn's commitment, a claim) could be left out,
-or two histories kept side by side, at no cost. In a deployment with `epochIterations`
-every progression, accrual and claim of $D$ therefore names, in its signed
-payload, the mining event it follows ($\mathrm{prev}$: an id, or none before the
-first), and the work starts from
-$x = H(\mathrm{domain}\,\|\,\mathrm{output}_{n-1}\,\|\,\mathrm{prev}) \bmod N$.
-Three consequences. An action cannot be left out: the epochs worked after it are
-bound to it and are refused without it. Proven work cannot be re-signed over
-another history: showing a history without an action means redoing, from that
-action on, the work the other one holds. And an action cannot be placed earlier
-than it was made (before, which of two concurrent events a reader folded first
-decided its epoch). The link is a signed field, not the event's `parents` (the
-log's heads — a checkpoint, a reception commitment — which pruning later removes).
 
-What it does *not* give is a proof that no other history exists: a domain can
-keep two, redoing the work, and show one. That is what a witness is for — anyone
-who holds an event $D$ signed can show it, and a reader that keeps it can require
-$D$'s next history to contain it (a fork then cannot be shown; this is the proof
-of §13.2, here used by a registry). Without any witness the chain alone is the
-protection, and its price is the work. A snapshot is also not "the current state":
-an action made after the last epoch shown, and followed by none, can be left
-out — that needs a clock, e.g. the head anchored on Solana.
+---
 
-## 7. Accrual
+# Part II — The three pillars
 
-$$r(b, q, q_{\text{total}}, T) = \frac{b \cdot q^{\alpha}}{\left[\ln\left(q_{\text{total}}^{\,\beta(1-T)} + C\right)\right]^{\gamma}}$$
+## 6. Progression
+
+**What it is.** The mechanism by which a domain shows, without a clock, that time has passed: it performs a sequential
+computation that cannot be sped up by adding machines, and each unit of work (an **epoch**) comes with a proof anyone can
+check cheaply. Progression is **local**: $\mathrm{epoch}_A$ and $\mathrm{epoch}_B$ are never directly comparable, and a faster
+machine simply makes more epochs per second.
+
+### 6.1 The rule
+
+$$\mathrm{epoch}_D \leftarrow \mathrm{epoch}_D + k,\qquad k \ge 1$$
+
+A `progression` event is accepted only if all of these hold:
+
+- it is **signed by the key of $D$** (§5): a progression event is a signed action like any other;
+- it is **chained** to $D$'s last accepted mining event (§6.5);
+- it carries a **valid proof of sequential work** for exactly $k$ epochs (§6.2–6.4).
+
+A deployment that sets `rewardParams.epochIterations` $= E$ fixes the work of one epoch; an event may carry $k$ epochs at
+once, with exactly $kE$ iterations and one proof. A deployment that does not set $E$ accepts the iteration count the signer
+wrote ($\ge 1$): an epoch could then cost one hash, and $D$'s age could be inflated for nothing, which is why a real
+deployment sets it. The reference deployment sets $E = 10^5$ squarings.
+
+**Why the signature is required.** The proof is a public, deterministic function of $(\mathrm{domain}, \mathrm{output}_{n-1})$,
+both visible to anyone who watches the log. Without a signature, anyone could compute $D$'s next epoch and publish it for
+$D$. That is not a theft, but it is a free griefing attack: $D$'s total age $q_{\text{tot}}$ sits in the denominator of the
+accrual formula (§10) and never resets, so a third party can lower every future reward of $D$ at no cost to itself (for
+$b{=}100$, $q{=}1$, $T{=}0$ the reward falls from about $0.087$ at $q_{\text{tot}}{=}1$ to about $0.0097$ at
+$q_{\text{tot}}{=}20000$).
+
+**Automatic in the reference wallet.** The wallet advances progression on a timer for as long as it is open (default: one
+epoch every 30 s). A domain that never advances stays at epoch 0 and accrues nothing, however much wall-clock time passes.
+
+### 6.2 The sequential proof (symmetric form)
+
+$$h_0 = \mathrm{SHA}(\mathrm{seed}),\qquad h_i = \mathrm{SHA}(h_{i-1}),\qquad \mathrm{seed} = (\mathrm{domain}, \mathrm{output}_{n-1})$$
+
+A hash chain of $\mathrm{iterations}$ genuinely dependent steps: no hardware lets a later step be computed before an earlier
+one. It is **symmetric**: verifying costs what producing cost (5.6 s to verify one $10^5$-step epoch, measured). It is kept for
+deployments that do not set $E$. How much *real time* the steps take is not unconditional: SHA-256 benchmarks differ by about
+2–4× between hardware with and without SHA acceleration.
+
+**Locality.** The computation of $h_i$ happens on one device at a time, never distributed, never assisted by another domain.
+Identity is the keypair; the computing device may change without a discontinuity in $\mathrm{epoch}_D$.
+
+### 6.3 Asymmetric verification (Wesolowski)
+
+Over $\mathbb{Z}_N^*$, with $N$ the published 2048-bit RSA challenge modulus (factorization unknown):
+
+$$y = x^{2^{T}} \bmod N,\qquad \ell = \mathrm{HashToPrime}(x, T, y),\qquad \pi = x^{\lfloor 2^{T}/\ell \rfloor} \bmod N$$
+
+$$r = 2^{T} \bmod \ell,\qquad \text{verify: } \pi^{\ell}\cdot x^{r} \overset{?}{=} y \pmod N$$
+
+($T$ here is the squaring count, not the patience rate.) Producing costs about $2T$ modular multiplications; verifying
+costs $O(\log T)$. $\ell$ is derived from $(x, T, y)$, never accepted from the prover; $y$, $\pi$ and $\ell$ are canonical
+(one representation per value: $y$ and $y+N$ would otherwise both verify).
+
+### 6.4 Succinct progression
+
+With $E$ set, a progression event carries $(\mathrm{epoch},\ \texttt{vdfIterations} = kE,\ \texttt{vdfOutput} = y,\ \texttt{vdfProof} = (\pi, \ell))$ and the reducer
+checks the Wesolowski proof instead of recomputing a chain. The work starts from
+
+$$x = H(\mathrm{domain}\ \|\ \mathrm{output}_{n-1}\ \|\ \mathrm{prev}) \bmod N$$
+
+so it cannot be done ahead of time, borrowed from another domain, or reused. Measured: verifying takes about 3.6 ms whether
+the event holds $10^5$ or $4\cdot10^5$ squarings, against 0.5 s and 2.8 s to produce. A third party (a validator, a
+registry) can therefore check a domain's age and its time since its last action at a cost of milliseconds per event, not
+the work the domain did. The cost it does pay is storage: about 1.7 KB per proof, so the history that proves an age grows
+with the number of **events**, not of epochs ($k$ epochs fit in one event).
+
+### 6.5 The mining events are one signed chain
+
+In a deployment that sets $E$, every `progression`, `accrual` and `claim` of $D$ (the *mining events*) names in its signed
+payload the mining event it follows, $\mathrm{prev}$ (an id, or none before the first), and a progression's work starts from
+a seed that includes $\mathrm{prev}$ (§6.4).
+
+```mermaid
+flowchart LR
+  A["accrual<br/>(the burn's commitment)<br/>prev = none"] --> P1["progression<br/>epochs 1 to 1<br/>prev = accrual"]
+  P1 --> P2["progression<br/>epochs 2 to 3<br/>prev = P1"]
+  P2 --> C["claim<br/>prev = P2"]
+  C --> P3["progression<br/>epochs 4 to 4<br/>prev = claim"]
+  X["a second history that<br/>leaves out the claim"] -. "its work would have to start from P2,<br/>not from the claim: it must be redone" .-> P3
+```
+
+Consequences:
+
+- **An action cannot be left out.** The epochs worked after an action are bound to it and are refused without it.
+- **Proven work cannot be re-signed over another history.** Showing a history that lacks an action means redoing, from that
+  action on, all the work the other history holds.
+- **An action cannot be placed earlier than it was made.** (Previously, which of two concurrent events a reader folded first
+  decided its epoch.)
+
+The link is a **signed field**, not the event's `parents` (those are the log's heads at the time: a checkpoint, a reception
+commitment, which pruning later removes).
+
+*Does not guarantee.* That no other history exists. A domain can keep two, redoing the work, and show one. That is what
+**witnesses** answer (§12.4): anyone who holds an event $D$ signed can show it, and a reader that keeps it can require $D$'s
+next history to contain it. Without any witness the chain alone is the protection, and its price is the work. A snapshot is
+also not "the current state": an action made after the last epoch shown, and followed by none, can be left out; closing that
+needs a clock (for example the head of the log anchored on Solana **[not built]**).
+
+---
+
+## 7. Conservation
+
+**What it is.** The mechanism by which value has one owner at a time and cannot be spent twice. A **claim** is a unit of AIWA
+owned by one key.
+
+### 7.1 Claims
+
+$$\mathrm{claim} = (\mathrm{id},\ \mathrm{kind},\ \mathrm{amount},\ \mathrm{owner},\ \mathrm{status}),\qquad \mathrm{status} \in \{\texttt{active}, \texttt{deactivated}, \texttt{consumed}\}$$
+
+Amounts are integers of $10^{-18}$ AIWA. A claim is created by an accrual (the automatic payment of the previous position,
+§10.1) or by a `claim` event (§10.3); it is never created from nothing elsewhere. `owner`, `from` and `to` are **opaque
+strings**: nothing in the ledger requires them to be identities. Ownership is proven entirely by the signature check of the
+action that moves a claim, never by a property of the string. §7.4 uses exactly this.
+
+### 7.2 Split
+
+$C \to (C_1, C_2)$ with $\mathrm{amount}(C_1) + \mathrm{amount}(C_2) = \mathrm{amount}(C)$ by construction, both parts owned
+by the owner of $C$, $C$ deactivated. Signed by the owner (or a delegate, §7.5). The new ids must be fresh and distinct.
+
+### 7.3 Transfer
+
+A transfer is five steps, each a precondition of the next:
+
+```mermaid
+stateDiagram-v2
+  [*] --> active: issued<br/>(accrual, claim, or a part of a split)
+  active --> deactivated: 1. deactivate<br/>(refused unless active)
+  deactivated --> deactivated: 2. prove: the owner's signature<br/>over (claim, from, to, nonce)
+  deactivated --> deactivated: 3. verify, 4. consume the proof<br/>(refused if already consumed)
+  deactivated --> consumed: 5. activate
+  consumed --> [*]
+  note right of consumed
+    activate also creates a NEW active claim
+    for the recipient: id "activated:" + proof id
+  end note
+```
+
+The proof id is deterministic, $\mathrm{claimId}{:}\mathrm{from}{:}\mathrm{to}{:}n{:}\mathrm{derivation}$, and the set of consumed
+proofs is idempotent: a second attempt at the same proof is rejected, and `deactivate` refuses a claim that is not `active`.
+The value is moved, never copied; the new claim keeps the amount.
+
+*Guarantees.* In any reader's view a claim has at most one owner at a time, and each proof is consumed at most once.
+*Does not guarantee.* That two readers who hold different events agree; §13 handles reconciliation.
+
+### 7.4 Bearer vouchers — a withdrawal QR
+
+For the case neither a transfer nor a delegation covers: **the recipient is not known until redemption.** A classic
+hash-lock (the idea of a Lightning HTLC).
+
+$$\mathrm{voucherAddress} = \texttt{voucher:}\,\mathrm{SHA}(\mathrm{secret})$$
+
+```mermaid
+sequenceDiagram
+  participant I as Issuer
+  participant Q as QR code
+  participant R as Redeemer
+  participant L as A reader's log
+  I->>I: sign an ordinary transfer to voucherAddress (moves value no key controls)
+  I->>Q: secret + claim id + the events needed to append it
+  Q->>R: shown or sent, by any means (the QR can be copied)
+  R->>R: sign voucher-redeem { claim, secret, to = R's own identity }
+  R->>L: append
+  L->>L: from = voucher: SHA(secret), the signer must derive "to"
+  L->>L: transfer(claim, from, to): the first redemption wins
+  Note over L: a second redemption finds the claim already consumed: rejected
+```
+
+Redemption is signed by the identity the value is to land in, and a reader checks (a) the redeemer's key derives `to` (a
+secret revealed by someone who does not control the claimed destination must not move value there) and (b) the transfer
+itself, with $\mathrm{from}$ recomputed from the secret. A wrong secret fails because the claim is not owned by that address.
+"The QR can be copied but only the first redemption succeeds" needs **no new double-spend rule**: it is the conservation
+invariant, unchanged.
+
+*Does not guarantee.* Real-time prevention. Two people offline can each redeem the same voucher and each believe they
+succeeded until their logs meet; then every reader agrees on one winner (§13.4: the smaller event id, arbitrary).
+
+### 7.5 Delegation — "sign once, click many times"
+
+The owner signs one delegation (§5) authorising a session key; the delegate then signs each transfer, split, voucher
+redemption or claim for the owner, with no further use of the owner's root key.
+
+```mermaid
+sequenceDiagram
+  participant O as Owner (root key)
+  participant D as Delegate (session key)
+  participant R as Reducer
+  O->>D: delegation = Sign_owner({ delegate, from }) , once
+  loop each click
+    D->>D: sign this specific action (with "delegate" in its signed fields)
+    D->>R: action + the delegation
+    R->>R: owner's key derives "from" ?  signer is exactly "delegate" ?
+    R->>R: delegation signature valid ?  action signature valid ?
+  end
+```
+
+- **No pre-funding, no escrow.** Issuing a delegation moves nothing. The delegate only authorises moving what the owner
+  already owns at click time; a compromised session key threatens only what the owner holds, for that counterparty, as the
+  root key already could.
+- **A channel is self-sufficient once open, for any amount, including splitting** (the same delegation authorises transfers
+  and splits). The reference wallet derives the session key deterministically, $\mathrm{HMAC\text{-}SHA256}(\mathrm{rootSecret},
+  \text{"aiwa-lib-channel-session-v1:"}\,\|\,\mathrm{peerId})$, so it is recoverable after a crash and unique per peer.
+  Verified: clearing the root key from memory does not stop an open channel from sending, splitting or reporting a balance.
+- **Consent of the peer.** A unilateral channel (`openChannel`) needs no one's agreement. A *requested* channel
+  (`requestChannel` → `acceptChannelRequest` → `confirm`) travels as blobs over any medium, the peer answers with a signed
+  acceptance bound to that request and to its own identity, and the requester's channel refuses every action until the
+  acceptance verifies.
+- **Limit, by design.** No amount cap, no expiry, no revocation. A deployment that wants any of them layers it into a
+  contract verifier (§16.1) instead of imposing it on every caller.
+
+---
+
+## 8. Mirror
+
+**What it is.** A domain's own **signed, per-epoch commitment to what it has received of other domains**: never a copy of their
+state, only a statement, by the observer, that it received specific events.
+
+$$\mathrm{reception} = \big(\mathrm{domain}=D,\ \mathrm{epoch}=n,\ \mathrm{kind}\in\{\texttt{empty},\texttt{full}\},\ \mathrm{receivedFrom}=[(X, \mathrm{eventId}),\dots],\ \mathrm{signature}\big)$$
+
+`epoch` is $D$'s own commitment sequence number (never the observed domain's epoch); `kind = empty` requires an empty list,
+`full` a non-empty one.
+
+```mermaid
+sequenceDiagram
+  participant X as Domain X
+  participant D as Domain D (observer)
+  X-->>D: events travel (a link, a file, a pull request ...)
+  D->>D: append them (each verified), decide which are trustworthy
+  D->>D: sign reception #n: "I received X's event e, epoch 20"
+  Note over D: kept in D's own log. X's log is untouched, nothing is merged.
+  X-->>D: later: X's epoch 25
+  D->>D: reception #n+1: must name an epoch ≥ 20 for X (monotonicity)
+```
+
+**Rules.** A reception is rejected unless its signature derives $D$, every cited event really exists (and is attributed to the
+source domain it names: `does not correspond to a real event there`), and **reception monotonicity** holds: for successive
+commitments, $\mathrm{seen}_D(X, e_{i+1}) \ge \mathrm{seen}_D(X, e_i)$. A claim of having seen less than before is refused.
+The epoch of a cited event is recomputed from the event graph, never self-declared.
+
+**What it is for.** (1) A mandatory recurring cost: a signed commitment at each epoch, even an empty one, makes keeping an
+identity an ongoing act rather than a one-time registration. (2) Evidence about structure: witnesses to a domain's
+progress (§12.4, §19). The reference wallet signs receptions **automatically** when events of other domains arrive (a sync, an
+offline bundle) and it trusts only events it can check: a foreign progression is cited at the highest epoch the domain's own
+chain accepts, or, if the log lacks that domain's history from epoch 1, the highest whose signature is genuine.
+
+**What it does not do.** It does not establish that two domains are distinct actors, and does not rule out a coalition
+fabricating a consistent history together at real cost. It is evidence about the *structure of observed history*, not an
+identity oracle. A helper computes the entropy of a domain's reappearances across the domains it observes
+(`computeResidualDiversity`): a signal, never a verdict (a small honest group scores low too).
+
+
+---
+
+# Part III — Creating value
+
+Part II gave a domain a clock (progression), ownership (conservation) and a memory of others (mirror). None of the three
+creates value. This part does: a **burn** (§9) lets a domain commit capital; **accrual** (§10) turns that capital and the
+epochs worked into claimable AIWA; a small **creator fee** (§11) rides on the burn; and any third party can **read** what a
+domain has earned without trusting it (§12).
+
+```mermaid
+flowchart LR
+  subgraph net["needs the network, once"]
+    B["§9 Burn on Solana"] --> R["burn-record<br/>the signature, nothing else"]
+  end
+  subgraph off["offline from here"]
+    R --> A["§10 accrual event<br/>commits capital b"]
+    A --> W["§6 progression<br/>epochs"]
+    W --> Q["claimable = r(b, q, qtot, T)"]
+    Q --> C["claim → §7 claim<br/>(spendable)"]
+  end
+  Q -. "§12 any reader derives it<br/>from the events alone" .-> X["mining state<br/>ranking figure"]
+```
+
+---
+
+## 9. The genesis commitment
+
+**What it is.** The one external gate of the protocol: an irreversible burn of SOL on Solana. It is the entry price of
+**accrual** and of nothing else. An identity, its log, progression, mirror, receiving and moving claims, contracts and
+applications need no burn; the reducers check none there. A domain that never burned simply has nothing to claim (`no committed
+capital for this domain`).
+
+**Why a cost at all.** $r$ is linear in capital $b$ (§10). Without a price per identity, splitting capital over a thousand
+identities would earn the same as one, and making identities would be free. A burn is a price that is irreversible,
+verifiable by anyone, and set by something the protocol does not control.
+
+### 9.1 The path of a burn
+
+```mermaid
+sequenceDiagram
+  participant W as Wallet (key = Solana address)
+  participant S as Solana
+  participant L as The wallet's log
+  participant R as Any reader
+  W->>W: quote: how much to the creator, to the incinerator, as capital (§11)
+  W->>S: ONE transaction, two transfers:<br/>burned − fee → incinerator,  fee → creator address
+  S-->>W: finalized transaction
+  W->>S: fetch the finalized record myself
+  W->>W: check: no error, paid by MY key, really spent, reached the incinerator
+  W->>L: append "burn-record" { domain, signature }
+  W->>L: append "accrual" { b = burned × (1 − T), T, previous, signature }
+  Note over L: the events say WHICH burn, never what it was worth
+  R->>L: receives the events
+  R->>S: fetches the same transaction ITSELF
+  R->>R: same checks, then folds the accrual (§9.2)
+```
+
+The reference wallet does the first steps in one call (`burn`): broadcast, record, commit, one button. If the transaction is
+broadcast but not yet finalized, `record(signature)` finishes the job later; the commitment stays uncredited until then.
+
+### 9.2 The commitment is backed in the reducer
+
+Without a rule here the burn would be a convention of the application: an `accrual` event carrying any $b$, signed by its
+domain, would be accepted, and since $r$ is linear in $b$ a domain could commit $b = 10^9$ with no burn anywhere.
+
+The reducer therefore rejects an `accrual` unless the burns **the reader itself confirmed** cover it:
+
+$$\mathrm{consumed}(D) + \Big\lceil \frac{b\cdot 10^{9}}{1 - T} \Big\rceil \ \le\ \mathrm{covered}(D)\qquad(\text{lamports})$$
+
+and, in a deployment with a creator fee, unless the fee is covered too (§11.3).
+
+| Term | Meaning |
+|---|---|
+| $\mathrm{covered}(D)$ | lamports of burn the reader confirmed for $D$ (incinerated + paid to the creator) |
+| $\mathrm{consumed}(D)$ | what $D$'s earlier commitments already used of it. **A burn backs a commitment once**, even though the next commitment replaces the position |
+| $\lceil b\cdot 10^9/(1-T)\rceil$ | the price of capital $b$ at patience rate $T$: the $T$ share is part of the burn |
+
+Rules:
+
+- **What counts as a burn for $D$.** A `burn-record` event is only `{ domain, signature }`. The reducer never reads what the burn
+  was worth from an event and never reaches Solana. It reads the record **the reader fetched itself** (the FINALIZED
+  transaction), and counts it for $D$ only if that record is error-free, positive, sent to the incinerator, **paid by $D$'s own
+  key** (a domain id is the hash of the key that is also its Solana address) and really spent by that payer. One signature counts
+  once. Quoting someone else's signature earns nothing.
+- **Per reader.** Validity depends on what a reader has confirmed: the same log folded with different confirmed records gives
+  different, each correct, results. A reader that cannot reach Solana confirms nothing and credits no one's commitment until it
+  can; folding again after confirming turns a rejected `accrual` into an accepted one.
+- **Minting, not moving.** A claim exists in a reader's view only if the domain that minted it has a position there, hence a burn
+  that reader confirmed. Moving a claim from hand to hand looks at nothing but the claim: a relay, a winner paid by a contract
+  or a plain recipient passes value on freely. What a receiver needs is the burn of the coin's *origin*, which travels with the
+  coin's ancestors and is confirmed once.
+- **Opt-out.** `commitmentBacking: 'none'` in the deployment's parameters, for tests, demos and private economies. Omitting it
+  means mandatory.
+- **Not covered.** A dishonest Solana endpoint is the reader's problem. A log whose commitments have no burns behind them is
+  rejected by every reader that enforces the rule.
+
+### 9.3 Whether churn pays
+
+A real cost is not the same claim as a sufficient one. `churn-analysis.js` compares one domain that commits once and matures for
+the whole span $N$ against one that restarts every $k$ epochs, repeatedly re-entering at low $q_{\text{tot}}$ where $r$'s
+denominator is smallest:
+
+$$\text{stay} = r(S, N, N, 0) - \mathrm{cost}(0)\qquad \text{churn}(k) = \Big\lfloor \tfrac{N}{k} \Big\rfloor\cdot\big[r(S, k, k, 0) - \mathrm{cost}(\text{slot at cycle start})\big]$$
+
+With zero real cost, churn wins outright; with a deliberately chosen cost curve it nets negative while staying nets positive.
+`findMostProfitableChurnInterval` sweeps $k$ over a candidate range to find the attacker's own best case instead of checking one
+interval and declaring victory. **[experimental]** It is a calculator for a deployment's chosen $(\alpha,\beta,\gamma,C)$ and cost
+curve, never a general proof that a tuple is safe; and it models the commitment cost, not the rest of §10 (a patience rate,
+"last action" mining), so a result must be re-checked against those rules before it is relied on.
+
+### 9.4 The dependency, stated plainly
+
+Broadcasting a burn needs a reachable Solana RPC endpoint: the one exception to the protocol's no-shared-infrastructure
+principle. Once a domain's commitment is accepted, $\mathrm{epoch}_D$ needs no further contact with Solana. Readers need Solana
+too, but only to confirm a burn they have not confirmed before.
+
+---
+
+## 10. Accrual
+
+**What it is.** The creation of claimable AIWA from three things: the capital $b$ a domain committed, the epochs $q$ it has
+worked since its last action, and its age $q_{\text{tot}}$.
+
+$$r(b, q, q_{\text{tot}}, T) = \frac{b\cdot q^{\alpha}}{\Big[\ln\!\big(q_{\text{tot}}^{\,\beta(1-T)} + C\big)\Big]^{\gamma}}$$
 
 | Symbol | Meaning |
 |---|---|
-| $b$ | the capital that mines: what the **last burn** committed (§7.1), $b = \mathrm{burned}\cdot(1-T)$ |
-| $q$ | epochs since $D$'s own last economic action (burn or claim); resets on each; floored at `minQ` |
-| $q_{\text{total}}$ | $D$'s own total progression epoch count; never resets |
-| $T$ | a patience rate, clamped to $[0, 0.4]$, chosen **at the burn** for what follows (§7.1) |
-| $\alpha, \beta, \gamma, C, \mathrm{minQ}$ | deployment parameters |
+| $b$ | the capital that mines: what the **last burn** committed, $b = \mathrm{burned}\cdot(1-T)$ |
+| $q$ | epochs since the domain's own last economic action (burn or claim); resets on each; floored at `minQ` |
+| $q_{\text{tot}}$ | the domain's own total progression epochs; never resets |
+| $T$ | a patience rate, clamped to $[0, 0.4]$, chosen **at the burn** for what follows |
+| $\alpha,\beta,\gamma,C,\mathrm{minQ}$ | deployment parameters (reference: $1.1,\ 2.2,\ 3,\ 35937,\ 1$) |
 
-**The $T = 0$ form.** At $T = 0$ the denominator is $\ln(q_{\text{total}}^{\,\beta} +
-C)$, which equals $\beta\ln q_{\text{total}} + \ln(1 + C/q_{\text{total}}^{\beta})$
-(the sum form is the numerically safe way to evaluate it). $T$ is the only
-parameter beyond capital $b$, epochs since the last action $q$, and the
-domain's own age $q_{\text{total}}$.
+At $T=0$ the denominator is $\ln(q_{\text{tot}}^{\beta}+C) = \beta\ln q_{\text{tot}} + \ln(1 + C/q_{\text{tot}}^{\beta})$; the sum
+form is the numerically safe way to evaluate it.
 
-**Reproducibility.** Computed in Q128 fixed-point BigInt arithmetic
-(`fixed-point-math.js`), never `Math.log`/`Math.pow` — IEEE 754 never
-guarantees those agree bit-for-bit across runtimes the way
-$+,-,\times,\div$ do, and `reward()`'s output funds a real, on-chain
-AIWA claim. `rewardFixed()` is the reproducible core; `reward()` is a
-plain-`Number` convenience wrapper over it, identical in behavior.
+**Reproducibility.** The formula funds a real claim, so it is computed in Q128 fixed-point BigInt arithmetic
+(`fixed-point-math.js`), never with `Math.log`/`Math.pow`: IEEE 754 does not guarantee those agree bit for bit across runtimes
+the way $+,-,\times,\div$ do. `rewardFixed()` is the reproducible core; `reward()` is a plain-number convenience over it. An
+independent Rust implementation checks it byte for byte (Appendix C).
 
-**Invariant.** $q$ and $q_{\text{total}}$ are
-derived exclusively from $D$'s own verified progression state at query
-time — never accepted from an event payload.
+**Invariant.** $q$ and $q_{\text{tot}}$ are derived only from the domain's own verified progression state at the time of the
+query, never accepted from an event payload. A caller-supplied reference epoch would let anyone claim "$t$ = now" forever.
 
-### 7.1 "Last action" mining
+### 10.1 "Last action" mining
 
-The position of a domain is what its **last action** left it:
+A domain's position is what its **last action** left it.
 
-- **A burn's commitment replaces the position.** $b$ is the capital that now
-  mines; a small burn after a big one lowers $b$ — that is the rule.
-- **The previous position is paid first.** Before it is replaced, what it had
-  accrued is credited as a real claim (`auto:<nonce>`, owned by $D$): a new burn
-  never forfeits.
-- **$T$ is chosen at the burn, not inherited.** A burn without a $T$ is
-  $T = 0$; a claim leaves $T$ as it was — it costs nothing, so it cannot buy a
-  better one.
-- **$T$ has a price, and it stays part of the burn**: $b =
-  \mathrm{burned}\cdot(1-T)$, so a commitment costs
-  $\lceil b/(1-T)\rceil$ lamports of confirmed burn, and each confirmed burn
-  backs commitments once (`burns.consumed`). A larger $T$ makes the curve more
-  generous ($q_{\text{total}}^{\beta(1-T)}$) and costs that share of the burn,
-  so it is a choice, not "always $0.4$". The $T$ share is destroyed, except for
-  the creator fee of §7.3, which a deployment may take out of it. There is no
-  other recipient, and none chosen by the user or by the app that distributes the
-  burn: a recipient the payer or the app could name would let anyone self-host a
-  page and pay themselves, making $T$ free again.
+```mermaid
+sequenceDiagram
+  autonumber
+  participant D as Domain D
+  participant P as D's position
+  participant B as D's balance (claims)
+  D->>P: burn #1: accrual { b₁, T₁ }  (position = b₁, T₁, q = 0)
+  loop epochs
+    D->>D: progression: q grows, qtot grows
+  end
+  Note over P: claimable now = r(b₁, q, qtot, T₁)
+  D->>P: burn #2: accrual { b₂, T₂ }
+  P->>B: FIRST: pay what position #1 accrued, as claim "auto:‹nonce›" owned by D
+  P->>P: THEN: position := (b₂, T₂), q resets, qtot does not
+  D->>B: claim { amount }: debit up to what is claimable, q resets, T stays as it was
+```
 
-### 7.2 The two states
+- **A burn's commitment replaces the position.** $b$ is the capital that now mines; a small burn after a big one lowers $b$.
+  That is the rule, not a bug.
+- **The previous position is paid first.** What it had accrued is credited as a real claim (`auto:<nonce>`, owned by $D$, its id
+  derived from the event's own signed nonce) before it is replaced: a new burn never forfeits.
+- **$T$ is chosen at the burn, not inherited.** A burn without a $T$ is $T = 0$. A claim leaves $T$ as it was: it costs nothing,
+  so it cannot buy a better one.
+- **$T$ has a price, and it stays part of the burn.** $b = \mathrm{burned}\cdot(1-T)$, so a commitment costs
+  $\lceil b/(1-T)\rceil$ lamports of confirmed burn. A larger $T$ makes the curve more generous ($q_{\text{tot}}^{\beta(1-T)}$)
+  and costs that share of the burn, so it is a choice, not "always $0.4$". The $T$ share is destroyed, except for the creator fee
+  (§11). There is no other recipient and none chosen by the user or by the app that distributes the burn: a recipient the payer or
+  the app could name would let anyone self-host a page and pay themselves, which would make $T$ free again.
+- **Epochs before the first burn earn nothing, and slow you down.** They raise $q_{\text{tot}}$, which sits in the denominator and
+  never resets. A domain should burn first, then mine.
 
-For an app, a validator or a registry holding $D$'s events (`assessMining`):
+### 10.2 What the numbers look like
 
-1. **The mining state**: the capital that mines, $T$, the epoch of the last
-   action, the age $q_{\text{total}}$, $q$ (epochs since the last action), and
-   what is claimable now.
-2. **The ranking figure**: $\{\mathrm{score} = \text{claimable},\
-   \mathrm{laps} = \max(1, q)\}$, read at a moment and frozen by whoever stores
-   it.
+One real burn, computed with the reference `reward()` and the deployment's parameters: **1 SOL at $T = 0.2$**. The creator gets
+$0.0002$ SOL (§11), $0.2$ SOL is destroyed without counting, and the capital is $b = 0.8$. The wallet works one epoch every 30 s
+while it is open; for the figures below it is assumed to stay open, and nothing was claimed in between ($q = q_{\text{tot}}$).
 
-Both come from the events alone: envelopes verified, progression proofs checked
-(§6.2), the burn confirmed by the validator itself (§8.2). A validator that kept
-the state it derived earlier folds only the new events.
+| Time open | Epochs | Claimable (AIWA) | Same SOL at $T=0$ ($b=1$) | At $T=0.4$ ($b=0.6$) |
+|---|---|---|---|---|
+| 1 hour | 120 | 0.130 | 0.138 | 0.100 |
+| 1 day | 2 880 | 1.84 | 1.19 | 2.73 |
+| 7 days | 20 160 | 8.19 | 5.24 | 14.3 |
+| 30 days | 86 400 | 26.9 | 17.2 | 47.7 |
+| 1 year | 1 051 200 | 231 | 148 | 412 |
 
-The registry of the store (`registry/`) ranks applications by this figure, as
-$\mathrm{score}/\mathrm{laps}$ — claimable value per epoch since the last action.
-It adds no ranking rule of its own.
+How to read it.
 
-### 7.3 The creator fee
+- Early, the curve is flat and a smaller $T$ wins (more capital counts). Later the more generous exponent wins: at $T=0.4$, a day
+  already pays more than at $T=0$ though only 60 % of the burn counts. That is the trade $T$ offers: pay a share up front for a
+  better curve later. It is a choice because it pays only for someone who stays.
+- Claiming does not restart the age. After 30 days, claiming and mining 30 more days gives $22.5$; not claiming for the
+  whole 60 days gives $48.3$ in one go. The two paths are within a few percent of each other (claiming in between gives
+  $26.9 + 22.5 = 49.4$), so there is nothing clever to do: leave the app open.
+- Nothing here says AIWA is worth anything. These are quantities of AIWA, not prices.
 
-A deployment may set `rewardParams.creatorFee = { address, rateOfT }`: one fixed
-protocol address, and the fraction of the $T$ share that goes to it instead of
-being destroyed. The reference deployment's initial value is $\mathrm{rateOfT} =
-0.001$ (0.1 % of the $T$ share), paid to the address of the project's author. The
-fraction and the address are protocol parameters: changing either is a change of
+### 10.3 Claim
+
+A `claim { amount }` debits up to what is claimable into the domain's balance as a spendable claim (§7.1), resets $q$ and leaves
+$T$ unchanged. Both `accrual` and `claim` are signed actions (§5), also usable through a delegate (§7.5); both are links of
+the mining chain (§6.5).
+
+---
+
+## 11. The creator fee
+
+A deployment may set `rewardParams.creatorFee = { address, rateOfT }`: one fixed protocol address, and the fraction of the $T$
+share that goes to it instead of being destroyed. The reference value is $\mathrm{rateOfT} = 0.001$ (0.1 % of the $T$ share),
+paid to the address in `deployment.json`. The fraction and the address are protocol parameters: changing either is a change of
 the versioned rule set, not a setting of the wallet, the store or the user.
 
-$$\mathrm{fee}(\mathrm{burned}, T) = \left\lfloor \frac{\mathrm{burned}\cdot \hat T \cdot \hat\rho}{10^{12}} \right\rfloor \ \text{lamports}, \qquad \hat T = \mathrm{round}(10^6 T),\ \hat\rho = \mathrm{round}(10^6\,\mathrm{rateOfT})$$
+$$\mathrm{fee}(\mathrm{burned}, T) = \Big\lfloor \frac{\mathrm{burned}\cdot \hat T\cdot \hat\rho}{10^{12}} \Big\rfloor\ \text{lamports},\qquad \hat T = \mathrm{round}(10^{6}T),\ \hat\rho = \mathrm{round}(10^{6}\,\mathrm{rateOfT})$$
 
-in integer arithmetic (BigInt), so every reader computes the same number. At
-$T = 0$, or in a deployment without `creatorFee`, the fee is $0$ and nothing
-below applies.
+in integer (BigInt) arithmetic, so every reader computes the same number. At $T=0$, or in a deployment without `creatorFee`, the
+fee is $0$ and nothing below applies.
 
-- **What the burn transaction does.** It is two transfers in one transaction:
-  $\mathrm{burned} - \mathrm{fee}$ to the incinerator and $\mathrm{fee}$ to the
-  creator address. The fee is part of the $T$ share, which is part of the burn:
-  the capital is still $b = \mathrm{burned}\cdot(1-T)$, and the user's debit is
-  still $\mathrm{burned}$ (network fee aside). `burnQuote` returns the split before
-  anything is signed.
-- **What a reader checks.** The reader that fetches the finalized transaction
-  (§8.2) also records what the creator address received in it
-  (`creatorBalanceDeltaLamports`) — only if it asks for that address; a reader that
-  does not know the creator address cannot confirm the fee and **fails closed**.
-  A burn counts as $\mathrm{incinerated} + \mathrm{creator}$ lamports for the
-  payer, who must really have spent at least that much. Each lamport paid to the
-  creator backs the fee of commitments once (`feeCovered` against `feeConsumed`).
-- **The rule.** A commitment at $T > 0$ is rejected unless its fee
-  $\mathrm{fee}(\lceil b/(1-T)\rceil, T)$ is covered by the creator payments the
-  reader confirmed for that domain and no earlier commitment used. A burn that
-  sent the whole $T$ share to the incinerator, to dodge the fee, simply does not
-  back a commitment at $T > 0$ in any reader that enforces the rule.
-- **What it does not do.** The user does not choose who is paid: there is one
-  address per rule set. A fork of the software that changes the address (the
-  license allows it) is a different deployment, with its own readers and its own
-  economy: it does not take anything from this one. The amounts are small by
-  design: at $T = 0.4$ and
-  $\mathrm{rateOfT} = 0.001$, the creator receives $0.0004$ SOL per SOL burned;
-  at $T = 0$ nothing.
+### 11.1 Where one SOL goes
 
-## 8. Genesis Commitment
-
-$$b_D = \sum_{\text{valid burns}} \mathrm{lamports}_i$$
-
-**What the burn is for, and what it is not for.** The burn is the entry price of *accrual* (§7) and of nothing
-else: it is what lets a domain commit capital $b$, and so create value. An identity, its log, progression (§5),
-Mirror (§4), receiving and transferring claims (§9), contracts and the rest need none — the reducers check no burn
-there, and a domain that never burned simply has nothing to claim (`no committed capital for this domain`). Outside
-accrual a burn counts in exactly one place: it is the weight of an observer in the weighted median of §13. "Activation"
-below, like `identity-cost.js` in the code, means the activation of accrual.
-
-Accrual requires an irreversible SOL burn to Solana's incinerator
-address, verified from a finalized transaction record. Cumulative
-across every valid burn.
-
-**Atomic in the reference wallet.** `aiwa-lib`'s `AIWA.burn(lamports, connection)`
-broadcasts the real burn, then immediately, in the same call, records the exact
-burned amount as committed capital — one action, one button ("Burn & ignite"),
-not two separately-clickable steps.
-
-$R$ is linear in $b$: absent a genesis cost, splitting capital across
-identities would not reduce total accrual. A per-identity activation
-cost makes churn strictly costlier, not free.
-
-### 8.1 Whether churn pays
-
-Existence of a real cost is not the same claim as sufficiency.
-`churn-analysis.js`'s own `compareChurnVsStay` compares one domain that
-commits once and matures for the full span against one that restarts
-every $k$ epochs, repeatedly re-entering at low $q_{\text{total}}$
-where $r$'s own denominator (§7) is smallest:
-
-$$\text{stay} = r(S, N, N, 0) - \mathrm{cost}(0) \qquad \text{churn}(k) = \left\lfloor \frac{N}{k} \right\rfloor \cdot \big[r(S, k, k, 0) - \mathrm{cost}(\text{slot at cycle start})\big]$$
-
-With zero real cost, churn wins outright; with a real, deliberately-chosen
-cost curve, churn nets negative while staying nets positive — the
-identical $r$, the only real difference being $\mathrm{cost}(\cdot)$'s own
-magnitude. `findMostProfitableChurnInterval` sweeps $k$ over a real
-candidate range to find an attacker's own real best case, rather than
-checking one interval and declaring victory. It is a real calculator, computed
-per deployment's own chosen $(\alpha,\beta,\gamma,C)$ and cost curve, never a
-general proof that any given tuple is safe. It models the commitment cost, not
-the rest of §7's rules (a patience rate $T$, and "last action" mining: a burn
-replaces the position and pays the previous one, §7.1): a result it gives must be
-re-checked against those rules before it is relied on.
-
-**External dependency.** Broadcasting a burn requires
-reaching a centralized, Earth-hosted RPC endpoint over real internet —
-the one exception to this document's own no-shared-infrastructure
-principle. Once activated, $\mathrm{epoch}_D$ requires no further
-contact with Solana or Earth.
-
-### 8.2 The commitment is backed in the reducer — mandatory
-
-Without this rule the burn would be a convention of the application: an `accrual` event carrying any `b`, signed by
-its domain, would be accepted, and since $R$ is linear in $b$ a domain could commit $b = 10^9$ with no burn anywhere
-and accrue on it.
-
-`applyAccrualEvent` therefore rejects an `accrual` unless it is **covered by burns the reader confirmed** that no earlier
-commitment used: $\text{consumed}(D) + \lceil b\cdot 10^9/(1-T) \rceil \le \text{covered}(D)$ lamports (§7.1: each
-confirmed burn backs commitments once, and the $T$ share is part of the burn), and, in a deployment with a creator
-fee, unless the fee of §7.3 is covered too.
-
-- A domain points at a burn with a `burn-record` event — `{ domain, signature }`, the Solana signature and nothing
-  else. The reducer does not read what the burn was worth from the event, and never reaches Solana: it reads the
-  record **the reader fetched itself** (`fetchBurnRecord`: the FINALIZED transaction), and counts the burn for $D$
-  only if that record is error-free, positive, sent to the incinerator, **paid by $D$'s own key** (a domain id is
-  the hash of the key that is also its Solana address) and really spent by that payer. With a creator fee, what the
-  creator address received in the same transaction is recorded too (§7.3). One signature counts once.
-  Quoting someone else's signature earns nothing.
-- Deterministic *per reader*, like the rest of validity (§11): the same log folded with different confirmed
-  records gives different — each correct — results. A reader that cannot reach Solana confirms nothing, so credits
-  no one's commitment until it can; folding again after confirming turns a rejected `accrual` into an accepted one.
-  This is §8's "one exception to the no-shared-infrastructure principle", not a new one. It has a consequence worth
-  stating, and it concerns *minting*, not transfer: a claim exists in a reader's view only if the domain that minted
-  it has a position there, hence a burn the reader confirmed. Moving a claim from hand to hand looks at nothing but
-  the claim, so a holder who never burned anything (a relay, a winner paid by a contract, a recipient) passes value
-  on freely; what a receiver needs is the burn of the coin's *origin*, which travels with the coin's ancestors
-  and is confirmed once.
-- The certified witness weight of §13 is the same quantity: $w_i$ = the lamports the reader confirmed for $i$.
-- Opt-out is explicit — `commitmentBacking: 'none'` in the deployment's parameters — for tests, demos and private
-  economies; omitting it means mandatory.
-- **Not covered.** A dishonest Solana endpoint is the reader's problem. A log whose commitments have no burns behind
-  them is rejected by a reader who enforces the rule.
-
-## 9. Conservation
-
-A claim is a tuple $(\mathrm{id}, \mathrm{amount}, \mathrm{owner},
-\mathrm{status} \in \{\mathrm{active}, \mathrm{deactivated},
-\mathrm{consumed}\})$.
-
-**Split.** $C \to (C_1, C_2)$ where $\mathrm{amount}(C_1) +
-\mathrm{amount}(C_2) = \mathrm{amount}(C)$ by construction.
-
-**Transfer, via Deactivate → Prove → Verify → Consume → Activate.**
-$\mathrm{proveTransfer}$ requires a real signature verifiable against
-$\mathrm{from}$'s own real public key. The proof id is deterministic —
-$\mathrm{id} = \mathrm{claimId}{:}\mathrm{from}{:}\mathrm{to}{:}n{:}\mathrm{derivation}$
-— and the consumed-proof set is idempotent: a second attempt at the
-identical proof is rejected outright, and `deactivate()` refuses a
-claim not currently `active`, which is the entire mechanism behind
-§18's own "only the first redemption succeeds" — no separate
-double-spend logic was written for that property; it falls out of this
-one.
-
-**A load-bearing property `owner`/`from`/`to` never enforce, exploited
-constructively in §18.** Nothing in `conservation.js` requires these
-fields to be real, derivable identities — they are opaque strings.
-Ownership of a claim is proven entirely by the signature check in
-`proveTransfer`/`verify`, never by any property of the string itself.
-
-## 10. Denomination
-
-$1\ \mathrm{AIWA} = 10^{18}$ base units, always integer.
-
-## 11. Partition and reconciliation
-
-Each domain continues independently through partition; none decrements
-state for another's unreachability, none awaits permission.
-Reconciliation is signature, ancestry, and Mirror-observation
-verification over newly available evidence — never a question of clock
-authority.
-
-```
-Earth               e0 ── e1 ── e2 ── e3 ── e4
-domain              (VDF-bound progression, entirely alone —
-                      Mars need not exist for any of this)
-
-Mars                                        m0 ── m1 ── m2
-domain                                      (its own, independent
-                                              progression — no
-                                              awareness of Earth)
-
-                                                      │
-                          a real connection opens ────┘
-                          (WebRTC, a file, anything)
-                                                      │
-                                                      ▼
-Earth               e0 ── e1 ── e2 ── e3 ── e4 ─┐
-domain                                          ├── r (Mirror reception
-Mars                             m0 ── m1 ── m2 ┘     commitment: "I
-domain                                                 observed these")
+```mermaid
+flowchart LR
+  U["Wallet debit<br/>burned = 1 SOL, T = 0.2"] --> TX{{"one transaction,<br/>two transfers"}}
+  TX -- "burned − fee = 0.9998 SOL" --> I["Incinerator<br/>destroyed for good"]
+  TX -- "fee = 0.0002 SOL" --> CR["Creator address<br/>(deployment.json)"]
+  U -. "accounting, not a transfer" .-> CAP["counts as capital: b = burned × (1 − T) = 0.8 SOL<br/>the T share (0.2 SOL) counts for nothing:<br/>0.0002 of it goes to the creator, 0.1998 is destroyed"]
 ```
 
-`r` is not a merge and not a correction of either chain — `e4` and
-`m2` both remain exactly what they were. `r` is a new, additional
-event: a signed statement, by whichever domain builds it, of what it
-has now observed of the other. Nothing about `e0..e4` or `m0..m2`
-changes; nothing is renumbered, rewritten, or invalidated. Independent
-histories stay independent, and become causally correlated the moment
-they interact — nothing here forces a shared timeline, a shared
-height, or a shared next event.
+(Example: $T = 0.2$.) The fee is part of the $T$ share, which is part of the burn: capital is still $b = \mathrm{burned}\cdot(1-T)$,
+and the user's debit is still $\mathrm{burned}$, network fee aside. `burnQuote` returns the split before anything is signed.
 
-**Channel versus data.** A transport session (`aiwa-platform`'s
-`WebrtcTransport`, or any real link) is inherently temporary. Once real
-data has crossed it, that data is verified and stored durably by each
-side independently; losing the session never loses what already
-crossed. Re-establishing a channel after a gap is a real, ordinary
-event, not a failure — the reconciliation logic it feeds (§4) is
-agnostic to which transport carried the bytes.
+| Burned | $T$ | Fee to the creator | Counted as capital |
+|---|---|---|---|
+| 1 SOL | 0 | 0 | 1 |
+| 1 SOL | 0.2 | 0.0002 SOL | 0.8 |
+| 1 SOL | 0.4 | 0.0004 SOL | 0.6 |
 
-### 11.1 Positioning
+### 11.2 What the reader checks
 
-Published interplanetary-cryptocurrency proposals generally extend one
-Earth-anchored consensus chain across the latency gap — DTN transport,
-timelocks widened to light-time, federated or merge-mined settlement —
-leaving consensus and issuance untouched. This transfers already-created
-value under latency; it leaves creation itself dominated by whichever
-side has more compute (mining from Mars against Earth's hashpower is
-acknowledged, in that literature, as structurally unprofitable).
+The reader that fetches the finalized transaction (§9.1) also records what the creator address received in it
+(`creatorBalanceDeltaLamports`), but only if it asks for that address. A reader that does not know the creator address cannot
+confirm the fee and **fails closed**: it counts no position at $T>0$. A burn counts as incinerated + creator lamports for the
+payer, who must really have spent at least that much. Each lamport paid to the creator backs the fee of commitments once
+(`feeCovered` against `feeConsumed`).
 
-AIWA removes value creation from any consensus chain: $\mathrm{epoch}_D$
-requires no awareness of one. Reconciliation (§4, §14) is additive and
-informational only. This closes the specific asymmetry above; it does
-not address real byte transport under latency (deliberately pluggable
-— `aiwa-platform`'s own `Replicator`/transport separation, shared
-identically by `WebrtcTransport` and any future transport, with room
-for a real DTN or dedicated-hardware transport later without touching
-reconciliation logic at all) nor an exchange rate between economies
-that grew apart.
+### 11.3 The rule
 
-### 11.2 When two branches contradict each other
+A commitment at $T>0$ is rejected unless its fee $\mathrm{fee}(\lceil b/(1-T)\rceil, T)$ is covered by the creator payments the
+reader confirmed for that domain and no earlier commitment used. A burn that sent the whole $T$ share to the incinerator, to dodge
+the fee, simply does not back a commitment at $T>0$ in any reader that enforces the rule.
 
-A log is a graph: two events that do not know of each other are two branches, and that is ordinary (Alice and Bob each acting
-on their own). It matters only when they contradict — one claim spent twice, one voucher redeemed twice (§18), one claim id taken
-by two domains: a reader folds one and refuses the other. A reader that folded in the order events *arrived* would let two
-readers holding the same events pick different winners and keep them (the same voucher redeemed by two people, the two logs
-merged in either order, would give a different winner each time): convergence would fail even once everything had been
-exchanged.
+### 11.4 What it does not do
 
-Readers therefore fold in one **canonical order** (`canonicalOrder`, `aiwa-core`): a topological order (a parent before its children) in
-which, among the events that can come next, the one with the smallest id goes first. The same events give the same order and so the
-same winner for every reader, whatever order they arrived in, whether folded in one go or one arrival at a time (a wallet that had
-already folded part of its log folds again from its last checkpoint when a concurrent branch arrives). It is not a signed format:
-it adds nothing to an event.
+The user does not choose who is paid: one address per rule set. A fork of the software that changes the address (the licence
+allows it) is a different deployment with its own readers and its own economy; it takes nothing from this one. The amounts are
+small by design (above). The fee and the store have not had a legal review (Appendix D).
+
+---
+
+## 12. What a third party can read of a domain
+
+Any holder of a domain's events (an app, a validator, a registry) can derive two things from them, trusting nobody: the **mining
+state** and the **ranking figure**. This is what the store ranks by (§18.4).
+
+```mermaid
+sequenceDiagram
+  participant A as Author's wallet
+  participant G as Registry
+  participant S as Solana
+  A->>G: evidence { events since the registry's baseline, witnesses }
+  G->>G: each event: id, author, signature
+  G->>G: fold in canonical order (§13.4): progression proofs (3.6 ms each), the chain (§6.5)
+  G->>S: confirm the burns the baseline did not already count
+  G->>G: apply the backing rule (§9.2) and the creator fee (§11)
+  G->>G: check the witnesses it holds (§12.4)
+  G-->>A: mining state, ranking figure, new baseline (or a refusal and why)
+```
+
+### 12.1 The mining state
+
+$$\mathrm{mining}(D) = \big(b,\ T,\ \mathrm{lastActionEpoch},\ \mathrm{epoch},\ q,\ \mathrm{chainHead},\ \mathrm{claimable}\big)$$
+
+The capital that mines, $T$, the epoch of the last action, the age $q_{\text{tot}}$, $q$, the head of the mining chain, and what
+is claimable now.
+
+### 12.2 The ranking figure
+
+$$\{\ \mathrm{score} = \mathrm{claimable},\quad \mathrm{laps} = \max(1, q)\ \}$$
+
+Read at a moment and **frozen by whoever stores it**. The store ranks apps by $\mathrm{score}/\mathrm{laps}$, claimable value per epoch
+since the last action, and adds no ranking rule of its own (§18.4).
+
+### 12.3 Cost for the reader, and the baseline
+
+One envelope check and one signature per event, plus a few milliseconds per progression event: not the work the domain did. A
+validator that kept the state it derived earlier (the **baseline**: wallet state, epoch, head) folds only the new events, if the
+evidence continues exactly from it (`afterEpoch`). Limits per submission: 200 000 events, 200 burns to confirm, 50 witnesses,
+16 384 bytes per witness event; at most 32 witnesses are kept per domain (the furthest along).
+
+### 12.4 Witnesses: closing the second history
+
+The mining chain (§6.5) stops an action from being left out of one history. It does not stop a domain from keeping two histories
+(redoing the work) and showing the favourable one. Someone else closes that: a wallet that received a domain's events can show the
+highest progression event of that domain it holds. That event is **signed by the domain**, which is what makes it a proof with no
+trust in whoever shows it. The registry keeps it, and when the domain next submits, the history shown must contain it. A fork, a
+stretch of work cut short, or a hidden action followed by more work is then refused.
+
+*Does not guarantee.* A witness exists only if someone received those events. A burn made after the last epoch shown and followed
+by none can still be left out: a submission is a snapshot, not "the current state", and that needs a clock (for example the head
+anchored on Solana, **[not built]**). A domain whose history was really forked (one key on two devices) is refused for good once
+its other history is witnessed.
+
+---
+
+# Part IV — Agreement without a clock
+
+Every domain acts alone, for as long as it likes. This part says what happens when histories meet again: how readers that hold
+the same events reach the same state (§13), how a domain keeps its storage bounded (§14), and how a lost device gets its history
+back (§15).
+
+## 13. Partition, branches and conflicts
+
+### 13.1 Independent histories
+
+Each domain continues through a partition on its own: none decrements state for another's unreachability and none awaits
+permission. Reconciliation is verification of signatures, ancestry and receptions over newly available evidence, never a question
+of clock authority.
+
+```mermaid
+flowchart LR
+  subgraph earth["Earth: entirely alone (Mars need not exist for any of this)"]
+    e0((e0)) --> e1((e1)) --> e2((e2)) --> e3((e3)) --> e4((e4))
+  end
+  subgraph mars["Mars: its own progression, no knowledge of Earth"]
+    m0((m0)) --> m1((m1)) --> m2((m2))
+  end
+  e4 -.-> r(("r<br/>a reception:<br/>'I received these'"))
+  m2 -.-> r
+```
+
+When a link finally opens (or a file, or a QR code), $r$ is **not a merge and not a correction** of either chain: $e_4$ and
+$m_2$ stay exactly what they were. $r$ is a new event, a signed statement by whichever domain builds it of what it has now
+observed of the other (§8). Nothing is renumbered, rewritten or invalidated. Independent histories stay independent and become
+causally correlated the moment they interact; nothing forces a shared timeline, height or next event.
+
+**Channel versus data.** A transport session is temporary. Once data has crossed it, each side verifies and stores it
+durably and independently, so losing the session never loses what already crossed. Re-establishing a channel after a gap is an
+ordinary event, not a failure.
+
+### 13.2 A branch is not a conflict
+
+Two events that do not know of each other are two branches (§4.3), which is ordinary: Alice and Bob each acting on their own. It
+matters only when they **contradict**, that is, when a reader cannot keep both:
+
+| Contradiction | Why both cannot stand |
+|---|---|
+| one claim spent twice | a claim has one owner at a time (§7.3) |
+| one voucher redeemed twice | the first redemption consumes the claim (§7.4) |
+| one claim id taken by two domains | an id names one claim |
+
+A reader folds one and refuses the other. The refusal is recorded (`rejections`), never silent.
+
+### 13.3 Why arrival order cannot decide
+
+A reader that folded events in the order they **arrived** would pick whichever it met first. Two readers holding the very same
+events, having received them in a different order, would pick different winners, and keep them. Convergence would fail even after
+everything had been exchanged.
+
+```mermaid
+sequenceDiagram
+  participant A as Alice (offline)
+  participant B as Reader 1
+  participant C as Reader 2
+  A->>A: sign T1: claim X → Bob   (parent p)
+  A->>A: sign T2: claim X → Carol (parent p) — same parent, same claim
+  A-->>B: T1, then later T2
+  A-->>C: T2, then later T1
+  Note over B,C: by ARRIVAL order<br/>Reader 1 keeps T1, Reader 2 keeps T2: they disagree for good
+  Note over B,C: by CANONICAL order (§13.4)<br/>both fold the smaller id first: they agree
+```
+
+### 13.4 The canonical order
+
+Readers therefore fold in one **canonical order**, `canonicalOrder` in `aiwa-core`: a topological order (a parent before its
+children) in which, among the events that can come next, **the one with the smallest id goes first**.
+
+$$\mathrm{next}(\text{placed}) = \min_{\mathrm{id}}\ \{\, e \ :\ \text{every parent of } e \in \text{placed} \,\}$$
+
+A small case. Events: a root $p$; $T_1$ (id `9e…`) and $T_2$ (id `41…`) both citing $p$; $m$ citing both.
+
+| Step | Can come next | Placed |
+|---|---|---|
+| 1 | $p$ | $p$ |
+| 2 | $T_1$ `9e…`, $T_2$ `41…` | $p$, **$T_2$** (`41` < `9e`) |
+| 3 | $T_1$ | $p, T_2, T_1$ |
+| 4 | $m$ | all |
+
+$T_2$ is folded first and wins; $T_1$ is then refused (`claim already consumed`). Every reader that holds these four events gets
+this order, whatever order they arrived in, whether folded in one go or one arrival at a time (a wallet that already folded part of
+its log folds again from its last checkpoint when a concurrent branch arrives). The order is not a signed format: it adds nothing to
+an event. A parent that is in neither the batch nor the already-placed set (pruned history, an ancestor this reader never had)
+counts as satisfied.
 
 **Agreement, not fairness.** The winner is the smaller id: arbitrary, not the first in time (nothing here has a clock). A signer
-who writes two contradicting events can try variants until the one he wants has the smaller id, so the rule does not protect whoever
-accepted the other; it makes every reader agree on the outcome. What stays is a proof: two valid signatures by the same key on
-contradicting events show, to anyone, that it wrote both. Protection beyond that is a choice of the one who accepts: let the
-histories meet before relying on a payment from someone he does not trust, or require an anchor (the head of the signer's log
-inscribed on Solana: an objective clock — **not built**). An anchor needs a connection: it helps someone who can go online
-before handing over what he gives, and does nothing for an exchange that stays entirely offline — there, nothing prevents a signer
-who holds his key from writing two contradicting events; what remains is limiting the amount, trust, and the proof afterwards. A conflict that a checkpoint (§12.1) already absorbed stays as the
+who writes two contradicting events can try variants until the one wanted has the smaller id, so the rule does not protect whoever
+accepted the other; it makes every reader agree on the outcome. What stays is a **proof**: two valid signatures by the same key on
+contradicting events show, to anyone, that it wrote both. A conflict that a checkpoint (§14.1) already absorbed stays as the
 checkpoint decided it, the same trade-off every checkpoint makes.
 
-## 12. Explicit non-claims
+### 13.5 What offline can and cannot prevent
 
-Not solved: the human-identity oracle, physical-location verification,
-absolute global time, Byzantine agreement without assumptions,
-detection of every coalition of identities under one real actor. A
-coalition can produce internally consistent history at real cost. The
-claim is narrower: fabricated identities cannot fabricate authenticated
-history *for free*.
+Nothing prevents a signer who holds their key from writing two contradicting events while disconnected. The protocol does not
+claim to prevent it: it makes the double spend **visible once histories meet, and the same for everyone**, and it never lets value
+be duplicated in any reader's view.
 
-Also not specified: the durability of data that no domain chooses to
-keep (§3, §13.2).
+```mermaid
+sequenceDiagram
+  participant A as Alice
+  participant Bo as Bob
+  participant Ca as Carol
+  participant R as Any reader
+  Note over A,Ca: all offline
+  A->>Bo: T1: claim X → Bob
+  Bo->>Bo: sees T1: "I am paid"
+  A->>Ca: T2: claim X → Carol
+  Ca->>Ca: sees T2: "I am paid"
+  Note over A,Ca: the logs meet
+  Bo-->>R: T1
+  Ca-->>R: T2
+  R->>R: canonical order: one of them first (say T2)
+  R->>R: T2 accepted. T1 refused: "claim already consumed"
+  R->>R: proof kept: two valid signatures by Alice on claim X
+```
 
-### 12.1 Scalability — three limits, and the tradeoff each bound makes
+What stays possible: the person whose payment loses may have believed they were paid until they saw the other branch. Closing
+that needs a common authority or a clock, which the protocol does not have. What remains:
 
-Cross-domain, this scales well by construction — no consensus, no
-shared bottleneck. *Within* a single domain, three costs would grow
-unboundedly. Each is bounded; none is "solved away" for free — each
-trades something explicit and documented, never hidden.
+- **limiting the amount** accepted from someone not trusted;
+- **trust**, or letting the histories meet before relying on a payment;
+- **the proof afterwards** (two valid signatures, checkable by anyone);
+- **an anchor** (the head of the signer's log inscribed on Solana, an objective clock): **[not built]**. It would only help someone
+  who can go online *before* handing over what they give. It does nothing for an exchange that stays entirely offline.
 
-**Local storage — bounded via checkpoints.** A continuously-running
-domain still accumulates one event per real progression epoch plus one
-per real economic action, forever, *unless* pruned. `aiwa-core`'s
-`checkpoint.js` adds a real, self-signed event embedding a domain's own
-already-materialized state as of a specific set of log heads
-(signer-scoped from the start: `verifyCheckpoint` requires
-`event.author === event.payload.domain`, the identical discipline
-§7's own `'claim'`/`'accrual'` signer-scoping fix established).
-`EventLog.pruneBeforeCheckpoint()` then physically deletes every real
-event the checkpoint's own state already accounts for. **Honest
-tradeoff, stated plainly**: a peer who already independently verified
-everything up to a checkpoint loses nothing by trusting it afterward —
-it is genuinely their own, already-verified work, summarized. A
-brand-new peer who receives *only* a pruned log can no longer
-independently re-derive that state from genesis; they trade full
-independent verifiability for a real, signed assertion by the domain's
-own key about its own past — the identical tradeoff Ethereum's own
-weak-subjectivity checkpoints make, not a flaw specific to this
-implementation. At the protocol level checkpointing is opt-in: a domain
-that never calls it keeps unbounded growth (the reference wallet's
-`startAutoCheckpoint()` runs it every five minutes by default).
+### 13.6 How events travel
 
-**Wallet materialization — bounded via incremental folding.**
-`materializeWallet` accepts an optional `baseState` to fold new events
-onto instead of replaying from genesis every call; `aiwa-lib`'s
-`AIWA._materializeWallet()` caches the last materialized state and folds
-only what is new since. Three details make this sound together with
-checkpointing: (1) a checkpoint's own embedded `progression.lastId` is
-repointed to the checkpoint's own id, since pruning could delete the
-event it named; (2) `progression.js`'s causal-chain check requires a
-domain's last accepted progression event to be a *direct* parent, which
-breaks as soon as any other event (an ordinary `recordCommitment()`)
-becomes the log's head in between, so every progression-event builder
-routes through `progressionParents(heads, lastId)` (in a deployment that
-fixes the work of an epoch, §6.2, the chain is instead the signed
-`previous` field, which also removes this dependency on `parents`);
-(3) the incremental cache's exclusion boundary tracks the growing set of
-already-covered ids rather than just the latest heads, since that
-helper's extra parent edge can reach past a heads-only boundary. No
-tradeoff here beyond the cache being in-memory-per-instance, not
-persisted across a reload by itself.
+The protocol asks for one thing: that the events of someone else reach you, **by any means**. All of these are the same thing to a
+reader, because each event verifies on its own (§4.2):
 
-**Unbounded full-sync payload — bounded via chunked, ACK-gated
-replication.** `aiwa-platform`'s `Replicator` does not send every
-missing event (`EventLog.since()`, §3) in one message on connect; it
-sorts them topologically and releases bounded chunks (`chunkSize`,
-default 100) one at a time, the next only once the previous chunk's own
-real ACK arrives — real backpressure, not a fixed delay. **Honest
-limit**: the existing `HELLO`/`HELLO_ACK` handshake independently
-computes and sends "what's missing" twice per connection by design; in
-a narrow timing race, this can cause one redundant, harmless resend of
-an already-delivered chunk (absorbed by `EventLog.append()`'s own
-idempotency, never a correctness issue) — eliminating it fully would
-mean redesigning that handshake, left as future work.
+| Means | In this repository |
+|---|---|
+| a file, pasted text, a QR code, NFC | `encodeOfflineBundle` / `decodeOfflineBundle` (`aiwa-lib`) |
+| a GitHub pull request | the store's registry (§18) |
+| an archive node | `aiwa-platform`, `archive-server.js` (§15) |
+| a direct connection (WebRTC) | `aiwa-platform`'s replicator; **not used by the store app**, which does not have one |
 
-### 12.2 Where a wallet's history lives, and how it comes back
+The replicator (used by anything that has a direct link) is deliberately simple:
 
-A wallet is a key plus a journal of signed events (its burns, epochs, claims, transfers). The key is a BIP39 **recovery
-phrase** (12 words, `m/44'/501'/0'/0'`: the same words give the same address in a Solana wallet): a new identity is made
-from a fresh one and shown on request (`aiwa.recoveryPhrase`); a wallet imported as a raw key has no phrase, so its private
-key is shown instead. The journal is not in the phrase. A blockchain recovers it for free because every node keeps all of
-it; here nobody replicates everything (§12.1) — an event is kept by its owner and by whoever received it — so after a lost
-device the journal must come from somewhere:
+```mermaid
+sequenceDiagram
+  participant P as Peer P
+  participant Q as Peer Q
+  P->>Q: HELLO { heads }
+  Q->>P: HELLO_ACK { heads }
+  Note over P,Q: each computes what the other lacks (topologically sorted)
+  loop chunks of 100
+    P->>Q: EVENTS { chunk }
+    Q->>Q: append each (verified, idempotent)
+    Q->>P: ACK
+  end
+  Note over P: the next chunk is released only on the ACK: real backpressure, not a fixed delay
+```
 
-- **A backup** (`exportBackup` / `importBackup`): a *checkpoint* (§12.1) — the wallet's whole state signed by its own key —
-  small however long the history, restorable after logging in with the phrase. Refused if it is of another identity, or no
-  further along than the wallet is: it can never roll a wallet back.
-- **A registry's baseline** (`adoptState`): an application that kept the state it derived from a wallet's submissions (§7.2)
-  can hand it back; it holds what the registry saw, not value received from others. The store's registry publishes it per author
-  (`store/baselines/<address>.json`), and its wallet asks for it by itself when a new phone has no history.
-- **An archive node** (`aiwa-platform`): an always-on program anyone can run, that keeps per wallet the latest backup. Only the
-  owner of a key can write its backup (the checkpoint must verify and be authored by the domain), the most recent wins,
-  reads are public (a backup holds no secret), sizes and rates are limited. A wallet pushes its backup to the nodes it
-  knows whenever it changed and asks them for it after a loss; it needs no trust in a node (a backup is signed by the
-  wallet's key), which can only withhold or forget — hence several. This is the seed node of the bootstrap problem in its
-  simplest form.
-- **Peers** (`joinNetwork`): the replicator hands back what peers that received your events hold, as far as you have any
-  connected.
-- **The platform's own backup**: where an application's storage is backed up by its operating system (Android's automatic backup of
-  the store's WebView), the journal follows its owner to a new device with no server of ours; only the phrase is typed.
+*Honest limit.* The `HELLO`/`HELLO_ACK` exchange computes "what is missing" twice per connection; in a narrow race this can send
+one chunk twice. `append` is idempotent, so it is harmless; removing it would mean redesigning the handshake (future work).
 
-A wallet application takes these in this order, by itself, and the user is asked for nothing but the 12 words: what the device restored, the
-archive nodes its deployment lists, the registry's baseline. It never starts working epochs before it has looked: a log that began from
-nothing would fork the history that was about to come back.
-Same tradeoff as every checkpoint: whoever only sees a backup trusts its signature instead of re-deriving the history from
-genesis. **Not claimed:** a wallet with no backup, no node and no peer that lost its device loses its journal (the burns stay
-on Solana; the key stays in the phrase).
+**Where this sits among other proposals.** Published interplanetary-cryptocurrency proposals generally extend one Earth-anchored
+consensus chain across the latency gap (delay-tolerant transport, timelocks widened to light-time, federated or merge-mined
+settlement), leaving consensus and issuance untouched; creation stays dominated by whichever side has more compute. Here, value
+creation is taken out of any consensus chain: $\mathrm{epoch}_D$ needs no awareness of one. That closes that asymmetry. It does
+not address real byte transport under latency (pluggable by design) nor an exchange rate between economies that grew apart.
 
-## 13. Causal Tick
+---
 
-A domain's own $\mathrm{epoch}_D$ (§5) is unconditional and requires
-zero external observers. Causal Tick is a complementary,
-externally-corroborated position.
+## 14. Bounded storage
 
-$$\hat{\theta}_X = \mathrm{median}_w\left(\{(\mathrm{obs}_i(X), w_i)\}\right), \qquad w_i = b_i \ (\S8)$$
+Across domains this scales by construction: no consensus, no shared bottleneck. *Within* one domain, three costs would grow
+without bound. Each is bounded, none is solved for free: each trades something explicit.
 
-the crossing-point weighted median: sort estimates by value, walk
-cumulative weight, return the first value at or past half the total
-real weight. Robust while adversarial weight stays below
-$\sum w_i / 2$. **Never a correction** — reported, never applied to any
-domain's own earned value.
+### 14.1 Local storage: checkpoints
 
-### 13.1 Hardware roots (optional)
+A running domain accumulates one event per epoch and one per economic action, forever, unless pruned.
 
-The evidence interface functions on software primitives alone. A
-domain may optionally strengthen independence assurance with
-physically-provisioned hardware roots; hardware never computes
-$\hat\theta_X$, never scales $w_i$, never becomes required input.
-$\geq 2$ distinct, independently-issued roots required.
+```mermaid
+flowchart LR
+  subgraph before["before"]
+    a1((e1)) --> a2((e2)) --> a3((…)) --> a4((e9 999)) --> a5((e10 000))
+  end
+  subgraph after["after pruneBeforeCheckpoint"]
+    ck["checkpoint<br/>the domain's whole state,<br/>signed by its own key"] --> a6((e10 001)) --> a7((…))
+  end
+  before ==> after
+```
 
-### 13.2 What always-on hardware is for — a design note, not implemented
+A **checkpoint** is a self-signed event embedding the domain's own already-materialized state as of a set of log heads
+(`verifyCheckpoint` requires `author === payload.domain`: the same signer-scoping discipline as §5).
+`EventLog.pruneBeforeCheckpoint()` then deletes every event the checkpoint's state already accounts for. The reference wallet
+checkpoints every five minutes by default; at the protocol level it is opt-in, and a domain that never does it grows unboundedly.
 
-§13.1 is about **independence**: attesting that an observer is not
-backed solely by an actor who can fabricate identities in software.
-That is one of three different jobs that permanently connected machines
-could do. They need different things from the machine, and should stay
-separate in the design even when one box does all three:
+**The trade, plainly.** A peer that already verified everything up to a checkpoint loses nothing by trusting it afterward: it is its
+own verified work, summarised. A brand-new peer that receives *only* a pruned log can no longer re-derive that state from
+genesis: it trades independent verifiability for a signed assertion by the domain's key about its own past, the same trade
+Ethereum's weak-subjectivity checkpoints make.
 
-| Job | What it does | What must be trusted |
+### 14.2 Wallet state: incremental folding
+
+`materializeWallet` accepts an optional `baseState` to fold new events onto instead of replaying from genesis every time;
+`aiwa-lib` caches the last materialized state and folds only what is new. Three details make that sound together with
+checkpoints:
+
+1. a checkpoint's embedded `progression.lastId` is repointed to the checkpoint's own id (pruning could delete the event it named);
+2. the mining chain is the signed `previous` field, not `parents` (§6.5), so an ordinary event becoming the log's head in between
+   cannot break the chain check (the older `progressionParents(heads, lastId)` routing exists for deployments that do not fix $E$);
+3. the cache's exclusion boundary tracks the growing set of already-covered ids, not just the latest heads, since a helper's extra
+   parent edge can reach past a heads-only boundary.
+
+No trade beyond the cache being in memory per instance, not persisted across a reload by itself.
+
+### 14.3 Synchronisation payload: chunks gated by acknowledgements
+
+The replicator (§13.6) does not send every missing event in one message: it sorts them topologically and releases bounded chunks
+(default 100), the next only when the previous one's ACK arrives.
+
+---
+
+## 15. History recovery
+
+A wallet is **a key plus a journal** of signed events (its burns, epochs, claims, transfers). The key is a BIP39 recovery phrase,
+12 words (`m/44'/501'/0'/0'`: the same words give the same address in a Solana wallet). A wallet imported as a raw key has no
+phrase; its private key is shown instead. **The journal is not in the phrase.** A blockchain recovers it for free because every
+node keeps all of it; here nobody replicates everything, an event is kept by its owner and by whoever received it, so after a lost
+device the journal has to come from somewhere.
+
+```mermaid
+flowchart TB
+  P["New phone: the user types the 12 words"] --> K["Key restored<br/>= same domain, same Solana address"]
+  K --> L{"Look for the history<br/>BEFORE doing any work"}
+  L --> S1["1. what the device restored<br/>(Android Auto Backup of the app's storage)"]
+  L --> S2["2. archive nodes listed in deployment.json<br/>(a backup signed by the wallet's own key)"]
+  L --> S3["3. the registry's baseline<br/>store/baselines/‹address›.json"]
+  L -.-> S4["peers that received your events<br/>(only if connected)"]
+  S1 --> M["take the most advanced one,<br/>never a step backwards"]
+  S2 --> M
+  S3 --> M
+  S4 -.-> M
+  M --> G["importBackup / adoptState"]
+  G --> W["only now: progression resumes"]
+```
+
+| Source | What it is | Trust it needs |
 |---|---|---|
-| **Keeper** (persistence) | Holds and re-serves content-addressed events and published bundles, so that data survives the domains that produced it. | Availability only. Integrity costs nothing to check: an id is the hash of the content (§3.1), so a keeper can withhold or lose data but cannot alter it undetected. Anyone can run one. |
-| **Witness** (independence) | An observer whose independence is attested by §13.1's two-hop chain. | The origin's issuance process, or one physical unit (§13.1, stated limit). |
-| **Rendezvous** (bootstrap) | Lets two domains that have never met find each other. | Nothing about the data; it can see who is looking for whom. |
+| **A backup** (`exportBackup` / `importBackup`) | a checkpoint (§14.1): the wallet's whole state signed by its own key; small however long the history. Refused if it is of another identity or no further along than the wallet is: it can never roll a wallet back | none beyond the signature |
+| **The registry's baseline** (`adoptState`) | the state a registry derived from the wallet's submissions (§12.3); it holds what the registry saw, not value received from others | the registry (the wallet can check it only by re-deriving) |
+| **An archive node** (`aiwa-platform`) | an always-on program anyone can run, keeping per wallet the latest backup. Only the owner of a key can write its backup (the checkpoint must verify and be authored by the domain), the most recent wins, reads are public (a backup holds no secret), sizes and rates limited | none: a node can only withhold or forget, hence several |
+| **Peers** (`joinNetwork`) | what peers that received your events hold, as far as you have any connected | their signatures |
+| **The platform's own backup** | where the OS backs up an app's storage (Android's Auto Backup of the store's WebView), the journal follows its owner to a new device with no server of ours | the OS |
 
-**Why persistence needs its own answer.** A participant holds only what
-is relevant to its own state and observed relationships (§3). Nothing in
-the protocol obliges anyone to keep an event, and if every domain that
-held it is gone, it is gone: the event DAG is tamper-evident, not
-durable. Blockchains answer this by replicating everything on every
-full node, paid through issuance or fees; AIWA declines the globally
-replicated state (§1), so durability is left to whoever chooses to hold
-the data. §13.1's last paragraph covers a different case (loss of one
-device, key restored elsewhere), and says plainly that hardware does not
-substitute for reachability during a partition.
+A wallet application tries these in this order by itself, and the user is asked for nothing but the 12 words. **It never starts
+working epochs before it has looked**: a log that began from nothing would fork the history about to come back. Same trade as
+every checkpoint: whoever only sees a backup trusts its signature instead of re-deriving history from genesis.
 
-**Stated as open, not solved:** who runs keepers and why (an incentive
-is not specified — value accrual (§7) is local and unconditional, it
-pays nobody to store); how keepers choose what to keep; and whether a
-keeper that holds an event is also a useful Mirror observer of it (it
-would give a stable, always-available reference, at the price of
-pulling the protocol toward the infrastructure it is built to avoid).
-`aiwa-platform` has no rendezvous of its own: the first connection
-between two peers is a manual offer/answer exchange. A consequence
-seen in practice: a contract published from one device can be loaded by
-someone else only while a copy of its events is reachable — a hosted
-export, or a keeper.
+**Not claimed.** A wallet with no backup, no node and no peer that lost its device loses its journal. The burns stay on Solana
+and the key stays in the phrase; the epochs and their proofs are gone. In this repository's deployment `archiveNodes` is empty:
+the first two sources in practice are the device backup and the registry's baseline.
 
-### 13.3 Proofs and the weighted median, combined — experimental
+---
 
-Observations in Mirror are **references, not opinions**: each resolves
-to the progression event that fixes its epoch, an event only X's key can
-sign. So an observation is also a *proof*. From proofs alone: the
-highest epoch of X that any observer provably received is a *lower
-bound* (one honest observer establishes it; no number of observers who
-saw less can lower it; nobody but X can raise it); a report by X below
-that bound contradicts X's own signed history (a *rewind*); and two
-progression events of X held by observers, neither an ancestor of the
-other, are a provable *fork*. The weighted median above remains the
-estimate. `aiwa-core` combines the two (`src/triangulation.js`,
-`src/position.js`, `assessPosition`) — **experimental, exported, and not
-wired into `computeCausalTick`**:
+# Part V — Programs and applications
 
-- **position** = max(weighted median, proven lower bound): the vote is
-  never reported below what is proven, and with no funded observer the
-  proven bound stands alone.
-- **accusation** (rewind or fork) comes from **proofs only**; the median
-  never accuses, because "far from the median" cannot tell inflation
-  from legitimate offline progress.
-- Both rules see the same events. When the reader holds X's history
-  **from epoch 1**, X's progression events are replayed through the
-  reducer of §5–§6 (epoch + 1, chained to the last accepted transition,
-  signed by X's key, sequential proof verified) and only the accepted
-  ones count — what anyone who verifies does. Without the genesis nothing
-  can be chained, so the check falls back to the signature alone and the
-  result says so. A fork is the one exception, on purpose: a second
-  lineage is rejected by the linear chain and is exactly the evidence of
-  one, so forks are read from the signed events.
+Nothing in this part adds a rule to the protocol. A contract is a reducer a holder of events replays; an application is files
+published as events; the store is a registry that applies the protocol's own checks and a ranking that reads the protocol's own
+figure.
 
-**On "X signs a fake itself".** A domain may write whatever it likes in
-its own log. That is not an attack on the protocol: it is an invalid
-history, refused by whoever verifies its sequential proof — at
-reconnection as before — and left in the DAG as a dead branch nobody
-counts. It matters here for one narrow reason: Mirror resolves a
-commitment's references against the DAG as it is, so *colluders* can
-sign commitments citing such an event, and a reader who does not replay
-the chain would take it into the **estimate** — informational, never
-applied to anyone's value. Replaying the chain closes that; a reader
-without the genesis cannot, and falls back, visibly.
+## 16. Contracts
 
-Compared in `experiments/triangulation-scenarios.mjs`, on synthetic
-worlds that model the threats considered (the target's progression events
-are a real chain — signed, chained, real sequential proofs — and the
-observers' commitments are really signed; the worlds are chosen by their
-author, so this is a comparison, not a proof):
+### 16.1 What a contract is here
 
-| World | Weighted median (§13) | Proofs alone, log trusted | **Combined** (default) |
+There is no machine that runs a contract for everyone. A contract is a set of rules, **state + event → new state**, that each
+holder replays from the events they have. Two holders with the same events get the same state; two with different events may
+not (§13), exactly as for the rest of the protocol.
+
+```mermaid
+flowchart LR
+  subgraph signed["signed events (anyone may relay them)"]
+    E1["vote { from: A, choice: yes, signature }"]
+    E2["vote { from: B, choice: no, signature }"]
+    E3["vote { from: A, choice: no, signature }"]
+  end
+  signed --> H["the contract's handlers<br/>(a pure function: state × event → state)"]
+  H --> S1["Reader 1's state<br/>holds E1, E2, E3"]
+  H --> S2["Reader 2's state<br/>holds E1, E2 only"]
+```
+
+The SDK (`aiwa-lib`: `defineContract`, `Contract`, `signedAction`, `verifySignedAction`) is the pattern the protocol uses for itself,
+opened to third parties: a handler gets the state and `{id, parents, payload}` and returns the new state; a contract dispatches
+under whatever event types its own definition declares.
+
+### 16.2 An action is proved by a signature inside the action
+
+A reducer never sees who published an event (§4.4). A plain `payload.from` proves nothing: an event is validly self-signed by
+*someone*, and nothing stops its payload from claiming to be someone else. `signedAction` is §5's scheme for a contract's own
+actions: it signs the fields (which include the claimed `from`) plus a fresh nonce and timestamp, so the payload is independently
+verifiable and safe to put on an event dispatched by anyone, including a relay with no reason to be trusted. A handler that skips
+`verifySignedAction` for something that matters can be made to count an action "from" anyone: that is an impersonation hole,
+not a style choice.
+
+### 16.3 Moving AIWA from a contract: the one extension point
+
+Conservation (§7) knows nothing about contracts. For a contract's own conditional outcome to move real spendable AIWA, some code
+has to apply a state transition to the claim ledger, and it must not be a change to the core protocol. `applyWalletEvent` exposes
+one generic hook: a map `contractVerifiers = { contractId → verifyPayout }`, supplied by the **application**, never by the
+protocol's source.
+
+```mermaid
+sequenceDiagram
+  participant O as Owner of claim X
+  participant K as Contract (application code)
+  participant W as Wallet reducer
+  O->>O: pre-sign an ordinary transfer of X to the winner (a normal signature, §7.3)
+  Note over O,K: the owner hands it to the contract's conditions: "valid if you win"
+  K->>W: contract-payout { contractId, claimId, from, to, nonce, signature, … }
+  W->>W: contractVerifiers[contractId] registered ? (else: unregistered contract)
+  W->>W: nonce unused ?  transfer signature valid, checked as for an ordinary transfer ?
+  W->>K: verifyPayout(payload): were this contract's own conditions met ?
+  K-->>W: the same claim, from, to, nonce, signature (anything else is rejected)
+  W->>W: spend the nonce, apply the transfer
+```
+
+The wallet guarantees only what every contract shares (the pre-signed transfer is genuinely signed, once); the contract decides
+whether its conditions were met. A new contract needs no change to the core, only an entry in the application's registry.
+
+**Limit.** The extension point is real and tested. No concrete contract is registered into it by the reference applications: the
+store ships none.
+
+### 16.4 A contract's identity, and its source
+
+A contract id is a plain string with no cryptographic anchor of its own: a signature proves only "signed by this key over this
+content", never "this is really the trusted module it claims to be". The anchor is the source hash:
+
+$$\mathrm{sourceHash} = \mathrm{SHA}(\mathrm{sourceCode})$$
+
+`contract-registry.js` embeds a contract's complete source (never only its hash) in a `contract-spec` event, recoverable by anyone
+who receives it; `registerVerifiedContract` re-hashes the currently deployed source against a pinned value before trusting its
+`verifyPayout`. There is deliberately **no canonical registry**: competing contracts coexist under different ids, and wallets and
+users choose which to trust. **Limit.** `publishContractSpec`, `scanContractSpecs` and `registerVerifiedContract` are real and
+tested; the reference applications do not use them (they publish applications through §17).
+
+---
+
+## 17. Bundles and sandboxed execution
+
+An application can be published as signed events, so that whoever holds the events can rebuild exactly what the author published.
+
+### 17.1 The two event types
+
+$$e_{\mathrm{file}} = \{\mathrm{type}: \texttt{bundle.file},\ \mathrm{payload}: \{\mathrm{path}, \mathrm{content}\},\ \mathrm{parents}: [\,],\ \mathrm{createdAt}: 0\}$$
+
+$$e_{\mathrm{manifest}} = \{\mathrm{type}: \texttt{bundle.manifest},\ \mathrm{payload}: \{\mathrm{name}, \mathrm{version}, \mathrm{files}: \{\mathrm{path} \mapsto \mathrm{id}(e_{\mathrm{file}})\}\},\ \mathrm{parents}\}$$
+
+```mermaid
+flowchart BT
+  F1["bundle.file<br/>index.html"] --> M
+  F2["bundle.file<br/>css/app.css"] --> M
+  F3["bundle.file<br/>js/app.js"] --> M
+  M["bundle.manifest<br/>name, version,<br/>files: { path → file event id }<br/>signed by the author's domain"]
+  PM["the previous manifest<br/>(the domain's prior head)"] --> M
+```
+
+A file event is deliberately **parentless with `createdAt` fixed at 0**: its bytes do not causally depend on when or by whom they
+were published, only their content does, and content addressing already captures that. Publishing the same content again (an
+unchanged file across two versions) yields the same event id and is a no-op under `EventLog.append`'s deduplication. A one-byte
+change is a wholly new event, like in any content-addressed store. A manifest's parents are every file event it references plus
+the domain's own prior heads, so the log's head resolves to the latest manifest; a genuine fork (two competing manifest heads) is
+surfaced to the caller, never silently resolved. Attribution needs nothing more: `listBundlesByAuthor` scans for manifests whose
+verified `author` matches.
+
+### 17.2 Execution: origin isolation, not a convention
+
+A published application is arbitrary, untrusted code. A host that runs one loads its `index.html` into
+`<iframe sandbox="allow-scripts">`, **never** `allow-same-origin`. This is a well-established browser mechanism, not custom
+security code: the frame gets an opaque origin with no access to the parent page's storage, DOM or in-memory identity, enforced
+by the browser. A malicious application's JavaScript can run; it cannot reach the wallet that opened it, and the isolation does not
+depend on its author behaving.
+
+*Does not guarantee.* That the application cannot use the network (it can), or that it is not malicious towards its own user (it
+is not reviewed). Storage inside a fully opaque origin is unreliable: an application cannot count on `IndexedDB` persisting
+across sessions; an in-memory event log is the safe default for its internal state.
+
+---
+
+## 18. The store
+
+The store is what an author, a registry and a reader do together. Four actors, and the protocol does the checking:
+
+```mermaid
+flowchart LR
+  AU["Author<br/>wallet = key"] -- "signed package<br/>+ mining evidence" --> PR["a GitHub pull request"]
+  PR -- "read as DATA, never run" --> RG["Registry workflow<br/>(code from main)"]
+  RG -- "confirms the burns" --> SO["Solana"]
+  RG -- "writes store/ on main" --> ST[("store/<br/>index, packages,<br/>bundles, baselines")]
+  ST -- "served by" --> PG["GitHub Pages"]
+  PG --> RD["Reader's Store app<br/>verifies before it opens"]
+  RD --> SB["sandboxed frame"]
+```
+
+### 18.1 Two kinds of entry, both submitted on GitHub
+
+| Kind | The package carries | What the author signs | Who verifies the code, and how |
+|---|---|---|---|
+| **`code`** | the app's one HTML file (≤ 512 KB; it loads what it needs from the network itself) | the hash of `[id, name, version, description, kind, html]` | anyone, by recomputing that hash |
+| **`aiwa`** | no code: a **pointer**, the id of a signed `bundle.manifest` | the hash of `[id, name, version, description, kind, manifestId]` | the registry and the Store, each on its own: the bundle's events pass an event log (id, signature, parents), then are checked against the pin |
+
+For an `aiwa` entry, the check against the pin is: the manifest is signed by the author's domain, names exactly this app and
+version, lists files that are all signed by that domain, and nothing else is in the bundle (≤ 40 files, ≤ 1 MB). The code is then
+immutable and is exactly what its author published, whoever served the events. A bundle lives in a log of its own, so a manifest
+cites only its files and never the author's other history. What a bundle's code loads from the network (a CDN, the SDK
+`lib/aiwa.js`) is **not** pinned by the manifest.
+
+The package: `(id, name, version, description, kind, content or pointer, hash, authorization)`, where the authorization is a signed
+action (§16.2) by the author's key over `(publish-app, id, version, hash)`. The author's identity is their Solana address (the same
+key as their wallet). Anyone holding the package can verify offline that what will run is what the author published.
+
+### 18.2 Publishing
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Author
+  participant WG as Dictation widget (optional)
+  participant SS as Store: publish sheet
+  participant AH as Android host (Kotlin)
+  participant GH as GitHub
+  participant RG as Registry workflow
+  U->>WG: dictates, Claude Code writes the app
+  U->>WG: presses ▦
+  WG->>SS: opens the Store with a hand-off link: kind, name, and the file (deflated, base64url)
+  U->>SS: reads the app, presses Publish
+  SS->>SS: wallet signs the package (hash + authorization)
+  SS->>SS: wallet builds the mining evidence since the registry's baseline
+  alt first time
+    SS->>AH: github-login
+    AH->>GH: device flow: a short code to type, scope public_repo
+    GH-->>AH: token (kept in the Android Keystore)
+  end
+  SS->>GH: fork the repository, branch, add submissions/‹name›.json, open a pull request
+  GH->>RG: pull_request_target (runs the code of main)
+  RG->>RG: reads the file as data, validates (§18.3)
+  alt accepted
+    RG->>GH: commits store/ on main, redeploys Pages
+  end
+  RG->>GH: comments the verdict, closes the pull request
+```
+
+Nothing is signed or sent until the author presses **Publish**. In a plain browser, which cannot sign in to GitHub, the sheet hands
+over the signed file to add to a pull request by hand. A **refresh** is a submission of another kind: a signed request, from fresh
+evidence, to re-read the ranking figure of an app the author already owns.
+
+The workflow reads the file as data and never runs anything from the pull request; it runs from `main`; one run writes `store/` at
+a time (a concurrency group); the pull request is never merged, only closed with the verdict.
+
+### 18.3 What the registry checks
+
+```mermaid
+flowchart TB
+  S["submission<br/>aiwa-submission/1"] --> P1{{"package well formed;<br/>hash = hash of content;<br/>signature = author's, over this app and version?"}}
+  P1 -- no --> X["REFUSED + reason"]
+  P1 -- yes --> P2{{"signature at most 24 h old?"}}
+  P2 -- no --> X
+  P2 -- yes --> P3{{"id already taken by another author?<br/>version higher than the last?"}}
+  P3 -- "no / not higher" --> X
+  P3 -- ok --> K{{"kind = aiwa: the bundle matches<br/>the manifest the package pins?"}}
+  K -- no --> X
+  K -- ok --> E["assessSubmission (§12):<br/>envelopes, progression proofs,<br/>burns confirmed on Solana by the registry,<br/>creator fee, baseline, witnesses"]
+  E -- "no position" --> X
+  E -- "mining state" --> N{{"a NEW app?"}}
+  N -- "update" --> A["ACCEPTED"]
+  N -- "new" --> N1{{"score > 0 ? one new app per 5 min ?<br/>at most 20 apps per author ?<br/>score / laps not below that of the last publication ?"}}
+  N1 -- no --> X
+  N1 -- yes --> A
+  A --> W["write store/index.json, apps/‹id›/‹version›.json,<br/>(bundle), baselines/‹author›.json, witnesses"]
+```
+
+The **permission ratio** keeps what an author may publish from shrinking with what the author has contributed: a new app is accepted
+only if the author's current $\mathrm{score}/\mathrm{laps}$ is not below that of their last publication (a first publication is free of
+it); an update needs only ownership. A refused submission changes nothing.
+
+### 18.4 Ranking
+
+$$\mathrm{rank}(\mathrm{app}) = \frac{\mathrm{score}}{\max(1, \mathrm{laps})}\qquad \text{ties: published first, then id}$$
+
+with $\mathrm{score}$ and $\mathrm{laps}$ the author's ranking figure (§12.2), **frozen when the registry accepted or last refreshed
+the entry**. There is no editorial override and no other term. This is the ranking this project's apps have always been ordered by,
+taken over unchanged.
+
+### 18.5 Opening an app
+
+```mermaid
+sequenceDiagram
+  participant R as Reader (Store app)
+  participant PG as Pages (store/)
+  participant FR as Sandboxed frame
+  R->>PG: GET index.json  (offline: the last index seen)
+  R->>R: rank by score / laps, filter by search
+  R->>PG: GET the package named by the entry's bundleHash (cache keyed by that hash)
+  R->>R: package hash = hash of content ?  author's signature valid ?  it is what the entry lists ?
+  opt kind = aiwa
+    R->>PG: GET the bundle's events
+    R->>R: have Aiwa verify them against the pinned manifest id (same check as the registry)
+    R->>R: assemble: scripts and styles put inside index.html
+  end
+  R->>FR: ‹iframe sandbox="allow-scripts"› with the verified HTML
+  Note over FR: opaque origin: no wallet, no page storage, no AiwaHost
+```
+
+A host that serves another file than the one signed is refused. A cached package is never stale (it is content-addressed) and is
+checked again like what the network gives. Offline, the last index and the apps already opened still work.
+
+### 18.6 The shell around it (Android)
+
+The web app (store and wallet as one) runs in a WebView served from the APK's own assets. The page may ask the phone for four things
+through one channel, `window.AiwaHost`, which exists only in the page's own origin: **the frame an app runs in does not get it**.
+
+```mermaid
+flowchart TB
+  subgraph apk["Android app (Kotlin)"]
+    KS["Keystore<br/>AES key; 12 words and GitHub token encrypted"]
+    DF["GitHub device flow<br/>(native: GitHub's login endpoints send no CORS)"]
+    SV["save to Downloads"]
+    DM["dictation module (optional, Termux)"]
+  end
+  subgraph page["WebView page: Store + wallet (own origin)"]
+    PGE["page code"]
+  end
+  subgraph frame["app frame: sandbox, opaque origin"]
+    APP["untrusted app"]
+  end
+  PGE -- "AiwaHost: secret-get/set/delete,<br/>github-login, save, dictation" --> KS
+  PGE --> DF
+  PGE --> SV
+  PGE --> DM
+  PGE -- "srcdoc, nothing else" --> APP
+  APP -. "no channel" .-x PGE
+```
+
+The request/response protocol is `{id, command}` → `{id, result}`, `{id, error}` or `{id, progress}`. Android's automatic backup
+carries the WebView's storage (the wallet's journal) to a new phone; the secrets are excluded (a Keystore key does not move), so the
+12 words are typed once there (§15). The shell is not tested on a real device (Appendix D).
+
+### 18.7 What the store does not solve
+
+Nothing is reviewed. An app can use the network (it cannot reach the wallet). The ranking favours capital and time, not quality. The
+figure is a snapshot the author chooses to refresh, so a submission can leave out a burn made after the last epoch shown (§12.4).
+Nothing says two authors are two people: the cost of publishing is the mining an author has to show, not an identity.
+
+---
+
+# Part VI — Informational mechanisms
+
+Everything in Parts I–V is what a deployment relies on. This part is what the protocol can *say* about other domains without any of it
+ever changing what a domain may claim. The store's ranking does not use these mechanisms; `aiwa-lib` exposes them as
+`position()` and `observe()`. Except for Mirror's recurring commitment (§8), treat the whole part as **[experimental]**.
+
+## 19. Observation: Causal Tick, hardware roots, relative rate
+
+A domain's own $\mathrm{epoch}_D$ (§6) is unconditional and needs no external observer. Observation is a complementary,
+externally-corroborated position. It is **reported, never applied** to any domain's own earned value.
+
+```mermaid
+flowchart LR
+  subgraph evidence["What observers hold (each is a signed reception, §8)"]
+    O1["observer 1 saw X at epoch 20"]
+    O2["observer 2 saw X at epoch 20"]
+    O3["observer 3 saw X at epoch 4"]
+  end
+  evidence --> M["19.1 weighted median<br/>a VOTE, weighted by confirmed burn"]
+  evidence --> P["19.3 proofs<br/>a lower bound, a rewind, a fork:<br/>things only X's own signatures can show"]
+  M --> POS["position = max(median, proven lower bound)"]
+  P --> POS
+  P --> ACC["accusation: from PROOFS only"]
+```
+
+### 19.1 Causal Tick: a weighted median
+
+$$\hat\theta_X = \mathrm{median}_w\big(\{(\mathrm{obs}_i(X), w_i)\}\big),\qquad w_i = \text{the lamports the reader confirmed for } i\ (\S9.2)$$
+
+Sort the estimates by value, walk the cumulative weight, return the first value at or past half the total weight. It is robust while
+adversarial weight stays below $\sum w_i / 2$. The weight is the observer's confirmed burn: an observer with no burn has no vote.
+
+### 19.2 Hardware roots (optional)
+
+The evidence interface works on software primitives alone. A domain may strengthen the independence of its observers with
+physically provisioned hardware roots. Hardware never computes $\hat\theta_X$, never scales $w_i$ and is never a required input;
+at least two distinct, independently issued roots are required for the attestation to count.
+
+### 19.3 Proofs and the median, combined
+
+Observations in Mirror are **references, not opinions**: each resolves to the progression event that fixes its epoch, an event only
+$X$'s key can sign. So an observation is also a *proof*. From proofs alone:
+
+- the highest epoch of $X$ that any observer provably received is a **lower bound** (one honest observer establishes it; no number of
+  observers who saw less can lower it; nobody but $X$ can raise it);
+- a report by $X$ below that bound contradicts $X$'s own signed history: a **rewind**;
+- two progression events of $X$, neither an ancestor of the other, are a provable **fork**.
+
+`aiwa-core` combines these with the median (`triangulation.js`, `position.js`, `assessPosition`), **exported and used by
+`aiwa-lib`'s `position()`, not wired into `computeCausalTick`**:
+
+- **position** = max(weighted median, proven lower bound): the vote is never reported below what is proven, and with no funded
+  observer the proven bound stands alone;
+- an **accusation** (rewind or fork) comes from **proofs only**: the median never accuses, because "far from the median" cannot tell
+  inflation from legitimate offline progress;
+- both rules see the same events. When the reader holds $X$'s history **from epoch 1**, $X$'s progression events are replayed through
+  the reducer of §6 (epoch + 1, chained, signed by $X$, proof verified) and only the accepted ones count. Without the genesis nothing can
+  be chained, so the check falls back to the signature alone and the result says so. A fork is the one exception, on purpose: a second
+  lineage is rejected by the linear chain and is exactly the evidence of one, so forks are read from the signed events.
+
+**"$X$ signs a fake itself".** A domain may write whatever it likes in its own log. That is not an attack on the protocol: it is an
+invalid history, refused by whoever verifies its sequential proof, and left in the DAG as a dead branch nobody counts. It matters
+here for one narrow reason: Mirror resolves a commitment's references against the DAG as it is, so *colluders* can sign commitments
+citing such an event, and a reader that does not replay the chain would take it into the **estimate** (informational, never applied
+to anyone's value). Replaying the chain closes that; a reader without the genesis cannot, and falls back, visibly.
+
+`experiments/triangulation-scenarios.mjs` compares the rules on synthetic worlds that model the threats considered (the target's
+progression events are a real chain, the observers' commitments are really signed; the worlds are chosen by their author, so this
+is a **comparison, not a proof**):
+
+| World | Weighted median | Proofs alone, log trusted | **Combined** (default) |
 |---|---|---|---|
 | Honest | 20 | 20 | 20 |
 | Funded majority saw only an old state (4); one honest saw 20 | **4**; its check accuses the honest domain | 20 | **20** |
@@ -842,324 +1471,269 @@ author, so this is a comparison, not a proof):
 | X signs a fake far-ahead event itself, no sequential work; funded majority cites it | **999999** | **999999** | **20** (chain replayed, fake rejected) |
 | **The same, but the reader holds only epochs 15–20 (no genesis)** | **999999** | **999999** | **999999**, `verification: signature` |
 
-What this shows, and what it does not. The weighted median is a vote:
-enough weight on an old view moves it, and a funded majority can move it
-with an event that should never have counted. Proofs are immune to
-observers who saw less, and yield rewinds and forks a vote cannot; the
-chain replay is what stops either rule from being moved by a fake. The
-last row is what remains: with colluders, and a reader that cannot
-replay the chain, the estimate can be fooled — and the result says it
-fell back to the signature. Other limits stand: no upper bound (being
-ahead is reported, not accused); only as fresh as the freshest honest
-observer (a keeper, §13.2, would help); and nothing about whether
-observers are distinct actors — the count of observers is informational,
-exactly like §13.1's hardware count. Independence is still the open
-question; this removes the weight from the accusations, not that
+What this shows, and what it does not. The weighted median is a vote: enough weight on an old view moves it, and a funded majority can
+move it with an event that should never have counted. Proofs are immune to observers who saw less, and yield rewinds and forks a vote
+cannot; the chain replay is what stops either rule from being moved by a fake. The last row is what remains: with colluders and a
+reader that cannot replay the chain, the estimate can be fooled, and the result says it fell back to the signature. Other limits
+stand: no upper bound (being ahead is reported, not accused); only as fresh as the freshest honest observer; and nothing about
+whether observers are distinct actors. Independence is still the open question; this removes the weight from the accusations, not that
 assumption.
 
-## 14. Relative rate, without a clock
+### 19.4 Relative rate, without a clock
 
-$$w = (\mathrm{observer}, e_O, \mathrm{target}, e_X, \mathrm{sourceEventId}), \qquad \rho = \frac{e_{X,2} - e_{X,1}}{e_{O,2} - e_{O,1}}$$
+$$w = (\mathrm{observer}, e_O, \mathrm{target}, e_X, \mathrm{sourceEventId}),\qquad \rho = \frac{e_{X,2} - e_{X,1}}{e_{O,2} - e_{O,1}}$$
 
-a purely structural ratio from two successive witnesses. **Purely
-informational** — never feeds back into what any domain may claim.
+A purely structural ratio from two successive witnesses, **purely informational**. Composition is unsafe without a freshness bound:
+$\rho_{AB}\cdot\rho_{BC} = \rho_{AC}$ holds mathematically, but not across an intermediate domain whose real rate may have drifted
+between measurements. `composeRelativeRates` therefore requires the verified epoch gap on the intermediate domain to stay within a
+caller-supplied `maxFreshnessGap`, refusing otherwise: a mitigation, never a closure.
 
-### 14.1 Composition is unsafe without a freshness bound
+### 19.5 What permanently connected machines could do **[not built]**
 
-$\rho_{AB} \cdot \rho_{BC} = \rho_{AC}$ holds mathematically, but is
-unsafe to compose across an intermediate domain whose real rate may
-have drifted between measurements. `composeRelativeRates` requires the
-real, verified epoch gap on the intermediate domain to stay within a
-caller-supplied `maxFreshnessGap`, refusing composition outright
-otherwise — a mitigation, never a closure.
+Hardware roots (§19.2) are about **independence**: attesting that an observer is not backed solely by an actor who can fabricate
+identities in software. That is one of three different jobs an always-on machine could do. They need different things from it and
+should stay separate in a design even when one box does all three:
 
----
-
-## 15. Contract extension point
-
-Conservation (§9) knows nothing about contracts. For a contract's own
-conditional outcome to move real, spendable AIWA, some code must apply a
-real state transition to the claim ledger — and it must not be a change
-to the core protocol.
-
-### 15.1 Contract identity
-
-A contract id is a plain string. It carries no cryptographic anchor by
-itself: a signature only ever proves "signed by this key, over this exact
-content", never "this is really the trusted module it claims to be". The
-anchor is the source hash of §16: `registerVerifiedContract` re-hashes a
-contract's own currently-deployed source against a pinned expected value
-before trusting its `verifyPayout`. The contract's id is embedded in the
-signed event that uses it, rather than mangled into an address (§2's
-address is already a direct cryptographic proof).
-
-### 15.2 A generic payout mechanism
-
-`applyWalletEvent` (`aiwa-core`, `src/wallet.js`) exposes one generic extension
-point — a `contractVerifiers` map, $\{\mathrm{contractId} \mapsto
-\mathrm{verifyPayout}\}$, supplied by the application, never by the
-protocol's own source — and a `contract-payout` transfer that is accepted
-only if the verifier registered for its contract id accepts it. A new
-contract therefore needs no change to the core protocol, only a growing
-application-level registry.
-
-**Limit.** The extension point is real and tested; no concrete contract is
-registered into it by the reference applications (the store ships none).
-
-## 16. Publishing a single contract's source, content-addressed
-
-A plain string contract id (§15.1) carries no cryptographic anchor by
-itself. `contract-registry.js` (in `aiwa-core`) closes this: a contract's
-own complete source is embedded — never only its hash — in a
-`contract-spec` event, recoverable by anyone who receives it.
-
-$$\mathrm{sourceHash} = \mathrm{SHA\text{-}256}(\mathrm{sourceCode})$$
-
-**No canonical registry, deliberately.** Multiple, competing contracts
-can coexist under different ids; wallets and users choose which to trust.
-This mechanism is for **verifying one file's own source** against a
-pinned hash before registering its `verifyPayout` into `contractVerifiers`
-(§15.2) — a narrower, different job from §19 below, which publishes and
-serves a whole, independently-runnable application.
-
-**Limit.** `publishContractSpec`, `scanContractSpecs` and
-`registerVerifiedContract` are real and tested; the reference applications
-do not use them (they publish applications through §19).
-
-### 16.1 Cross-runtime interoperability
-
-`aiwa-core/interop/rust-vdf/` is an independent Rust implementation of
-the protocol's most fundamental, custom computations: `vdf.js`,
-`weighted-median.js`, `conservation.js`'s split invariant, `mirror.js`'s
-monotonicity check, `relative-rate.js`'s central ratio,
-`causal-tick.js`'s consistency check, `wesolowski-vdf.js`,
-`bigint-math.js`, and §7's reward formula
-(`reward.js`/`fixed-point-math.js`), whose algorithms are the same in
-both.
-
-`event.js`'s canonical id format (§3) — `domain`, `author`,
-`authorPublicKey`, `parents`, `type`, `payload`, `createdAt` — is
-checked against a real, fully signed `aiwa-core` event. Alongside
-recomputing the canonical id, `ed25519-dalek` (a different library from
-the `@noble/curves` the JavaScript uses) independently *re-signs* the
-identical message with the identical raw secret-key bytes and checks the
-result byte-for-byte against the real signature `@noble/curves`
-produced. Since Ed25519 signing is deterministic (RFC 8032), this is a
-stronger claim than mere verification: two independent, conforming
-implementations must produce the *identical* signature, not merely one
-that happens to pass the other's own check.
-
-`test/rust-interop.test.mjs` builds the real Rust binary, runs it, and
-compares its output against the live JS modules' own output for the
-identical test vectors, byte for byte — including §7's reward formula
-for two test vectors (a basic case and a full year of continuous
-progression, ~112M epochs). It skips (never fails) if no Rust toolchain
-is available in a given environment — see
-`aiwa-core/interop/rust-vdf/README.md` for exactly what this does and
-does not claim, and what remains undone (a multi-runtime implementation
-of the whole protocol, as opposed to this cross-check of its most
-fundamental, custom computations).
-
----
-
-## 17. Delegation — "sign once, then click as many times as you want"
-
-A real claim owner signs ONE
-delegation — $\{\mathrm{delegate}, \mathrm{from}\}$, no amount cap, no
-expiry by explicit design — after which a delegate key may move
-**and split** the owner's already-owned claims repeatedly, each a
-fresh, independent, delegate-signed event, without the owner's own root
-key signing again.
-
-$$\mathrm{delegation} = \big(\mathrm{delegate}, \mathrm{from}, \mathrm{ownerPubkey}, \mathrm{Sign}_{\mathrm{owner}}(\{\mathrm{delegate}, \mathrm{from}\})\big)$$
-
-Each subsequent click — `'delegated-transfer'` or `'delegated-split'` —
-carries the identical delegation record plus a fresh delegate signature
-over the specific action's own fields. A verifier checks **two**
-signatures, never one: the embedded delegation signature against
-$\mathrm{ownerPubkey}$, and the action's own signature against the
-delegate's key that actually signed it — closing the exact forgery §3's
-own author/reducer separation warns about (a delegate that signed
-something real, but not *this*, must never be accepted for *this*).
-
-**No pre-funding, no escrow, by explicit design.** Issuing a delegation
-moves zero funds. The delegate only ever authorizes moving what the
-owner already, genuinely owns at click time — a compromised session key
-threatens only funds the owner actually holds, for that one
-counterparty, same as the root key already could.
-
-**A channel is genuinely self-sufficient once opened, for any amount —
-including splitting.** `aiwa-lib`'s `Channel` derives a deterministic
-session key (`HMAC-SHA256`, keyed by the owner's own root secret,
-seeded by the peer id) — recoverable after a crash, never a randomly
-generated, losable throwaway. Because the SAME delegation authorizes
-both `'delegated-transfer'` and `'delegated-split'`, a channel never
-needs the owner's root key again for any send amount, not only ones
-that happen to match an existing claim exactly. Verified directly:
-`aiwa.disconnect()` (clearing the root key from memory) does not stop
-an already-open channel from sending, splitting, or reporting its
-balance.
-
-**Honest limit, by explicit design.** No amount cap, no expiry, no
-revocation. A deployment wanting either layers it into its own
-`contractVerifiers` (§15.2) instead of forcing it on every caller here.
-
-## 18. Bearer vouchers — a real withdrawal QR
-
-A real, classic hash-lock — the
-same idea a Lightning HTLC or a Bitcoin pay-to-hash-of-a-preimage script
-uses — for the one case delegation and ordinary transfer both structurally
-cannot cover: **the recipient is unknown until redemption time.**
-
-$$\mathrm{voucherAddress} = \mathrm{SHA\text{-}256}(\mathrm{secret})$$
-
-Issuing needs no new protocol at all: §9's own observation that
-`owner`/`from`/`to` are opaque, unvalidated strings means an ordinary,
-already-existing signed transfer to $\mathrm{voucherAddress}$ works
-today — the issuer's root key signs exactly once, moving already-owned
-value to an address no real key controls.
-
-**Redemption.** A `'voucher-redeem'` event reveals $\mathrm{secret}$ and
-is signed by the real identity the redeemer wants the value to land in:
-
-$$\mathrm{Sign}_{\mathrm{redeemer}}(\{\mathrm{claimId}, \mathrm{secret}, \mathrm{to}, \mathrm{nonce}, \mathrm{timestamp}\})$$
-
-verified by checking (a) the redeemer's signature really derives $\mathrm{to}$
-— closing the same forgery class §17 closes: a real secret, revealed by
-someone who does *not* control the claimed destination identity, must
-never move value there — and (b) delegating entirely to §9's own
-`transfer()` for the actual state change, with $\mathrm{from}$ recomputed
-as $\mathrm{SHA\text{-}256}(\mathrm{secret})$.
-
-**"The QR can be copied, but only the first redemption succeeds" —
-needed no new double-spend logic.** This is §9's own single-writer
-conservation invariant, unmodified: a claim's `deactivate()` throws once
-its status is no longer `active`; a second redemption of an
-already-consumed voucher is rejected exactly like a replayed ordinary
-transfer. Verified directly, at both the protocol layer (two real
-redeemers racing for the identical secret — only the first applied
-wins) and the wallet-API layer (two genuinely independent, unsynced
-wallets, each honestly redeeming the same offline voucher, converge to
-exactly one winner once their event logs are synced — never both,
-never neither).
-
-**Honest limit, stated plainly, same as any offline transfer (§11).**
-This is real double-spend *detection* via reconciliation, not real-time
-*prevention*. Two people can each, honestly, offline, redeem the
-identical voucher; both believe they succeeded until their logs sync
-with each other or the issuer. Once they have, every reader agrees on
-the winner (§11.2) — the smaller event id, which is arbitrary, not the
-first in time.
-
----
-
-## 19. Multi-file bundle publishing and sandboxed execution
-
-A different mechanism from §16, which publishes one file's own source
-for *verification* against a pinned hash. This publishes and serves a
-whole, independently-runnable application — what the store lists.
-
-**Two kinds of entry in the store, both submitted on GitHub.** In a `code` entry the package carries the app's one HTML file. In an
-`aiwa` entry it carries only a *pointer*, the id of the signed manifest below, and the author signs the hash of that pointer
-(`sha256` of `[id, name, version, description, kind, manifestId]`). The submission also carries the bundle's events, which the registry
-has an event log verify (id, signature, parents), then checks against the pin: the manifest is signed by the author's domain, names
-exactly this app and version, lists files all signed by that domain, and nothing else is in the bundle. The store does the same check
-again before it runs anything, so the code is immutable and is what its author published whoever served the events; the bundle is
-published in a log of its own, so that a manifest cites only its files and never the author's other history. What the bundle's code loads
-from the network (a CDN, the SDK) is *not* pinned by the manifest.
-
-$$e_{\mathrm{file}} = \{\mathrm{type}: \texttt{bundle.file}, \mathrm{domain}, \mathrm{payload}: \{\mathrm{path}, \mathrm{content}\}, \mathrm{parents}: [\,], \mathrm{createdAt}: 0\}$$
-
-$$e_{\mathrm{manifest}} = \{\mathrm{type}: \texttt{bundle.manifest}, \mathrm{domain}, \mathrm{payload}: \{\mathrm{name}, \mathrm{version}, \mathrm{files}: \{\mathrm{path} \mapsto \mathrm{id}(e_{\mathrm{file}})\}\}, \mathrm{parents}\}$$
-
-A file event is deliberately parentless with `createdAt` fixed at 0 —
-its own bytes don't causally depend on when or by whom they were
-published, only their content does, which content-addressing (§3)
-already captures. Publishing the identical file content again (an
-unchanged file across two app versions) yields the identical event id —
-`EventLog.append`'s own dedup makes this a real no-op, never
-retransmitted or duplicated. A manifest's parents are every file event
-it references plus the domain's own prior heads, so `EventLog.head()`
-naturally resolves to the latest manifest, and a genuine fork (two
-competing manifest heads) is surfaced to the caller, never silently
-resolved.
-
-**Attribution needs no new protocol either.** `listBundlesByAuthor(log,
-authorId)` scans for `bundle.manifest` events whose `author` field —
-already cryptographically verified on every append (§3) — matches. "Find
-published code by its creator's real address" was already answerable
-before this function existed; it only makes the scan convenient.
-
-**Execution: genuine origin isolation, not a convention.** A published
-bundle may be arbitrary, untrusted code. A host that runs one must load
-its `index.html` into a sandboxed `<iframe sandbox="allow-scripts">` —
-deliberately never `allow-same-origin`; the store's app viewer
-(`apps/web`) does so. This is a real, well-established browser mechanism,
-not custom security code: the iframe receives a genuinely opaque
-origin, with zero access to the parent page's storage, DOM, or
-in-memory identity, enforced by the browser itself. A malicious
-contract's own JavaScript can run, but it cannot reach the wallet that
-opened it — the isolation does not depend on the contract's own author
-behaving.
-
-**Honest limit.** Storage inside a fully opaque origin is unreliable —
-a published contract cannot depend on `IndexedDB` persisting across
-sessions the way the hosting wallet's own storage does; an in-memory
-event log is the safe default for a contract's own internal state.
-
----
-
-## Reference implementation
-
-| Concept | Package | File |
+| Job | What it does | What must be trusted |
 |---|---|---|
-| Identity | `aiwa-core` | `src/identity.js` |
-| Event log, content addressing (§3) | `aiwa-core` | `src/event.js`, `src/event-log.js`, `src/adapt-event.js` |
-| Sequential proof (§6) | `aiwa-core` | `src/vdf.js`, `src/wesolowski-vdf.js`, `src/bigint-math.js` |
-| Progression (§5) | `aiwa-core` | `src/progression.js` |
-| Accrual formula (§7) | `aiwa-core` | `src/reward.js`, `src/fixed-point-math.js` |
-| Accrual position | `aiwa-core` | `src/accrual.js` |
-| Genesis Commitment (§8) | `aiwa-core` | `src/identity-cost.js`, `src/solana-wallet.js`, `src/burn-record.js` |
-| Creator fee (§7.3) | `aiwa-core` + `aiwa-lib` | `aiwa-core/src/accrual.js` (`creatorFeeLamports`, `burnQuote`), `src/burn-record.js`, `src/solana-wallet.js`; `aiwa-lib/src/burns.js` (`burn`, `burnQuote`) |
-| Churn profitability check (§8) | `aiwa-core` | `src/churn-analysis.js` — parameter-specific, not a general guarantee |
-| Conservation (§9) | `aiwa-core` | `src/conservation.js` |
-| Denomination (§10) | `aiwa-core` | `src/units.js` |
-| Mirror (§4) | `aiwa-core` | `src/mirror.js` |
-| Checkpoints, storage bound (§12.1) | `aiwa-core` | `src/checkpoint.js` |
-| Recovery phrase (§12.2) | `aiwa-core` + `aiwa-lib` | `src/solana-wallet.js` (`generateBip39Mnemonic`), `aiwa-lib/src/wallet.js` (`recoveryPhrase`) |
-| Backup, restore, adopt a state (§12.2) | `aiwa-lib` | `src/backup.js` (`exportBackup`, `importBackup`, `adoptState`) |
-| Archive node (§12.2) | `aiwa-platform` + `aiwa-lib` | `src/archive.js`, `src/archive-server.js`, `node/aiwa-node.js`; `aiwa-lib/src/backup.js` (`archiveNow`, `restoreFromArchive`, `startAutoArchive`) |
-| Wallet start and restore, by itself (§12.2) | applications | `apps/web/src/wallet.js`, `keys.js`; `android/.../SecretStore.kt` |
-| Mining state, evidence an app takes (§7.2, §6.2) | `aiwa-core` | `src/mining-state.js`, `src/submission.js` |
-| Succinct progression (§6.2) | `aiwa-core` | `src/succinct-vdf.js`, `src/progression.js` |
-| Causal Tick (§13) | `aiwa-core` | `src/causal-tick.js`, `src/weighted-median.js` |
-| Hardware roots (§13.1) | `aiwa-core` | `src/hardware-attestation.js` |
-| Relative rate (§14) | `aiwa-core` | `src/relative-rate.js` |
-| Fold order of concurrent branches (§11.2) | `aiwa-core` + `aiwa-lib` | `aiwa-core/src/canonical-order.js`; `aiwa-lib/src/ancestors.js`, `src/ledger.js` (`state`) |
-| Contract extension point (§15) | `aiwa-core` | `src/wallet.js` (`contractVerifiers`, `contract-payout`) |
-| Single-file contract publishing (§16) | `aiwa-core` | `src/contract-registry.js` |
-| Signed actions, delegation (§17) | `aiwa-core` | `src/signing.js` (one place for every signed action), `src/wallet.js` |
-| Channel (§17) | `aiwa-lib` | `src/channel.js` |
-| Bearer vouchers (§18) | `aiwa-core` + `aiwa-lib` | `aiwa-core/src/wallet.js`, `aiwa-lib/src/payments.js` (`issueVoucher`/`redeemVoucher`) |
-| Coherent composition (wallet state) | `aiwa-core` | `src/wallet.js`, `src/materializer.js` |
-| Transport, replication | `aiwa-platform` | `src/webrtc-transport.js`, `src/replicator.js`, `src/introducer.js` |
-| Capability-gated storage | `aiwa-platform` | `src/capability.js`, `src/guarded-data-store.js`, `src/graph-store.js` |
-| Multi-file bundle publishing (§19) | `aiwa-platform` | `src/bundle.js`, `src/serve-worker.js` |
-| Public wallet API | `aiwa-lib` | `src/wallet.js` (`AIWA`, a thin facade over `ledger`, `mining`, `burns`, `payments`, `observer`, `backup`, `evidence`) |
-| Smart-contract/token SDK | `aiwa-lib` | `src/contract.js` |
-| Cross-runtime interoperability (§16.1) | `aiwa-core` | `interop/rust-vdf/` (Rust), `test/rust-interop.test.mjs` |
-| The store: listing, ranking, the two kinds of entry, sandboxed execution (§7.2, §19) | applications | `registry/` (`app-package.js`, `bundle.js`), `apps/web/` |
-| The Android shell | applications | `android/` |
+| **Keeper** (persistence) | Holds and re-serves content-addressed events and published bundles, so data survives the domains that produced it | Availability only. Integrity costs nothing to check (an id is the hash of the content): a keeper can withhold or lose data, never alter it undetected. Anyone can run one |
+| **Witness** (independence) | An observer whose independence is attested by §19.2's chain | The origin's issuance process, or one physical unit |
+| **Rendezvous** (bootstrap) | Lets two domains that have never met find each other | Nothing about the data; it sees who is looking for whom |
 
-## Status
+**Why persistence needs its own answer.** A participant holds only what is relevant to its own state and observed relationships. Nothing
+obliges anyone to keep an event; if every domain that held it is gone, it is gone: the event DAG is tamper-evident, not durable.
+Blockchains answer this by replicating everything on every full node, paid through issuance or fees; here the globally replicated state is
+declined, so durability is left to whoever chooses to hold the data. The archive node (§15) keeps one thing, a wallet's latest backup;
+it is the seed of this role, not the role.
 
-421 passing tests (`aiwa-core`, including a real Rust build+run
-cross-check when a Rust toolchain is available), 85 (`aiwa-platform`),
-99 (`aiwa-lib`). Every package is independently testable; none depends
-on a shared, centrally-hosted server to run its own suite.
+**Open, not solved.** Who runs keepers and why (no incentive is specified: accrual is local and unconditional, it pays nobody to store);
+how keepers choose what to keep; whether a keeper that holds an event is also a useful observer of it (a stable reference, at the price
+of pulling the protocol toward the infrastructure it is built to avoid). There is no rendezvous: the first connection between two peers
+is a manual offer/answer exchange. A consequence seen in practice: an application published from one device can be loaded by someone
+else only while a copy of its events is reachable, such as a hosted export.
 
-**Not demonstrated.** No run against the real Solana devnet or mainnet
-(the burn path is tested against a stand-in that decodes real
-transactions); no run on real phones; economic parameters not validated
-in the field; no prior-art search; the creator fee (§7.3) and the store
-have not been reviewed for their legal status.
+---
+
+# Part VII — Assessment
+
+## 20. Threats and what answers them
+
+| Threat | What answers it | What remains |
+|---|---|---|
+| An event is forged or altered | the id is the hash of the content; the signature covers the same bytes, `type` included (§4.2) | nothing: any change is detected |
+| Someone acts "as" another in a payload | a signature inside the payload, derived to the owner (§5) | a stolen key signs validly |
+| An action is replayed or redirected | one-time nonce; every destination is in the signed fields (§5) | — |
+| A claim is spent twice | one owner at a time; proofs consumed once (§7.3); the same winner for every reader (§13.4) | offline, the second payee may have believed they were paid until the logs meet (§13.5); only a proof, a limit or trust is left |
+| A third party inflates a domain's age to cut its rewards | a progression is signed by the domain itself (§6.1) | — |
+| Free identities to make money for free | every identity pays with a burn to accrue (§9) | nothing says two identities are two people |
+| A fake burn, or someone else's burn | the reader fetches the finalized transaction itself; must be paid by the domain's own key; counted once (§9.2) | a dishonest RPC endpoint is the reader's problem |
+| The creator fee is dodged | a commitment at $T>0$ is refused without the fee confirmed (§11.3) | a fork with its own address is another economy |
+| An action is left out of a history | the mining events are one signed chain (§6.5) | an action after the last epoch shown and followed by none |
+| A second history is shown | the chain makes it cost the work again; witnesses force it to contain what others hold (§12.4) | no witness, no protection beyond the work |
+| A host swaps an app's file | the package hash and the author's signature are checked before it opens (§18.5) | — |
+| An app is hostile | sandbox with an opaque origin: no wallet, no page storage (§17.2) | it can use the network; it is not reviewed |
+| A pull request runs attacker code in the registry | the workflow runs `main`'s code and reads the file as data, never executes it (§18.2) | — |
+| An old signed package is replayed to the registry | signatures older than 24 h are refused (§18.3) | — |
+| A device is lost | a backup signed by the key, a registry baseline, Android's backup, peers (§15) | no backup, no node, no peer: the journal is lost |
+| Two valid views of the same history | agreement by the canonical order (§13.4) | a conflict absorbed by a checkpoint stays as decided |
+
+## 21. Limits and open problems
+
+**Not solved.** The human-identity oracle; physical-location verification; absolute global time; Byzantine agreement without
+assumptions; detection of every coalition of identities under one real actor (a coalition can produce an internally consistent
+history at real cost: the claim is narrower, that fabricated identities cannot fabricate authenticated history *for free*).
+
+**Not specified.**
+
+- **Durability** of data no domain chooses to keep, and who is paid to keep it (§19.5).
+- **Rendezvous** between strangers (§19.5).
+- **Equal hardware.** An epoch is a fixed amount of sequential work, so a faster (or specialised) machine earns epochs faster. The proof makes
+  that work cheap to *check* (§6.4); it does not make it equal to *do*. The reference wallet advances one epoch every 30 s while open, which
+  is its own choice, not a protocol cap.
+- **A market price** for AIWA. Nothing here implies it is worth anything.
+- **Real-time prevention** of a double spend between parties who never exchange events (§13.5).
+- **An anchor of a log's head on Solana**, the only way to bound what a snapshot can leave out. **[not built]**
+
+**External dependencies.** Solana is the only one, for the burn and its confirmation. GitHub hosts the registry and Pages in this
+deployment; the protocol does not need GitHub, the store does.
+
+**Novelty, stated modestly.** The building blocks are known: a signed, hash-linked log (git, Secure Scuttlebutt), a sequential-work
+proof (Wesolowski), burning as a cost, hash-locked vouchers, session keys. No prior-art search has been done. What is unusual is the
+combination and its economic design: issuance without consensus (each identity creates its AIWA locally, from verifiable sequential work,
+with an external burn as the only gate); work as each identity's own clock (actions bound to the work by the signature, so hiding or
+reordering an action costs computation); and a proof any third party checks in milliseconds.
+
+---
+
+# Appendices
+
+## Appendix A. Wire formats
+
+### A.1 The event
+
+```
+event = { domain, author, authorPublicKey, parents[], type, payload, createdAt, signature }
+id    = SHA( JSON( { domain, author, authorPublicKey, sort(parents), type, canon(payload), createdAt } ) )
+signature = Ed25519 over the same bytes, by the key whose SHA is `author`
+```
+
+`canon` sorts object keys recursively and keeps array order. A reducer receives `{ id, parents, payload }` with `payload.type` only (§4.4).
+
+### A.2 Signed actions (the payload's own signature, §5)
+
+The signed message is `JSON.stringify` of the listed fields, in this order; a field that is `undefined` is left out, and a *nullable* field
+is signed as `null` when absent. The payload also carries `signerPubkey` and `signature`. The delegated form inserts `delegate` before
+`nonce` and carries `ownerPubkey` and `delegationSignature`. **These bytes are frozen**: a test pins them.
+
+| Action | Signed fields | Owner field (the signer must derive it) |
+|---|---|---|
+| `transfer` | `claimId, from, to, nonce, timestamp` | `from` |
+| `split` | `claimId, owner, firstAmount, firstId, secondId, nonce, timestamp` | `owner` |
+| `voucherRedeem` | `claimId, secret, to, nonce, timestamp` | `to` |
+| `accrual` | `domain, b, T, nonce, timestamp, previous` (`T` nullable) | `domain` |
+| `claim` | `domain, amount, claimId, nonce, timestamp, previous` (`claimId` nullable) | `domain` |
+| `progression` | `domain, epoch, vdfIterations, vdfOutput, nonce, timestamp, previous` | `domain` |
+| delegation | `{ delegate, from }`, signed once by the owner | `from` |
+
+A contract's own action (`signedAction`, §16.2) signs *all* its fields plus `nonce` and `timestamp`, keys sorted.
+
+### A.3 Event types
+
+| `type` | Payload (besides the signature fields) | Folded by | Section |
+|---|---|---|---|
+| `progression` | `domain, epoch, vdfIterations, vdfOutput (y), vdfProof{pi, l}, previous` | progression, accrual | §6 |
+| `burn-record` | `domain, signature` (a Solana signature) | accrual | §9 |
+| `accrual` | `domain, b, T, previous` | accrual | §10 |
+| `claim`, `delegated-claim` | `domain, amount, claimId, previous` | accrual, wallet | §10.3 |
+| `transfer`, `delegated-transfer` | `claimId, from, to` | wallet | §7.3 |
+| `split`, `delegated-split` | `claimId, owner, firstAmount, firstId, secondId` | wallet | §7.2 |
+| `voucher-redeem`, `delegated-voucher-redeem` | `claimId, secret, to` | wallet | §7.4 |
+| `contract-payout` | `contractId, claimId, from, to, nonce, signature, …` | wallet + the application's verifier | §16.3 |
+| `reception` | `domain, epoch, kind, receivedFrom[{sourceDomain, eventId}]` | mirror | §8 |
+| `checkpoint` | the domain's serialized wallet state, as of a set of heads | checkpoint / log | §14.1 |
+| `contract-spec` | `name, version, sourceCode, sourceHash, description` | — | §16.4 |
+| `bundle.file`, `bundle.manifest` | `path, content`; `name, version, files{path→id}` | bundle | §17 |
+
+### A.4 The store's formats
+
+```
+package   = { format:'aiwa-app/1', kind:'code'|'aiwa', id, name, version, description, html | manifestId,
+              author (Solana address), bundleHash, authorization }
+bundleHash = SHA( JSON([ id, name, version, description, kind, html | manifestId ]) )
+authorization = signedAction by the author's key over (publish-app, id, version, bundleHash)
+
+submission = { format:'aiwa-submission/1', kind:'publish'|'refresh',
+               publish: package (+ bundle events for kind aiwa), evidence
+               refresh: appId, authorization, evidence }
+evidence   = { version, domain, afterEpoch, events[], witnesses[] }
+baseline   = { domain, epoch, head, state }               kept per author address
+index      = { format:'aiwa-store-index/1', apps:[ { id, name, version, description, author, bundleHash, path,
+               kind, manifestId?, bundlePath?, score, laps, publishedAt } ] }
+```
+
+Files of the registry: `store/index.json`, `store/apps/<id>/<version>.json`, `store/apps/<id>/<version>.bundle.json`,
+`store/baselines/<author>.json` (public), `store/state/witnesses.json` (internal, not served), `submissions/<name>.json`.
+
+### A.5 Other messages
+
+| Message | Shape |
+|---|---|
+| Backup | `{ version: 1, kind: 'aiwa-backup', domain, address, createdAt, epoch, events: [checkpoint] }` |
+| Offline bundle | `btoa(encodeURIComponent(JSON.stringify(bundle)))`: text for a QR code, NFC, Bluetooth or a paste |
+| Replicator | `HELLO { heads }`, `HELLO_ACK { heads }`, `EVENTS { chunk }`, `ACK` (JSON, UTF-8) |
+| Publish hand-off | `#publish=<kind>;<name>;<file raw-deflated, base64url>` (`<kind>`: `code` or `aiwa`; `<name>` without spaces) |
+| Host channel | request `{ id, command, … }` → `{ id, result }` / `{ id, error }` / `{ id, progress }`; commands `secret-get`, `secret-set`, `secret-delete`, `github-login`, `save`, `dictation` |
+| Channel session key | `HMAC-SHA256(rootSecret, "aiwa-lib-channel-session-v1:" ‖ peerId)` |
+
+## Appendix B. Parameters
+
+| Parameter | Reference value | Where | Changing it is |
+|---|---|---|---|
+| $\alpha,\ \beta,\ \gamma,\ C$ | $1.1,\ 2.2,\ 3,\ 35937$ | `deployment.json` → `rewardParams` | a new rule set |
+| $\mathrm{minQ}$ | $1$ | same | a new rule set |
+| $E$ (`epochIterations`) | $10^5$ squarings (≈ 0.5 s) | same | a new rule set |
+| $T$ | $[0,\ 0.4]$, chosen at the burn | `MAX_PATIENCE_RATE` | a new rule set |
+| Creator fee | address in `deployment.json`, $\mathrm{rateOfT}=0.001$ | `creatorFee` | a new rule set (§11) |
+| Wesolowski modulus | the 2048-bit RSA challenge modulus | `wesolowski-vdf.js` | a new rule set |
+| Quantities | AIWA: integers of $10^{-18}$; SOL: lamports | `units.js` | — |
+| Progress loop | one epoch per 30 s while the wallet is open | `deployment.json` → `progress.intervalMs` | a wallet setting |
+| Auto checkpoint | every 5 minutes | `startAutoCheckpoint` | a wallet setting |
+| Replicator chunk | 100 events | `Replicator` | an implementation setting |
+| Submission limits | 200 000 events · 200 burns · 50 witnesses · 16 384 bytes per witness · 32 witnesses kept per domain | `SUBMISSION_LIMITS` | a registry setting |
+| Store policy | signature ≤ 24 h · one new app per 5 min · ≤ 20 apps per author · submission ≤ 40 MB | `POLICY` | a registry setting |
+| App limits | HTML ≤ 512 KB · name ≤ 60 · description ≤ 280 · id `[a-z0-9-]` ≤ 40 · version `x.y.z` | `APP_LIMITS` | a registry setting |
+| Bundle limits | ≤ 40 files · ≤ 1 MB · entry `index.html` | `BUNDLE_LIMITS` | a registry setting |
+| Network | cluster `devnet`; RPC `https://api.devnet.solana.com` | `deployment.json` | a deployment setting |
+
+## Appendix C. Reference implementation
+
+Five parts, one workspace. Dependencies point one way: `registry` and `apps/web` use `aiwa-lib` and `aiwa-platform`, which use
+`aiwa-core`; `aiwa-core` needs only `@noble/curves`, `@noble/hashes`, `@scure/bip39` and, optionally, `@solana/web3.js`. Nothing above
+`aiwa-core` may change what counts as a valid state transition.
+
+| Part | What it is |
+|---|---|
+| `packages/core` | the protocol, pure and without I/O |
+| `packages/platform` | transport, replication, storage, bundles, the archive node |
+| `packages/lib` | the wallet API (`AIWA`, a thin facade over `ledger`, `mining`, `burns`, `payments`, `observer`, `backup`, `evidence`) and the contract SDK |
+| `registry` | validation, ranking, files of the store, the workflow's script |
+| `apps/web`, `android` | the store and wallet as one web app; the APK around it |
+
+Where each concept lives:
+
+| Concept | Section | Files |
+|---|---|---|
+| Identity | §3 | `core/src/identity.js` |
+| Event, log, wire adaptation | §4 | `event.js`, `event-log.js`, `adapt-event.js` |
+| Signed actions, delegation | §5, §7.5 | `signing.js` (the one place for every signed action), `wallet.js` |
+| Sequential proof | §6.2–6.4 | `vdf.js`, `wesolowski-vdf.js`, `succinct-vdf.js`, `bigint-math.js` |
+| Progression, the mining chain | §6.1, §6.5 | `progression.js`, `accrual.js` (`chainViolation`) |
+| Conservation, vouchers | §7 | `conservation.js`, `wallet.js`; `lib/src/payments.js` (`issueVoucher`, `redeemVoucher`) |
+| Channel | §7.5 | `lib/src/channel.js` |
+| Mirror, observe | §8 | `mirror.js`; `lib/src/observation.js`, `observer.js` |
+| Burn, burn record, backing | §9 | `identity-cost.js`, `solana-wallet.js`, `burn-record.js`; `lib/src/burns.js` |
+| Churn calculator | §9.3 | `churn-analysis.js` |
+| Accrual | §10 | `reward.js`, `fixed-point-math.js`, `accrual.js`, `units.js` |
+| Creator fee | §11 | `accrual.js` (`creatorFeeLamports`, `burnQuote`), `burn-record.js`, `solana-wallet.js`; `lib/src/burns.js` |
+| Mining state, evidence, witnesses | §12 | `mining-state.js`, `submission.js`; `lib/src/evidence.js` |
+| Canonical order | §13.4 | `canonical-order.js`; `lib/src/ancestors.js`, `ledger.js` |
+| Replication, offline bundles | §13.6 | `platform/src/replicator.js`, `transport.js`, `webrtc-transport.js`; `lib/src/offline-bundle.js` |
+| Checkpoints | §14 | `checkpoint.js`, `event-log.js` (`pruneBeforeCheckpoint`), `materializer.js` |
+| Recovery | §15 | `solana-wallet.js` (`generateBip39Mnemonic`); `lib/src/backup.js`; `platform/src/archive.js`, `archive-server.js`, `node/aiwa-node.js`; `apps/web/src/wallet.js`, `keys.js`; `android/.../SecretStore.kt` |
+| Contracts | §16 | `wallet.js` (`contractVerifiers`, `contract-payout`), `contract-registry.js`; `lib/src/contract.js` |
+| Bundles | §17 | `platform/src/bundle.js`, `serve-worker.js` |
+| The store | §18 | `registry/src/` (`app-package.js`, `bundle.js`, `validate.js`, `rank.js`, `store-files.js`), `.github/workflows/registry.yml`; `apps/web/src/` (`store.js`, `viewer.js`, `assemble.js`, `publish.js`, `github.js`, `host.js`) |
+| The shell | §18.6 | `android/app/`, `android/bridge/`, `android/backend/` |
+| Causal Tick, hardware roots, relative rate, triangulation | §19 | `causal-tick.js`, `weighted-median.js`, `hardware-attestation.js`, `relative-rate.js`, `triangulation.js`, `position.js` |
+| Cross-runtime check | App. D | `core/interop/rust-vdf/`, `core/test/rust-interop.test.mjs` |
+
+**Cross-runtime interoperability.** `core/interop/rust-vdf/` is an independent Rust implementation of the protocol's most fundamental, custom
+computations: the sequential proof, the weighted median, the split invariant, Mirror's monotonicity, the relative-rate ratio, Causal Tick's
+consistency check, the Wesolowski proof, the big-integer arithmetic and §10's reward formula. The canonical event id is checked against a real
+signed event, and `ed25519-dalek` (a different library from the JavaScript's `@noble/curves`) independently *re-signs* the identical message
+with the identical secret-key bytes and must reproduce the signature byte for byte: Ed25519 is deterministic (RFC 8032), so two conforming
+implementations must produce the *same* signature, not merely one that passes the other's check. The test builds and runs the Rust binary and
+compares it with the live JavaScript, including a full year of continuous progression (about 112 million epochs); it skips, never fails,
+without a Rust toolchain. It cross-checks the fundamentals; it is not a second implementation of the whole protocol.
+
+## Appendix D. Verification status
+
+**What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 85 in `aiwa-platform`,
+99 in `aiwa-lib`, 17 in `aiwa-registry`, 35 in `aiwa-store-web` (18 of them drive the app in Chromium: ranking, the sandbox refusing
+`parent.document`, a tampering host, offline use, the wallet starting and restoring by itself, the burn with its fee, publishing both
+kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK),
+73 for the dictation backend. `node scripts/devnet-check.mjs --fake` plays the whole path (burn, record, mine, evidence, registry) against
+a stand-in Solana that decodes the real transaction the wallet builds, 11 checks; it also runs in CI. Every part is testable on its own,
+none needs a hosted server.
+
+**Not demonstrated.**
+
+- No burn on the real Solana network, devnet or mainnet. `scripts/devnet-check.mjs` does it (burn at $T=0.4$ with a creator address made for
+  the run, the creator account read on chain, the registry's own verification, the fail-closed check) but needs a devnet wallet funded once
+  (the faucet refuses shared CI runners) whose phrase is the repository secret `DEVNET_PHRASE`.
+- No run on a real phone: the WebView host, the Keystore, GitHub's device login against the real GitHub (it needs an OAuth App with Device
+  Flow whose Client ID goes in `deployment.json`), Android's automatic backup carrying the journal to a new phone, the Termux backend, the
+  widget. The Kotlin that is not plain JVM is compiled in CI only.
+- No pull request opened by the Store's sheet on GitHub, end to end; the registry workflow has not run on GitHub with a real pull request;
+  the site needs GitHub Pages enabled to be served.
+- Economic parameters are not validated in the field; no prior-art search; the creator fee and the store have not had a legal review.

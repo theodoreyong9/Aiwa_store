@@ -22,7 +22,7 @@ utilisateur ── brûle 1 SOL, T = 40 % ──►  incinérateur Solana   0,99
 - Le montant est calculé en entiers (`creatorFeeLamports`), le portefeuille l'affiche **avant** de signer, et chaque lecteur
   vérifie sur Solana que le créateur a bien reçu sa part : un engagement à T > 0 dont la part n'a pas été payée est refusé.
 - À T = 0 (le défaut), le créateur ne reçoit rien.
-- Le taux et l'adresse sont des paramètres du protocole (`deployment.json`, yellow paper §7.3) : ils changent par une nouvelle version
+- Le taux et l'adresse sont des paramètres du protocole (`deployment.json`, yellow paper §11) : ils changent par une nouvelle version
   des règles, jamais par un réglage de l'app ni du portefeuille. L'utilisateur ne choisit pas qui est payé.
 
 ## Pourquoi quelqu'un choisirait T > 0

@@ -107,7 +107,7 @@ async function renderHistory() {
 // ---------- burn ----------
 
 // T is chosen at the burn, for what follows. T % of the burn does not count as capital; a fixed part of it goes to the
-// creator when the deployment has a creator address (yellow paper §7.3). The wallet says so before anything is signed.
+// creator when the deployment has a creator address (yellow paper §11). The wallet says so before anything is signed.
 function burnTerms() {
   const sol = Number($('burn-amount').value);
   const percent = $('burn-t').value.trim() === '' ? 0 : Number($('burn-t').value);

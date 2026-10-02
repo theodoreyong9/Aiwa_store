@@ -93,7 +93,7 @@ export function commitmentPriceLamports(b, T = 0) {
 }
 
 /**
- * The creator fee (yellow paper §7.3): instead of destroying all of the T share of a burn, a small fixed part of it goes
+ * The creator fee (yellow paper §11): instead of destroying all of the T share of a burn, a small fixed part of it goes
  * to ONE address that is a constant of the deployment (`rewardParams.creatorFee = { address, rateOfT }`) — never chosen
  * by an application or by the user. For a burn of `burnedLamports` at patience rate `T` the fee is
  * floor(burned x T x rateOfT) lamports, computed in integers (parts per million), so every reader gets the same number.
@@ -167,7 +167,7 @@ export async function applyAccrualEvent(rewardParams, state, event, verifyFn) {
     const currentEpoch = domainAge(state.progression, domain);
     const price = commitmentPriceLamports(b, rate);
     const consumed = state.burns?.consumed?.[domain] ?? 0;
-    // The genesis commitment (yellow paper §8): capital is what a burn covers. What this domain's commitments have
+    // The genesis commitment (yellow paper §9): capital is what a burn covers. What this domain's commitments have
     // used, plus this one's price, may not exceed what burns THIS READER has confirmed for it (see 'burn-record'
     // below). The deployment may opt out explicitly — `rewardParams.commitmentBacking: 'none'` — for tests, demos,
     // private economies; leaving it out means mandatory.

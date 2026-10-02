@@ -10,7 +10,7 @@ import { normalizeBurnTransaction, verifyBurnRecordFor } from '../src/burn-recor
 import { base58Encode } from '../src/base58.js';
 import { buildBurnTransaction } from '../src/solana-wallet.js';
 
-// The creator fee (yellow paper §7.3): a small fixed part of the T share of a burn goes to ONE address that is a
+// The creator fee (yellow paper §11): a small fixed part of the T share of a burn goes to ONE address that is a
 // constant of the deployment; the rest is destroyed. The reader counts it: a commitment at T > 0 whose burn did not
 // pay the creator is refused.
 const CREATOR = base58Encode(ed25519.getPublicKey(ed25519.utils.randomSecretKey()));

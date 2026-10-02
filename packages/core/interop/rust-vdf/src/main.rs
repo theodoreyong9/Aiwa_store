@@ -23,7 +23,7 @@
 // (domain/author/authorPublicKey/parents/type/payload/createdAt) together
 // with a real Ed25519 signature, independently re-derived by a genuinely
 // different library (ed25519-dalek, never the JS side's @noble/curves):
-// the cross-runtime check described in the Yellow Paper (§16.1).
+// the cross-runtime check described in the yellow paper (Appendix C).
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use num_bigint::{BigInt, BigUint, Sign, ToBigUint};
@@ -512,7 +512,7 @@ fn main() {
     // its own real signature, using the real Rust library alone.
     let self_verify = verifying_key.verify(core_str.as_bytes(), &event_signature).is_ok();
 
-    // §13's own real weighted median, two real, non-trivial vectors.
+    // §19.1's own real weighted median, two real, non-trivial vectors.
     let median1 = weighted_median(&[(100.0, 30.0), (50.0, 45.0), (200.0, 10.0), (75.0, 15.0)]);
     let median2 = weighted_median(&[(1000.0, 5.0), (2000.0, 5.0), (3000.0, 90.0)]);
 
@@ -557,7 +557,7 @@ fn main() {
     let wesolowski_invalid = wesolowski_verify(&x, iterations, &wesolowski_invalid_y, &real_pi, &real_l, &n);
 
     // reward.js's own rewardFixed — the real, critical piece this
-    // project's own Yellow Paper §16.1 previously, honestly documented
+    // project's own yellow paper (Appendix C) previously, honestly documented
     // as unverified. The identical, real test vectors
     // test/rust-interop.test.mjs computes against via the real, live
     // JS module.

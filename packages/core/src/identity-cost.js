@@ -86,7 +86,7 @@ export function hasIdentityCost(state, domain) {
 
 /**
  * The state `computeCausalTick` reads, built from COMMITTED CAPITAL instead of from burn proofs: the yellow paper
- * weights a witness by its `b` (§13: w_i = b_i, §8), and `b` is what each domain signed into its own position
+ * weights a witness by its `b` (§19.1: w_i = b_i, §9), and `b` is what each domain signed into its own position
  * (accrual.js — the reducer has already checked the signature, the domain binding and the nonce). `positions` is
  * accrual state's `positions`: { [domain]: { b } }, b in whole units (SOL, as AIWA.burn() records it); the result
  * is in lamports, which is what the causal tick reads.

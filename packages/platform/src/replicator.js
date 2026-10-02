@@ -105,7 +105,7 @@ export class Replicator {
    * Sends `events` (already topologically ordered) to `peer` in
    * bounded chunks, one at a time — never the whole backlog in a
    * single message. The previously-unaddressed limit this closes
-   * (Yellow Paper §12.1): a domain that has been offline a long time,
+   * (yellow paper §14.3): a domain that has been offline a long time,
    * or a brand-new peer receiving a long history, used to receive
    * every missing event in ONE unbounded message — a memory
    * and bandwidth spike proportional to total history size, on both the
