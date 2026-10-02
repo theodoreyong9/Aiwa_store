@@ -1,0 +1,12 @@
+{
+  "name": "aiwa-store",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An app store with a wallet, on a protocol that needs no shared ledger.",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "npm test --workspaces --if-present"
+  }
+}

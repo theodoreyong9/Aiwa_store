@@ -1,0 +1,31 @@
+# aiwa-core
+
+The protocol, pure and without I/O: no transport, no storage backend of its own choosing, no application code. Everything above it (distribution, wallet, apps) composes it and never changes what counts as a valid state transition.
+
+```
+npm test        # 410 tests, including a cross-check against an independent Rust implementation when cargo is available
+```
+
+## What is in it
+
+| Area | Modules |
+|---|---|
+| Identity and events | `identity.js`, `event.js`, `event-log.js`, `adapt-event.js`, `canonical-order.js` |
+| Time as work | `vdf.js`, `wesolowski-vdf.js`, `succinct-vdf.js`, `progression.js` |
+| Creating value | `reward.js`, `fixed-point-math.js`, `accrual.js`, `burn-record.js`, `identity-cost.js` |
+| Reading the result | `mining-state.js` (mining state and ranking figure), `submission.js` (verify a wallet's evidence) |
+| Owning value | `conservation.js`, `units.js` |
+| Wallet state | `wallet.js`, `materializer.js`, `checkpoint.js`, `solana-wallet.js` |
+| Between domains | `mirror.js`, `causal-tick.js`, `weighted-median.js`, `triangulation.js`, `position.js`, `relative-rate.js` (the last four are experimental) |
+| Applications | `contract-registry.js`, delegation and bearer vouchers (in `wallet.js`) |
+
+## Things worth knowing
+
+- **Every event is signed and content-addressed.** A reader never trusts the author field of an event: authority lives in signatures embedded in the payload.
+- **A conflict has the same winner for every reader.** `canonicalOrder(events)` gives one order for the same events whatever order they arrived in (parents first, then the smaller id). It is agreement, not fairness; see the yellow paper §11.2.
+- **A third party can verify a wallet's mining without trusting it.** `assessSubmission({ rewardParams, evidence, domain, baseline, witnessed, connection })` checks the envelopes, the work proofs and the burn on Solana, and returns the ranking figure.
+- **Formats are frozen (version 1)**: the payloads of progression, accrual and claim events, the starting point of an epoch's work, the checkpoint and the backup.
+
+## Honest limits
+
+Everything involving real Solana has been played against a stand-in only. See [docs/YELLOWPAPER.md](../../docs/YELLOWPAPER.md) §12 for what is not claimed.
