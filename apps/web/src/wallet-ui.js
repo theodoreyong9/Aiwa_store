@@ -282,12 +282,15 @@ function trackProgress(aiwa) {
 async function run(aiwa) {
   setSession(aiwa);
   trackProgress(aiwa);
+  await refreshLocalState();     // before it is shown: never an empty wallet on screen
   starting = false;
   updateGates();
   const restored = await restoreHistory(aiwa);
   $('restore-note').hidden = !restored;
-  if (restored) $('restore-note').textContent = `Your history came back from ${restored.source === 'archive' ? 'your archive node' : 'the registry'}: epoch ${restored.epoch}.`;
-  await refreshLocalState();
+  if (restored) {
+    $('restore-note').textContent = `Your history came back from ${restored.source === 'archive' ? 'your archive node' : 'the registry'}: epoch ${restored.epoch}.`;
+    await refreshLocalState();
+  }
   keepRunning(aiwa);     // after the restore: working epochs on an empty log would fork the history that was about to come back
   showPhraseNotice();
   displayRefreshTimer = setInterval(() => { if (session.aiwa) refreshLocalState(); }, 5000);
