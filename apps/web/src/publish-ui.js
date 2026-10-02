@@ -2,9 +2,10 @@
 // pull request on GitHub, after saying what is about to be sent. It opens when the Android app's dictation module hands
 // over an app (the ▦ button), or from the author's own list of apps to refresh a ranking. There is no publish form.
 //
-// The hand-off is the address #publish=<kind>;<name>;<code> where <kind> is `code` (one HTML file) or `aiwa` (several files,
-// as {"files":[{"path","content"}]}) and <code> is that text, raw-deflated then base64url-encoded. A URL fragment never leaves
-// the browser. Nothing is signed or sent until the author presses Publish.
+// The hand-off is the address #publish=<kind>;<name>;<code>: <code> is the app's one HTML file, raw-deflated then
+// base64url-encoded, and <kind> says how it is published: `code` (the code travels in the package on GitHub) or `aiwa` (it is
+// published through Aiwa, and GitHub holds a pointer). A URL fragment never leaves the browser. Nothing is signed or sent
+// until the author presses Publish.
 
 import { filesProblem, BUNDLE_LIMITS } from 'aiwa-registry/bundle';
 import { config } from './config.js';
@@ -40,11 +41,10 @@ function appFrom(kind, name, text) {
   const id = slug(name);
   if (!id) throw new Error('the name has no letter or digit');
   if (kind === 'aiwa') {
-    let files;
-    try { files = JSON.parse(text).files; } catch { throw new Error('the files are not readable'); }
+    const files = [{ path: BUNDLE_LIMITS.entry, content: text }];
     const problem = filesProblem(files);
     if (problem) throw new Error(problem);
-    return { kind, id, name, files, description: describe(files.find((f) => f.path === BUNDLE_LIMITS.entry).content) };
+    return { kind, id, name, files, description: describe(text) };
   }
   return { kind: 'code', id, name, html: text, description: describe(text) };
 }
@@ -110,7 +110,7 @@ function openPublish(app) {
   const kb = Math.max(1, Math.round(sizeOf(app) / 1024));
   openSheet({
     title: 'Publish this app',
-    summary: `${app.kind === 'aiwa' ? `${app.files.length} files, published through Aiwa` : 'One HTML file'} (${kb} KB). It is signed with your wallet and sent to the Store's registry as a pull request on your GitHub account. `
+    summary: `${app.kind === 'aiwa' ? 'One HTML file, published through Aiwa' : 'One HTML file'} (${kb} KB). It is signed with your wallet and sent to the Store's registry as a pull request on your GitHub account. `
       + 'Anyone can open it from the Store, in a sandbox; it is ranked by what you have mined.',
     fields: true, go: 'Publish',
   });

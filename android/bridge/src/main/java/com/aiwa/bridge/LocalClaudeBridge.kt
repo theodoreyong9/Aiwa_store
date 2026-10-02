@@ -84,7 +84,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             claudeLogin = json.str("claude_login") ?: "unknown",
             relayCloud = json.str("relay_cloud") ?: "untested",
             sentApp = json.optJSONObject("sent_app")?.let {
-                SentApp(it.optString("name"), it.optInt("size", 0), it.optLong("ts", 0L), it.optBoolean("seen", false))
+                SentApp(it.optString("name"), it.optInt("size", 0), it.optLong("ts", 0L), it.optBoolean("seen", false), it.str("kind") ?: "code")
             },
         )
     }
@@ -233,7 +233,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
     override suspend fun sentAppCode(): SentAppCode = withContext(Dispatchers.IO) {
         val json = JSONObject(getText("/api/sent-app/code"))
         if (!json.optBoolean("ok", false)) throw IllegalStateException(json.str("error") ?: "aucune app reçue")
-        SentAppCode(json.getString("name"), json.getString("code"))
+        SentAppCode(json.getString("name"), json.getString("code"), json.str("kind") ?: "code")
     }
 
     override suspend fun sentAppSeen() = withContext(Dispatchers.IO) {

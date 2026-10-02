@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 19
+BACKEND_VERSION = 20
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -65,13 +65,17 @@ NTFY_SERVER = "https://ntfy.sh"
 APP_DIR = Path.home() / ".aiwa_store_apps"
 APP_MAX = 2 * 1024 * 1024
 APP_KEEP = 10
-# What Claude writes in the "store" mode is an app for the Aiwa Store: one self-contained index.html, named
-# name.app.html here (the Store's Publish tab asks for a name, a version and the code).
-APP_FILE_RE = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?\.app\.html")
+# What Claude writes in the "store" mode is an app for the Aiwa Store: one self-contained index.html, named name.app.html
+# here (its code travels in the package on GitHub). In the "aiwa" mode it is the same kind of file, name.aiwa.html, whose logic
+# is an Aiwa contract: the Store publishes it through Aiwa and GitHub holds only a pointer. Either way the Store's publish sheet
+# takes the name and the code.
+APP_FILE_RE = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?\.(?:app|aiwa)\.html")
 # The repository the Store lives in: an important but OPTIONAL source for what is built in the "store" mode
 # (see _sources_line).
 REFERENCE_REPO = "theodoreyong9/Aiwa_store"
 REFERENCE_RAW = f"https://raw.githubusercontent.com/{REFERENCE_REPO}/main"
+# The Aiwa SDK as one ES module, served with the Store's site: what an app of the "aiwa" mode imports.
+AIWA_SDK_URL = "https://theodoreyong9.github.io/Aiwa_store/lib/aiwa.js"
 HTML_TITLE_RE = re.compile(r"<title[^>]*>([^<]{1,200})</title>", re.I)
 # The page the CLI prints to log in with a Claude account (inside terminal escape codes).
 LOGIN_URL_RE = re.compile(r"https://claude\.(?:com|ai)/[^\s\x07\x1b]*oauth/authorize[^\s\x07\x1b]*")
@@ -112,14 +116,14 @@ cloud_busy = False
 # the plain chat); push_main: push straight to the main branch (otherwise
 # to a work branch); deploy_mode: none, pages (publish with GitHub Pages
 # through GitHub Actions), android (build the APK with GitHub Actions and
-# publish it as a GitHub release) or store (write an app for the Aiwa Store — one
+# publish it as a GitHub release), store (write an app for the Aiwa Store — one
 # self-contained index.html — and send it to the phone, to be tried and published
-# from the Store's Publish tab, no GitHub);
+# from the Store's publish sheet, no GitHub from here) or aiwa (the same, as an Aiwa contract);
 # extra: free text. The alert instruction (ping the relay when you
 # wait for an answer) is always there — it is mandatory, not a switch.
 current_repo = None
 push_main = True
-DEPLOY_MODES = ("none", "pages", "android", "store")
+DEPLOY_MODES = ("none", "pages", "android", "store", "aiwa")
 deploy_mode = "none"
 # Other repositories Claude may ALSO work on (checked in the widget's picker):
 # told to it in the instructions; the platform decides whether it can reach them.
@@ -519,13 +523,38 @@ def _instruction_lines(repo, work, base, direct):
             "(4) un `<title>` (il devient le nom) et un `<meta name=\"description\">` de 280 caractères au plus ; "
             "(5) pensée d'abord pour un téléphone (~390 px de large), sans débordement horizontal. "
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/store-app-example.html. "
-            "Ne la pousse sur AUCUN dépôt : je la relis, l'essaie et la signe moi-même dans l'onglet Publier du Store, avec mon identité. "
+            "Ne la pousse sur AUCUN dépôt : je la relis, l'essaie et la publie moi-même depuis le Store (bouton ▦ du widget), avec mon identité. "
             "Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile), puis envoie-la sur mon téléphone "
             f"avec cette commande, telle quelle : `curl -s -m 60 -T nom.app.html -H 'Filename: nom.app.html' -H 'Title: aiwa-app' {NTFY_SERVER}/{topic}` "
             "(un seul fichier par envoi ; si je te demande une correction, renvoie le fichier complet de la même façon ; "
             "si le réseau bloque la commande, dis-le-moi et colle le code dans ta réponse). Dis-moi ensuite en une phrase ce que fait l'app.",
         ))
         # Where to look first when the request touches the Store or the protocol under it.
+        lines.append(("sources", _sources_line()))
+    if deploy == "aiwa":
+        lines.append((
+            "deploy",
+            "Déploiement (Aiwa) : le livrable est UNE app publiée par Aiwa, un fichier `nom.aiwa.html` (nom en minuscules, chiffres et tirets, 40 caractères au plus) : "
+            "un `index.html` complet et autonome dont la logique est un CONTRAT Aiwa, c'est-à-dire des règles que n'importe qui rejoue à partir des événements signés qu'il détient "
+            "(un vote, un score, un jeton, un jeu…), sans avoir à croire personne. Je la publie moi-même depuis le Store : elle devient immuable (signée, identifiée par son hash) "
+            "et l'entrée sur GitHub ne contient qu'un pointeur vers elle. Le Store l'ouvre dans un cadre isolé (`<iframe sandbox=\"allow-scripts\">`, origine opaque), donc : "
+            "(1) un seul fichier, 512 Ko au plus ; "
+            f"(2) le SDK Aiwa est UN module ES, chargé par son adresse ABSOLUE : `import {{ generateIdentity, defineContract, Contract, signedAction, verifySignedAction, EventLog, createMemoryBackend }} from '{AIWA_SDK_URL}'` ; "
+            "jamais de chemin relatif ; "
+            "(3) ni `localStorage`, ni cookies, ni `IndexedDB` : l'état reste en mémoire, ou se rejoue depuis des événements ; "
+            "(4) aucun accès au wallet de la page qui l'ouvre : l'app fait ses propres identités (`generateIdentity`) et ne peut dépenser l'AIWA de personne ; "
+            "(5) une action n'est prouvée que par la signature placée DANS l'action (`signedAction` à l'émission, `verifySignedAction` dans le gestionnaire), jamais par l'auteur de l'événement : "
+            "un gestionnaire qui saute cette vérification se laisse usurper ; "
+            "(6) un `<title>` (il devient le nom) et un `<meta name=\"description\">` de 280 caractères au plus ; "
+            "(7) pensée d'abord pour un téléphone (~390 px de large), sans débordement horizontal. "
+            f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/aiwa-app-example.html. "
+            f"Lis aussi le yellow paper ({REFERENCE_RAW}/docs/YELLOWPAPER.md : identité, journal d'événements, contrats) : ce que l'app fait avec le SDK doit correspondre à ce document, pas à ce que tu supposes. "
+            "Ne la pousse sur AUCUN dépôt. Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile ; "
+            "github.io peut être inaccessible depuis ta session : dis-le-moi alors, et dis ce que tu as pu vérifier quand même), puis envoie-la sur mon téléphone "
+            f"avec cette commande, telle quelle : `curl -s -m 60 -T nom.aiwa.html -H 'Filename: nom.aiwa.html' -H 'Title: aiwa-app' {NTFY_SERVER}/{topic}` "
+            "(un seul fichier par envoi ; si je te demande une correction, renvoie le fichier complet de la même façon ; "
+            "si le réseau bloque la commande, dis-le-moi et colle le code dans ta réponse). Dis-moi ensuite en une phrase ce que fait l'app.",
+        ))
         lines.append(("sources", _sources_line()))
     # Mandatory, not a switch: it is how the widget learns that Claude is
     # waiting (the CLI can't read a cloud reply back). A public relay, a
@@ -817,7 +846,7 @@ def _site_snapshot():
     on every /api/status."""
     with lock:
         repo, mode, last = current_repo, deploy_mode, sent_app
-    if mode == "store":
+    if mode in ("store", "aiwa"):
         return {"url": None, "state": "live" if last and not last["seen"] else "waiting", "kind": "store"}
     if not repo:
         return {"url": None, "state": "off", "kind": "site"}
@@ -1197,17 +1226,24 @@ def _slug(text):
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:40].strip("-")
 
 
+def _app_kind(name):
+    """How the Store publishes a file: through Aiwa (name.aiwa.html), or with its code in the package (name.app.html)."""
+    return "aiwa" if name.endswith(".aiwa.html") else "code"
+
+
 def _app_name(name, code):
-    """The app's file name: the one it was sent under, else its <title>."""
+    """The app's file name: the one it was sent under, else its <title>, with the extension of the current mode."""
     if APP_FILE_RE.fullmatch(name or ""):
         return name
     found = HTML_TITLE_RE.search(code)
     slug = _slug(found.group(1)) if found else ""
-    return f"{slug or 'app'}.app.html"
+    with lock:
+        suffix = "aiwa" if deploy_mode == "aiwa" else "app"
+    return f"{slug or 'app'}.{suffix}.html"
 
 
 def _app_received(event):
-    """An app Claude sent (`curl -T name.app.html … Title: aiwa-app`): ntfy turns the file into an
+    """An app Claude sent (`curl -T name.app.html … Title: aiwa-app`, or name.aiwa.html): ntfy turns the file into an
     attachment, which is downloaded here and kept."""
     global sent_app
     attachment = event.get("attachment") if isinstance(event.get("attachment"), dict) else None
@@ -1234,7 +1270,7 @@ def _app_received(event):
     try:
         APP_DIR.mkdir(parents=True, exist_ok=True)
         (APP_DIR / name).write_text(code, encoding="utf-8")
-        for old in sorted(APP_DIR.glob("*.app.html"), key=lambda f: f.stat().st_mtime, reverse=True)[APP_KEEP:]:
+        for old in sorted([*APP_DIR.glob("*.app.html"), *APP_DIR.glob("*.aiwa.html")], key=lambda f: f.stat().st_mtime, reverse=True)[APP_KEEP:]:
             old.unlink()
     except OSError as err:
         print(f"[{_ts()}] app could not be saved: {err}", flush=True)
@@ -1247,7 +1283,7 @@ def _app_received(event):
 
 def _sent_app_snapshot():
     with lock:
-        return {k: sent_app[k] for k in ("name", "size", "ts", "seen")} if sent_app else None
+        return {**{k: sent_app[k] for k in ("name", "size", "ts", "seen")}, "kind": _app_kind(sent_app["name"])} if sent_app else None
 
 
 def _sent_app_code():
@@ -1259,7 +1295,7 @@ def _sent_app_code():
         code = (APP_DIR / last["name"]).read_text(encoding="utf-8")
     except OSError:
         return {"ok": False, "error": "le fichier de l'app est introuvable"}
-    return {"ok": True, "name": last["name"], "code": code}
+    return {"ok": True, "name": last["name"], "kind": _app_kind(last["name"]), "code": code}
 
 
 def _sent_app_seen():
@@ -1270,7 +1306,7 @@ def _sent_app_seen():
 
 
 def _relay_event(event):
-    """One message of the relay topic: an app (title aiwa-app, or a *.app.html attachment), the relay
+    """One message of the relay topic: an app (title aiwa-app, or a *.app.html / *.aiwa.html attachment), the relay
     test (title aiwa-check) or Claude's "I wait for you" ping."""
     now = time.time()
     with lock:
@@ -1283,7 +1319,7 @@ def _relay_event(event):
     attached = str(attachment.get("name") or "") if isinstance(attachment, dict) else ""
     if title == "aiwa-check":
         _cloud_check_seen()
-    elif title == "aiwa-app" or attached.endswith(".app.html"):
+    elif title == "aiwa-app" or attached.endswith((".app.html", ".aiwa.html")):
         if sent_app is None or sent_app.get("event") != event.get("id"):
             threading.Thread(target=_app_received, args=(event,), daemon=True).start()
     else:

@@ -1,11 +1,11 @@
 name: Android
 # The APK: the Store's web app inside a WebView, with the optional dictation module. Built here only (no Android SDK is needed
-# anywhere else) and published as the one file of a rolling release, tagged android-latest and recreated at each build, so
+# anywhere else; every branch is built, so that a change is known to compile) and, from main only, published as the one file of a rolling release, tagged android-latest and recreated at each build, so
 # that the address never changes:
 #   https://github.com/<owner>/<repo>/releases/download/android-latest/Aiwa_store.apk
 on:
   push:
-    branches: [main]
+    branches: [main, clean]
     paths: ['android/**', 'apps/web/**', 'packages/**', 'registry/**', 'deployment.json', '.github/workflows/android.yml']
   workflow_dispatch:
 
@@ -48,6 +48,7 @@ jobs:
           name: aiwa-store-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish the APK to the rolling release
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

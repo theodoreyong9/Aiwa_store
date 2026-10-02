@@ -1,5 +1,5 @@
 // Builds the web app into dist/: one ES module (app.js, with a lazily loaded chunk for @solana/web3.js and the QR
-// library), the page, its style and its icons.
+// library), the page, its style and its icons; and the Aiwa SDK as one module (lib/aiwa.js) for the apps published through Aiwa.
 //
 //   node build.mjs [--out dist] [--deployment ../../deployment.json]
 //
@@ -29,6 +29,20 @@ await build({
   legalComments: 'none',
   logLevel: 'warning',
   alias: { '@deployment': deployment },
+  define: { 'process.env.NODE_ENV': '"production"', global: 'globalThis' },
+});
+
+// The SDK is a separate build: an app imports it by its address, so it must stand alone.
+await build({
+  entryPoints: { aiwa: join(here, 'lib-entry.js') },
+  outdir: join(out, 'lib'),
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2022',
+  minify: true,
+  legalComments: 'none',
+  logLevel: 'warning',
   define: { 'process.env.NODE_ENV': '"production"', global: 'globalThis' },
 });
 

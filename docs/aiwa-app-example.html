@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Show of hands</title>
+<meta name="description" content="A vote that anyone can replay from its signed events: one vote per identity, proved by a signature inside the action.">
+<!--
+  AN APP PUBLISHED THROUGH AIWA (named show-of-hands.aiwa.html). It is one file, like any app of the Store, but its logic is an
+  Aiwa CONTRACT: rules that anyone replays from the signed events they hold, so nobody has to be trusted to count.
+   - the SDK is one ES module, loaded by its ABSOLUTE address (never a relative path: the app runs from a single document);
+   - an action is proved by a signature inside the action itself (signedAction / verifySignedAction), never by who published
+     the event: a handler that skipped the check could be made to count a vote "from" anyone;
+   - the app runs in a sandbox: no localStorage, no cookies, no access to the wallet of the page that opened it. It makes its
+     own identities, and it cannot spend anyone's AIWA.
+-->
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 0; padding: 16px; }
+  button { font: inherit; padding: 8px 16px; margin-right: 8px; }
+  .tally { font-size: 28px; font-weight: 700; margin: 12px 0; }
+  .id { font: 11px ui-monospace, monospace; color: #666; word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>Show of hands</h1>
+<p>Do you like it? Each identity counts once, however many times it clicks.</p>
+<button id="yes">Yes</button><button id="no">No</button><button id="another">Another voter</button>
+<div class="tally" id="tally">…</div>
+<div class="id" id="me"></div>
+<script type="module">
+import {
+  generateIdentity, EventLog, createMemoryBackend, defineContract, Contract, signedAction, verifySignedAction,
+} from 'https://theodoreyong9.github.io/Aiwa_store/lib/aiwa.js';
+
+// The rules. A handler gets the state and an event {id, parents, payload}; it returns the new state.
+const definition = defineContract({
+  initialState: () => ({ votes: {} }),
+  handlers: {
+    vote: async (state, event) => {
+      const action = event.payload;
+      if (!(await verifySignedAction(action))) return state;          // not signed by who it says it is
+      if (action.choice !== 'yes' && action.choice !== 'no') return state;
+      if (action.from in state.votes) return state;                   // one vote per identity: the first counts
+      return { votes: { ...state.votes, [action.from]: action.choice } };
+    },
+  },
+});
+
+let voter = await generateIdentity();                                // a fresh identity of this app, not the wallet's
+const contract = new Contract({ identity: voter, log: new EventLog(createMemoryBackend()), domain: 'show-of-hands', definition });
+
+async function show() {
+  const { votes } = await contract.state();
+  const count = (choice) => Object.values(votes).filter((v) => v === choice).length;
+  document.getElementById('tally').textContent = `Yes ${count('yes')} · No ${count('no')}`;
+  document.getElementById('me').textContent = `You are ${voter.id.slice(0, 16)}…`;
+}
+async function vote(choice) {
+  await contract.dispatch('vote', await signedAction(voter, { from: voter.id, choice }));
+  await show();
+}
+document.getElementById('yes').onclick = () => vote('yes');
+document.getElementById('no').onclick = () => vote('no');
+document.getElementById('another').onclick = async () => { voter = await generateIdentity(); contract.identity = voter; await show(); };
+await show();
+</script>
+</body>
+</html>

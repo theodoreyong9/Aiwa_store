@@ -263,6 +263,7 @@ async function fakeGitHub(context, { login = 'author' } = {}) {
   return seen;
 }
 const REPO = 'theodoreyong9/Aiwa_store';
+const SDK_URL = 'https://theodoreyong9.github.io/Aiwa_store/lib/aiwa.js';
 
 const pack = (text) => deflateRawSync(Buffer.from(text, 'utf8')).toString('base64url');
 const handoff = (page, kind, name, text) => page.evaluate((hash) => { location.hash = hash; }, `#publish=${kind};${name};${pack(text)}`);
@@ -408,26 +409,22 @@ test('publishing from the widget\'s hand-off: one sheet, a GitHub login once, a 
   await context.close();
 });
 
-test('an app of several files is published through Aiwa: the pull request carries a pointer and the signed bundle', async () => {
+test('an app published through Aiwa: the pull request carries a pointer and the signed bundle, never the code', async () => {
   const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
   const github = await fakeGitHub(context);
   await mineInPage(page);
 
-  const files = [
-    { path: 'index.html', content: '<!doctype html><html><head><link rel="stylesheet" href="s.css"></head><body><h1>Tally</h1><script src="t.js"></script></body></html>' },
-    { path: 's.css', content: 'h1{color:red}' },
-    { path: 't.js', content: 'document.title="Tally"' },
-  ];
-  await handoff(page, 'aiwa', 'Tally', JSON.stringify({ files }));
+  const contract = '<!doctype html><html><head><meta charset="utf-8"><meta name="description" content="a tally"><title>Tally</title></head><body><h1>Tally</h1><script>document.title="Tally"</script></body></html>';
+  await handoff(page, 'aiwa', 'Tally', contract);
   await page.waitForSelector('#sheet:not([hidden])');
-  assert.match(await page.locator('#sheet-summary').textContent(), /3 files, published through Aiwa/);
+  assert.match(await page.locator('#sheet-summary').textContent(), /published through Aiwa/);
   await page.click('#sheet-go');
   await page.waitForSelector('#sheet-result:not([hidden])', { timeout: 15000 });
 
   const { submission, result } = await registryVerdict(page, github, 'submissions/tally-1.0.0.json');
   assert.equal(submission.package.kind, 'aiwa');
   assert.equal(submission.package.html, undefined, 'GitHub holds a pointer, not code');
-  assert.equal(submission.bundle.events.length, 4, 'three files and the manifest that pins them');
+  assert.equal(submission.bundle.events.length, 2, 'the file and the manifest that pins it');
   assert.equal(result.ok, true, result.reason);
   assert.equal(result.accepted.entry.kind, 'aiwa');
   assert.equal(result.accepted.entry.manifestId, submission.package.manifestId);
@@ -600,7 +597,30 @@ test('a hand-off that is damaged or too big is not opened, and says so', async (
   await page.evaluate(() => { location.hash = '#publish=code;Taps;AAAA'; });
   await page.waitForFunction(() => /not opened/.test(document.getElementById('store-status').textContent));
   assert.equal(await page.locator('#sheet').isHidden(), true);
-  await handoff(page, 'aiwa', 'Bad', JSON.stringify({ files: [{ path: '../x', content: '' }] }));
-  await page.waitForFunction(() => /not opened: .*file name/.test(document.getElementById('store-status').textContent));
+  await handoff(page, 'aiwa', 'Empty', ' ');
+  await page.waitForFunction(() => /not opened: index\.html is empty/.test(document.getElementById('store-status').textContent));
+  await context.close();
+});
+
+test('an app that uses the Aiwa SDK runs in the sandbox: it imports the module by its address and counts one vote per identity', async () => {
+  const code = readFileSync(join(root, 'docs/aiwa-app-example.html'), 'utf8');
+  const { page, errors, context } = await openPage();
+  // the SDK's address is the deployed site's; here it is answered by the build under test
+  await context.route(SDK_URL, (route) => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'text/javascript' }, body: readFileSync(join(site, 'lib/aiwa.js')) }));
+  await handoff(page, 'aiwa', 'show-of-hands', code);
+  await page.waitForSelector('#sheet:not([hidden])');
+  assert.equal(await page.inputValue('#app-description'), 'A vote that anyone can replay from its signed events: one vote per identity, proved by a signature inside the action.');
+  await page.click('#sheet-try');
+  const frame = page.frameLocator('#viewer iframe');
+  await frame.locator('#tally').filter({ hasText: 'Yes 0 · No 0' }).waitFor({ timeout: 15000 });
+  await frame.locator('#yes').click();
+  await frame.locator('#tally').filter({ hasText: 'Yes 1 · No 0' }).waitFor();
+  await frame.locator('#no').click();
+  await page.waitForTimeout(300);
+  assert.equal(await frame.locator('#tally').textContent(), 'Yes 1 · No 0', 'the same identity cannot vote again');
+  await frame.locator('#another').click();
+  await frame.locator('#no').click();
+  await frame.locator('#tally').filter({ hasText: 'Yes 1 · No 1' }).waitFor();
+  assert.deepEqual(errors, []);
   await context.close();
 });

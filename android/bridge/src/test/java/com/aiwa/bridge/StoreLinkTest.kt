@@ -28,7 +28,7 @@ private fun unpack(pattern: Regex, url: String): Pair<String, String> {
 }
 
 // The exact pattern of the Store's fragment reader (apps/web/src/publish-ui.js).
-private val STORE = Regex("^https://appassets\\.androidplatform\\.net/assets/web/index\\.html#publish=1;([A-Za-z0-9_.-]{1,60});([A-Za-z0-9_-]+)$")
+private val STORE = Regex("^https://appassets\\.androidplatform\\.net/assets/web/index\\.html#publish=(?:code|aiwa);([A-Za-z0-9_.-]{1,60});([A-Za-z0-9_-]+)$")
 
 class StoreLinkTest {
     private val app = "<!doctype html><title>Demo</title><script>/* é ✓ */</script>\n" + "<!-- pad -->\n".repeat(400)
@@ -55,6 +55,12 @@ class StoreLinkTest {
     }
 
     @Test fun anotherBaseAddressCanBeGiven() {
-        assertTrue(storePublishUrl("a", "x", base = "http://localhost:8080/")!!.startsWith("http://localhost:8080/#publish=1;a;"))
+        assertTrue(storePublishUrl("a", "x", base = "http://localhost:8080/")!!.startsWith("http://localhost:8080/#publish=code;a;"))
+    }
+
+    @Test fun theKindIsInTheAddress_andOnlyKnownKindsAreAccepted() {
+        assertTrue(storePublishUrl("a", "x", kind = "aiwa")!!.contains("#publish=aiwa;a;"))
+        assertTrue(storePublishUrl("a", "x")!!.contains("#publish=code;a;"))
+        assertNull(storePublishUrl("a", "x", kind = "sphere"))
     }
 }

@@ -11,14 +11,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The widget's ▦ button (and the notification of a new app): opens the Store on its Publish tab with the app Claude sent
- * already in the code field — and does nothing else: the user reads it, tries it and signs it themself. A no-UI
- * trampoline, like the other buttons of the widget.
+ * The widget's ▦ button (and the notification of a new app): opens the Store on its publish sheet with the app Claude sent
+ * already in it — and does nothing else: the user reads it, tries it and publishes it themself. A no-UI trampoline, like
+ * the other buttons of the widget.
  *
  * Reading the code first is the job of the "</>" button next to it (CodeViewActivity); this one goes straight to the Store.
  *
- * The code also goes to the clipboard, always: if the address is too long for the Store to be opened on it, the app is
- * one paste away.
+ * The code also goes to the clipboard, always. An app too big for an address is over the Store's own limit (512 KB): the
+ * user is told so, and asks Claude for a smaller one.
  */
 class OpenStoreActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,8 +36,8 @@ class OpenStoreActivity : ComponentActivity() {
                 return@launch
             }
             copyToClipboard(this@OpenStoreActivity, sent.code)
-            val name = sent.name.removeSuffix(".app.html")
-            val url = storePublishUrl(name, sent.code)
+            val name = sent.name.removeSuffix(".app.html").removeSuffix(".aiwa.html")
+            val url = storePublishUrl(name, sent.code, sent.kind)
             startActivity(
                 Intent(this@OpenStoreActivity, StoreActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -45,8 +45,8 @@ class OpenStoreActivity : ComponentActivity() {
             )
             toastOnMain(
                 app,
-                if (url == null) "App « $name » copiée (trop grosse pour l'adresse) : dans le Store, onglet Publier, colle-la."
-                else "App « $name » envoyée à l'onglet Publier du Store : connecte ton wallet si besoin, essaie-la, puis prépare la soumission (code copié aussi).",
+                if (url == null) "App « $name » trop grosse pour être ouverte dans le Store (512 Ko au plus) : demande à Claude de la réduire."
+                else "App « $name » ouverte dans le Store : essaie-la, puis publie-la (code copié aussi).",
             )
             withContext(Dispatchers.IO) { try { bridge.sentAppSeen() } catch (err: Exception) { } }
             BackendSync.refresh(bridge)

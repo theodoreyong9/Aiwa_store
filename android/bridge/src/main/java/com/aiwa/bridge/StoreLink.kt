@@ -7,8 +7,8 @@ import java.util.zip.Deflater
 /** The Store's web app, as the Android app serves it from its own assets (StoreActivity). */
 const val STORE_APP_URL = "https://appassets.androidplatform.net/assets/web/index.html"
 
-// Well under what a WebView accepts in an address and what an Intent can carry (about 1 MB in all):
-// a file whose packed form is longer is only put on the clipboard.
+// Well under what a WebView accepts in an address and what an Intent can carry (about 1 MB in all). The Store's own limit
+// (512 KB of code) packs far below it; a file whose packed form is longer is over that limit anyway.
 private const val MAX_FRAGMENT_CHARS = 300_000
 
 // The name as the Store's fragment reader accepts it.
@@ -33,18 +33,20 @@ private fun pack(code: String): String? {
     return if (payload.length > MAX_FRAGMENT_CHARS) null else payload
 }
 
+// The kinds of app the Store takes: its code in the package ("code": one HTML file), or published through Aiwa ("aiwa").
+private val KINDS = setOf("code", "aiwa")
+
 /**
- * The address that makes the Store open its Publish tab with the app's name and code filled in —
- * and nothing else: reading it, trying it and pressing "Prepare submission", which signs with the
- * user's identity, stay theirs:
+ * The address that makes the Store open its publish sheet with the app's name and code in it — and nothing else: reading
+ * it, trying it and pressing Publish, which signs with the user's identity, stay theirs:
  *
- *     https://appassets.androidplatform.net/assets/web/index.html#publish=1;<name>;<code>
+ *     https://appassets.androidplatform.net/assets/web/index.html#publish=<kind>;<name>;<code>
  *
- * The code sits in the URL FRAGMENT, which is never sent anywhere. Null when the name is not a plain
- * file name or the packed app is too long for an address.
+ * The code sits in the URL FRAGMENT, which is never sent anywhere. Null when the name is not a plain file name, the kind
+ * is unknown, or the packed app is too long for an address.
  */
-fun storePublishUrl(name: String, code: String, base: String = STORE_APP_URL): String? {
-    if (!FRAGMENT_NAME.matches(name)) return null
+fun storePublishUrl(name: String, code: String, kind: String = "code", base: String = STORE_APP_URL): String? {
+    if (kind !in KINDS || !FRAGMENT_NAME.matches(name)) return null
     val payload = pack(code) ?: return null
-    return "$base#publish=1;$name;$payload"
+    return "$base#publish=$kind;$name;$payload"
 }

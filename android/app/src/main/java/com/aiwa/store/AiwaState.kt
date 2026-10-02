@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 19
+const val EXPECTED_BACKEND_VERSION = 20
 
 data class ModelChoice(val id: String?, val label: String)
 
@@ -46,8 +46,12 @@ val DEPLOY_CHOICES = listOf(
     ModelChoice("none", "Aucun déploiement"),
     ModelChoice("pages", "Site web — publié avec GitHub Pages"),
     ModelChoice("android", "Application Android — l'APK dans une release GitHub"),
-    ModelChoice("store", "Store Aiwa — une app écrite par Claude, que tu essaies et signes dans l'onglet Publier (rien sur GitHub)"),
+    ModelChoice("store", "Store Aiwa — une app écrite par Claude, que tu essaies puis publies depuis le Store (▦)"),
+    ModelChoice("aiwa", "App Aiwa — un contrat publié par Aiwa : GitHub n'en garde qu'un pointeur immuable"),
 )
+
+// The two modes that end with an app Claude sends to the phone, to be opened in the Store.
+fun deliversApp(deploy: String) = deploy == "store" || deploy == "aiwa"
 
 // The documents in the list the button next to the mic opens while the "Store" mode is on (id = address): the yellow
 // paper (the protocol's specification), its plain-words version, the plan of the version, the business model.

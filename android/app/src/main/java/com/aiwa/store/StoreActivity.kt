@@ -17,12 +17,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.aiwa.bridge.GitHubDeviceFlow
 import com.aiwa.bridge.STORE_APP_URL
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /**
@@ -34,12 +39,17 @@ import org.json.JSONObject
  * What the page may ask of the phone goes through ONE channel, a web message listener restricted to the page's own
  * origin: the sandboxed frame an app runs in has another (opaque) origin, so it can neither see this channel nor
  * use it (an object added with addJavascriptInterface would be injected in every frame, apps included).
- * The commands: "save" (a text file into Downloads), "dictation" (open the dictation module's screen, which is optional).
+ * The commands, each with the id the page gave it (the answer carries the same id):
+ *   "secret-get" / "secret-set" / "secret-delete"  the wallet's 12 words and the GitHub token, in the Keystore (SecretStore)
+ *   "github-login"  GitHub's device flow: the code to type is sent as progress, the token as the result
+ *   "save"          a text file into Downloads
+ *   "dictation"     open the dictation module's screen, which is optional
  *
  * Links that leave the Store open in the browser; the Store itself never navigates away.
  */
 class StoreActivity : ComponentActivity() {
     private lateinit var web: WebView
+    private val secrets by lazy { SecretStore(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,8 +90,8 @@ class StoreActivity : ComponentActivity() {
             }
         }
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
-            WebViewCompat.addWebMessageListener(web, "AiwaHost", setOf("https://appassets.androidplatform.net")) { _, message, _, isMainFrame, _ ->
-                if (isMainFrame) handle(message)
+            WebViewCompat.addWebMessageListener(web, "AiwaHost", setOf("https://appassets.androidplatform.net")) { _, message, _, isMainFrame, replyProxy ->
+                if (isMainFrame) handle(message, replyProxy)
             }
         }
 
@@ -106,11 +116,58 @@ class StoreActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    private fun handle(message: WebMessageCompat) {
+    private fun handle(message: WebMessageCompat, reply: JavaScriptReplyProxy) {
         val json = try { JSONObject(message.data ?: return) } catch (err: Exception) { return }
+        val id = json.optInt("id", 0)
         when (json.optString("cmd")) {
             "save" -> saveToDownloads(json.optString("name"), json.optString("mime", "application/json"), json.optString("text"))
             "dictation" -> startActivity(Intent(this, MainActivity::class.java))
+            "secret-get" -> respond(reply, id) { JSONObject().put("value", secrets.get(secretName(json)) ?: JSONObject.NULL) }
+            "secret-set" -> respond(reply, id) { secrets.set(secretName(json), json.getString("value")); JSONObject() }
+            "secret-delete" -> respond(reply, id) { secrets.delete(secretName(json)); JSONObject() }
+            "github-login" -> githubLogin(reply, id, json.optString("clientId"), json.optString("scope"))
+        }
+    }
+
+    private fun secretName(json: JSONObject): String {
+        val name = json.optString("key")
+        require(Regex("[a-z0-9-]{1,40}").matches(name)) { "not a name this app keeps secrets under" }
+        return name
+    }
+
+    // What goes back to the page, with the id it asked with: { id, result }, { id, error } or { id, progress }.
+    private fun post(reply: JavaScriptReplyProxy, id: Int, field: String, value: Any) {
+        val payload = JSONObject().put("id", id).put(field, value).toString()
+        runOnUiThread { reply.postMessage(payload) }
+    }
+
+    // A failure goes back as an error, never silently.
+    private fun respond(reply: JavaScriptReplyProxy, id: Int, work: () -> JSONObject) {
+        try { post(reply, id, "result", work()) } catch (err: Exception) { post(reply, id, "error", err.message ?: "failed") }
+    }
+
+    // GitHub's device flow, here because GitHub's login endpoints send no CORS headers: a web page cannot call them. The page
+    // is told the code to show (it is also copied, and github.com opened); the person types it once; the page then gets the token.
+    private fun githubLogin(reply: JavaScriptReplyProxy, id: Int, clientId: String, scope: String) {
+        if (!Regex("[A-Za-z0-9]{10,40}").matches(clientId) || scope != "public_repo") {
+            post(reply, id, "error", "not a GitHub application of this deployment")
+            return
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val flow = GitHubDeviceFlow()
+                val code = flow.start(clientId, scope)
+                runOnUiThread {
+                    copyToClipboard(this@StoreActivity, code.userCode)
+                    if (code.verificationUri.startsWith("https://github.com/")) {
+                        try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(code.verificationUri))) } catch (err: Exception) { }
+                    }
+                }
+                post(reply, id, "progress", JSONObject().put("userCode", code.userCode).put("verificationUri", code.verificationUri))
+                post(reply, id, "result", JSONObject().put("token", flow.awaitToken(clientId, code)))
+            } catch (err: Exception) {
+                post(reply, id, "error", err.message ?: "GitHub login failed")
+            }
         }
     }
 

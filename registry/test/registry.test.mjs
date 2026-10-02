@@ -341,4 +341,5 @@ test('the files of an app: an index, safe names, a size', async () => {
   assert.match(filesProblem([...FILES, FILES[0]]), /twice/);
   assert.match(filesProblem([{ path: 'index.html', content: 'x'.repeat(1100 * 1024) }]), /larger than 1024 KB/);
   assert.match(filesProblem([]), /no files/);
+  assert.match(filesProblem([{ path: 'index.html', content: '  \n' }]), /index\.html is empty/);
 });

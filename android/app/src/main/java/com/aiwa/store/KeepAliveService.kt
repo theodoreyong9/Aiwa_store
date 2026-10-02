@@ -115,7 +115,7 @@ class KeepAliveService : Service() {
     private fun cardFor(state: AiwaState): Card {
         val hasSession = state.cloudSessionId != null || state.lastSessionId != null
         val loginNeeded = state.claudeLogin == "needed"
-        val appReady = state.deploy == "store" && state.sentApp?.seen == false
+        val appReady = deliversApp(state.deploy) && state.sentApp?.seen == false
         val status = when {
             state.backend == "starting" -> "⏳ Démarrage du backend…"
             state.backend == "down" -> "⚠ Backend arrêté — relance en cours"
@@ -129,6 +129,7 @@ class KeepAliveService : Service() {
             "pages" -> "Deploy ●"
             "android" -> "Android ●"
             "store" -> "Store ●"
+            "aiwa" -> "Aiwa ●"
             else -> "Deploy ○"
         }
         val target: Class<*> = when {

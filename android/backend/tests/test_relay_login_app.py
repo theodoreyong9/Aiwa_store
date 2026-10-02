@@ -145,14 +145,45 @@ class Base(unittest.TestCase):
 
 
 class SentAppTests(Base):
-    """The "store" mode: Claude sends an app (one self-contained index.html, name.app.html)."""
+    """The "store" mode: Claude sends an app (one self-contained index.html, name.app.html). The "aiwa" mode: the same, name.aiwa.html."""
+
+    def test_an_app_of_the_aiwa_mode_is_kept_with_its_kind(self):
+        srv._app_received(self.app_event(name="vote.aiwa.html"))
+        self.assertEqual(srv._sent_app_snapshot()["name"], "vote.aiwa.html")
+        self.assertEqual(srv._sent_app_snapshot()["kind"], "aiwa")
+        self.assertEqual(srv._sent_app_code()["kind"], "aiwa")
+        srv._app_received(self.app_event("e2", name="plain.app.html"))
+        self.assertEqual(srv._sent_app_snapshot()["kind"], "code")
+
+    def test_a_file_without_a_known_name_takes_the_extension_of_the_mode(self):
+        srv.deploy_mode = "aiwa"
+        srv._app_received(self.app_event(name="upload.bin", code="<title>Show of hands</title><p>x"))
+        self.assertEqual(srv._sent_app_snapshot()["name"], "show-of-hands.aiwa.html")
+        srv.deploy_mode = "store"
+        srv._app_received(self.app_event("e2", name="upload.bin", code="<title>Show of hands</title><p>x"))
+        self.assertEqual(srv._sent_app_snapshot()["name"], "show-of-hands.app.html")
+
+    def test_the_relay_recognises_an_aiwa_file_by_its_name(self):
+        event = self.app_event("c3", name="vote.aiwa.html")
+        event.pop("title")
+        srv._relay_event(event)
+        self.assertTrue(wait_for(lambda: (srv._sent_app_snapshot() or {}).get("name") == "vote.aiwa.html"))
+
+    def test_the_aiwa_instruction_says_what_a_contract_app_is_and_where_the_sdk_is(self):
+        srv.deploy_mode = "aiwa"
+        text = dict(srv._instruction_lines(None, None, None, True))["deploy"]
+        for wanted in ("-T nom.aiwa.html", "Title: aiwa-app", f"{srv.NTFY_SERVER}/{srv.waiting_topic}", "Ne la pousse sur AUCUN dépôt",
+                       srv.AIWA_SDK_URL, "signedAction", "verifySignedAction", "DANS l'action", 'sandbox="allow-scripts"', "512 Ko",
+                       "aiwa-app-example.html", "pointeur", "immuable"):
+            self.assertIn(wanted, text)
+        self.assertIn("lib/aiwa.js", srv.AIWA_SDK_URL)
 
     def test_an_app_sent_with_curl_is_downloaded_and_kept(self):
         srv._app_received(self.app_event())
         self.assertEqual(srv._sent_app_snapshot()["name"], "demo-app.app.html")
         self.assertFalse(srv._sent_app_snapshot()["seen"])
         got = srv._sent_app_code()
-        self.assertEqual(got, {"ok": True, "name": "demo-app.app.html", "code": APP})
+        self.assertEqual(got, {"ok": True, "name": "demo-app.app.html", "kind": "code", "code": APP})
         self.assertEqual((srv.APP_DIR / "demo-app.app.html").read_text(), APP)
 
     def test_the_name_falls_back_to_the_title_of_the_page(self):
@@ -226,7 +257,7 @@ class SentAppTests(Base):
         text = dict(srv._instruction_lines(None, None, None, True))["deploy"]
         for wanted in ("-T nom.app.html", "Title: aiwa-app", f"{srv.NTFY_SERVER}/{srv.waiting_topic}", "Ne la pousse sur AUCUN dépôt",
                        # the app runs in an isolated frame: what that means for the file
-                       'sandbox="allow-scripts"', "512 Ko", "URL ABSOLUE", "localStorage", "store-app-example.html", "onglet Publier"):
+                       'sandbox="allow-scripts"', "512 Ko", "URL ABSOLUE", "localStorage", "store-app-example.html", "bouton ▦"):
             self.assertIn(wanted, text)
         self.assertIn("raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/", text)
         for mode in ("none", "pages", "android"):
@@ -320,7 +351,7 @@ class InstructionTests(Base):
         self.assertNotIn("Alerte (obligatoire)", update)
 
     def test_no_mention_of_anything_but_this_product(self):
-        for mode in ("none", "pages", "android", "store"):
+        for mode in ("none", "pages", "android", "store", "aiwa"):
             srv.deploy_mode = mode
             joined = " ".join(t for _, t in srv._instruction_lines("o/r", "w", "main", True)).lower()
             for old in ("yourmine", "sphère", "sphere", "aiwa_project", "jobber"):
@@ -667,6 +698,12 @@ class HttpTests(Base):
         self.assertEqual(self.call("/api/sent-app/code")["code"], APP)
         self.call("/api/sent-app/seen", "")
         self.assertTrue(self.call("/api/status")["sent_app"]["seen"])
+
+    def test_deploy_mode_aiwa_is_accepted_like_store(self):
+        self.call("/api/options", json.dumps({"deploy": "aiwa"}))
+        self.assertEqual(self.call("/api/status")["deploy"], "aiwa")
+        self.assertEqual(self.call("/api/status")["site"]["kind"], "store", "the widget treats both as an app to open in the Store")
+        self.call("/api/options", json.dumps({"deploy": "none"}))
 
     def test_deploy_mode_store_is_accepted_and_the_old_ones_are_not(self):
         self.call("/api/options", json.dumps({"deploy": "store"}))

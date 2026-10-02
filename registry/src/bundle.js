@@ -33,6 +33,7 @@ export function filesProblem(files) {
     bytes += utf8Length(file.content);
   }
   if (!seen.has(BUNDLE_LIMITS.entry)) return `The app has no ${BUNDLE_LIMITS.entry}`;
+  if (files.find((f) => f.path === BUNDLE_LIMITS.entry).content.trim() === '') return `${BUNDLE_LIMITS.entry} is empty`;
   if (bytes > BUNDLE_LIMITS.bytes) return `The files are larger than ${BUNDLE_LIMITS.bytes / 1024} KB`;
   return null;
 }

@@ -3,13 +3,14 @@ package com.aiwa.bridge
 // state: off (no repository), waiting (the address doesn't answer yet) or live.
 // kind: "site" (the GitHub Pages address), "apk" (the download address of the
 // Android APK, in the Android deploy mode) or "store" (no address: live means an app
-// sent by Claude has not been opened in the Store yet).
+// sent by Claude has not been opened in the Store yet; the "store" and "aiwa" modes both).
 data class SiteInfo(val url: String?, val state: String, val kind: String = "site")
 
-// What Claude sent to the phone (its source: ClaudeBridge.sentAppCode): an app for the Store
-// (name.app.html, one self-contained index.html). seen: it was opened in the Store's Publish tab already.
-data class SentApp(val name: String, val size: Int, val ts: Long, val seen: Boolean)
-data class SentAppCode(val name: String, val code: String)
+// What Claude sent to the phone (its source: ClaudeBridge.sentAppCode): an app for the Store, one self-contained index.html.
+// kind: "code" (name.app.html, its code travels in the package on GitHub) or "aiwa" (name.aiwa.html, published through Aiwa).
+// seen: it was opened in the Store's publish sheet already.
+data class SentApp(val name: String, val size: Int, val ts: Long, val seen: Boolean, val kind: String = "code")
+data class SentAppCode(val name: String, val code: String, val kind: String = "code")
 
 // The `claude auth login` the backend runs for the app. phase: idle / starting / url (the
 // page to open is there, a code is awaited) / checking / done / failed; message: what the

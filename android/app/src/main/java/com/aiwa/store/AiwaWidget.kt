@@ -131,6 +131,7 @@ private fun deployLabel(mode: String) = when (mode) {
     "pages" -> "Pages ▾"
     "android" -> "Android ▾"
     "store" -> "Store ▾"
+    "aiwa" -> "Aiwa ▾"
     else -> "Deploy ▾"
 }
 
@@ -220,8 +221,8 @@ private fun FullContent(state: AiwaState) {
     val needsSetup = !hasTermuxPermission(LocalContext.current)
     // The CLI is not logged in to a Claude account: nothing can be sent until it is.
     val needsLogin = state.claudeLogin == "needed"
-    // The "Store" mode ends with an app Claude sends to the phone: when it has come and was not opened yet, it is waiting.
-    val storeMode = state.deploy == "store"
+    // The "Store" and "Aiwa" modes end with an app Claude sends to the phone: when it has come and was not opened yet, it is waiting.
+    val storeMode = deliversApp(state.deploy)
     val storeReady = storeMode && state.sentApp?.seen == false
     // Claude's cloud environment does not reach the relay: the alert "Claude attend" can't come.
     val relayHint = state.relayCloud == "missing" && hasSession && !relayHintDismissed(LocalContext.current)
@@ -348,7 +349,7 @@ private fun FullContent(state: AiwaState) {
                 if (showStore) {
                     Spacer(GlanceModifier.width(GAP.dp))
                     // Orange = an app Claude sent is waiting; grey = none (yet). It opens the Store on
-                    // the Publish tab with the code in the field (OpenStoreActivity).
+                    // the publish sheet with the app in it (OpenStoreActivity).
                     RoundButton(
                         icon = R.drawable.ic_store,
                         description = "Ouvrir l'app dans le Store",
@@ -451,7 +452,7 @@ private fun CompactContent(state: AiwaState) {
     // sits there looks broken.
     val needsSetup = !hasTermuxPermission(LocalContext.current)
     val needsLogin = state.claudeLogin == "needed"
-    val storeMode = state.deploy == "store"
+    val storeMode = deliversApp(state.deploy)
     val storeReady = storeMode && state.sentApp?.seen == false
     val sessionLabel = when {
         needsSetup -> "Autoriser Aiwa"
