@@ -70,8 +70,12 @@ class StoreActivity : ComponentActivity() {
                 assets.shouldInterceptRequest(request.url)
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (request.url.host == "appassets.androidplatform.net") return false
-                try { startActivity(Intent(Intent.ACTION_VIEW, request.url)) } catch (err: Exception) { }
+                // A frame inside the page (an app in its sandbox) navigates as a browser frame does: it never makes the
+                // phone open anything. Only a link of the Store itself (the main frame) leaves for the browser, and only over https.
+                if (!request.isForMainFrame || request.url.host == "appassets.androidplatform.net") return false
+                if (request.url.scheme == "https") {
+                    try { startActivity(Intent(Intent.ACTION_VIEW, request.url)) } catch (err: Exception) { }
+                }
                 return true
             }
         }
