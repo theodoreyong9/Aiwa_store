@@ -15,4 +15,6 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      # the web app's tests run it in a real browser
+      - run: npx -w aiwa-store-web playwright install --with-deps chromium
       - run: npm test

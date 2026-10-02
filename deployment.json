@@ -1,9 +1,13 @@
 {
   "name": "Aiwa Store",
   "version": 1,
+  "repository": "theodoreyong9/Aiwa_store",
   "cluster": "devnet",
   "rpc": "https://api.devnet.solana.com",
   "registryUrl": "https://theodoreyong9.github.io/Aiwa_store/store",
+  "progress": {
+    "intervalMs": 30000
+  },
   "rewardParams": {
     "alpha": 1.1,
     "beta": 2.2,

@@ -1,0 +1,24 @@
+{
+  "name": "aiwa-store-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The store and the wallet, as one web app: list and open apps in a sandbox, hold an Aiwa wallet, publish. Runs in a browser and inside the Android app.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test",
+    "serve": "node build.mjs && npx http-server dist -p 8080 -c-1"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "aiwa-core": "^0.1.0",
+    "aiwa-lib": "^0.1.0",
+    "aiwa-registry": "^0.1.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12",
+    "playwright": "1.56.1"
+  }
+}

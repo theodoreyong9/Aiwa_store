@@ -1,0 +1,42 @@
+name: Pages
+# The site: the web app, and the registry's public files (store/index.json, store/apps/) next to it. Run after a push that
+# changes either, and by the registry workflow after it writes store/ (a push made with the workflow token starts no workflow).
+on:
+  push:
+    branches: [main]
+    paths: ['apps/web/**', 'packages/**', 'registry/**', 'deployment.json', 'store/index.json', 'store/apps/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run build -w aiwa-store-web
+      - name: The registry's public files, next to the app
+        run: |
+          mkdir -p apps/web/dist/store
+          cp store/index.json apps/web/dist/store/
+          cp -r store/apps apps/web/dist/store/ 2>/dev/null || true
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

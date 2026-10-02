@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#7c5cff">
+<meta name="description" content="An app store with an Aiwa wallet: apps open and run inside, sandboxed.">
+<title>Aiwa Store</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header class="bar">
+  <div class="brand"><span class="mark"></span>Aiwa Store</div>
+  <nav class="tabs" id="app-nav">
+    <button type="button" class="active" data-view="store">Store</button>
+    <button type="button" data-view="wallet">Wallet</button>
+    <button type="button" data-view="publish">Publish</button>
+  </nav>
+</header>
+<p class="note" id="handoff-note" hidden></p>
+
+<!-- ============ STORE ============ -->
+<main class="view" id="view-store" data-view="store">
+  <div class="line">
+    <input id="store-search" type="search" placeholder="Search apps" autocomplete="off" aria-label="Search apps">
+    <button id="store-refresh" class="icon" title="Refresh the list" aria-label="Refresh the list">↻</button>
+  </div>
+  <p class="muted" id="store-status"></p>
+  <div id="store-list"></div>
+  <p class="hint" id="store-empty" hidden>No app here yet. <a href="#" id="go-publish">Publish the first one.</a></p>
+  <p class="hint">Apps run in a sandbox: they cannot see your wallet. They are not reviewed; the list is ordered by what their authors have mined (<code>score / laps</code>).</p>
+</main>
+
+<!-- ============ WALLET ============ -->
+<main class="view" id="view-wallet" data-view="wallet" hidden>
+
+  <section class="card" id="connect-section">
+    <input id="mnemonic" type="text" placeholder="Recovery phrase (empty creates a new identity)" autocomplete="off" aria-label="Recovery phrase, optional">
+    <button id="btn-connect" class="primary wide">Connect</button>
+    <div class="muted">New here? Leave it empty: a 12-word recovery phrase is made for you and shown once you are connected. Write it down — it is the only way to log back in.</div>
+    <div id="connect-error" class="error"></div>
+  </section>
+
+  <div id="wallet-section" hidden>
+
+    <section class="card hero">
+      <div class="head"><span class="label">Spendable</span><button id="btn-disconnect" class="ghost sm">Disconnect</button></div>
+      <div class="num" id="out-spendable">—</div>
+      <div class="head">
+        <span class="sub">Claimable <b id="out-claimable">—</b> · Total <span id="out-balance">—</span></span>
+        <button id="btn-claim" class="light">Claim</button>
+      </div>
+      <div class="sub" id="out-mining">No burn yet</div>
+      <div id="sync-progress" hidden>
+        <div class="sub"><span>Catching up</span> <span id="sync-progress-label">—</span></div>
+        <div class="progress-bar"><div id="sync-progress-fill"></div></div>
+      </div>
+    </section>
+
+    <section class="card ids">
+      <div class="idrow"><span>Identity</span><code id="out-identity-id"></code><button type="button" class="icon" data-copy="out-identity-id">Copy</button></div>
+      <div class="idrow"><span>Solana</span><code id="out-address"></code><button type="button" class="icon" data-copy="out-address">Copy</button></div>
+    </section>
+
+    <section class="card" id="safety-card">
+      <h2>Recovery</h2>
+      <div id="safety-panel"></div>
+    </section>
+
+    <section class="card">
+      <div class="head"><h2>Burn</h2><span class="chip"><span id="out-sol-balance">— SOL</span><button id="btn-refresh-sol" class="icon" title="Refresh" aria-label="Refresh SOL balance">↻</button></span></div>
+      <div class="line">
+        <input id="burn-amount" type="number" step="0.001" min="0" inputmode="decimal" placeholder="SOL to burn" aria-label="SOL to burn">
+        <input id="burn-t" class="narrow" type="number" step="1" min="0" max="40" inputmode="numeric" placeholder="T %" aria-label="Patience rate T, in percent, 0 to 40">
+        <button id="btn-burn" class="primary">Burn</button>
+      </div>
+      <div id="burn-preview" class="muted"></div>
+      <div id="burn-result" class="muted"></div>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <h2>Send</h2>
+        <input id="send-to" type="text" placeholder="Recipient identity id" autocomplete="off" aria-label="Recipient identity id">
+        <div class="line">
+          <input id="send-amount" type="text" inputmode="decimal" placeholder="Amount" aria-label="Amount">
+          <button id="btn-send" class="primary">Send</button>
+        </div>
+        <div id="qr"></div>
+        <div id="send-share" class="line" hidden>
+          <button id="btn-share">Share</button>
+          <button id="btn-copy-blob">Copy</button>
+        </div>
+        <div id="send-result" class="muted"></div>
+      </section>
+
+      <section class="card">
+        <h2>Receive</h2>
+        <video id="scan-video" hidden playsinline muted></video>
+        <textarea id="receive-blob" rows="3" placeholder="Paste what you received" aria-label="Received code"></textarea>
+        <div class="line">
+          <button id="btn-scan">Scan QR</button>
+          <button id="btn-receive" class="primary">Receive</button>
+        </div>
+        <div id="receive-result" class="muted"></div>
+      </section>
+    </div>
+
+    <details class="card" id="history-section">
+      <summary>History</summary>
+      <div id="history-list"><p class="hint">Nothing yet.</p></div>
+    </details>
+
+  </div>
+</main>
+
+<!-- ============ PUBLISH ============ -->
+<main class="view" id="view-publish" data-view="publish" hidden>
+  <p class="hint" id="publish-hint">Connect your wallet first (Wallet tab): publishing is signed with your identity, and ranked by what you have mined.</p>
+  <div id="publish-section" hidden>
+    <section class="card">
+      <h2>Publish an app</h2>
+      <div class="line">
+        <input id="app-id" type="text" placeholder="id (a-z, 0-9, -)" autocomplete="off" aria-label="App id">
+        <input id="app-version" class="narrow" type="text" value="1.0.0" aria-label="Version">
+      </div>
+      <input id="app-name" type="text" placeholder="Name" aria-label="Name">
+      <input id="app-description" type="text" placeholder="One line about it" aria-label="Description">
+      <textarea id="app-html" rows="12" spellcheck="false" aria-label="index.html: one self-contained file that loads its own dependencies"></textarea>
+      <div class="line flow">
+        <button id="btn-try">Try it</button>
+        <button id="btn-prepare" class="primary">Prepare submission</button>
+      </div>
+      <div id="publish-result" class="muted"></div>
+      <div id="publish-next" hidden>
+        <div class="line flow">
+          <button id="btn-download" class="primary">Download submission.json</button>
+          <button id="btn-copy-submission">Copy</button>
+          <a id="link-pr" class="button" href="#" target="_blank" rel="noopener">Open a pull request</a>
+        </div>
+        <p class="muted" id="publish-steps"></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Refresh my ranking</h2>
+      <div class="line">
+        <input id="refresh-id" type="text" placeholder="id of one of your apps" autocomplete="off" aria-label="App id to refresh">
+        <button id="btn-refresh-prepare">Prepare</button>
+      </div>
+      <p class="muted">Re-reads what you can claim and the epochs since your last action, for one app. Same pull request, no new content.</p>
+      <div id="refresh-result" class="muted"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="foot">
+  <a id="link-source" href="#" target="_blank" rel="noopener">Source</a>
+  <a id="link-yellowpaper" href="#" target="_blank" rel="noopener">Yellow paper</a>
+</footer>
+
+</div><!-- /.wrap -->
+
+<!-- the viewer an app opens in -->
+<div id="viewer" hidden>
+  <div class="viewer-bar">
+    <div class="viewer-title"><b id="viewer-name"></b> <span class="muted" id="viewer-meta"></span></div>
+    <button id="viewer-close" class="sm">Close</button>
+  </div>
+  <div id="viewer-frame-host"></div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

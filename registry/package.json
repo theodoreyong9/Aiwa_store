@@ -6,7 +6,9 @@
   "license": "MIT",
   "exports": {
     ".": "./src/index.js",
-    "./app-package": "./src/app-package.js"
+    "./app-package": "./src/app-package.js",
+    "./rank": "./src/rank.js",
+    "./reward-params": "./src/reward-params.js"
   },
   "scripts": {
     "test": "node --test",

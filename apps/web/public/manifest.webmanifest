@@ -1,0 +1,14 @@
+{
+  "name": "Aiwa Store",
+  "short_name": "Aiwa Store",
+  "description": "An app store with an Aiwa wallet: apps open and run inside, sandboxed.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#100e1c",
+  "theme_color": "#7c5cff",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -4,3 +4,4 @@ build/
 .gradle/
 *.log
 .DS_Store
+dist/
