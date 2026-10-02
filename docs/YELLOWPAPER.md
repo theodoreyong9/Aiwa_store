@@ -473,9 +473,9 @@ fee, unless the fee of §7.3 is covered too.
 - A domain points at a burn with a `burn-record` event — `{ domain, signature }`, the Solana signature and nothing
   else. The reducer does not read what the burn was worth from the event, and never reaches Solana: it reads the
   record **the reader fetched itself** (`fetchBurnRecord`: the FINALIZED transaction), and counts the burn for $D$
-  only if that record is error-free, positive, sent to the incinerator (and, with a creator fee, the creator address —
-  §7.3), **paid by $D$'s own key** (a domain id is the hash of the key that is also its Solana address) and really
-  spent by that payer. One signature counts once.
+  only if that record is error-free, positive, sent to the incinerator, **paid by $D$'s own key** (a domain id is
+  the hash of the key that is also its Solana address) and really spent by that payer. With a creator fee, what the
+  creator address received in the same transaction is recorded too (§7.3). One signature counts once.
   Quoting someone else's signature earns nothing.
 - Deterministic *per reader*, like the rest of validity (§11): the same log folded with different confirmed
   records gives different — each correct — results. A reader that cannot reach Solana confirms nothing, so credits
