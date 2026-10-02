@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
  * The one-time set-up, without opening the app. Asked for: the permission that lets
  * Aiwa start the backend in Termux used to be requested only when the Aiwa app was
  * opened. Two ways in, both from the widget:
- *  - the widget's CONFIGURATION activity (android:configure in aiwa_widget_info.xml):
+ *  - the widget's CONFIGURATION activity (android:configure in dictation_widget_info.xml):
  *    the launcher opens this by itself right after the widget is put on the screen;
  *  - the widget itself, which says "Autoriser Aiwa" and opens this on a tap while the
  *    Termux permission is missing (a widget already on the screen when it was added).

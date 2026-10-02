@@ -32,7 +32,7 @@ import com.aiwa.bridge.LocalClaudeBridge
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.sample
 
-// ONE shape, not resizable (aiwa_widget_info.xml): four bands sharing the whole
+// ONE shape, not resizable (dictation_widget_info.xml): four bands sharing the whole
 // height on a dark gradient card — the session (the logo that opens the
 // app, the name, what is going on, the round Claude button), repository and model, Push / Deploy / site / Actions,
 // and the big grey dictation button with its red dot. FullContent below. What
@@ -175,7 +175,7 @@ private fun RoundButton(icon: Int, description: String, background: ColorProvide
 
 @Composable
 private fun Content(state: AiwaState) {
-    // The widget has ONE shape (not resizable, see aiwa_widget_info.xml): four bands
+    // The widget has ONE shape (not resizable, see dictation_widget_info.xml): four bands
     // that share the whole height, so there is never an empty strip. The compact
     // two-row layout below is only a safety net for a launcher whose cells are so
     // small that four bands would not fit.

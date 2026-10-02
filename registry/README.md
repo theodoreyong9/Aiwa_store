@@ -38,7 +38,7 @@ A **refresh** is a request, signed by the author, to re-read the ranking figure 
 
 ## The ranking
 
-`score / laps` (`src/rank.js`) — the ranking the YourMine registry has always used, taken over as it is. `score` is what the
+`score / laps` (`src/rank.js`) — the ranking this project's apps have always been ordered by, taken over as it is. `score` is what the
 author can claim and `laps` the epochs since their last action (both from `aiwa-core`'s `rankingFigure`), **frozen when
 the registry accepted the submission** or last refreshed it. Ties go to the app published first. No editorial override, no
 other term.

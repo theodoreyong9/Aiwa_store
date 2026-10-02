@@ -1,4 +1,4 @@
-// The store's ranking: score / laps, as the YourMine registry has always ranked — the figure an author's mining
+// The store's ranking: score / laps — the ranking this project's apps have always been ordered by, taken over as it is: the figure an author's mining
 // state gives (aiwa-core's rankingFigure): `score` is what the author can claim, `laps` the epochs since the last
 // action, both frozen at the moment the registry accepted the submission. No editorial override, no other term.
 

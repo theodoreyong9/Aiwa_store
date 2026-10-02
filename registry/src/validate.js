@@ -10,7 +10,7 @@
 // registry kept, and requires the witnesses other wallets hold. What stays here is the store's policy: who may publish
 // what, and the permission ratio.
 //
-// The permission ratio (the one YourMine's registry applied): a NEW app is accepted only if the author's current
+// The permission ratio (taken over with the ranking): a NEW app is accepted only if the author's current
 // score / laps is not below that of the author's last publication — what an author gets to publish does not shrink
 // with what the author has contributed. A first publication is free of it. An update of an app needs only ownership.
 //

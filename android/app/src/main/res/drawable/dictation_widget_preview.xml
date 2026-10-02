@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- What the launcher's widget picker shows next to the other widgets on
-     Android 11 and below (Android 12+ renders aiwa_widget_preview.xml
+     Android 11 and below (Android 12+ renders dictation_widget_preview.xml
      instead). Shapes only — a vector cannot hold text — laid out like the real
      widget's four bands: session with the orange Claude button, repository and
      model, Push / Deploy / site / Actions, and the big dictation button with its
