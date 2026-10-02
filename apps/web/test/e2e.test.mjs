@@ -787,7 +787,7 @@ test('click duel: two phones link by two codes, click for 20 seconds, and the on
 
 test('scanning: the page opens the camera, reads the code it shows, and hands the text to the app', async () => {
   const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
-  await fundInPage(page, { epoch: 1 });
+  await mineInPage(page, { epoch: 1 });                  // the sheet that opens an app needs a wallet, not money
   const frame = await tryApp(page, 'Scanner', doorProbe(true, "const read = await door('scanCode', { title: 'Scan it' }); out(read.error ? 'error: ' + read.error : read.result);"));
   await page.waitForSelector('#door-scan:not([hidden])');
   const text = await until(() => frame.locator('#r').textContent().then((t) => t !== '…' && t), { ms: 20000, what: 'the camera to be read' });
