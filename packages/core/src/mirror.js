@@ -1,16 +1,14 @@
-// A mandatory, signed, per-epoch commitment to what a domain has (or
-// has not) received from other domains. Two properties:
+// The Mirror: a signed, per-epoch commitment to what a domain has (or has not) received from other domains.
 //
-// - recurring cost: a signed commitment at every progression epoch,
-// empty or full, turns identity maintenance into an ongoing cost,
-// not a one-time registration burn.
-// - reception monotonicity: a domain's own successive claims about
-// what it has seen of another domain must never go backwards.
+// - Recurring cost: a signed commitment at every progression epoch, empty or full, makes keeping an identity an
+//   ongoing cost rather than a one-time registration burn.
+// - Reception monotonicity: a domain's successive claims about what it has seen of another domain never go backwards.
 //
-// Explicitly does not prove two domains are distinct entities
-// (identity-cost.js's job) or rule out a collaborating pair
-// fabricating a consistent history together — no purely relational
-// mechanism, with no external anchor, can.
+// It does not prove two domains are distinct entities (identity-cost.js), nor rule out a colluding pair fabricating a
+// consistent history together: no purely relational mechanism with no external anchor can.
+
+import { toHex, fromHex, sha256Hex } from './bytes.js';
+import { signHex, verifyHex } from './signing.js';
 
 export function initialMirrorState() {
   return { commitments: {}, maxSeenEpoch: {}, rejections: [] };
@@ -21,43 +19,19 @@ export function canonicalReceptionMessage({ domain, epoch, kind, receivedFrom })
   return JSON.stringify({ domain, epoch, kind, receivedFrom: sorted });
 }
 
-function toHex(bytes) {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-// A signed reception commitment — this domain really attesting
-// to what it has really observed of `sourceDomain`'s own progression,
-// after really importing it. `epoch` is this domain's own current
-// commitment sequence number, never the observed domain's. The
-// caller wraps the returned payload into a 'reception' event
-// (type + this payload) and appends it — this module never touches an
-// EventLog directly.
+// A signed reception commitment: this domain attesting to what it really observed of `sourceDomain`'s progression,
+// after importing it. `epoch` is this domain's own commitment sequence number, never the observed domain's. The
+// caller wraps the returned payload into a 'reception' event and appends it.
 export async function buildReceptionCommitment(keypair, domain, epoch, sourceDomain, sourceEventIds) {
-  const { ed25519 } = await import('@noble/curves/ed25519.js');
   const receivedFrom = sourceEventIds.map((eventId) => ({ sourceDomain, eventId }));
   const fields = { domain, epoch, kind: 'full', receivedFrom };
-  const message = new TextEncoder().encode(canonicalReceptionMessage(fields));
-  const signature = ed25519.sign(message, keypair.secretKey.slice(0, 32));
-  return { ...fields, signature: toHex(signature), signerPubkey: toHex(keypair.publicKey.toBytes()) };
+  const signature = signHex(new TextEncoder().encode(canonicalReceptionMessage(fields)), keypair.secretKey.slice(0, 32));
+  return { ...fields, signature, signerPubkey: toHex(keypair.publicKey.toBytes()) };
 }
 
 async function verifyCommitmentSignature(payload) {
-  const { ed25519 } = await import('@noble/curves/ed25519.js');
-  const { deriveId } = await import('./identity.js');
-  const fromHex = (hex) => {
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-    return bytes;
-  };
-  const message = new TextEncoder().encode(canonicalReceptionMessage(payload));
-  let valid;
-  try {
-    valid = ed25519.verify(fromHex(payload.signature), message, fromHex(payload.signerPubkey));
-  } catch {
-    return false;
-  }
-  if (!valid) return false;
-  return (await deriveId(fromHex(payload.signerPubkey))) === payload.domain;
+  if (!verifyHex(new TextEncoder().encode(canonicalReceptionMessage(payload)), payload.signature, payload.signerPubkey)) return false;
+  return (await sha256Hex(fromHex(payload.signerPubkey))) === payload.domain;
 }
 
 function reject(state, eventId, domain, reason) {

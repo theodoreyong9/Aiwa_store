@@ -5,26 +5,19 @@ import { deriveId } from '../src/identity.js';
 import { initialWalletState, applyWalletEvent } from '../src/wallet.js';
 import { withConfirmedBurns, buildSignedAccrualEvent } from '../src/accrual.js';
 import { SOLANA_INCINERATOR_ADDRESS, identityCostFromBurns } from '../src/identity-cost.js';
-import { base58Decode, normalizeBurnTransaction, fetchBurnRecord, verifyBurnRecordFor } from '../src/burn-record.js';
+import { normalizeBurnTransaction, fetchBurnRecord, verifyBurnRecordFor } from '../src/burn-record.js';
+import { base58Decode } from '../src/base58.js';
 import { serializeWalletState, deserializeWalletState } from '../src/checkpoint.js';
 import { computeVdfChain, vdfSeed } from '../src/vdf.js';
 import { buildSignedProgressionEvent } from '../src/progression.js';
 import { buildSignedClaimEvent, claimableNow } from '../src/accrual.js';
 import { buildSignedTransferEvent, spendableClaims } from '../src/wallet.js';
 import { fromUnits } from '../src/units.js';
+import { base58Encode } from '../src/base58.js';
 
 // The genesis commitment (yellow paper §8), enforced: a domain's committed capital b may not exceed what burns
 // THE READER confirmed for it. Mandatory unless the deployment says rewardParams.commitmentBacking = 'none'.
 const base = { alpha: 1.1, beta: 2.2, gamma: 3, C: Math.pow(33, 3), minQ: 1 };
-const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-function base58Encode(bytes) {
-  let n = 0n;
-  for (const b of bytes) n = n * 256n + BigInt(b);
-  let out = '';
-  while (n > 0n) { out = ALPHABET[Number(n % 58n)] + out; n /= 58n; }
-  for (const b of bytes) { if (b === 0) out = '1' + out; else break; }
-  return out;
-}
 
 async function person() {
   const seed = ed25519.utils.randomSecretKey();

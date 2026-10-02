@@ -25,7 +25,8 @@
 // refused for good once its other history is witnessed.
 
 import { assessMining } from './mining-state.js';
-import { fetchBurnRecord, base58Decode } from './burn-record.js';
+import { fetchBurnRecord } from './burn-record.js';
+import { base58Decode } from './base58.js';
 import { serializeWalletState, deserializeWalletState } from './checkpoint.js';
 import { verifyEvent } from './event.js';
 import { signatureAuthentic } from './triangulation.js';

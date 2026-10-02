@@ -12,30 +12,10 @@
 // separate derivation.
 
 import { SOLANA_INCINERATOR_ADDRESS } from './identity-cost.js';
+import { toHex } from './bytes.js';
+import { base58Encode } from './base58.js';
 
 const PBKDF2_ITERATIONS = 200_000;
-const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-
-// Verified against the standard 'Hello World!' -> '2NEpo7TZRRrLZSi2U' test
-// vector before use — never trusted on first write.
-function base58Encode(bytes) {
-  if (bytes.length === 0) return '';
-  let zeros = 0;
-  while (zeros < bytes.length && bytes[zeros] === 0) zeros++;
-  let num = 0n;
-  for (const b of bytes) num = (num << 8n) | BigInt(b);
-  let result = '';
-  while (num > 0n) {
-    const rem = num % 58n;
-    num /= 58n;
-    result = BASE58_ALPHABET[Number(rem)] + result;
-  }
-  return '1'.repeat(zeros) + result;
-}
-
-function toHex(bytes) {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 // A minimal, Solana-Keypair-SHAPED object — sufficient for
 // identity derivation and display — generated using only

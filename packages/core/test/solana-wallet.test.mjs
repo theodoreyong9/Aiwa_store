@@ -204,7 +204,7 @@ test('generateBip39Mnemonic: a fresh valid phrase (12 words by default, 24 on re
 });
 
 test('base58Encode is the inverse of base58Decode, keeps leading zero bytes, and writes a secret key the way Solana wallets do', async () => {
-  const { base58Encode, base58Decode } = await import('../src/burn-record.js');
+  const { base58Encode, base58Decode } = await import('../src/base58.js');
   assert.equal(base58Encode(new TextEncoder().encode('Hello World!')), '2NEpo7TZRRrLZSi2U', 'the reference vector');
   assert.deepEqual(base58Decode(base58Encode(Uint8Array.from([0, 0, 1, 2, 255]))), Uint8Array.from([0, 0, 1, 2, 255]));
   assert.equal(base58Encode(new Uint8Array(0)), '');

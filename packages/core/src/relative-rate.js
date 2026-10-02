@@ -1,32 +1,15 @@
-// A domain's own VDF-verified progression epoch (progression.js)
-// is already an unfakeable marker of how much sequential work
-// it has done — the exact same security property the whole
-// system already relies on everywhere else. This file uses that
-// existing marker for something new: a signed statement of
-// "at MY OWN epoch X, I observed target domain Y at their epoch Z" —
-// never a clock reading, never a timestamp, never anything measuring
-// or declaring elapsed time in any unit. Two such real,
-// successive statements from the SAME observer about the SAME
-// target let anyone compute a purely structural ratio — no
-// clock consulted anywhere, by any party, at any point.
+// A domain's VDF-verified progression epoch (progression.js) already marks how much sequential work it has done.
+// This file uses that marker for a signed statement: "at MY OWN epoch X, I observed target domain Y at their epoch Z".
+// Never a clock reading or a duration in any unit: two successive statements from the same observer about the same
+// target give a purely structural ratio, with no clock consulted by any party.
 //
-// This is deliberately kept fully separate from mirror.js's own real
-// reception commitments — it never touches that already-tested
-// structure, and is itself purely informational: it never gates,
-// corrects, or bounds anything a domain can claim (matching
-// causal-tick.js's own established principle).
+// Kept separate from mirror.js's reception commitments, and purely informational: it never gates, corrects or
+// bounds what a domain can claim (as in causal-tick.js).
 
-import { ed25519 } from '@noble/curves/ed25519.js';
 import { weightedMedian } from './weighted-median.js';
+import { toHex, fromHex } from './bytes.js';
+import { signHex, verifyHex } from './signing.js';
 
-function toHex(bytes) {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-function hexToBytes(hex) {
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return out;
-}
 function canonicalWitnessMessage({ observer, observerEpoch, target, targetEpoch, sourceEventId }) {
   return JSON.stringify({ observer, observerEpoch, target, targetEpoch, sourceEventId });
 }
@@ -40,9 +23,8 @@ function canonicalWitnessMessage({ observer, observerEpoch, target, targetEpoch,
  */
 export async function buildRateWitness(keypair, observer, observerEpoch, target, targetEpoch, sourceEventId) {
   const fields = { observer, observerEpoch, target, targetEpoch, sourceEventId };
-  const message = new TextEncoder().encode(canonicalWitnessMessage(fields));
-  const signature = ed25519.sign(message, keypair.secretKey.slice(0, 32));
-  return { ...fields, signature: toHex(signature), signerPubkey: toHex(keypair.publicKey.toBytes()) };
+  const signature = signHex(new TextEncoder().encode(canonicalWitnessMessage(fields)), keypair.secretKey.slice(0, 32));
+  return { ...fields, signature, signerPubkey: toHex(keypair.publicKey.toBytes()) };
 }
 
 /**
@@ -53,8 +35,7 @@ export async function buildRateWitness(keypair, observer, observerEpoch, target,
 export function verifyRateWitness(witness) {
   try {
     const { observer, observerEpoch, target, targetEpoch, sourceEventId, signature, signerPubkey } = witness;
-    const message = new TextEncoder().encode(canonicalWitnessMessage({ observer, observerEpoch, target, targetEpoch, sourceEventId }));
-    return ed25519.verify(hexToBytes(signature), message, hexToBytes(signerPubkey));
+    return verifyHex(new TextEncoder().encode(canonicalWitnessMessage({ observer, observerEpoch, target, targetEpoch, sourceEventId })), signature, signerPubkey);
   } catch {
     return false;
   }

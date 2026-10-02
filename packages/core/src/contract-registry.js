@@ -16,16 +16,10 @@
 // there is no single "true" token contract on any existing chain.
 
 import { createEvent } from './event.js';
-
-function toHex(bytes) {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+import { sha256Hex } from './bytes.js';
 
 /** The content-derived hash of a contract's own source. */
-export async function computeContractHash(sourceCode) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sourceCode));
-  return toHex(new Uint8Array(digest));
-}
+export const computeContractHash = (sourceCode) => sha256Hex(sourceCode);
 
 /**
  * Publishes a `contract-spec` event to `log` (an event-log.js

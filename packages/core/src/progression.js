@@ -1,54 +1,13 @@
-// A domain's own progression epoch advances only through a valid
-// transition: monotonic (+1 exactly), causally chained to the domain's
-// last accepted transition, carrying a sequential VDF proof (see
-// vdf.js) — bounding the RATE of advancement, not calendar time — AND,
-// like every other event type that changes a domain's own economic
-// state, an Ed25519 signature proving the signer controls
-// `domain`.
+// A domain's progression advances only through a valid transition: monotonic, carrying a sequential proof of work
+// (vdf.js, succinct-vdf.js) that bounds the RATE of advancement rather than calendar time, and signed by the key
+// that owns the domain. The proof alone proves nothing about who submitted it (its seed is public), so without the
+// signature anyone could advance a domain's age, and permanently lower its own future reward.
 //
-// THE GAP THIS CLOSES, found the same way accrual.js's own
-// 'claim'/'accrual' gap was: the VDF proof alone is NOT a proof
-// of who submitted it — vdfSeed(domain, previousOutput) is a public,
-// deterministic function of values already visible to anyone watching
-// the log, so anyone (not just the domain owner) can compute the exact
-// same next-epoch vdfOutput and publish it as a 'progression' event
-// naming that domain. Not a theft — the resulting epoch is exactly
-// what the owner's own hardware would have produced — but it lets
-// anyone advance a domain's own qTotal (domainAge, reward.js's own
-// denominator reference) without consent, at zero cost to themselves
-// beyond the sequential VDF work. Verified directly against
-// reward.js's own formula: reward(b=100, q=1, qTotal, T=0) drops
-// from ~0.087 at qTotal=1 to ~0.0097 at qTotal=20000 — a real,
-// permanent, roughly 9x griefing reduction in a domain's own future
-// reward per accrual, since domainAge never resets. Signer-scoped from
-// here on, mirroring accrual.js's own buildSignedAccrualEvent/
-// verifyAccrualAuthorization exactly (adapt-event.js's own
-// toReducerEvent strips the outer event envelope's `author`
-// before any reducer ever sees it, by design — see its own header —
-// so this embeds its own inner signature the identical way).
-//
-// Events here use this package's own internal convention: {id,
-// parents, payload}, with payload.type — see adapt-event.js for the
-// bridge from event.js's own wire event shape.
+// Events use this package's internal shape {id, parents, payload}; adapt-event.js bridges from the wire event.
 
 import { vdfSeed, verifyVdfChain } from './vdf.js';
 import { verifySuccinctEpochs } from './succinct-vdf.js';
-import { deriveId } from './identity.js';
-
-function toHex(bytes) {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-function fromHex(hex) {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return bytes;
-}
-
-// `previous` (the mining event this one follows — see progressionSeed) is signed when present; JSON.stringify leaves an
-// undefined one out, so an event without it keeps the bytes it always had.
-function canonicalProgressionMessage({ domain, epoch, vdfIterations, vdfOutput, nonce, timestamp, previous }) {
-  return JSON.stringify({ domain, epoch, vdfIterations, vdfOutput, nonce, timestamp, previous });
-}
+import { ACTIONS, signAction, verifyAction } from './signing.js';
 
 /**
  * Where the work of a work-bound progression event starts: the domain, its previous output, AND the mining event
@@ -63,68 +22,31 @@ export function progressionSeed(domain, previousOutput, previous) {
   return `${vdfSeed(domain, previousOutput ?? 'genesis')}:${previous ?? 'none'}`;
 }
 
-/** A domain-owner-signed progression transition — the only way a 'progression' event now passes applyProgressionEvent's own authorization check. */
-export async function buildSignedProgressionEvent(fields, signerSeed, signerPubkeyBytes, { now = Date.now(), nonce = crypto.randomUUID() } = {}) {
-  const { ed25519 } = await import('@noble/curves/ed25519.js');
-  const withMeta = { ...fields, nonce, timestamp: now };
-  const signature = ed25519.sign(new TextEncoder().encode(canonicalProgressionMessage(withMeta)), signerSeed);
-  return { ...withMeta, signerPubkey: toHex(signerPubkeyBytes), signature: toHex(signature) };
-}
+/** A domain-signed progression transition: the only kind applyProgressionEvent accepts. */
+export const buildSignedProgressionEvent = (fields, signerSeed, signerPubkeyBytes, options) =>
+  signAction(ACTIONS.progression, fields, signerSeed, signerPubkeyBytes, options);
 
-/** True only if the payload carries a valid signature by the key whose id IS its `domain` — the same check applyProgressionEvent applies. */
-export async function verifyProgressionAuthorization(payload) {
-  const { ed25519 } = await import('@noble/curves/ed25519.js');
-  const { domain, epoch, vdfIterations, vdfOutput, nonce, timestamp, previous, signerPubkey, signature } = payload;
-  if (typeof signerPubkey !== 'string' || typeof signature !== 'string') return false;
-  if ((await deriveId(fromHex(signerPubkey))) !== domain) return false; // only the domain's key can advance its own progression
-  try {
-    return ed25519.verify(fromHex(signature), new TextEncoder().encode(canonicalProgressionMessage({ domain, epoch, vdfIterations, vdfOutput, nonce, timestamp, previous })), fromHex(signerPubkey));
-  } catch {
-    return false;
-  }
-}
+/** True only if the payload carries a valid signature by the key whose id IS its `domain`. */
+export const verifyProgressionAuthorization = (payload) => verifyAction(ACTIONS.progression, payload);
 
 export function initialProgressionState() {
   return { domains: {}, rejections: [] };
 }
 
 /**
- * The parent set a NEW progression event for a domain must declare.
- *
- * applyProgressionEvent's own causal-chain check below requires the
- * domain's last accepted progression event id to be a DIRECT parent —
- * not just a transitive ancestor. `heads` (a log's own current heads,
- * the parents every other event builder in this codebase uses)
- * only satisfies that for free when nothing else was published for
- * this domain since the last progression tick. The moment any other
- * event (an accrual, a claim, a checkpoint...) becomes the sole head in
- * between — a completely ordinary sequence, e.g. recordCommitment()
- * right before advanceProgress() — `heads` alone silently drops the
- * chain, and every progression event from then on is permanently
- * rejected as "not chained", since the reducer's own lastId can then
- * never again match a parent.
- *
- * fix, not a verification workaround: a progression event
- * does have two causal dependencies — the log's current
- * tip, AND its own type's last accepted transition — so it should
- * honestly declare both as parents (a merge, not a forced choice).
- * Any progression-event builder should route its parents through
- * this, rather than reimplementing the same rule.
+ * The parents a NEW progression event must declare. The domain's last accepted progression event has to be a DIRECT
+ * parent, but a log's heads only include it when nothing else was appended since (an accrual, a claim, a checkpoint
+ * make another event the sole head, and the chain would then be lost for good). The event honestly depends on both
+ * the log's tip and its own type's last transition, so it names both.
  */
 export function progressionParents(heads, lastId) {
   return lastId && !heads.includes(lastId) ? [...heads, lastId] : heads;
 }
 
-// verifyFn defaults to the main-thread verifyVdfChain — every
-// existing call site, and this project's own Node-based test suite,
-// keeps working unchanged. A caller with access to a worker
-// thread (catching up on a possibly large backlog) can inject a
-// worker-backed verifier instead, so that even this one-time catch-up
-// work never has to run on the same thread that also needs to render
-// and handle input.
-// `chainHead` (work-bound deployments): the id of the domain's last mining event as the caller folded it — accrual.js
-// passes it. A caller that folds progression events alone (a replay) leaves it out: `previous` is then taken as the
-// event states it, and the work still has to start from it.
+// `verifyFn` defaults to the main-thread verifyVdfChain; a caller catching up on a large backlog can inject a
+// worker-backed one. `chainHead` (work-bound deployments): the id of the domain's last mining event as the caller
+// folded it (accrual.js passes it); a caller folding progression events alone leaves it out, and `previous` is taken
+// as the event states it.
 export async function applyProgressionEvent(state, event, verifyFn = verifyVdfChain, { epochIterations, chainHead } = {}) {
   verifyFn ??= verifyVdfChain;
   const payload = event.payload;

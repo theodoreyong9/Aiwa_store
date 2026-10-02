@@ -10,22 +10,17 @@ import { normalizeBurnTransaction } from '../src/burn-record.js';
 import { SOLANA_INCINERATOR_ADDRESS } from '../src/identity-cost.js';
 import { assessMining, miningState, rankingFigure } from '../src/mining-state.js';
 import { serializeWalletState, deserializeWalletState } from '../src/checkpoint.js';
+import { base58Encode } from '../src/base58.js';
+import { fromHex } from '../src/bytes.js';
 
 // What a validator does with a domain's events: derive the mining state and the ranking figure, trusting nothing the
 // domain says — not its age, not its burn, not its score.
 const EI = 120;
 const params = { alpha: 1.1, beta: 2.2, gamma: 3, C: Math.pow(33, 3), minQ: 1, epochIterations: EI };
 
-const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-function base58(hex) {
-  let x = BigInt('0x' + hex);
-  let out = '';
-  while (x > 0n) { out = ALPHABET[Number(x % 58n)] + out; x /= 58n; }
-  return out;
-}
 const burnRecord = (who, lamports, signature) => normalizeBurnTransaction({
   slot: 9,
-  transaction: { message: { accountKeys: [base58(who.publicKey), SOLANA_INCINERATOR_ADDRESS] } },
+  transaction: { message: { accountKeys: [base58Encode(fromHex(who.publicKey)), SOLANA_INCINERATOR_ADDRESS] } },
   meta: { err: null, fee: 5000, preBalances: [50e9, 0], postBalances: [50e9 - lamports - 5000, lamports] },
 }, signature);
 

@@ -7,6 +7,8 @@ import { buildSignedProgressionEvent, progressionSeed } from '../src/progression
 import { buildSignedAccrualEvent } from '../src/accrual.js';
 import { SOLANA_INCINERATOR_ADDRESS } from '../src/identity-cost.js';
 import { assessSubmission, ingestWitnesses, mergeWitnessStore, domainOfAddress } from '../src/submission.js';
+import { base58Encode } from '../src/base58.js';
+import { fromHex } from '../src/bytes.js';
 
 // What an app does with the evidence a wallet hands it — a registry, a leaderboard — with nothing of its own but
 // storage: the evidence is verified, the burns are the reader's, the baseline is continued, and what OTHER wallets hold
@@ -14,18 +16,11 @@ import { assessSubmission, ingestWitnesses, mergeWitnessStore, domainOfAddress }
 const EI = 100;
 const params = { alpha: 1.1, beta: 2.2, gamma: 3, C: Math.pow(33, 3), minQ: 1, epochIterations: EI };
 
-const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-function base58(hex) {
-  let x = BigInt('0x' + hex);
-  let out = '';
-  while (x > 0n) { out = ALPHABET[Number(x % 58n)] + out; x /= 58n; }
-  return out;
-}
 async function person() {
   const who = await generateIdentity();
   who.secretKeyBytes = Uint8Array.from(Buffer.from(who.secretKey ?? who._secretKey ?? '', 'hex'));
   who.publicKeyBytes = Uint8Array.from(Buffer.from(who.publicKey, 'hex'));
-  who.address = base58(who.publicKey);
+  who.address = base58Encode(fromHex(who.publicKey));
   return who;
 }
 // Solana, as far as a reader asks: the finalized transaction of a burn. `asked` counts the questions.

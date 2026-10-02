@@ -10,6 +10,7 @@ import { serializeWalletState, deserializeWalletState } from '../src/checkpoint.
 import { normalizeBurnTransaction } from '../src/burn-record.js';
 import { SOLANA_INCINERATOR_ADDRESS } from '../src/identity-cost.js';
 import { fromUnits } from '../src/units.js';
+import { base58Encode } from '../src/base58.js';
 
 // "Last action" mining: a burn REPLACES the position, pays what the previous one accrued first,
 // carries the T chosen at that burn, and T costs a share of the burn.
@@ -110,17 +111,9 @@ test('a higher T makes the same capital worth more, and the larger T is paid for
 // a Solana that says: this wallet burned `lamports` in transaction `signature`
 const record = (who, lamports, signature) => normalizeBurnTransaction({
   slot: 1,
-  transaction: { message: { accountKeys: [base58(who.pubkey), SOLANA_INCINERATOR_ADDRESS] } },
+  transaction: { message: { accountKeys: [base58Encode(who.pubkey), SOLANA_INCINERATOR_ADDRESS] } },
   meta: { err: null, fee: 5000, preBalances: [50e9, 0], postBalances: [50e9 - lamports - 5000, lamports] },
 }, signature);
-const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-function base58(bytes) {
-  let x = 0n;
-  for (const v of bytes) x = x * 256n + BigInt(v);
-  let out = '';
-  while (x > 0n) { out = ALPHABET[Number(x % 58n)] + out; x /= 58n; }
-  return out;
-}
 const burnEvent = (who, signature) => ({ id: `b${++n}`, parents: [], payload: { type: 'burn-record', domain: who.domain, signature } });
 
 test('with the burn gate on, a commitment costs b / (1 - T) of confirmed burn, and each burn backs commitments only once', async () => {

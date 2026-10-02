@@ -6,7 +6,8 @@ import { deriveId } from '../src/identity.js';
 import { initialWalletState, applyWalletEvent } from '../src/wallet.js';
 import { withConfirmedBurns, buildSignedAccrualEvent, creatorFeeLamports, burnQuote, commitmentPriceLamports } from '../src/accrual.js';
 import { SOLANA_INCINERATOR_ADDRESS } from '../src/identity-cost.js';
-import { base58Encode, normalizeBurnTransaction, verifyBurnRecordFor } from '../src/burn-record.js';
+import { normalizeBurnTransaction, verifyBurnRecordFor } from '../src/burn-record.js';
+import { base58Encode } from '../src/base58.js';
 import { buildBurnTransaction } from '../src/solana-wallet.js';
 
 // The creator fee (yellow paper §7.3): a small fixed part of the T share of a burn goes to ONE address that is a
