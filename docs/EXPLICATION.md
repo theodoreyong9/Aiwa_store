@@ -72,9 +72,11 @@ Une fois que tu as reçu les événements d'un autre, tu peux signer un **Mirror
 
 **Les étapes.**
 1. **Brûler** du SOL en l'envoyant à l'adresse d'incinération de Solana.
-2. **Choisir T** (entre 0 et 40 %) au moment du brûlage. T est une part du brûlage qui est détruite et ne va à personne. Ton capital qui mine = brûlé × (1 − T).
+2. **Choisir T** (entre 0 et 40 %) au moment du brûlage. T est une part du brûlage qui n'est pas comptée comme capital : elle est détruite, sauf une toute petite part fixe qui va au créateur du logiciel (voir plus bas). Ton capital qui mine = brûlé × (1 − T).
 3. **Miner** : tes époques font monter ce que tu peux réclamer.
 4. **Réclamer** : ce qui s'est accumulé devient une créance à toi.
+
+**La part du créateur.** Le brûlage est fait de deux virements dans une seule transaction : presque tout vers l'incinérateur, et une petite part vers une adresse fixe, celle du créateur. Au départ, cette part est de 0,1 % de la part T : à T = 40 %, 0,0004 SOL par SOL brûlé ; à T = 0 (le défaut), rien. Tu ne choisis pas qui est payé, le portefeuille montre la répartition avant que tu signes, et les lecteurs rejettent un engagement à T > 0 dont la part du créateur n'a pas été payée. L'adresse et le taux sont des paramètres du protocole : ils ne changent que par une nouvelle version des règles, jamais par un réglage.
 
 **Vérification.** Chaque lecteur va lire lui-même la transaction finalisée sur Solana (réussie, vers l'incinérateur, payée par ta clé). Sans brûlage confirmé, une réclamation est rejetée.
 

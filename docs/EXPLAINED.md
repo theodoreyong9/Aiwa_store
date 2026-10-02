@@ -72,9 +72,11 @@ Once you have received someone's events, you can sign a **Mirror**: "this is wha
 
 **The steps.**
 1. **Burn** SOL by sending it to Solana's incinerator address.
-2. **Choose T** (between 0 and 40 %) at the moment of the burn. T is a share of the burn that is destroyed and goes to nobody. Your mining capital = burned × (1 − T).
+2. **Choose T** (between 0 and 40 %) at the moment of the burn. T is a share of the burn that is not counted as capital: it is destroyed, except a tiny fixed part that goes to the creator of the software (see below). Your mining capital = burned × (1 − T).
 3. **Mine**: your epochs raise what you can claim.
 4. **Claim**: what has accumulated becomes a claim that is yours.
+
+**The creator's part.** The burn is two transfers in one transaction: almost everything to the incinerator, and a small part to one fixed address, the creator's. Initially that part is 0.1 % of the T share: at T = 40 %, 0.0004 SOL per SOL burned; at T = 0 (the default), nothing. You do not choose who is paid, the wallet shows the split before you sign, and readers reject a commitment at T > 0 whose creator part was not paid. The address and the rate are protocol parameters: they change only with a new version of the rules, never from a setting.
 
 **Verification.** Every reader reads the finalized transaction on Solana itself (successful, to the incinerator, paid by your key). Without a confirmed burn, a claim is rejected.
 
