@@ -42,7 +42,7 @@ import {
   buildCheckpointEvent, findLatestCheckpoint, checkpointWalletState, progressionParents, buildSignedProgressionEvent,
   buildReceptionCommitment, assessPosition, identityCostFromCommitments, identityCostFromBurns,
   fetchBurnRecord, verifyBurnRecordFor, withConfirmedBurns,
-  computeSuccinctEpochs, commitmentPriceLamports, MAX_PATIENCE_RATE, miningState, rankingFigure,
+  computeSuccinctEpochs, commitmentPriceLamports, creatorFeeLamports, burnQuote, MAX_PATIENCE_RATE, miningState, rankingFigure,
   miningChainHead, progressionSeed, deserializeWalletState, base58Encode,
 } from 'aiwa-core';
 import { readWorld, observations, heldProgressions, nextReceptionEpoch } from './observation.js';
@@ -311,12 +311,23 @@ export class AIWA {
     this._checkPatienceRate(T);
     const solanaWeb3 = await loadSolanaWeb3();
     const keypair = await this.solanaKeypair();
-    const signature = await broadcastBurnTransaction(solanaWeb3, connection, keypair, lamports);
+    // The creator fee, when the deployment has one: a fixed part of the T share goes to the creator address in the same
+    // transaction, the rest is burned. `lamports` is what leaves this wallet either way.
+    const creatorFee = this.rewardParams.creatorFee;
+    const signature = await broadcastBurnTransaction(solanaWeb3, connection, keypair, lamports, {
+      creatorAddress: creatorFee?.address, creatorFeeLamports: creatorFeeLamports(lamports, T, creatorFee),
+    });
     const { lamports: burned } = await this.recordBurn(signature, connection);
     // "Last action" mining: this burn REPLACES the position (the previous one is paid first, by the reducer), and the
     // capital that counts is what is left of the burn after T of it is destroyed without counting.
     await this.recordCommitment({ b: Math.floor(burned * (1 - T)) / 1e9, T });
     return signature;
+  }
+
+  /** What a burn of `lamports` at patience rate `T` would do here: how much is paid to the creator, how much is burned, what counts as capital. Show it before the user burns. */
+  burnQuote(lamports, T = 0) {
+    this._checkPatienceRate(T);
+    return burnQuote({ lamports, T, creatorFee: this.rewardParams.creatorFee });
   }
 
   _checkPatienceRate(T) {
@@ -334,7 +345,7 @@ export class AIWA {
   async recordBurn(signature, connection = this.connection) {
     this._requireConnected();
     if (!connection) throw new Error('AIWA: recordBurn needs a Solana connection.');
-    const record = await fetchBurnRecord(connection, signature);
+    const record = await fetchBurnRecord(connection, signature, { creatorAddress: this.rewardParams.creatorFee?.address });
     if (!record) throw new Error(`AIWA: Solana does not report ${signature} as a finalized transaction (yet) — call recordBurn(signature, connection) again later.`);
     const check = await verifyBurnRecordFor(this.identity.id, record);
     if (!check.valid) throw new Error(`AIWA: ${signature} is not a burn by this wallet: ${check.reason}`);
@@ -345,7 +356,8 @@ export class AIWA {
     });
     await this.log.append(event);
     if (this.replicator) await this.replicator.publish(await collectAncestors(this.log, [event.id]));
-    return { eventId: event.id, lamports: record.incineratorBalanceDeltaLamports };
+    // `lamports`: what this burn covers in all (burned + paid to the creator); the capital it backs is computed from it.
+    return { eventId: event.id, lamports: record.incineratorBalanceDeltaLamports + record.creatorBalanceDeltaLamports, toCreator: record.creatorBalanceDeltaLamports };
   }
 
   /**
@@ -364,7 +376,7 @@ export class AIWA {
     for (const signature of wanted) {
       if (this._burnRecords[signature]) continue;
       let record = null;
-      try { record = await fetchBurnRecord(connection, signature); } catch { /* unreachable: stays pending */ }
+      try { record = await fetchBurnRecord(connection, signature, { creatorAddress: this.rewardParams.creatorFee?.address }); } catch { /* unreachable: stays pending */ }
       if (record) { found[signature] = record; confirmed.push(signature); } else pending.push(signature);
     }
     if (confirmed.length > 0) this._noteBurnRecords(found);
@@ -853,6 +865,14 @@ export class AIWA {
       const consumed = accrual.burns?.consumed?.[this.identity.id] ?? 0;
       if (consumed + price > covered) {
         throw new Error(`AIWA: a commitment of ${b} at T=${T} is not covered by the burns confirmed for this wallet: it costs ${price} lamports, ${covered - consumed} are left (${covered} confirmed, ${consumed} already used). Burn first — burn(lamports, connection) or recordBurn(signature, connection).`);
+      }
+      const feeDue = creatorFeeLamports(price, T, this.rewardParams.creatorFee);
+      if (feeDue > 0) {
+        const feeCovered = accrual.burns?.feeCovered?.[this.identity.id] ?? 0;
+        const feeConsumed = accrual.burns?.feeConsumed?.[this.identity.id] ?? 0;
+        if (feeConsumed + feeDue > feeCovered) {
+          throw new Error(`AIWA: a commitment of ${b} at T=${T} owes the creator ${feeDue} lamports: ${feeCovered - feeConsumed} are left (${feeCovered} paid to the creator address in the burns confirmed for this wallet, ${feeConsumed} already used). Burn with burn(lamports, connection, { T }), which pays it.`);
+        }
       }
     }
     const signedAccrual = await buildSignedAccrualEvent(

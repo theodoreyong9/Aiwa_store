@@ -83,7 +83,7 @@ export async function assessSubmission({ rewardParams, evidence, domain, baselin
   if (wanted.length > 0 && !connection) throw new Error('assessSubmission: a connection (Solana) is needed to confirm the burns the evidence points at');
   const burnRecords = {};
   for (const signature of wanted) {
-    const record = await fetchBurnRecord(connection, signature).catch(() => null);
+    const record = await fetchBurnRecord(connection, signature, { creatorAddress: rewardParams?.creatorFee?.address }).catch(() => null);
     if (record) burnRecords[signature] = record;
   }
 

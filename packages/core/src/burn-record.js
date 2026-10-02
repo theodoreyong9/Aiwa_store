@@ -46,9 +46,11 @@ const keyText = (key) => (typeof key === 'string' ? key : key.toBase58());
 /**
  * The record of a burn from what Solana's `getTransaction` returned (web3.js's TransactionResponse, or the same
  * shape with string keys). `null` in, `null` out: an unknown or not-yet-finalized transaction proves nothing.
- * @returns {{ signature: string, err: object | null, incineratorBalanceDeltaLamports: number, commitment: 'finalized', slot: number | null, payerPubkey: string, payerSpentLamports: number } | null}
+ * `options.creatorAddress` (the deployment's creator fee address, if any): what reached it in this transaction is recorded as
+ * `creatorBalanceDeltaLamports` (0 if the address is not in the transaction, or lost money).
+ * @returns {{ signature: string, err: object | null, incineratorBalanceDeltaLamports: number, creatorBalanceDeltaLamports: number, commitment: 'finalized', slot: number | null, payerPubkey: string, payerSpentLamports: number } | null}
  */
-export function normalizeBurnTransaction(rpcTransaction, signature) {
+export function normalizeBurnTransaction(rpcTransaction, signature, { creatorAddress } = {}) {
   if (!rpcTransaction) return null;
   const message = rpcTransaction.transaction?.message ?? {};
   const meta = rpcTransaction.meta ?? {};
@@ -58,10 +60,13 @@ export function normalizeBurnTransaction(rpcTransaction, signature) {
   const post = meta.postBalances ?? [];
   const incinerator = keys.indexOf(SOLANA_INCINERATOR_ADDRESS);
   const delta = incinerator >= 0 ? post[incinerator] - pre[incinerator] : 0;
+  const creator = creatorAddress ? keys.indexOf(creatorAddress) : -1;
+  const creatorDelta = creator >= 0 ? post[creator] - pre[creator] : 0;
   return {
     signature,
     err: meta.err ?? null,
     incineratorBalanceDeltaLamports: Number.isFinite(delta) ? delta : 0,
+    creatorBalanceDeltaLamports: Number.isFinite(creatorDelta) && creatorDelta > 0 ? creatorDelta : 0,
     commitment: 'finalized', // the only commitment fetchBurnRecord asks for
     slot: rpcTransaction.slot ?? null,
     payerPubkey: keys.length > 0 ? toHex(base58Decode(keys[0])) : '',
@@ -73,9 +78,9 @@ export function normalizeBurnTransaction(rpcTransaction, signature) {
  * Asks Solana (through `connection`, a web3.js Connection or anything with the same getTransaction) for the
  * FINALIZED transaction `signature`, and returns its burn record — or null if Solana does not know it (yet).
  */
-export async function fetchBurnRecord(connection, signature) {
+export async function fetchBurnRecord(connection, signature, options = {}) {
   const rpcTransaction = await connection.getTransaction(signature, { commitment: 'finalized', maxSupportedTransactionVersion: 0 });
-  return normalizeBurnTransaction(rpcTransaction, signature);
+  return normalizeBurnTransaction(rpcTransaction, signature, options);
 }
 
 /**
@@ -90,6 +95,6 @@ export async function verifyBurnRecordFor(domain, record, { minLamports = 0 } = 
   if (typeof record.payerPubkey !== 'string' || !/^[0-9a-f]{64}$/.test(record.payerPubkey)) return { valid: false, reason: 'the record does not name who paid' };
   const bytes = Uint8Array.from(record.payerPubkey.match(/../g).map((h) => parseInt(h, 16)));
   if ((await deriveId(bytes)) !== domain) return { valid: false, reason: "the burn was not paid by this domain's own key" };
-  if (!(record.payerSpentLamports >= record.incineratorBalanceDeltaLamports)) return { valid: false, reason: "the payer's balance did not go down by what was burned" };
+  if (!(record.payerSpentLamports >= record.incineratorBalanceDeltaLamports + (record.creatorBalanceDeltaLamports ?? 0))) return { valid: false, reason: "the payer's balance did not go down by what was burned and paid to the creator" };
   return { valid: true };
 }

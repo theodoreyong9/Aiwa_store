@@ -3,7 +3,7 @@
 The public API for apps and wallets, composed from [aiwa-core](../core) and [aiwa-platform](../platform).
 
 ```
-npm test        # 95 tests
+npm test        # 100 tests
 ```
 
 ## The wallet (`AIWA`)
@@ -13,7 +13,8 @@ import { AIWA } from 'aiwa-lib';
 
 const aiwa = new AIWA({ rewardParams });
 await aiwa.connect();                       // a new identity from 12 words; aiwa.recoveryPhrase shows them on request
-await aiwa.burn(lamports, connection);      // burn SOL; the burned amount is committed as capital in the same action
+await aiwa.burn(lamports, connection, { T });   // burn SOL (and pay the creator fee, if the deployment has one); committed as capital in the same action
+aiwa.burnQuote(lamports, T);                // what the burn will do, to show before the user burns
 await aiwa.startProgressLoop();             // the device works epochs; claimable() grows
 await aiwa.claim(await aiwa.claimable());
 await aiwa.send(recipientId, '1.0');        // also works fully offline, by bundle (file, QR, text)

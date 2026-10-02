@@ -197,10 +197,15 @@ export async function decryptSecretKey(record, password) {
   }
 }
 
-export function buildBurnTransaction(solanaWeb3, { fromPubkey, lamports, recentBlockhash }) {
+// `lamports` is what leaves the wallet in this burn. With a creator fee (aiwa-core's creatorFeeLamports), `creatorFeeLamports`
+// of it goes to `creatorAddress` and the rest to the incinerator: two transfers in one transaction, so both happen or neither.
+export function buildBurnTransaction(solanaWeb3, { fromPubkey, lamports, recentBlockhash, creatorAddress, creatorFeeLamports = 0 }) {
   if (!Number.isInteger(lamports) || lamports <= 0) throw new RangeError(`lamports must be a positive integer, got ${lamports}`);
+  if (!Number.isInteger(creatorFeeLamports) || creatorFeeLamports < 0 || creatorFeeLamports >= lamports) throw new RangeError(`the creator fee must be a whole number of lamports, smaller than the burn, got ${creatorFeeLamports}`);
+  if (creatorFeeLamports > 0 && !creatorAddress) throw new Error('a creator fee needs the creator address');
   const tx = new solanaWeb3.Transaction();
-  tx.add(solanaWeb3.SystemProgram.transfer({ fromPubkey, toPubkey: new solanaWeb3.PublicKey(SOLANA_INCINERATOR_ADDRESS), lamports }));
+  tx.add(solanaWeb3.SystemProgram.transfer({ fromPubkey, toPubkey: new solanaWeb3.PublicKey(SOLANA_INCINERATOR_ADDRESS), lamports: lamports - creatorFeeLamports }));
+  if (creatorFeeLamports > 0) tx.add(solanaWeb3.SystemProgram.transfer({ fromPubkey, toPubkey: new solanaWeb3.PublicKey(creatorAddress), lamports: creatorFeeLamports }));
   tx.recentBlockhash = recentBlockhash;
   tx.feePayer = fromPubkey;
   return tx;
@@ -228,9 +233,9 @@ export function signAndSerialize(tx, keypair) {
   return tx.serialize();
 }
 
-export async function broadcastBurnTransaction(solanaWeb3, connection, keypair, lamports) {
+export async function broadcastBurnTransaction(solanaWeb3, connection, keypair, lamports, { creatorAddress, creatorFeeLamports = 0 } = {}) {
   const { blockhash } = await connection.getLatestBlockhash('finalized');
-  const tx = buildBurnTransaction(solanaWeb3, { fromPubkey: keypair.publicKey, lamports, recentBlockhash: blockhash });
+  const tx = buildBurnTransaction(solanaWeb3, { fromPubkey: keypair.publicKey, lamports, recentBlockhash: blockhash, creatorAddress, creatorFeeLamports });
   const raw = signAndSerialize(tx, keypair);
   const signature = await connection.sendRawTransaction(raw);
   await connection.confirmTransaction(signature, 'finalized');

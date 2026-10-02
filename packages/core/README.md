@@ -3,7 +3,7 @@
 The protocol, pure and without I/O: no transport, no storage backend of its own choosing, no application code. Everything above it (distribution, wallet, apps) composes it and never changes what counts as a valid state transition.
 
 ```
-npm test        # 410 tests, including a cross-check against an independent Rust implementation when cargo is available
+npm test        # 418 tests, including a cross-check against an independent Rust implementation when cargo is available
 ```
 
 ## What is in it
@@ -24,6 +24,7 @@ npm test        # 410 tests, including a cross-check against an independent Rust
 - **Every event is signed and content-addressed.** A reader never trusts the author field of an event: authority lives in signatures embedded in the payload.
 - **A conflict has the same winner for every reader.** `canonicalOrder(events)` gives one order for the same events whatever order they arrived in (parents first, then the smaller id). It is agreement, not fairness; see the yellow paper §11.2.
 - **A third party can verify a wallet's mining without trusting it.** `assessSubmission({ rewardParams, evidence, domain, baseline, witnessed, connection })` checks the envelopes, the work proofs and the burn on Solana, and returns the ranking figure.
+- **The creator fee.** A deployment may set `rewardParams.creatorFee = { address, rateOfT }`: a fixed part of the T share of every burn then goes to that one address, in the same transaction, and the reader counts it (`creatorFeeLamports`, `burnQuote`, `fetchBurnRecord(connection, signature, { creatorAddress })`). A commitment at T > 0 whose burn did not pay it is refused; a reader that does not look at the address sees no payment and refuses too. Yellow paper §7.3.
 - **Formats are frozen (version 1)**: the payloads of progression, accrual and claim events, the starting point of an epoch's work, the checkpoint and the backup.
 
 ## Honest limits

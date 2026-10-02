@@ -166,8 +166,10 @@ async function verifyDelegatedClaimAuthorization(event) {
 // it may count is exactly what the reader put in `records`.
 // `consumed` (domain -> lamports): what the domain's commitments have used of what it burned. A burn backs a
 // commitment once: it is spent by it, even though the next commitment replaces the position.
+// `feeCovered` / `feeConsumed` (domain -> lamports): the same for the creator fee, when the deployment has one
+// (rewardParams.creatorFee): what the confirmed burns paid to the creator address, and what commitments have used.
 export function initialBurnsState() {
-  return { records: {}, covered: {}, used: {}, consumed: {} };
+  return { records: {}, covered: {}, used: {}, consumed: {}, feeCovered: {}, feeConsumed: {} };
 }
 
 // `chain` (domain -> id): the domain's last accepted mining event — progression, accrual, claim. A work-bound
@@ -208,12 +210,37 @@ export const MAX_PATIENCE_RATE = 0.4;
  * What a commitment of capital `b` at patience rate `T` costs, in lamports of confirmed burn: the capital that
  * counts is what is left of the burn after T of it is destroyed without counting — b = burned x (1 - T), so
  * burned = ceil(b / (1 - T)). T is therefore a real choice: a larger T makes the reward curve more generous, and
- * costs that share of the burn. (There is no recipient of that share: it is destroyed.)
+ * costs that share of the burn. The share is destroyed, except for the creator fee when the deployment has one (below).
  */
 export function commitmentPriceLamports(b, T = 0) {
   const lamports = Math.round(b * LAMPORTS_PER_UNIT);
   if (!T) return lamports;
   return Math.ceil(lamports / (1 - T) - 1e-6);
+}
+
+/**
+ * The creator fee (yellow paper §7.3): instead of destroying all of the T share of a burn, a small fixed part of it goes
+ * to ONE address that is a constant of the deployment (`rewardParams.creatorFee = { address, rateOfT }`) — never chosen
+ * by an application or by the user. For a burn of `burnedLamports` at patience rate `T` the fee is
+ * floor(burned x T x rateOfT) lamports, computed in integers (parts per million), so every reader gets the same number.
+ * A deployment without `creatorFee`, or a burn at T = 0, owes nothing.
+ */
+export function creatorFeeLamports(burnedLamports, T, creatorFee) {
+  if (!creatorFee || !T || !(creatorFee.rateOfT > 0)) return 0;
+  const tPpm = BigInt(Math.round(T * 1e6));
+  const ratePpm = BigInt(Math.round(creatorFee.rateOfT * 1e6));
+  return Number((BigInt(burnedLamports) * tPpm * ratePpm) / 1_000_000_000_000n);
+}
+
+/**
+ * What a burn of `lamports` at patience rate `T` does, in lamports — what a wallet shows before the user burns.
+ * `toCreator` and `toIncinerator` add up to `lamports` (the wallet's debit, network fee aside); `capital` is what counts
+ * as mining capital; `destroyedWithoutCounting` is the part of the T share that is neither capital nor paid to the creator.
+ */
+export function burnQuote({ lamports, T = 0, creatorFee }) {
+  const toCreator = creatorFeeLamports(lamports, T, creatorFee);
+  const capital = Math.floor(lamports * (1 - T));
+  return { lamports, T, toCreator, toIncinerator: lamports - toCreator, capital, destroyedWithoutCounting: lamports - capital - toCreator };
 }
 
 // Straight from rewardFixed()'s own reproducible Q128 BigInt to real
@@ -276,6 +303,16 @@ export async function applyAccrualEvent(rewardParams, state, event, verifyFn) {
         return reject(`commitment of ${b} at T=${rate} is not covered by a confirmed burn: it costs ${price} lamports, ${covered - consumed} are left (${covered} confirmed for this domain, ${consumed} already used)`);
       }
     }
+    // The creator fee owed for this commitment, when the deployment has one: covered by what the confirmed burns paid
+    // to the creator address, each lamport once. A burn at T = 0 owes nothing.
+    const feeDue = rewardParams?.commitmentBacking !== 'none' ? creatorFeeLamports(price, rate, rewardParams?.creatorFee) : 0;
+    const feeConsumed = state.burns?.feeConsumed?.[domain] ?? 0;
+    if (feeDue > 0) {
+      const feeCovered = state.burns?.feeCovered?.[domain] ?? 0;
+      if (feeConsumed + feeDue > feeCovered) {
+        return reject(`commitment of ${b} at T=${rate} owes the creator ${feeDue} lamports: ${feeCovered - feeConsumed} are left (${feeCovered} paid to the creator address in confirmed burns, ${feeConsumed} already used)`);
+      }
+    }
     // The claimable accrued so far is paid before the position is replaced.
     const pending = currentlyClaimableUnits(rewardParams, state, domain);
     const balance = state.balances[domain] ?? 0n;
@@ -283,7 +320,11 @@ export async function applyAccrualEvent(rewardParams, state, event, verifyFn) {
       ...state,
       positions: { ...state.positions, [domain]: { b, lastActionEpoch: currentEpoch, T: rate } },
       balances: pending > 0n ? { ...state.balances, [domain]: balance + pending } : state.balances,
-      burns: { ...(state.burns ?? initialBurnsState()), consumed: { ...(state.burns?.consumed ?? {}), [domain]: consumed + price } },
+      burns: {
+        ...(state.burns ?? initialBurnsState()),
+        consumed: { ...(state.burns?.consumed ?? {}), [domain]: consumed + price },
+        feeConsumed: { ...(state.burns?.feeConsumed ?? {}), [domain]: feeConsumed + feeDue },
+      },
       usedNonces: { ...state.usedNonces, [nonce]: true },
       chain: { ...(state.chain ?? {}), [domain]: event.id },
     };
@@ -305,11 +346,15 @@ export async function applyAccrualEvent(rewardParams, state, event, verifyFn) {
     if (!record) return reject(`burn ${signature} is not confirmed by this reader (no finalized transaction record)`);
     const check = await verifyBurnRecordFor(domain, record);
     if (!check.valid) return reject(check.reason);
+    // What reached the creator address in this transaction (0 unless the reader asked for it: see fetchBurnRecord) is
+    // part of what the burn covers, and of what the creator fee is paid from.
+    const toCreator = record.creatorBalanceDeltaLamports ?? 0;
     return {
       ...state,
       burns: {
         ...burns,
-        covered: { ...burns.covered, [domain]: (burns.covered[domain] ?? 0) + record.incineratorBalanceDeltaLamports },
+        covered: { ...burns.covered, [domain]: (burns.covered[domain] ?? 0) + record.incineratorBalanceDeltaLamports + toCreator },
+        feeCovered: { ...(burns.feeCovered ?? {}), [domain]: (burns.feeCovered?.[domain] ?? 0) + toCreator },
         used: { ...burns.used, [signature]: true },
       },
     };
