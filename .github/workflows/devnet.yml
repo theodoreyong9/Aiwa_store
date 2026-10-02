@@ -1,0 +1,30 @@
+name: Devnet check
+# The one run that uses the REAL Solana network (devnet): burn with the creator fee, verification by the registry's own code.
+# Start it by hand (Actions → Devnet check → Run workflow). The faucet may refuse a shared runner: then set the repository
+# secret DEVNET_PHRASE to the recovery phrase of a wallet funded with a little devnet SOL.
+on:
+  workflow_dispatch:
+    inputs:
+      sol:
+        description: SOL to burn (devnet)
+        default: '0.01'
+      T:
+        description: Patience rate T, 0 to 0.4
+        default: '0.4'
+      epochs:
+        description: Epochs to mine
+        default: '2'
+
+jobs:
+  devnet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: node scripts/devnet-check.mjs --sol "${{ inputs.sol }}" --T "${{ inputs.T }}" --epochs "${{ inputs.epochs }}"
+        env:
+          DEVNET_PHRASE: ${{ secrets.DEVNET_PHRASE }}
