@@ -8,7 +8,8 @@
 //   node scripts/devnet-check.mjs --rpc https://my-rpc.example
 //   node scripts/devnet-check.mjs --fake                    the same steps against a stand-in Solana in this process (a dry run of
 //                                                           the script itself: it proves nothing about the network)
-//   node scripts/devnet-check.mjs --phrase "twelve words …"   a wallet you funded yourself (when the faucet refuses)
+//   node scripts/devnet-check.mjs --phrase "twelve words …"   a wallet you funded yourself (when the faucet refuses: it limits
+//                                                           each address and each IP per day; fund one at https://faucet.solana.com)
 //
 // Steps: make a wallet, fund it, BURN at T with a fresh creator address (so the fee is checked on chain: the creator account
 // must receive exactly the fee), mine epochs (the deployment's own work), verify the evidence the way the registry does (asking
@@ -103,7 +104,7 @@ async function main() {
     balance = await connection.getBalance(new web3.PublicKey(aiwa.address));
   }
   if (!check(balance >= needed, `the wallet has ${balance / 1e9} SOL`, balance >= needed ? '' : 'the faucet refused: fund this address and run again with --phrase')) {
-    say(`  phrase to reuse: ${mnemonic}`);
+    if (!phrase) say(`  phrase of this throwaway devnet wallet, to fund and reuse: ${mnemonic}`);    // never a phrase that was given
     return;
   }
 
