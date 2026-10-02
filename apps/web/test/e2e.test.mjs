@@ -9,7 +9,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, extname, resolve, dirname } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { buildAppPackage, validateSubmission, applyAccepted, emptyStore, writeStore, rankApps } from 'aiwa-registry';
@@ -238,6 +238,81 @@ test('the wallet says what a burn does with the creator fee before signing, burn
   assert.equal(result.ok, true, result.reason);
   assert.equal(result.accepted.entry.id, 'taps');
   assert.equal(result.accepted.entry.score > 0, true);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('inside the Android app: saving goes through the host, the dictation button appears, back closes what is open', async () => {
+  const { page, context } = await openPage(async (p) => {
+    await injectSolana(p);
+    await p.addInitScript(() => { window.__posted = []; window.AiwaHost = { postMessage: (m) => window.__posted.push(JSON.parse(m)) }; });
+  });
+  assert.equal(await page.locator('#btn-dictation').isVisible(), true);
+  await page.click('#btn-dictation');
+  assert.deepEqual(await page.evaluate(() => window.__posted), [{ cmd: 'dictation' }]);
+
+  // back: an app is open -> closed; not on the Store tab -> goes there; nothing to close -> the app may leave
+  await page.waitForSelector('#store-list .app');
+  await page.locator('#store-list .app[data-id="beta"] button').click();
+  await page.locator('#viewer iframe').waitFor();
+  assert.equal(await page.evaluate(() => window.aiwaHostBack()), true);
+  assert.equal(await page.locator('#viewer').isHidden(), true);
+  await page.click('#app-nav [data-view="wallet"]');
+  assert.equal(await page.evaluate(() => window.aiwaHostBack()), true);
+  assert.equal(await page.locator('#view-store').isVisible(), true);
+  assert.equal(await page.evaluate(() => window.aiwaHostBack()), false);
+
+  // saving: the file goes to the host (a blob download does not work in a WebView)
+  await page.click('#app-nav [data-view="wallet"]');
+  await page.click('#btn-connect');
+  await page.fill('#burn-amount', '1');
+  await page.click('#btn-burn');
+  await page.waitForFunction(() => /Burned and committed/.test(document.getElementById('burn-result').textContent));
+  await page.waitForFunction(() => /epoch [1-9]/.test(document.getElementById('out-mining').textContent), null, { timeout: 15000 });
+  await page.click('#app-nav [data-view="publish"]');
+  await page.fill('#app-name', 'Hosted');
+  await page.click('#btn-prepare');
+  await page.waitForSelector('#publish-next:not([hidden])');
+  await page.click('#btn-download');
+  const posted = await page.evaluate(() => window.__posted.filter((m) => m.cmd === 'save'));
+  assert.equal(posted.length, 1);
+  assert.equal(posted[0].name, 'hosted-1.0.0.json');
+  assert.equal(JSON.parse(posted[0].text).package.id, 'hosted');
+  await context.close();
+});
+
+test('the hand-off: an app packed the way the Android app packs it (Java Deflater, base64url) fills the Publish form', async (t) => {
+  const code = readFileSync(join(root, 'docs/store-app-example.html'), 'utf8');
+  const file = join(tmp, 'handoff.html');
+  writeFileSync(file, code);
+  const java = spawnSync('java', [join(here, 'Pack.java'), file], { encoding: 'utf8' });
+  if (java.error || java.status !== 0) { t.skip('no Java here: the packing of the Android app is not run'); return; }
+  const payload = java.stdout.trim();
+  const { page, context } = await openPage(injectSolana);
+  await page.goto(`${base}/index.html#publish=1;split-the-bill;${payload}`);
+  await page.waitForSelector('#handoff-note:not([hidden])');
+  await page.click('#app-nav [data-view="wallet"]');
+  await page.click('#btn-connect');
+  await page.waitForSelector('#wallet-section:not([hidden])');
+  await page.waitForFunction(() => document.getElementById('app-name').value === 'split-the-bill', null, { timeout: 5000 });
+  assert.equal(await page.inputValue('#app-id'), 'split-the-bill');
+  assert.equal(await page.inputValue('#app-html'), code, 'what Claude wrote arrives byte for byte');
+  assert.match(await page.locator('#handoff-note').textContent(), /read it, try it, then press Prepare submission/);
+  await context.close();
+});
+
+test('the example app of the docs opens in the sandbox and works', async () => {
+  const code = readFileSync(join(root, 'docs/store-app-example.html'), 'utf8');
+  const { page, errors, context } = await openPage();
+  await page.click('#app-nav [data-view="publish"]');
+  await page.evaluate(() => { document.getElementById('publish-section').hidden = false; });   // the form, without a wallet: only "Try it" is used
+  await page.fill('#app-html', code);
+  await page.click('#btn-try');
+  const frame = page.frameLocator('#viewer iframe');
+  await frame.locator('#out').waitFor();
+  assert.match(await frame.locator('#out').textContent(), /Each pays 23\.10/);
+  await frame.locator('#people').fill('3');
+  assert.match(await frame.locator('#out').textContent(), /Each pays 30\.80/);
   assert.deepEqual(errors, []);
   await context.close();
 });

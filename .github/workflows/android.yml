@@ -1,0 +1,60 @@
+name: Android
+# The APK: the Store's web app inside a WebView, with the optional dictation module. Built here only (no Android SDK is needed
+# anywhere else) and published as the one file of a rolling release, tagged android-latest and recreated at each build, so
+# that the address never changes:
+#   https://github.com/<owner>/<repo>/releases/download/android-latest/Aiwa_store.apk
+on:
+  push:
+    branches: [main]
+    paths: ['android/**', 'apps/web/**', 'packages/**', 'registry/**', 'deployment.json', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One build publishes at a time: the release below is deleted and recreated.
+concurrency:
+  group: build-apk
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # the web app goes into the APK's assets (android/app/build.gradle.kts copies apps/web/dist)
+      - run: npm install
+      - run: npm run build -w aiwa-store-web
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      # Before the Android build, so that a broken backend fails fast: the backend's relay / login / app logic against a
+      # fake ntfy and a fake `claude`, and the Termux scripts.
+      - name: Backend tests
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 -m unittest discover -s android/backend/tests
+      - run: gradle -p android :bridge:testDebugUnitTest
+      - run: gradle -p android :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aiwa-store-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish the APK to the rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK="Aiwa_store.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "$APK"
+          gh release delete android-latest --cleanup-tag --yes || true
+          gh release create android-latest "$APK" \
+            --target "$GITHUB_SHA" \
+            --title "Debug APK (latest build)" \
+            --notes "Debug build of ${GITHUB_SHA}. Signed with the fixed debug key, so it installs over the previous one."

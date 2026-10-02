@@ -6,6 +6,7 @@ import { config } from './config.js';
 import { session, onSession, connected } from './session.js';
 import { $, flash, switchView } from './ui.js';
 import { openViewer } from './viewer.js';
+import { hostAvailable, hostPost } from './host.js';
 
 const STARTER = `<!doctype html>
 <html>
@@ -89,6 +90,8 @@ async function prepareRefresh() {
 }
 
 function download() {
+  // Inside the Android app a blob link cannot be downloaded: the app saves the file into Downloads.
+  if (hostAvailable()) { hostPost({ cmd: 'save', name: lastName, mime: 'application/json', text: lastSubmission }); return; }
   const url = URL.createObjectURL(new Blob([lastSubmission], { type: 'application/json' }));
   const a = document.createElement('a');
   a.href = url;
@@ -159,4 +162,6 @@ export function initPublish() {
     catch { $('publish-result').textContent = 'The browser refused the clipboard: use Download.'; }
   });
   handoff();
+  // The Android app opens the same page again on a new address when the Store is already open: only the fragment changes.
+  window.addEventListener('hashchange', handoff);
 }

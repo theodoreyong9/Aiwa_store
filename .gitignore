@@ -5,3 +5,9 @@ build/
 *.log
 .DS_Store
 dist/
+__pycache__/
+*.pyc
+*.apk
+.idea/
+*.iml
+local.properties

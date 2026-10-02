@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Split the bill</title>
+<meta name="description" content="Share a bill between friends, with a tip. One file, no storage, no network: the smallest app the Store accepts.">
+<!--
+  THE SHAPE OF AN APP FOR THE STORE (this file is what Claude is told to copy the shape of).
+
+  - ONE self-contained file, 512 KB at most. Anything it needs from the network comes from an ABSOLUTE url
+    (a CDN): there is no folder to be relative to.
+  - It runs in <iframe sandbox="allow-scripts">: an opaque origin. No localStorage, no cookies, no IndexedDB (the
+    browser refuses them); no access to the wallet or to the page that opened it. Keep the state in memory,
+    or fetch it. The network itself is allowed.
+  - <title> becomes the name, <meta name="description"> (280 characters at most) the description.
+  - Phone first (about 390 px wide): no horizontal overflow, big touch targets.
+-->
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { margin: 0; padding: 16px; max-width: 480px; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  label { display: block; margin: 12px 0 4px; font-size: 13px; opacity: .7; }
+  input { width: 100%; box-sizing: border-box; padding: 12px; font-size: 18px; border: 1px solid #8884; border-radius: 10px; background: transparent; color: inherit; }
+  .result { margin-top: 16px; padding: 14px; border-radius: 12px; background: #7c5cff22; font-size: 18px; }
+  .result b { font-size: 26px; }
+</style>
+</head>
+<body>
+<h1>Split the bill</h1>
+<label for="bill">Bill</label>
+<input id="bill" type="number" inputmode="decimal" min="0" step="0.01" value="84">
+<label for="tip">Tip, %</label>
+<input id="tip" type="number" inputmode="decimal" min="0" max="100" step="1" value="10">
+<label for="people">People</label>
+<input id="people" type="number" inputmode="numeric" min="1" step="1" value="4">
+<div class="result" id="out" aria-live="polite"></div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  function render() {
+    const bill = Math.max(0, Number($('bill').value) || 0);
+    const tip = Math.max(0, Number($('tip').value) || 0);
+    const people = Math.max(1, Math.floor(Number($('people').value) || 1));
+    const total = bill * (1 + tip / 100);
+    $('out').innerHTML = 'Each pays <b>' + (total / people).toFixed(2) + '</b><br>Total with tip: ' + total.toFixed(2);
+  }
+  for (const id of ['bill', 'tip', 'people']) $(id).addEventListener('input', render);
+  render();
+</script>
+</body>
+</html>

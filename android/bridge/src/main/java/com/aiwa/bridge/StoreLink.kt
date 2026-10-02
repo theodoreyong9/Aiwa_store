@@ -1,0 +1,50 @@
+package com.aiwa.bridge
+
+import java.io.ByteArrayOutputStream
+import java.util.Base64
+import java.util.zip.Deflater
+
+/** The Store's web app, as the Android app serves it from its own assets (StoreActivity). */
+const val STORE_APP_URL = "https://appassets.androidplatform.net/assets/web/index.html"
+
+// Well under what a WebView accepts in an address and what an Intent can carry (about 1 MB in all):
+// a file whose packed form is longer is only put on the clipboard.
+private const val MAX_FRAGMENT_CHARS = 300_000
+
+// The name as the Store's fragment reader accepts it.
+private val FRAGMENT_NAME = Regex("[A-Za-z0-9_.-]{1,60}")
+
+/**
+ * The code, raw-deflated (java's Deflater with nowrap = the browser's `deflate-raw`), then base64url
+ * without padding. Null when the packed form is too long for an address.
+ */
+private fun pack(code: String): String? {
+    val deflater = Deflater(Deflater.BEST_COMPRESSION, true)
+    val packed = ByteArrayOutputStream()
+    try {
+        deflater.setInput(code.toByteArray(Charsets.UTF_8))
+        deflater.finish()
+        val buffer = ByteArray(8192)
+        while (!deflater.finished()) packed.write(buffer, 0, deflater.deflate(buffer))
+    } finally {
+        deflater.end()
+    }
+    val payload = Base64.getUrlEncoder().withoutPadding().encodeToString(packed.toByteArray())
+    return if (payload.length > MAX_FRAGMENT_CHARS) null else payload
+}
+
+/**
+ * The address that makes the Store open its Publish tab with the app's name and code filled in —
+ * and nothing else: reading it, trying it and pressing "Prepare submission", which signs with the
+ * user's identity, stay theirs:
+ *
+ *     https://appassets.androidplatform.net/assets/web/index.html#publish=1;<name>;<code>
+ *
+ * The code sits in the URL FRAGMENT, which is never sent anywhere. Null when the name is not a plain
+ * file name or the packed app is too long for an address.
+ */
+fun storePublishUrl(name: String, code: String, base: String = STORE_APP_URL): String? {
+    if (!FRAGMENT_NAME.matches(name)) return null
+    val payload = pack(code) ?: return null
+    return "$base#publish=1;$name;$payload"
+}
