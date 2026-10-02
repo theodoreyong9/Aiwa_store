@@ -1,24 +1,21 @@
-// The order in which a reader folds events into state — the same for every reader that holds the same events.
+// The order in which a reader folds events into state, the same for every reader that holds the same events.
 //
-// A log is a graph, not a line: two events that do not know of each other (two branches) have no order of their own.
-// Almost always that does not matter (a domain's progression and the transfers of two other domains do not touch). It
-// matters when two events contradict each other — one claim spent twice, one voucher redeemed twice, one claim id
-// taken by two domains: whichever is folded first wins and the other is refused. Folded in the order they happened to
-// ARRIVE in, two readers holding exactly the same events could pick two different winners, and keep doing so.
+// A log is a graph: two events that do not know of each other (two branches) have no order of their own. That rarely
+// matters; it does when they contradict each other (one claim spent twice, one voucher redeemed twice, one claim id
+// taken by two domains): whichever is folded first wins. Folded in arrival order, two readers with the same events could
+// pick different winners for good.
 //
-// canonicalOrder removes that: among the events that can come next (all their parents already placed), the one with the
-// smallest id goes first. It is a topological order (a parent always precedes its children), and given the same set of
-// events it returns the same sequence whatever order they were handed in, or arrived in.
+// canonicalOrder removes that. Among the events that can come next (every parent already placed) the smallest id goes
+// first: a topological order, identical whatever order the events were handed in or arrived in.
 //
-// What this is NOT: fairness. The winner of a conflict is the event with the smaller id — arbitrary, and a signer who
-// writes two contradicting events can try variants until the one he wants has the smaller id. It makes readers AGREE; it
-// does not make the winner the "first" one in time (nothing here has a clock) nor protect whoever accepted the other. The
-// proof that the signer wrote both stays: two valid signatures on contradicting events.
+// It is agreement, not fairness: the winner is the smaller id, which is arbitrary (nothing here has a clock), and a
+// signer who writes two contradicting events can try variants until the one he wants has the smaller id. What stays is
+// the proof that he wrote both: two valid signatures on contradicting events. Yellow paper §11.2.
 
 /**
  * @param {Array<{ id: string, parents?: string[] }>} events duplicates (same id) are kept once
- * @param {{ placed?: Iterable<string> }} [options] `placed`: ids already folded before this batch (the caller's `excludeIds`).
- *   A parent that is neither in `events` nor in `placed` — pruned history, an ancestor the reader never had — counts as satisfied.
+ * @param {{ placed?: Iterable<string> }} [options] `placed`: ids already folded before this batch. A parent that is in
+ * neither `events` nor `placed` (pruned history, an ancestor this reader never had) counts as satisfied.
  * @returns {Array} the same events, in canonical order
  */
 export function canonicalOrder(events, { placed } = {}) {
@@ -52,7 +49,7 @@ export function canonicalOrder(events, { placed } = {}) {
       if (left === 0) ready.push(child);
     }
   }
-  if (ordered.length !== byId.size) throw new Error('canonicalOrder: the events have a cycle in their parents — impossible for content-addressed events');
+  if (ordered.length !== byId.size) throw new Error('canonicalOrder: the events form a cycle, which content-addressed events cannot');
   return ordered;
 }
 

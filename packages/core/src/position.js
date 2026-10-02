@@ -1,23 +1,23 @@
 // A domain's position, from BOTH kinds of evidence, each used for what it is good at.
 //
-//  - Proofs (triangulation.js): what observers provably received. They set a floor, and they alone may
-//    ACCUSE — a rewind or a fork — because the evidence of an accusation is an event anyone can check.
-//  - The weighted median (causal-tick.js): where observers' committed capital says the domain is. It is an
-//    estimate, never an accusation: enough weight on an old view moves it, and "far from the median" cannot
-//    tell inflation from legitimate offline progress.
+// - Proofs (triangulation.js): what observers provably received. They set a floor, and they alone may
+// ACCUSE — a rewind or a fork — because the evidence of an accusation is an event anyone can check.
+// - The weighted median (causal-tick.js): where observers' committed capital says the domain is. It is an
+// estimate, never an accusation: enough weight on an old view moves it, and "far from the median" cannot
+// tell inflation from legitimate offline progress.
 //
-//   position  = max(median, proven lower bound) — the vote is never reported below what is proven;
-//               with no funded observer at all, the proven bound alone.
-//   accuse    = contradicted || forked — from proofs only.
+// position = max(median, proven lower bound) — the vote is never reported below what is proven;
+// with no funded observer at all, the proven bound alone.
+// accuse = contradicted || forked — from proofs only.
 //
 // What counts as evidence (`verifyChain`):
-//   'auto' (default) — if the reader holds the target's history from epoch 1, its progression events are
-//       REPLAYED through the real reducer and only the accepted ones count (signature, chain, sequential
-//       proof: what anyone who verifies does); otherwise only the signature of each event is checked, and the
-//       result says so (`verification: 'signature'`) — a partial log cannot be chained, and a reader in that
-//       position is trusting more.
-//   'require' — replay always; a reader without the genesis gets nothing accepted.
-//   'off' — signature only.
+// 'auto' (default) — if the reader holds the target's history from epoch 1, its progression events are
+// REPLAYED through the reducer and only the accepted ones count (signature, chain, sequential
+// proof: what anyone who verifies does); otherwise only the signature of each event is checked, and the
+// result says so (`verification: 'signature'`) — a partial log cannot be chained, and a reader in that
+// position is trusting more.
+// 'require' — replay always; a reader without the genesis gets nothing accepted.
+// 'off' — signature only.
 // Both rules see the same, filtered events, so a fake far-ahead event — forged by someone else, or signed by
 // the target itself without doing the work — moves neither, and observers whose only evidence was such an
 // event contribute nothing. Forks are the exception, on purpose: a second lineage is rejected by the linear

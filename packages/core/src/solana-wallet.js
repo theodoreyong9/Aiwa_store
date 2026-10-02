@@ -1,12 +1,12 @@
-// Real Solana keypair management and burn-transaction construction.
+// Solana keypair management and burn-transaction construction.
 // Key generation, encryption, signing are fully offline; broadcasting
-// is the one real network boundary.
+// is the one network boundary.
 //
 // This module's own lightweight keypair shape exists for Solana
-// interop (burn/transfer transactions need a real, Solana-Keypair-
+// interop (burn/transfer transactions need a Solana-Keypair-
 // shaped object) — it is a DIFFERENT representation from this
 // package's own identity.js Identity class. `toIdentity` bridges the
-// two: the same real Ed25519 seed underlies both, so a domain derived
+// two: the same Ed25519 seed underlies both, so a domain derived
 // here (via BIP39, a passphrase, or freshly generated) can act as an
 // Identity too, for signing events/capabilities, without a second,
 // separate derivation.
@@ -37,10 +37,10 @@ function toHex(bytes) {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// A real, minimal, Solana-Keypair-SHAPED object — sufficient for
+// A minimal, Solana-Keypair-SHAPED object — sufficient for
 // identity derivation and display — generated using only
 // @noble/curves/ed25519.js, already proven to load reliably. Deliberately
-// avoids requiring the full, genuinely heavy @solana/web3.js library
+// avoids requiring the full, heavy @solana/web3.js library
 // (many transitive dependencies — buffer, crypto polyfills, websockets)
 // just to create an identity, which is the FIRST, most critical
 // interaction a new person has with this app. The full library is
@@ -76,21 +76,21 @@ export async function lightweightKeypairFromSecretKey(secretKeyBytes) {
   return wrapAsKeypairShape(secretKey32, publicKey32);
 }
 
-// A real, deterministic identity from a passphrase alone — the same
-// passphrase always derives the identical real keypair, anywhere,
+// A deterministic identity from a passphrase alone — the same
+// passphrase always derives the identical keypair, anywhere,
 // with nothing else to carry or transport. A fixed, application-
 // specific salt is used deliberately: reproducibility from the
 // passphrase ALONE is the entire point (a random salt would make that
-// impossible), at the real, honest cost of losing the extra defense a
+// impossible), at the honest cost of losing the extra defense a
 // random salt gives against a precomputed attack — the passphrase
-// itself is the only real secret here, exactly like a private key
+// itself is the only secret here, exactly like a private key
 // written down in words instead of bytes. A weak, guessable
 // passphrase is exactly as unsafe as a weak, guessable private key.
 //
-// This is a real, app-specific derivation — NOT BIP39, NOT compatible
-// with an existing Solana wallet's real seed phrase. Typing an
-// existing wallet's real words here derives a real, but different and
-// unrelated, identity, never that wallet's actual funds.
+// This is an app-specific derivation — NOT BIP39, NOT compatible
+// with an existing Solana wallet's seed phrase. Typing an
+// existing wallet's words here derives a but different and
+// unrelated, identity, never that wallet's funds.
 const PASSPHRASE_SALT = new TextEncoder().encode('aiwa-core-passphrase-identity-v1');
 const PASSPHRASE_ITERATIONS = 600_000;
 
@@ -103,12 +103,12 @@ export async function deriveKeypairFromPassphrase(passphrase) {
   return wrapAsKeypairShape(secretKey32, publicKey32);
 }
 
-// A real, standard BIP39 + SLIP-0010 derivation — the identical real
+// A standard BIP39 + SLIP-0010 derivation — the identical real
 // algorithm Phantom, Solflare, and the Solana CLI use, at the same
-// real, standard path (m/44'/501'/account'/0'). Typing an existing
-// Solana wallet's real seed phrase here derives the SAME real
-// address that wallet already shows. This is a genuinely different,
-// real mechanism from deriveKeypairFromPassphrase above — that one is
+// standard path (m/44'/501'/account'/0'). Typing an existing
+// Solana wallet's seed phrase here derives the SAME real
+// address that wallet already shows. This is a different,
+// mechanism from deriveKeypairFromPassphrase above — that one is
 // intentionally app-specific and NOT standard; this one is standard
 // and NOT app-specific. Never conflate the two.
 const SLIP10_ED25519_SEED_KEY = new TextEncoder().encode('ed25519 seed');
@@ -127,7 +127,7 @@ async function slip10DeriveHardened(parentKey, parentChainCode, index) {
   const data = new Uint8Array(37);
   data[0] = 0x00;
   data.set(parentKey, 1);
-  new DataView(data.buffer).setUint32(33, hardenedIndex, false); // big-endian, per the real SLIP-0010 spec
+  new DataView(data.buffer).setUint32(33, hardenedIndex, false); // big-endian, per the SLIP-0010 spec
   const I = hmac(sha512, parentChainCode, data);
   return { key: I.slice(0, 32), chainCode: I.slice(32, 64) };
 }
@@ -211,7 +211,7 @@ export function buildBurnTransaction(solanaWeb3, { fromPubkey, lamports, recentB
   return tx;
 }
 
-// A real transfer to any real, chosen recipient — distinct from
+// A transfer to any chosen recipient — distinct from
 // buildBurnTransaction's own fixed, irreversible destination.
 export function buildTransferTransaction(solanaWeb3, { fromPubkey, toAddress, lamports, recentBlockhash }) {
   if (!Number.isInteger(lamports) || lamports <= 0) throw new RangeError(`lamports must be a positive integer, got ${lamports}`);
@@ -260,7 +260,7 @@ export async function loadSolanaWeb3() {
 }
 
 // Bridges this module's Solana-shaped keypair into this package's own
-// event/capability Identity (identity.js) — same real Ed25519 seed,
+// event/capability Identity (identity.js) — same Ed25519 seed,
 // the canonical shape aiwa-core and aiwa-platform (events,
 // capabilities) actually expect.
 export async function toIdentity(keypair) {

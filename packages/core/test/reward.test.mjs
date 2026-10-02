@@ -52,7 +52,7 @@ test('reward never returns a negative or non-finite number for valid finite inpu
   assert.ok(r >= 0);
 });
 
-// rewardFixed is the real, reproducible core reward() itself is now a thin
+// rewardFixed is the reproducible core reward() itself is now a thin
 // wrapper over — these confirm the two stay consistent with each other,
 // not just that reward() alone looks right.
 
@@ -73,11 +73,11 @@ test('rewardFixed is deterministic: the identical inputs always yield the identi
   assert.equal(a, b);
 });
 
-test('rewardFixed throws RewardError for invalid input, same as reward() — the validation lives in one real place, not duplicated', () => {
+test('rewardFixed throws RewardError for invalid input, same as reward() — the validation lives in one place, not duplicated', () => {
   assert.throws(() => rewardFixed(-1, 1, 1, 0, params), RewardError);
 });
 
-test('THE REAL CASE THIS REWRITE EXISTS FOR: reward stays accurate after a full year of continuous domain progression (~112M epochs), where the original Math.pow(qTotal, ...) computation risked overflow before ever reaching Math.log', () => {
+test('THE CASE THIS REWRITE EXISTS FOR: reward stays accurate after a full year of continuous domain progression (~112M epochs), where the original Math.pow(qTotal, ...) computation risked overflow before ever reaching Math.log', () => {
   const oneYearEpochs = 112_000_000;
   const r = rewardFixed(10, oneYearEpochs, oneYearEpochs, 0.2, params);
   assert.ok(r !== null);

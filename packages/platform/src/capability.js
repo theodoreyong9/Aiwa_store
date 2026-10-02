@@ -1,14 +1,14 @@
-// The real Capability — an application never receives "access to
-// everything." A real capability is a real, signed, scoped grant:
-// this real resource, these real actions, issued by this real
-// identity, for this real subject.
+// The Capability — an application never receives "access to
+// everything." A capability is a signed, scoped grant:
+// this resource, these actions, issued by this real
+// identity, for this subject.
 
 function coreBytes({ resource, actions, issuer, subject, expiresAt }) {
   const core = { resource, actions: [...actions].sort(), issuer, subject, expiresAt: expiresAt ?? null };
   return new TextEncoder().encode(JSON.stringify(core));
 }
 
-/** `issuerIdentity` must be a real, secret-key-bearing Identity (aiwa-core's own identity.js) — the real subject can never issue its own real capability over someone else's real resource. */
+/** `issuerIdentity` must be a secret-key-bearing Identity (aiwa-core's own identity.js) — the subject can never issue its own capability over someone else's resource. */
 export async function issueCapability(issuerIdentity, { resource, actions, subject, expiresAt }) {
   const bytes = coreBytes({ resource, actions, issuer: issuerIdentity.id, subject, expiresAt });
   const signature = await issuerIdentity.sign(bytes);
@@ -16,9 +16,9 @@ export async function issueCapability(issuerIdentity, { resource, actions, subje
 }
 
 /**
- * Real, pure verification: the real signature must genuinely verify
- * against the real, claimed issuer, and — if `expiresAt` is set — the
- * real capability must not have genuinely expired as of `now`.
+ * pure verification: the signature must verify
+ * against the claimed issuer, and — if `expiresAt` is set — the
+ * capability must not have expired as of `now`.
  */
 export async function verifyCapability(capability, issuerIdentity, now = Date.now()) {
   if (capability.issuer !== issuerIdentity.id) return { valid: false, reason: 'issuer mismatch' };
@@ -29,13 +29,13 @@ export async function verifyCapability(capability, issuerIdentity, now = Date.no
   return { valid: true };
 }
 
-/** Real, pure: does this real, already-verified capability actually cover the real, requested action on the real, requested resource? */
+/** pure: does this already-verified capability actually cover the requested action on the requested resource? */
 export function capabilityAllows(capability, { resource, action }) {
   return capability.resource === resource && capability.actions.includes(action);
 }
 
 /**
- * A real, minimal, per-subject capability set — what a real
+ * A minimal, per-subject capability set — what a real
  * application (a "sphere") actually holds, checked before every real
  * privileged operation.
  */
@@ -46,7 +46,7 @@ export class CapabilitySet {
   grant(capability) {
     this._grants.push(capability);
   }
-  /** Real, pure check against every real, currently-held grant — never trusts a capability that was never verified first (see `verifyCapability`). */
+  /** pure check against every currently-held grant — never trusts a capability that was never verified first (see `verifyCapability`). */
   can(resource, action) {
     return this._grants.some((c) => capabilityAllows(c, { resource, action }));
   }

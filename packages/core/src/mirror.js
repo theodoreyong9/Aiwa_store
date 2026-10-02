@@ -1,14 +1,14 @@
 // A mandatory, signed, per-epoch commitment to what a domain has (or
-// has not) received from other domains. Two real properties:
+// has not) received from other domains. Two properties:
 //
 // - recurring cost: a signed commitment at every progression epoch,
-//   empty or full, turns identity maintenance into an ongoing cost,
-//   not a one-time registration burn.
+// empty or full, turns identity maintenance into an ongoing cost,
+// not a one-time registration burn.
 // - reception monotonicity: a domain's own successive claims about
-//   what it has seen of another domain must never go backwards.
+// what it has seen of another domain must never go backwards.
 //
-// Explicitly does not prove two domains are distinct real entities
-// (identity-cost.js's job) or rule out a genuinely collaborating pair
+// Explicitly does not prove two domains are distinct entities
+// (identity-cost.js's job) or rule out a collaborating pair
 // fabricating a consistent history together — no purely relational
 // mechanism, with no external anchor, can.
 
@@ -25,7 +25,7 @@ function toHex(bytes) {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// A real, signed reception commitment — this domain really attesting
+// A signed reception commitment — this domain really attesting
 // to what it has really observed of `sourceDomain`'s own progression,
 // after really importing it. `epoch` is this domain's own current
 // commitment sequence number, never the observed domain's. The
@@ -112,12 +112,12 @@ export async function applyMirrorEvent(state, event, sourceEpochLookup) {
   };
 }
 
-// Real, DAG-native derivation of sourceEpochLookup: the epoch that
+// DAG-native derivation of sourceEpochLookup: the epoch that
 // produced a given event, found by recomputation, not self-declared.
-// Walks real ancestry looking for the domain's highest-epoch
-// progression event; a real event with no progression ancestors is a
+// Walks ancestry looking for the domain's highest-epoch
+// progression event; an event with no progression ancestors is a
 // legitimate epoch-0 state, never treated as absence. A fabricated or
-// misattributed reference is the only real rejection case.
+// misattributed reference is the only rejection case.
 export function deriveSourceEpochLookup(orderedEvents) {
   const byId = new Map(orderedEvents.map((e) => [e.id, e]));
   const SAFETY_BOUND = 10000;
@@ -153,7 +153,7 @@ export async function materializeMirror(orderedEvents, sourceEpochLookup) {
 }
 
 // Entropy of a domain's own distribution of reappearances across
-// everyone it has committed to observing — a real, computable
+// everyone it has committed to observing — a computable
 // signature, never a proof of real-world independence. A low score is
 // a signal, not a verdict: a small, legitimate group that only ever
 // interacts within itself produces the same low entropy a colluding

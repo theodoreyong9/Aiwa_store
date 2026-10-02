@@ -5,7 +5,7 @@ import { Introducer } from '../src/introducer.js';
 // A minimal, deliberately fake WebrtcTransport-shaped object — real
 // signaling semantics (createOfferFor/acceptOffer/completeConnection)
 // are already covered by webrtc-transport.test.mjs against a fake
-// RTCPeerConnection; this exercises Introducer's OWN real logic (who
+// RTCPeerConnection; this exercises Introducer's OWN logic (who
 // gets asked, who relays what to whom, in what order) using a shared,
 // in-memory registry so send() actually reaches the addressed fake
 // transport's own registered handlers — exactly the property real
@@ -42,24 +42,24 @@ function makeThreeParty({ aPeers = ['M'], mPeers = ['A', 'P'], pPeers = ['M'] } 
   return { a, m, p, introA, introM, introP };
 }
 
-test('requestIntroduction: A gets connected to mediator M\'s other real peer P, purely via relay', async () => {
+test('requestIntroduction: A gets connected to mediator M\'s other peer P, purely via relay', async () => {
   const { a, m, p, introA } = makeThreeParty();
 
   const newPeerId = await introA.requestIntroduction('M');
   assert.equal(newPeerId, 'P');
 
-  // A generated a real offer FOR P, and completed with P's real answer.
+  // A generated an offer FOR P, and completed with P's answer.
   assert.deepEqual(a.calls.offers, ['P']);
   assert.deepEqual(a.calls.completes, [{ peerId: 'P', blob: 'answer:P->A' }]);
-  // P accepted A's real offer, addressed to A.
+  // P accepted A's offer, addressed to A.
   assert.deepEqual(p.calls.accepts, [{ blob: 'offer:A->P', peerId: 'A' }]);
-  // The mediator M never generates or accepts any real signal itself — pure relay.
+  // The mediator M never generates or accepts any signal itself — pure relay.
   assert.deepEqual(m.calls.offers, []);
   assert.deepEqual(m.calls.accepts, []);
   assert.deepEqual(m.calls.completes, []);
 });
 
-test('requestIntroduction rejects when the mediator has no other real peer to offer', async () => {
+test('requestIntroduction rejects when the mediator has no other peer to offer', async () => {
   const { introA } = makeThreeParty({ mPeers: ['A'] }); // M knows only A
   await assert.rejects(introA.requestIntroduction('M'), /no other real peer/);
 });
@@ -81,7 +81,7 @@ test('requestIntroduction never proposes a peer explicitly excluded by the calle
 
 test('requestIntroduction rejects if the introduced connection attempt itself fails (e.g. already connected)', async () => {
   const registry = new Map();
-  const a = createFakeTransport('A', registry, { peers: ['M', 'P'] }); // A is ALREADY connected to P
+  const a = createFakeTransport('A', registry, { peers: ['M', 'P'] }); // An is ALREADY connected to P
   a.createOfferFor = async () => { throw new Error('Already connected (or connecting) to \'P\'.'); };
   const m = createFakeTransport('M', registry, { peers: ['A', 'P'] });
   const p = createFakeTransport('P', registry, { peers: ['M'] });

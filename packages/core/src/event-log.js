@@ -1,14 +1,10 @@
-// The real, deliberately "stupid" EventLog — stores real events,
-// nothing more. A real device can run this entirely alone: no
-// network, no server. Storage-backend-agnostic by real design (a
-// real, working in-memory backend for tests and server-side use; a
-// real IndexedDB backend for the browser) — applications never know
-// or care which real backend is in use.
+// The event log: stores verified events and nothing else. A device can run it alone, with no network and no server.
+// The storage backend is pluggable: memory (tests, servers) or IndexedDB (browsers).
 
 import { verifyEvent } from './event.js';
 import { verifyCheckpoint } from './checkpoint.js';
 
-/** A real, minimal storage contract any real backend must satisfy. */
+/** The storage contract a backend satisfies: putEvent, getEvent, hasEvent, allIds, deleteEvent. */
 export function createMemoryBackend() {
   const events = new Map();
   return {
@@ -20,54 +16,29 @@ export function createMemoryBackend() {
   };
 }
 
-/** A real IndexedDB-backed store — for real, persistent, browser-side use. */
 export function createIndexedDbBackend(dbName = 'aiwa-core-event-log') {
-  function openDb() {
+  let opening = null;
+  const open = () => (opening ??= new Promise((resolve, reject) => {
+    const request = indexedDB.open(dbName, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('events', { keyPath: 'id' });
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => { opening = null; reject(request.error); };
+  }));
+  // One request in one transaction; resolves with the request's result once the transaction is complete.
+  const run = async (mode, fn) => {
+    const tx = (await open()).transaction('events', mode);
+    const request = fn(tx.objectStore('events'));
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(dbName, 1);
-      req.onupgradeneeded = () => { req.result.createObjectStore('events', { keyPath: 'id' }); };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => resolve(request.result ?? null);
+      tx.onerror = () => reject(tx.error);
     });
-  }
+  };
   return {
-    async putEvent(event) {
-      const db = await openDb();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction('events', 'readwrite');
-        tx.objectStore('events').put(event);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
-    },
-    async getEvent(id) {
-      const db = await openDb();
-      return new Promise((resolve, reject) => {
-        const req = db.transaction('events', 'readonly').objectStore('events').get(id);
-        req.onsuccess = () => resolve(req.result ?? null);
-        req.onerror = () => reject(req.error);
-      });
-    },
-    async hasEvent(id) {
-      return (await this.getEvent(id)) !== null;
-    },
-    async allIds() {
-      const db = await openDb();
-      return new Promise((resolve, reject) => {
-        const req = db.transaction('events', 'readonly').objectStore('events').getAllKeys();
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    },
-    async deleteEvent(id) {
-      const db = await openDb();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction('events', 'readwrite');
-        tx.objectStore('events').delete(id);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
-    },
+    putEvent: (event) => run('readwrite', (store) => store.put(event)).then(() => undefined),
+    getEvent: (id) => run('readonly', (store) => store.get(id)),
+    hasEvent: async (id) => (await run('readonly', (store) => store.get(id))) !== null,
+    allIds: async () => (await run('readonly', (store) => store.getAllKeys())) ?? [],
+    deleteEvent: (id) => run('readwrite', (store) => store.delete(id)).then(() => undefined),
   };
 }
 
@@ -76,121 +47,92 @@ export class EventLog {
     this.backend = backend;
   }
 
+  /**
+   * Verifies, then stores. Verification is unconditional, whatever the event's source. An event whose parents are not
+   * all known is refused — except a domain's own checkpoint, which may name parents this log has already pruned
+   * (verifyCheckpoint requires its signer to be the domain it summarizes, so this is no general bypass).
+   */
   async append(event) {
-    if (await this.backend.hasEvent(event.id)) return; // a real, already-known event is a real no-op, never a duplicate
-    // Real, mandatory verification, enforced here, unconditionally,
-    // for every real event, regardless of its real source (a local
-    // commit, a Replicator, or any future caller). No trust
-    // shortcut, no exception.
+    if (await this.backend.hasEvent(event.id)) return;
     const verification = await verifyEvent(event);
-    if (!verification.valid) throw new Error(`Cannot append: real event ${event.id} failed real verification — ${verification.reason}`);
-    // A real, narrow exception: a genuine, self-authored checkpoint
-    // (see checkpoint.js) is the one event type ever allowed to name
-    // parents this log does not have — exactly the state a brand-new
-    // peer is in right after receiving a pruned domain's own log
-    // (pruneBeforeCheckpoint below deletes what the checkpoint's own
-    // embedded state already accounts for, including its own real
-    // parents). verifyCheckpoint already demands the real signer be
-    // the domain it summarizes, so this is never a generic bypass.
+    if (!verification.valid) throw new Error(`Cannot append: event ${event.id} failed verification (${verification.reason})`);
     if (!verifyCheckpoint(event)) {
-      for (const p of event.parents) {
-        if (!(await this.backend.hasEvent(p))) throw new Error(`Cannot append: real parent ${p} is not yet known — request it first.`);
+      for (const parent of event.parents) {
+        if (!(await this.backend.hasEvent(parent))) throw new Error(`Cannot append: parent ${parent} is not yet known; request it first.`);
       }
     }
     await this.backend.putEvent(event);
   }
 
+  /** Appends a batch in any order: an event waits until its parents, possibly in the same batch, are in. */
+  async appendMany(events) {
+    const pending = [...events];
+    for (let progressed = true; pending.length > 0 && progressed;) {
+      progressed = false;
+      for (let i = pending.length - 1; i >= 0; i--) {
+        const event = pending[i];
+        const ready = verifyCheckpoint(event) || (await Promise.all(event.parents.map((p) => this.backend.hasEvent(p)))).every(Boolean);
+        if (!ready) continue;
+        await this.append(event);
+        pending.splice(i, 1);
+        progressed = true;
+      }
+    }
+    if (pending.length > 0) throw new Error(`appendMany: ${pending.length} event(s) have parents that never arrive.`);
+  }
+
   /**
-   * Physically deletes every real event `checkpoint`'s own embedded
-   * state already accounts for — the checkpoint event itself is kept,
-   * becoming the new logical root of this log's own local storage.
-   * Bounds the unbounded local-storage growth a continuously-running
-   * domain otherwise accumulates forever. See checkpoint.js's own
-   * header for the real, honest tradeoff this makes (a peer who never
-   * saw the pruned events can no longer independently re-verify them
-   * from genesis — only trust this checkpoint's own real signature).
+   * Deletes every event the checkpoint's own state already accounts for; the checkpoint becomes the root of local
+   * storage. Bounds the growth of a domain that runs for good. The trade-off (checkpoint.js): someone who never saw the
+   * pruned events cannot re-verify them from genesis, only trust the checkpoint's signature.
    */
   async pruneBeforeCheckpoint(checkpointEventId) {
     const checkpoint = await this.get(checkpointEventId);
     if (!checkpoint) throw new Error(`pruneBeforeCheckpoint: checkpoint ${checkpointEventId} is not in this log.`);
-    if (!verifyCheckpoint(checkpoint)) throw new Error(`pruneBeforeCheckpoint: ${checkpointEventId} is not a real, self-authored checkpoint.`);
-    const toDelete = new Set();
+    if (!verifyCheckpoint(checkpoint)) throw new Error(`pruneBeforeCheckpoint: ${checkpointEventId} is not a self-authored checkpoint.`);
+    const doomed = new Set();
     const stack = [...checkpoint.payload.coveredHeads];
     while (stack.length > 0) {
       const id = stack.pop();
-      if (toDelete.has(id) || id === checkpointEventId) continue;
-      toDelete.add(id);
+      if (doomed.has(id) || id === checkpointEventId) continue;
+      doomed.add(id);
       const event = await this.get(id);
       if (event) stack.push(...event.parents);
     }
-    for (const id of toDelete) await this.backend.deleteEvent(id);
-    return toDelete.size;
+    for (const id of doomed) await this.backend.deleteEvent(id);
+    return doomed.size;
   }
 
-  async appendMany(events) {
-    // Real, topological pass: keep retrying real events whose real
-    // parents were just appended in this same real batch, rather
-    // than requiring the caller to pre-sort.
-    const pending = [...events];
-    let progressed = true;
-    while (pending.length > 0 && progressed) {
-      progressed = false;
-      for (let i = pending.length - 1; i >= 0; i--) {
-        const ev = pending[i];
-        const parentsKnown = verifyCheckpoint(ev) || (await Promise.all(ev.parents.map((p) => this.backend.hasEvent(p)))).every(Boolean);
-        if (parentsKnown) {
-          await this.append(ev);
-          pending.splice(i, 1);
-          progressed = true;
-        }
-      }
-    }
-    if (pending.length > 0) throw new Error(`appendMany: ${pending.length} real event(s) have real, unresolvable missing parents.`);
-  }
-
-  async get(id) { return this.backend.getEvent(id); }
-  async has(id) { return this.backend.hasEvent(id); }
+  get(id) { return this.backend.getEvent(id); }
+  has(id) { return this.backend.hasEvent(id); }
 
   async getParents(id) {
     const event = await this.get(id);
-    if (!event) return [];
-    return Promise.all(event.parents.map((p) => this.get(p)));
+    return event ? Promise.all(event.parents.map((p) => this.get(p))) : [];
   }
 
   /**
-   * The real, current heads — every real, known event that is not yet
-   * a real parent of any other real, known event. Computed fresh from
-   * the backend every call, deliberately never cached across calls or
-   * instances: a real, persisted backend (IndexedDB) outlives any one
-   * in-memory EventLog instance — a page reload, a service worker
-   * restart, or a new process all construct a fresh EventLog over the
-   * same real backend, so any cache not itself rebuilt from the
-   * backend would silently go stale the instant that happens.
+   * The heads: known events that are nobody's parent. Computed from the backend at every call, never cached: a persisted
+   * backend outlives any one EventLog (a reload, a restart builds a new one over the same storage).
    */
   async head() {
     const ids = await this.backend.allIds();
-    const childCount = new Map();
-    for (const id of ids) {
-      const event = await this.backend.getEvent(id);
-      for (const p of event.parents) childCount.set(p, (childCount.get(p) ?? 0) + 1);
-    }
-    return ids.filter((id) => (childCount.get(id) ?? 0) === 0);
+    const parents = new Set();
+    for (const id of ids) for (const parent of (await this.backend.getEvent(id)).parents) parents.add(parent);
+    return ids.filter((id) => !parents.has(id));
   }
 
-  /** Real, new events not reachable as a real ancestor of `knownIds` — the real, minimal set a peer announcing `knownIds` as their own heads is genuinely missing. */
+  /** The events that are not ancestors of `knownIds`: the minimal set a peer announcing `knownIds` as its heads is missing. */
   async *since(knownIds) {
-    const closure = new Set();
+    const known = new Set();
     const stack = [...knownIds];
     while (stack.length > 0) {
       const id = stack.pop();
-      if (closure.has(id)) continue;
-      closure.add(id);
+      if (known.has(id)) continue;
+      known.add(id);
       const event = await this.get(id);
       if (event) stack.push(...event.parents);
     }
-    const allIds = await this.backend.allIds();
-    for (const id of allIds) {
-      if (!closure.has(id)) yield await this.get(id);
-    }
+    for (const id of await this.backend.allIds()) if (!known.has(id)) yield await this.get(id);
   }
 }

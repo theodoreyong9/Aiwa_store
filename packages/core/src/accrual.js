@@ -1,7 +1,7 @@
-// Composes progression.js and reward.js into a real position per
+// Composes progression.js and reward.js into a position per
 // domain: committed capital b, and the epoch of the domain's own last
 // action (an accrual or a claim) — never a caller-supplied value,
-// always derived from the domain's own real, independently folded
+// always derived from the domain's own independently folded
 // progression, exactly the "recompute, don't trust" discipline this
 // project applies everywhere else. A caller providing its own
 // reference epoch would let anyone claim t=currentEpoch forever.
@@ -21,22 +21,22 @@
 // domain's balance): a new burn never forfeits what the previous one earned.
 // It resets the patience clock.
 // 'claim': { domain, amount } — computes what is currently claimable from
-// the real position, debits up to that amount into a real bigint balance,
+// the position, debits up to that amount into a bigint balance,
 // resets the patience clock. T stays the one chosen at the last burn.
 //
-// Both require a real Ed25519 signature proving the real signer
+// Both require an Ed25519 signature proving the signer
 // controls `domain` — exactly the same signerPubkey/signature-vs-owner
 // discipline wallet.js's own 'transfer'/'split' already apply, mirrored
 // here because adapt-event.js's toReducerEvent strips the outer event
-// envelope's real `author` before any reducer ever sees it (by design,
+// envelope's `author` before any reducer ever sees it (by design,
 // so reducers stay pure {id, parents, payload} functions — see its own
 // header). Without this, 'claim'/'accrual' were the one pair of event
 // types checked only against economic state, never against who
-// actually signed the envelope: anyone could submit a real 'claim' or
+// actually signed the envelope: anyone could submit a 'claim' or
 // 'accrual' naming an unrelated domain, and it would be honored as if
-// the real owner had submitted it. Not a theft — the resulting balance
+// the owner had submitted it. Not a theft — the resulting balance
 // or claim still lands under, and is spendable only by, the named
-// domain's real key — but it let anyone reset that domain's own
+// domain's key — but it let anyone reset that domain's own
 // patience clock (lastActionEpoch below) without consent, a real,
 // narrow griefing vector against the T (patience) bonus in reward.js.
 
@@ -61,7 +61,7 @@ function canonicalAccrualMessage({ domain, b, T, nonce, timestamp, previous }) {
   return JSON.stringify({ domain, b, T: T ?? null, nonce, timestamp, previous });
 }
 
-/** A real, domain-owner-signed commitment of additional capital `b` (and optionally `T`) to the domain's own position. */
+/** A domain-owner-signed commitment of additional capital `b` (and optionally `T`) to the domain's own position. */
 export async function buildSignedAccrualEvent(fields, signerSeed, signerPubkeyBytes, { now = Date.now(), nonce = crypto.randomUUID() } = {}) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const withMeta = { ...fields, nonce, timestamp: now };
@@ -73,7 +73,7 @@ async function verifyAccrualAuthorization(event) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const { domain, b, T, nonce, timestamp, previous, signerPubkey, signature } = event;
   if (typeof signerPubkey !== 'string' || typeof signature !== 'string') return false;
-  if ((await deriveId(fromHex(signerPubkey))) !== domain) return false; // only the domain's real key can commit capital to its own position
+  if ((await deriveId(fromHex(signerPubkey))) !== domain) return false; // only the domain's key can commit capital to its own position
   try {
     return ed25519.verify(fromHex(signature), new TextEncoder().encode(canonicalAccrualMessage({ domain, b, T, nonce, timestamp, previous })), fromHex(signerPubkey));
   } catch {
@@ -85,7 +85,7 @@ function canonicalClaimMessage({ domain, amount, claimId, nonce, timestamp, prev
   return JSON.stringify({ domain, amount, claimId: claimId ?? null, nonce, timestamp, previous });
 }
 
-/** A real, domain-owner-signed claim, moving `amount` from the domain's own accrued position into its real, spendable balance. */
+/** A domain-owner-signed claim, moving `amount` from the domain's own accrued position into its spendable balance. */
 export async function buildSignedClaimEvent(fields, signerSeed, signerPubkeyBytes, { now = Date.now(), nonce = crypto.randomUUID() } = {}) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const withMeta = { ...fields, nonce, timestamp: now };
@@ -97,7 +97,7 @@ async function verifyClaimAuthorization(event) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const { domain, amount, claimId, nonce, timestamp, previous, signerPubkey, signature } = event;
   if (typeof signerPubkey !== 'string' || typeof signature !== 'string') return false;
-  if ((await deriveId(fromHex(signerPubkey))) !== domain) return false; // only the domain's real key can trigger its own claim
+  if ((await deriveId(fromHex(signerPubkey))) !== domain) return false; // only the domain's key can trigger its own claim
   try {
     return ed25519.verify(fromHex(signature), new TextEncoder().encode(canonicalClaimMessage({ domain, amount, claimId, nonce, timestamp, previous })), fromHex(signerPubkey));
   } catch {
@@ -109,7 +109,7 @@ async function verifyClaimAuthorization(event) {
 // produces ({delegate, from, ownerPubkey, delegationSignature}),
 // reused here exactly like wallet.js's own delegated-transfer/
 // delegated-split/delegated-voucher-redeem: a channel's session key can
-// trigger a claim for its real owner (delegation.from) without the
+// trigger a claim for its owner (delegation.from) without the
 // owner's root key signing the claim itself. `canonicalDelegationMessage`
 // is duplicated (not imported) from wallet.js to avoid a circular
 // import — wallet.js already imports from this file.
@@ -121,7 +121,7 @@ function canonicalDelegatedClaimMessage({ domain, amount, claimId, delegate, non
   return JSON.stringify({ domain, amount, claimId: claimId ?? null, delegate, nonce, timestamp, previous });
 }
 
-/** One real, delegate-signed claim, reusing an already-issued real delegation, landing the claimed value under the real owner's domain (delegation.from) — never needs the owner's own key again. */
+/** One delegate-signed claim, reusing an already-issued delegation, landing the claimed value under the owner's domain (delegation.from) — never needs the owner's own key again. */
 export async function buildSignedDelegatedClaimEvent(delegation, fields, delegateSeed, delegatePubkeyBytes, { now = Date.now(), nonce = crypto.randomUUID() } = {}) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const { claimId, amount, previous } = fields;
@@ -140,8 +140,8 @@ async function verifyDelegatedClaimAuthorization(event) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const { domain, amount, claimId, delegate, nonce, timestamp, previous, ownerPubkey, delegationSignature, signerPubkey, signature } = event;
 
-  if ((await deriveId(fromHex(ownerPubkey))) !== domain) return false; // the claim's own real domain must really derive from the embedded owner pubkey
-  if (toHex(fromHex(signerPubkey)) !== delegate) return false; // the claim's own real signer must be exactly the delegated key, not anyone else
+  if ((await deriveId(fromHex(ownerPubkey))) !== domain) return false; // the claim's own domain must really derive from the embedded owner pubkey
+  if (toHex(fromHex(signerPubkey)) !== delegate) return false; // the claim's own signer must be exactly the delegated key, not anyone else
 
   let delegationValid;
   try {
@@ -149,7 +149,7 @@ async function verifyDelegatedClaimAuthorization(event) {
   } catch {
     return false;
   }
-  if (!delegationValid) return false; // the real owner never actually authorized this delegate
+  if (!delegationValid) return false; // the owner never actually authorized this delegate
 
   let claimSigValid;
   try {
@@ -185,7 +185,7 @@ const isWorkBound = (rewardParams) => Number.isInteger(rewardParams?.epochIterat
  * Work-bound deployments: why this domain's mining event does not follow its chain, or null if it does. The events
  * of a domain are a line, and the line is signed: an event that names another predecessor than the last accepted one
  * is a second history (a fork) or a skipped step (an action left out), and is refused. Which of two events naming
- * the same predecessor is the real one is not for the reader to guess: the first folded is kept, and whoever shows
+ * the same predecessor is the one is not for the reader to guess: the first folded is kept, and whoever shows
  * the other history has to hold work that starts from it.
  */
 function chainViolation(rewardParams, state, payload) {
@@ -209,7 +209,7 @@ export const MAX_PATIENCE_RATE = 0.4;
 /**
  * What a commitment of capital `b` at patience rate `T` costs, in lamports of confirmed burn: the capital that
  * counts is what is left of the burn after T of it is destroyed without counting — b = burned x (1 - T), so
- * burned = ceil(b / (1 - T)). T is therefore a real choice: a larger T makes the reward curve more generous, and
+ * burned = ceil(b / (1 - T)). T is therefore a choice: a larger T makes the reward curve more generous, and
  * costs that share of the burn. The share is destroyed, except for the creator fee when the deployment has one (below).
  */
 export function commitmentPriceLamports(b, T = 0) {
@@ -245,7 +245,7 @@ export function burnQuote({ lamports, T = 0, creatorFee }) {
 
 // Straight from rewardFixed()'s own reproducible Q128 BigInt to real
 // on-chain base units — no JS Number in between. This is the actual
-// point of rewardFixed existing: a claim is a real balance credit, and
+// point of rewardFixed existing: a claim is a balance credit, and
 // routing it through a float first (the old reward()+fromFloat path)
 // would reintroduce the one non-reproducible step a future Rust node
 // would disagree with a JS one on.

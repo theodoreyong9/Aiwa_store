@@ -9,7 +9,7 @@ test('modPow matches hand-computable small cases', () => {
   assert.equal(modPow(7n, 1n, 5n), 2n);
 });
 
-test('modPow matches a real, independently-verifiable large case', () => {
+test('modPow matches an independently-verifiable large case', () => {
   assert.equal(modPow(2n, 64n, (1n << 31n) - 1n), 4n);
 });
 
@@ -25,7 +25,7 @@ test('isProbablePrime correctly rejects small known composites', () => {
   }
 });
 
-test('isProbablePrime correctly identifies a real, large known prime (a Mersenne prime exponent case)', () => {
+test('isProbablePrime correctly identifies a large known prime (a Mersenne prime exponent case)', () => {
   assert.equal(isProbablePrime((1n << 127n) - 1n), true);
 });
 
@@ -40,7 +40,7 @@ test('hashToPrime is deterministic for the same input', async () => {
   assert.equal(p1, p2);
 });
 
-test('hashToPrime output is a real, verified prime', async () => {
+test('hashToPrime output is a verified prime', async () => {
   const p = await hashToPrime(new TextEncoder().encode('any input'));
   assert.equal(isProbablePrime(p), true);
 });

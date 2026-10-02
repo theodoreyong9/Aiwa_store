@@ -4,12 +4,12 @@ import { WebrtcTransport } from '../src/webrtc-transport.js';
 import { decodeSignal, encodeSignal } from '../src/signaling-codec.js';
 
 // A minimal, deliberately fake RTCPeerConnection/RTCDataChannel — real
-// ICE negotiation and real SDP semantics are NOT simulated (see
+// ICE negotiation and SDP semantics are NOT simulated (see
 // webrtc-transport.js's own "HONEST LIMIT"). What this exercises is
-// WebrtcTransport's own real bookkeeping: which peers are pending vs.
+// WebrtcTransport's own bookkeeping: which peers are pending vs.
 // open, when join/leave/message handlers fire, and that malformed
-// signaling is rejected — all real logic this class owns, independent
-// of whatever a genuine browser's WebRTC stack does underneath it.
+// signaling is rejected — all logic this class owns, independent
+// of whatever a browser's WebRTC stack does underneath it.
 
 class FakeChannel {
   constructor(label) {
@@ -37,7 +37,7 @@ class FakeChannel {
 
 class FakePeerConnection {
   constructor() {
-    this.iceGatheringState = 'complete'; // skips real ICE gathering entirely in tests
+    this.iceGatheringState = 'complete'; // skips ICE gathering entirely in tests
     this.localDescription = null;
     this.remoteDescription = null;
     this.ondatachannel = null;
@@ -66,7 +66,7 @@ function makeTransport(selfId = 'self') {
   return { transport, pcs };
 }
 
-test('createOfferFor returns a real, decodable offer blob and registers the peer as pending (not yet open)', async () => {
+test('createOfferFor returns a decodable offer blob and registers the peer as pending (not yet open)', async () => {
   const { transport } = makeTransport();
   const blob = await transport.createOfferFor('bob');
   const decoded = decodeSignal(blob);
@@ -81,7 +81,7 @@ test('createOfferFor rejects a duplicate peer already connected or connecting', 
   await assert.rejects(transport.createOfferFor('bob'), /Already connected/);
 });
 
-test('the peer appears in peers() and fires onPeerJoin exactly when its real channel opens', async () => {
+test('the peer appears in peers() and fires onPeerJoin exactly when its channel opens', async () => {
   const { transport, pcs } = makeTransport();
   const joined = [];
   transport.onPeerJoin((id) => joined.push(id));
@@ -92,13 +92,13 @@ test('the peer appears in peers() and fires onPeerJoin exactly when its real cha
   assert.deepEqual(joined, ['bob']);
 });
 
-test('send() is a real, silent no-op for a peer whose channel is not open yet — never throws', async () => {
+test('send() is a silent no-op for a peer whose channel is not open yet — never throws', async () => {
   const { transport } = makeTransport();
   await transport.createOfferFor('bob');
   await assert.doesNotReject(transport.send('bob', new Uint8Array([1, 2, 3])));
 });
 
-test('send() delivers real bytes once the channel is open', async () => {
+test('send() delivers bytes once the channel is open', async () => {
   const { transport, pcs } = makeTransport();
   await transport.createOfferFor('bob');
   pcs[0].channel.open();
@@ -107,7 +107,7 @@ test('send() delivers real bytes once the channel is open', async () => {
   assert.deepEqual(pcs[0].channel.sent, [bytes]);
 });
 
-test('an incoming message on the real channel fires onMessage with the correct peer id', async () => {
+test('an incoming message on the channel fires onMessage with the correct peer id', async () => {
   const { transport, pcs } = makeTransport();
   const received = [];
   transport.onMessage((peerId, bytes) => received.push({ peerId, bytes }));
@@ -146,7 +146,7 @@ test('acceptOffer rejects a blob that is an answer, not an offer', async () => {
   await assert.rejects(transport.acceptOffer(notAnOffer), /expected an offer/);
 });
 
-test('acceptOffer returns a real, decodable answer blob, registering the connection under the offer\'s own originId', async () => {
+test('acceptOffer returns a decodable answer blob, registering the connection under the offer\'s own originId', async () => {
   const { transport } = makeTransport('bob');
   const offerBlob = encodeSignal('offer', 'alice', 'real-offer-sdp');
   const answerBlob = await transport.acceptOffer(offerBlob);
@@ -177,7 +177,7 @@ test('completeConnection rejects a blob that is an offer, not an answer', async 
   await assert.rejects(transport.completeConnection('bob', notAnAnswer), /expected an answer/);
 });
 
-test('completeConnection applies the real remote description on success', async () => {
+test('completeConnection applies the remote description on success', async () => {
   const { transport, pcs } = makeTransport();
   await transport.createOfferFor('bob');
   const answerBlob = encodeSignal('answer', 'bob', 'real-answer-sdp');
@@ -195,7 +195,7 @@ test('broadcast reaches every open peer, never a peer still pending', async () =
   assert.equal(pcs[1].channel.sent.length, 0);
 });
 
-test('disconnect() closes every real link, pending and open, and clears all state', async () => {
+test('disconnect() closes every link, pending and open, and clears all state', async () => {
   const { transport, pcs } = makeTransport();
   await transport.createOfferFor('bob');
   await transport.createOfferFor('carol');
@@ -206,8 +206,8 @@ test('disconnect() closes every real link, pending and open, and clears all stat
   assert.equal(pcs[1].closed, true);
 });
 
-// Regression test for a real bug found via two genuinely separate,
-// live browser tabs (Playwright + real Chromium): when STUN traffic is
+// Regression test for a bug found via two separate,
+// live browser tabs (Playwright + Chromium): when STUN traffic is
 // blocked (as it is in some sandboxed/firewalled networks),
 // iceGatheringState never reaches 'complete' on its own, and an
 // unbounded wait hangs forever. createOfferFor/acceptOffer must still

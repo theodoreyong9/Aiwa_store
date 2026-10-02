@@ -65,7 +65,7 @@ test('SECURITY: tampering with receivedFrom after signing invalidates the signat
   assert.equal(state.rejections.length, 1);
 });
 
-test('a full commitment referencing a real, existing source event is accepted', async () => {
+test('a full commitment referencing an existing source event is accepted', async () => {
   const signer = makeSigner();
   const domain = await deriveId(signer.pubkeyBytes);
   const payload = await signCommitment(signer, { domain, epoch: 1, kind: 'full', receivedFrom: [{ sourceDomain: 'c', eventId: 'real-event' }] });
@@ -117,7 +117,7 @@ test('monotonicity is tracked independently per source domain', async () => {
   assert.equal(state.rejections.length, 0);
 });
 
-test('materializeMirror folds a real sequence and still catches a monotonicity violation', async () => {
+test('materializeMirror folds a sequence and still catches a monotonicity violation', async () => {
   const signer = makeSigner();
   const domain = await deriveId(signer.pubkeyBytes);
   const p1 = await signCommitment(signer, { domain, epoch: 1, kind: 'full', receivedFrom: [{ sourceDomain: 'c', eventId: 'e-at-10' }] });
@@ -128,13 +128,13 @@ test('materializeMirror folds a real sequence and still catches a monotonicity v
   assert.equal(state.rejections.length, 1);
 });
 
-test('deriveSourceEpochLookup returns the real epoch when the target is a progression event', () => {
+test('deriveSourceEpochLookup returns the epoch when the target is a progression event', () => {
   const events = [{ id: 'p1', parents: [], payload: { type: 'progression', domain: 'd', epoch: 3 } }];
   const lookup = deriveSourceEpochLookup(events);
   assert.equal(lookup('d', 'p1'), 3);
 });
 
-test('deriveSourceEpochLookup walks ancestors for the highest real progression epoch', () => {
+test('deriveSourceEpochLookup walks ancestors for the highest progression epoch', () => {
   const events = [
     { id: 'p1', parents: [], payload: { type: 'progression', domain: 'd', epoch: 1 } },
     { id: 'p2', parents: ['p1'], payload: { type: 'progression', domain: 'd', epoch: 2 } },
@@ -155,7 +155,7 @@ test('deriveSourceEpochLookup returns null for a nonexistent event id', () => {
   assert.equal(lookup('d', 'ghost'), null);
 });
 
-test('a real event with no progression ancestors is legitimate epoch-0 state, not absence', () => {
+test('an event with no progression ancestors is legitimate epoch-0 state, not absence', () => {
   const events = [{ id: 'reg', parents: [], payload: { type: 'identity-register', domain: 'd' } }];
   const lookup = deriveSourceEpochLookup(events);
   assert.equal(lookup('d', 'reg'), 0);
@@ -174,7 +174,7 @@ test('a domain with a wide, organic spread of counterparties scores high entropy
   assert.ok(wide.entropy > narrow.entropy);
 });
 
-test('THE REAL INCREMENTAL CATCH-UP PROPERTY: applying only newly-arrived real reception events on top of already-materialized state produces byte-identical results to a full replay from scratch', async () => {
+test('THE INCREMENTAL CATCH-UP PROPERTY: applying only newly-arrived reception events on top of already-materialized state produces byte-identical results to a full replay from scratch', async () => {
   const signerA = makeSigner();
   const domainA = await deriveId(signerA.pubkeyBytes);
   const signerB = makeSigner();
@@ -188,7 +188,7 @@ test('THE REAL INCREMENTAL CATCH-UP PROPERTY: applying only newly-arrived real r
   const p3 = await signCommitment(signerB, { domain: domainB, epoch: 1, kind: 'empty', receivedFrom: [] });
   events.push({ id: 'b1', payload: { type: 'reception', ...p3 } });
 
-  const lookup = () => 5; // a real, fixed, resolvable epoch for any real source reference
+  const lookup = () => 5; // a fixed, resolvable epoch for any source reference
 
   const fullReplay = await materializeMirror(events, lookup);
 

@@ -34,12 +34,12 @@ function deriveSourceEpochLookupOverride(orderedEvents) {
   };
 }
 
-test('a domain with no external observers has no causal tick — a real, honest absence (bottom)', async () => {
+test('a domain with no external observers has no causal tick — a honest absence (bottom)', async () => {
   const result = await computeCausalTick(initialMirrorState(), initialIdentityCostState(), [], 'ghost');
   assert.equal(result, null);
 });
 
-test('a single, real, funded observer produces a real causal tick matching what it observed', async () => {
+test('a single, funded observer produces a causal tick matching what it observed', async () => {
   const signer = makeSigner();
   const observerDomain = await deriveId(signer.pubkeyBytes);
   const targetEvent = { id: 'e5', parents: [], payload: { type: 'progression', domain: 'target', epoch: 5 } };
@@ -52,7 +52,7 @@ test('a single, real, funded observer produces a real causal tick matching what 
   assert.equal(result.totalWeight, 1000);
 });
 
-test('SECURITY: an observer with zero real burn contributes zero weight, even with a real, validly-signed commitment', async () => {
+test('SECURITY: an observer with zero burn contributes zero weight, even with a validly-signed commitment', async () => {
   const signer = makeSigner();
   const observerDomain = await deriveId(signer.pubkeyBytes);
   const targetEvent = { id: 'e5', parents: [], payload: { type: 'progression', domain: 'target', epoch: 5 } };
@@ -64,7 +64,7 @@ test('SECURITY: an observer with zero real burn contributes zero weight, even wi
   assert.equal(result, null, 'a real signature with zero real committed capital must contribute nothing');
 });
 
-test('SECURITY: real majority weight determines the tick even against a funded but minority adversary', async () => {
+test('SECURITY: majority weight determines the tick even against a funded but minority adversary', async () => {
   const targetEvent = { id: 'e100', parents: [], payload: { type: 'progression', domain: 'target', epoch: 100 } };
   const fakeTargetEvent = { id: 'e-fake-999', parents: [], payload: { type: 'progression', domain: 'target', epoch: 999999 } };
   const orderedEvents = [targetEvent, fakeTargetEvent];
@@ -96,18 +96,18 @@ test('checkCausalConsistency is trivially consistent with no evidence yet', () =
   assert.equal(gap, null);
 });
 
-test('checkCausalConsistency flags a real, large gap between self-reported and corroborated epoch', () => {
+test('checkCausalConsistency flags a large gap between self-reported and corroborated epoch', () => {
   const { consistent, gap } = checkCausalConsistency(500, { tick: 10 }, 5);
   assert.equal(consistent, false);
   assert.equal(gap, 490);
 });
 
-test('checkCausalConsistency accepts a self-reported epoch within real tolerance', () => {
+test('checkCausalConsistency accepts a self-reported epoch within tolerance', () => {
   const { consistent } = checkCausalConsistency(12, { tick: 10 }, 5);
   assert.equal(consistent, true);
 });
 
-test('computeCausalTick reports a real interval, not just a point — spread across disagreeing observers', async () => {
+test('computeCausalTick reports an interval, not just a point — spread across disagreeing observers', async () => {
   const targetEvent98 = { id: 'e98', parents: [], payload: { type: 'progression', domain: 'target', epoch: 98 } };
   const targetEvent102 = { id: 'e102', parents: [], payload: { type: 'progression', domain: 'target', epoch: 102 } };
   const orderedEvents = [targetEvent98, targetEvent102];
@@ -185,7 +185,7 @@ test('HARDWARE IS AN OPTIONAL SIGNAL, NEVER A WEIGHT: a hardware-backed observer
   assert.equal(result.hardwareBackedObservers, 1);
 });
 
-test('SECURITY, THE REAL BUG FOUND AND FIXED: replaying the identical reception commitment gives zero additional influence', async () => {
+test('SECURITY, THE BUG FOUND AND FIXED: replaying the identical reception commitment gives zero additional influence', async () => {
   const signer = makeSigner();
   const observerDomain = await deriveId(signer.pubkeyBytes);
   const targetEvent = { id: 'e5', parents: [], payload: { type: 'progression', domain: 'target', epoch: 5 } };
@@ -203,7 +203,7 @@ test('SECURITY, THE REAL BUG FOUND AND FIXED: replaying the identical reception 
   assert.equal(result.observationCount, 1);
 });
 
-test('an observer who has evolved their real knowledge over time contributes their single, most-recent observation, not an accumulation', async () => {
+test('an observer who has evolved their knowledge over time contributes their single, most-recent observation, not an accumulation', async () => {
   const signer = makeSigner();
   const observerDomain = await deriveId(signer.pubkeyBytes);
   const targetEventOld = { id: 'e5', parents: [], payload: { type: 'progression', domain: 'target', epoch: 5 } };
@@ -236,7 +236,7 @@ test('DOMAIN INVARIANCE: computeCausalTick is a pure function — identical evid
   assert.deepEqual(fromEarth, fromMars, 'the identical real evidence must produce the identical real result no matter who computes it');
 });
 
-test('SECURITY, THE REAL SYBIL PROPERTY: many low-burn identities do not out-weigh fewer, well-funded real domains', async () => {
+test('SECURITY, THE SYBIL PROPERTY: many low-burn identities do not out-weigh fewer, well-funded domains', async () => {
   const targetEvent = { id: 'e50', parents: [], payload: { type: 'progression', domain: 'target', epoch: 50 } };
   const fakeEvent = { id: 'e-fake', parents: [], payload: { type: 'progression', domain: 'target', epoch: 999999 } };
   const orderedEvents = [targetEvent, fakeEvent];
@@ -265,10 +265,10 @@ test('SECURITY, THE REAL SYBIL PROPERTY: many low-burn identities do not out-wei
   assert.equal(result.tick, 50, `20 low-burn identities (${20 * 1000} total) must not outweigh 2 real, well-funded domains (${2 * 50000} total) — got tick=${result.tick}`);
 });
 
-test('THE EARTH/MARS TEST: two domains with genuinely different local progressions compute the identical comparable coordinate for a shared, externally-observed target', async () => {
+test('THE EARTH/MARS TEST: two domains with different local progressions compute the identical comparable coordinate for a shared, externally-observed target', async () => {
   // Earth and Mars never synchronize with each other at all — they
-  // only both happen to have real, signed reception commitments about
-  // the SAME real target domain, each independently derived from the
+  // only both happen to have signed reception commitments about
+  // the SAME target domain, each independently derived from the
   // identical underlying causal content (content-addressed, so
   // transport path never matters).
   const targetEvent = { id: 'e42', parents: [], payload: { type: 'progression', domain: 'shared-target', epoch: 42 } };
@@ -279,7 +279,7 @@ test('THE EARTH/MARS TEST: two domains with genuinely different local progressio
   const marsSigner = makeSigner();
   const marsDomain = await deriveId(marsSigner.pubkeyBytes);
 
-  // Earth and Mars each really burned different, real amounts —
+  // Earth and Mars each really burned different, amounts —
   // their own local histories are otherwise completely unrelated
   // (10,000 vs 7,000 "local progression", never compared directly).
   let identityCostState = fundedIdentityCost(initialIdentityCostState(), earthDomain, 10000);
@@ -293,7 +293,7 @@ test('THE EARTH/MARS TEST: two domains with genuinely different local progressio
 
   // Whoever asks — Earth's own software, Mars's own software, or a
   // third party entirely — recomputing from the identical real
-  // evidence gives the identical real, comparable coordinate for the
+  // evidence gives the identical comparable coordinate for the
   // shared target. Neither Earth's nor Mars's own, unrelated local
   // progression enters into it at all.
   const result = await computeCausalTick(mirrorState, identityCostState, [targetEvent], 'shared-target');

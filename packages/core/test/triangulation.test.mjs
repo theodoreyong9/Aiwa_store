@@ -98,7 +98,7 @@ test('LIMIT: a reader that does not hold the history from epoch 1 cannot replay 
   assert.equal(r.combined.position, 999999);
 });
 
-test("replayProgression accepts a real chain, rejects the target's own fake for the work it lacks, and says when it cannot chain at all", async () => {
+test("replayProgression accepts a chain, rejects the target's own fake for the work it lacks, and says when it cannot chain at all", async () => {
   const t = await keypair();
   const chain = await honestChain(t, 5);
   const fake = await link(t, t, 'fake', 999, chain[4], { vdfOutput: 'f'.repeat(64) });
@@ -108,7 +108,7 @@ test("replayProgression accepts a real chain, rejects the target's own fake for 
   assert.equal(replay.rejections.length, 1);
   assert.equal(replay.rejections[0].eventId, 'fake');
 
-  // a real but partial history (from epoch 3): nothing can be chained, and it is not the same as "forged"
+  // a but partial history (from epoch 3): nothing can be chained, and it is not the same as "forged"
   const partial = await replayProgression(chain.slice(2), t.domain);
   assert.equal(partial.genesis, false);
   assert.equal(partial.accepted.size, 0);

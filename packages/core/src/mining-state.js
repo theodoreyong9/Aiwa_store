@@ -1,11 +1,11 @@
 // The two states of "last action" mining, readable by anyone who holds a domain's events — an app, a validator, a
 // registry — without trusting the domain.
 //
-//  1. THE MINING STATE of a domain: the capital that mines (the last burn's b), the patience rate T chosen at that
-//     burn, the epoch of the last action (burn or claim), the domain's age (its progression epochs), the epochs
-//     since the last action, and what is claimable now.
-//  2. THE RANKING FIGURE: what an app ranks by — the claimable at this moment and the laps (epochs since the last
-//     action). A figure is read at a moment and frozen by whoever stores it.
+// 1. THE MINING STATE of a domain: the capital that mines (the last burn's b), the patience rate T chosen at that
+// burn, the epoch of the last action (burn or claim), the domain's age (its progression epochs), the epochs
+// since the last action, and what is claimable now.
+// 2. THE RANKING FIGURE: what an app ranks by — the claimable at this moment and the laps (epochs since the last
+// action). A figure is read at a moment and frozen by whoever stores it.
 //
 // In a work-bound deployment (rewardParams.epochIterations) the mining events of a domain are one signed chain: each
 // names the one it follows, and the work of an epoch starts from it. `chainHead` is the last one, what the next must

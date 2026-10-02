@@ -1,24 +1,14 @@
-// The real Materializer contract — an application decides what a
-// real event means; the event/log layer never does. A real, default
-// key-value Materializer is provided for the common, real case, but
-// any real application can supply its own, richer real reducer
-// instead (see mirror.js/wallet.js/etc. in this very package, which
-// each fold events with their own real state machines, never this
-// generic one).
+// A materializer decides what events mean: a pure `apply(state, event) -> state`. The log never does.
+// The default one folds key-value events; the modules of this package fold their own state machines.
 
-/**
- * The real, default key-value Materializer — handles `kv.set` and
- * `kv.delete` real event types. `apply` is a real, pure function:
- * (state, event) -> new state, never mutating its real input.
- */
 export const defaultKvMaterializer = {
   initialState: () => ({}),
   apply(state, event) {
     if (event.type === 'kv.set') return { ...state, [event.payload.key]: event.payload.value };
     if (event.type === 'kv.delete') {
-      const { [event.payload.key]: _, ...rest } = state;
+      const { [event.payload.key]: _removed, ...rest } = state;
       return rest;
     }
-    return state; // a real, unrecognized event type is a real no-op here, never an error — a real, custom Materializer may still care about it elsewhere
+    return state;     // an event type it does not know is not an error: another materializer may care about it
   },
 };

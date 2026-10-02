@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Runs an Aiwa archive node. Usage:
-//   node node/aiwa-node.js [--port 8787] [--data ~/aiwa-node-data] [--tunnel]
+// node node/aiwa-node.js [--port 8787] [--data ~/aiwa-node-data] [--tunnel]
 // --tunnel starts a Cloudflare quick tunnel (cloudflared, if installed) and prints the public https address to give to
 // wallets: a phone or a home connection has no address of its own, and wallets (pages served over https) need https.
 import { spawn } from 'node:child_process';

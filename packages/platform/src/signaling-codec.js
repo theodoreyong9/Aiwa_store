@@ -1,7 +1,7 @@
-// Encodes/decodes the one real message WebRTC's own standard signaling
+// Encodes/decodes the one message WebRTC's own standard signaling
 // process needs before two peers can talk directly: an SDP offer or
 // answer, tagged with who sent it. Pure, no WebRTC API involved — the
-// real, opaque blob this produces travels over whatever real
+// opaque blob this produces travels over whatever real
 // out-of-band channel the caller picks (pasted text, a QR code, a
 // shared file); this module never transmits anything itself.
 
@@ -9,8 +9,8 @@ const FORMAT = 'aiwa-platform-signal-v1';
 
 /**
  * @param {'offer'|'answer'} kind
- * @param {string} originId real, human-checkable label for who this signal is from — shown before the recipient accepts, never trusted as an identity proof on its own (the real identity proof is whatever the application layer signs over the resulting data channel, not this blob).
- * @param {string} sdp the real SDP string from RTCPeerConnection's own localDescription.
+ * @param {string} originId human-checkable label for who this signal is from — shown before the recipient accepts, never trusted as an identity proof on its own (the identity proof is whatever the application layer signs over the resulting data channel, not this blob).
+ * @param {string} sdp the SDP string from RTCPeerConnection's own localDescription.
  */
 export function encodeSignal(kind, originId, sdp) {
   if (kind !== 'offer' && kind !== 'answer') throw new Error(`encodeSignal: kind must be 'offer' or 'answer', got '${kind}'`);

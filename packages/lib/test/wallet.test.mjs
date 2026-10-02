@@ -4,14 +4,14 @@ import { spendableClaims, EventLog, createMemoryBackend, findLatestCheckpoint } 
 import { LoopbackTransport, publishBundle, readBundle } from 'aiwa-platform';
 import { AIWA, encodeOfflineBundle, decodeOfflineBundle, fromUnits, toUnits } from '../src/wallet.js';
 
-// The same real test economic parameters aiwa-core's own test suite
+// The same test economic parameters aiwa-core's own test suite
 // uses (see wallet.test.mjs/accrual.test.mjs there) — a real
 // deployment chooses its own; this file never invents one.
 // commitmentBacking: 'none' — these tests are not about the burn gate (burn-backed.test.mjs is)
 const rewardParams = { alpha: 1.1, beta: 2.2, gamma: 3, C: Math.pow(33, 3), minQ: 1, commitmentBacking: 'none' };
-const VDF_ITERATIONS = 50; // small — a real deployment uses far more; this only needs to be a REAL, valid chain, not a slow one, for these tests
+const VDF_ITERATIONS = 50; // small — a deployment uses far more; this only needs to be a valid chain, not a slow one, for these tests
 
-test('connect() derives a real identity and a real, displayable Solana address', async () => {
+test('connect() derives an identity and a displayable Solana address', async () => {
   const aiwa = new AIWA({ rewardParams });
   assert.equal(aiwa.connected, false);
   assert.equal(aiwa.address, null);
@@ -32,7 +32,7 @@ test('connect() is deterministic from the same secret key bytes', async () => {
   assert.equal(addr2, addr1);
 });
 
-test('connect() from a passphrase is deterministic and reproduces the same real identity', async () => {
+test('connect() from a passphrase is deterministic and reproduces the same identity', async () => {
   const a = new AIWA({ rewardParams });
   const b = new AIWA({ rewardParams });
   const resultA = await a.connect({ passphrase: 'correct horse battery staple' });
@@ -41,7 +41,7 @@ test('connect() from a passphrase is deterministic and reproduces the same real 
   assert.equal(resultA.identityId, resultB.identityId);
 });
 
-test('disconnect() clears the real identity but never touches already-synced local data', async () => {
+test('disconnect() clears the identity but never touches already-synced local data', async () => {
   const aiwa = new AIWA({ rewardParams });
   await aiwa.connect();
   await aiwa.recordCommitment({ b: 10 });
@@ -51,14 +51,14 @@ test('disconnect() clears the real identity but never touches already-synced loc
   assert.equal(await aiwa.log.head().then((h) => h.length), 1, 'the real committed event is still in the local log');
 });
 
-test('claimable() is genuinely 0 with no real progression ever recorded — this is not a bug, see the file\'s own HONEST LIMIT', async () => {
+test('claimable() is genuinely 0 with no progression ever recorded — this is not a bug, see the file\'s own HONEST LIMIT', async () => {
   const aiwa = new AIWA({ rewardParams });
   await aiwa.connect();
   await aiwa.recordCommitment({ b: 10 });
   assert.equal(await aiwa.claimable(), '0');
 });
 
-test('the real accrual -> progression -> claimable -> claim -> balance pipeline', async () => {
+test('the accrual -> progression -> claimable -> claim -> balance pipeline', async () => {
   const aiwa = new AIWA({ rewardParams });
   await aiwa.connect();
   await aiwa.recordCommitment({ b: 10 });
@@ -72,12 +72,12 @@ test('the real accrual -> progression -> claimable -> claim -> balance pipeline'
   assert.equal(balance, claimable);
 });
 
-// THE REAL BUG FOUND AND FIXED THIS SAME SESSION: none of this file's
+// THE BUG FOUND AND FIXED THIS SAME SESSION: none of this file's
 // other tests call recordCommitment() a SECOND time between progression
 // ticks — they all call it once, then advanceProgress() in an
 // uninterrupted loop, so log.head() never changes to anything but the
 // last progression event in between. Once something else genuinely
-// intervenes (a real committed position increase, mid-progression —
+// intervenes (a committed position increase, mid-progression —
 // an entirely ordinary sequence), advanceProgress()'s own parents must
 // still correctly declare the domain's last accepted progression event,
 // or aiwa-core's own causal-chain check permanently rejects every
@@ -90,7 +90,7 @@ test('advanceProgress() keeps chaining correctly across an intervening recordCom
   await aiwa.recordCommitment({ b: 10 });
   await aiwa.advanceProgress({ vdfIterations: VDF_ITERATIONS });
 
-  // A second, real, intervening event for the same domain — the log's
+  // A second, intervening event for the same domain — the log's
   // head is now this accrual event, not the progression event above.
   await aiwa.recordCommitment({ b: 5 });
 
@@ -105,13 +105,13 @@ test('advanceProgress() keeps chaining correctly across an intervening recordCom
   assert.ok(Number(claimable) > 0, `expected real claimable growth, got ${claimable}`);
 });
 
-// Found via a real, live browser run of the wallet page:
+// Found via a live browser run of the wallet page:
 // balance() includes claimable() — value that has accrued but was
-// never actually moved into a real, spendable claim. A UI that reads
+// never actually moved into a spendable claim. A UI that reads
 // balance() and tries to send() that full amount hits a confusing "No
 // single active claim covers..." error, since claimable value simply
 // cannot be sent until claim()'d. This reproduces that exact failure,
-// then confirms spendableBalance() is the real, always-correct answer
+// then confirms spendableBalance() is the always-correct answer
 // to "how much can I actually send right now."
 test('spendableBalance() is the actually-sendable amount — never inflated by claimable(), which balance() includes but cannot itself be sent', async () => {
   const aiwa = new AIWA({ rewardParams });
@@ -119,7 +119,7 @@ test('spendableBalance() is the actually-sendable amount — never inflated by c
   await aiwa.recordCommitment({ b: 10 });
   for (let i = 0; i < 5; i++) await aiwa.advanceProgress({ vdfIterations: VDF_ITERATIONS });
 
-  // Before any claim: claimable > 0, but nothing is genuinely spendable yet.
+  // Before any claim: claimable > 0, but nothing is spendable yet.
   const claimableBefore = await aiwa.claimable();
   assert.ok(Number(claimableBefore) > 0);
   assert.equal(await aiwa.spendableBalance(), '0');
@@ -127,12 +127,12 @@ test('spendableBalance() is the actually-sendable amount — never inflated by c
 
   // Sending the full "balance" here is exactly the mistake the real
   // browser run of the wallet UI made — it fails, since none of it is
-  // actually in a real, spendable claim yet.
+  // actually in a spendable claim yet.
   await assert.rejects(aiwa.send('bob', claimableBefore), /No single active claim/);
 
   await aiwa.claim(claimableBefore);
 
-  // Now it genuinely is spendable, and spendableBalance() says so.
+  // Now it is spendable, and spendableBalance() says so.
   assert.equal(await aiwa.spendableBalance(), claimableBefore);
   await assert.doesNotReject(aiwa.send('bob', await aiwa.spendableBalance()));
 });
@@ -158,7 +158,7 @@ test('send() splits an existing claim when no exact match exists', async () => {
   assert.equal(events[1].type, 'transfer');
 });
 
-test('a full, real, fully OFFLINE transfer between two independent wallets with zero prior sync', async () => {
+test('a full, fully OFFLINE transfer between two independent wallets with zero prior sync', async () => {
   const alice = new AIWA({ rewardParams });
   await alice.connect();
   await alice.recordCommitment({ b: 100 });
@@ -167,11 +167,11 @@ test('a full, real, fully OFFLINE transfer between two independent wallets with 
   await alice.claim(claimable);
   assert.equal(await alice.balance(), claimable);
 
-  const bob = new AIWA({ rewardParams }); // a genuinely separate wallet, own EventLog, own identity, zero prior sync with alice
+  const bob = new AIWA({ rewardParams }); // a separate wallet, own EventLog, own identity, zero prior sync with alice
   const { identityId: bobId } = await bob.connect();
 
-  // The real, offline path: alice builds a self-contained bundle —
-  // real signed events plus every real ancestor bob would otherwise
+  // The offline path: alice builds a self-contained bundle —
+  // signed events plus every ancestor bob would otherwise
   // be missing — encodes it exactly as a QR code payload would be,
   // and bob decodes + appends it with NO network involved anywhere.
   const bundle = await alice.sendOfflineBundle(bobId, claimable);
@@ -185,7 +185,7 @@ test('a full, real, fully OFFLINE transfer between two independent wallets with 
   assert.equal(await alice.balance(), '0', "alice's own claim is now fully transferred away");
 });
 
-test('receiveOfflineBundle rejects a tampered bundle — real signature/causal verification, not trust', async () => {
+test('receiveOfflineBundle rejects a tampered bundle — signature/causal verification, not trust', async () => {
   const alice = new AIWA({ rewardParams });
   await alice.connect();
   await alice.recordCommitment({ b: 100 });
@@ -201,7 +201,7 @@ test('receiveOfflineBundle rejects a tampered bundle — real signature/causal v
   await assert.rejects(bob.receiveOfflineBundle(tampered), /verification|Verification/i);
 });
 
-test('fromUnits/toUnits round-trip a real decimal amount', () => {
+test('fromUnits/toUnits round-trip a decimal amount', () => {
   assert.equal(fromUnits(toUnits('1.5')), '1.5');
   assert.equal(fromUnits(toUnits('0.000000000000000001')), '0.000000000000000001');
 });
@@ -212,7 +212,7 @@ test('openChannel() requires a live network session by default', async () => {
   await assert.rejects(aiwa.openChannel('bob-id'), /no live network session/);
 });
 
-test('"sign once, click many times": a real Channel sends repeatedly without the root key signing again', async () => {
+test('"sign once, click many times": a Channel sends repeatedly without the root key signing again', async () => {
   const aiwa = new AIWA({ rewardParams });
   await aiwa.connect();
   await aiwa.recordCommitment({ b: 100 });
@@ -249,14 +249,14 @@ test('openChannel() derives a DIFFERENT session key for a different peer', async
   assert.notEqual(toBob.address, toCarol.address);
 });
 
-// THE REAL HANDSHAKE — requestChannel()/acceptChannelRequest()/confirm():
+// THE HANDSHAKE — requestChannel()/acceptChannelRequest()/confirm():
 // unlike openChannel() above (a unilateral delegation the peer never
-// consents to), this is a genuine two-sided exchange, and it never
+// consents to), this is a two-sided exchange, and it never
 // needs a live network session on either side — the request/accept
-// blobs are meant to travel over ANY real channel (a live message, a
+// blobs are meant to travel over ANY channel (a live message, a
 // pasted string standing in for a QR code or Bluetooth transfer here).
 
-test('a channel is unusable until the real peer accepts it — every action rejects on a pending channel', async () => {
+test('a channel is unusable until the peer accepts it — every action rejects on a pending channel', async () => {
   const alice = new AIWA({ rewardParams });
   await alice.connect();
   const bob = new AIWA({ rewardParams });
@@ -268,7 +268,7 @@ test('a channel is unusable until the real peer accepts it — every action reje
   await assert.rejects(channel.claim('1.0'), /not confirmed yet/);
 });
 
-test('THE REAL HANDSHAKE: request -> accept -> confirm makes a channel usable, entirely offline, with real, independent verification on both sides', async () => {
+test('THE HANDSHAKE: request -> accept -> confirm makes a channel usable, entirely offline, with independent verification on both sides', async () => {
   const alice = new AIWA({ rewardParams });
   await alice.connect();
   await alice.recordCommitment({ b: 100 });
@@ -286,17 +286,17 @@ test('THE REAL HANDSHAKE: request -> accept -> confirm makes a channel usable, e
   // Step 2: Bob verifies and accepts, offline too — never touches his own log.
   const acceptBlob = await bob.acceptChannelRequest(requestBlob);
 
-  // Step 3: Alice confirms using Bob's real response.
+  // Step 3: Alice confirms using Bob's response.
   await channel.confirm(acceptBlob);
   assert.equal(channel.status, 'confirmed');
 
-  // Now genuinely usable.
+  // Now usable.
   await channel.send(claimable);
   const state = await alice._materializeWallet();
   assert.equal(spendableClaims(state, bobId).length, 1);
 });
 
-test('SECURITY: acceptChannelRequest rejects a request whose embedded delegation was forged — an attacker signing for real, but claiming to be a victim they do not control', async () => {
+test('SECURITY: acceptChannelRequest rejects a request whose embedded delegation was forged — an attacker signing for but claiming to be a victim they do not control', async () => {
   const attacker = new AIWA({ rewardParams });
   await attacker.connect();
   const victim = new AIWA({ rewardParams });
@@ -306,8 +306,8 @@ test('SECURITY: acceptChannelRequest rejects a request whose embedded delegation
 
   const { blob: attackerBlob } = await attacker.requestChannel('whoever');
   const forgedRequest = decodeOfflineBundle(attackerBlob);
-  // The attacker's own real signature stays; only the claimed `from` is
-  // swapped to the victim's real id afterward — the identical forgery
+  // The attacker's own signature stays; only the claimed `from` is
+  // swapped to the victim's id afterward — the identical forgery
   // shape aiwa-core's own accrual/claim/progression SECURITY tests use.
   forgedRequest.delegation = { ...forgedRequest.delegation, from: victimId };
 
@@ -321,13 +321,13 @@ test('SECURITY: Channel.confirm rejects an accept meant for a different request'
   const { identityId: bobId } = await bob.connect();
 
   const { blob: request1 } = await alice.requestChannel(bobId);
-  const { channel: channel2 } = await alice.requestChannel(bobId); // a second, real, distinct request
+  const { channel: channel2 } = await alice.requestChannel(bobId); // a second, distinct request
   const accept1 = await bob.acceptChannelRequest(request1);
 
   await assert.rejects(channel2.confirm(accept1), /different channel request/);
 });
 
-test('SECURITY: Channel.confirm rejects an accept from someone other than the real intended peer', async () => {
+test('SECURITY: Channel.confirm rejects an accept from someone other than the intended peer', async () => {
   const alice = new AIWA({ rewardParams });
   await alice.connect();
   const bob = new AIWA({ rewardParams });
@@ -337,7 +337,7 @@ test('SECURITY: Channel.confirm rejects an accept from someone other than the re
 
   const { blob: requestBlob, channel } = await alice.requestChannel(bobId);
   // Mallory intercepts the request (never secret — meant to be handed
-  // over) and tries to accept it herself instead of the real Bob.
+  // over) and tries to accept it herself instead of the Bob.
   const malloryAccept = await mallory.acceptChannelRequest(requestBlob);
 
   await assert.rejects(channel.confirm(malloryAccept), /someone other than the real peer/);
@@ -393,7 +393,7 @@ test('SECURITY: a channel cannot move a claim the root identity does not actuall
   await assert.rejects(channel.send('1.0'), /No single active claim/);
 });
 
-test('a channel keeps working — balance() AND a real split — after the owner\'s root identity disconnects', async () => {
+test('a channel keeps working — balance() AND a split — after the owner\'s root identity disconnects', async () => {
   const alice = new AIWA({ rewardParams });
   await alice.connect();
   await alice.recordCommitment({ b: 100 });
@@ -418,7 +418,7 @@ test('a channel keeps working — balance() AND a real split — after the owner
   assert.equal(bobClaims.length, 2, 'two real, independent delegated sends, each needing its own real, delegate-signed split — no root key involved for either');
 });
 
-test('a real bearer voucher: "the QR can be copied, but only the first redemption succeeds"', async () => {
+test('a bearer voucher: "the QR can be copied, but only the first redemption succeeds"', async () => {
   const alice = new AIWA({ rewardParams });
   await alice.connect();
   await alice.recordCommitment({ b: 100 });
@@ -442,7 +442,7 @@ test('a real bearer voucher: "the QR can be copied, but only the first redemptio
   assert.equal(await bob.spendableBalance(), claimable, 'a real, immediately spendable claim — not just claimable');
 });
 
-test('SECURITY: a real "only once" property through the wallet API — two real wallets, each honestly redeeming the identical voucher offline, converge to exactly one winner once synced', async () => {
+test('SECURITY: a "only once" property through the wallet API — two wallets, each honestly redeeming the identical voucher offline, converge to exactly one winner once synced', async () => {
   const alice = new AIWA({ rewardParams });
   await alice.connect();
   await alice.recordCommitment({ b: 100 });
@@ -460,10 +460,10 @@ test('SECURITY: a real "only once" property through the wallet API — two real 
 
   // Both scanned the identical QR, both fully offline — each locally
   // believes their own redemption succeeded (this is the SAME
-  // real, documented, offline-first "detection via reconciliation, not
+  // documented, offline-first "detection via reconciliation, not
   // real-time prevention" limit this README already states — a real
   // conflict only surfaces once they sync, exactly like a duplicated
-  // paper check). What matters is what a REAL sync between them
+  // paper check). What matters is what a sync between them
   // (or with alice) resolves to.
   await bob.redeemVoucher(decodeOfflineBundle(blob));
   await carol.redeemVoucher(decodeOfflineBundle(blob));
@@ -492,23 +492,23 @@ test('REGRESSION: send() over a live network session actually reaches an already
   const claimable = await alice.claimable();
   await alice.claim(claimable);
 
-  // Both join and complete their real, one-time HELLO handshake BEFORE
-  // the send below — the exact ordering that exposed the real bug:
+  // Both join and complete their one-time HELLO handshake BEFORE
+  // the send below — the exact ordering that exposed the bug:
   // Replicator never re-syncs after this initial exchange on its own.
   await alice.joinNetwork(new LoopbackTransport(aliceId.identityId));
   await bob.joinNetwork(new LoopbackTransport(bobId.identityId));
-  await new Promise((r) => setTimeout(r, 50)); // let the real HELLO/HELLO_ACK exchange settle
+  await new Promise((r) => setTimeout(r, 50)); // let the HELLO/HELLO_ACK exchange settle
 
   await alice.send(bobId.identityId, claimable);
-  await new Promise((r) => setTimeout(r, 50)); // let the real EVENTS/ACK round trip settle
+  await new Promise((r) => setTimeout(r, 50)); // let the EVENTS/ACK round trip settle
 
   assert.equal(await bob.balance(), claimable, 'a send() made after the peers already connected must still reach bob — it did not before replicator.publish() was wired in');
 
-  // LoopbackTransport keeps a real, process-wide static registry — a
+  // LoopbackTransport keeps a process-wide static registry — a
   // peer that never leaveNetwork()s stays "connected" forever and
   // keeps replying to every later test's own HELLO with its own,
   // unrelated event history, corrupting log.head() for any wallet that
-  // later joins the same domain. Real, found the hard way: the two
+  // later joins the same domain. found the hard way: the two
   // tests below intermittently failed once this file had enough
   // LoopbackTransport tests for that cross-talk to actually collide.
   await alice.leaveNetwork();
@@ -547,7 +547,7 @@ test('REGRESSION: send() still reaches a peer that connected BEFORE the sender w
   const bobId = await bob.connect();
 
   // Peers connect FIRST, while both logs are still empty — the exact
-  // ordering the live demo used and the second real bug this exposed:
+  // ordering the live demo used and the second bug this exposed:
   // the one-time initial HELLO/HELLO_ACK exchange above synced nothing
   // (both sides had nothing yet), and recordCommitment/advanceProgress/
   // claim below never call publish() themselves — so bob's log never
@@ -614,11 +614,11 @@ test('receiveOfflineBundle() works on a disconnected wallet — appending never 
   const bundle = await alice.sendOfflineBundle(bobId.identityId, claimable);
   await assert.doesNotReject(bob.receiveOfflineBundle(bundle), 'a disconnected wallet must still be able to receive — receiving needs no signature from this wallet at all');
 
-  await bob.connect({ secretKeyBytes: bobSecretKeyBytes }); // reconnect with the SAME identity to confirm the log genuinely absorbed it while disconnected
+  await bob.connect({ secretKeyBytes: bobSecretKeyBytes }); // reconnect with the SAME identity to confirm the log absorbed it while disconnected
   assert.equal(await bob.balance(), claimable);
 });
 
-test('a channel can claim currently-claimable value for the real owner, through a real delegated-claim, landing it under the owner\'s own identity', async () => {
+test('a channel can claim currently-claimable value for the owner, through a delegated-claim, landing it under the owner\'s own identity', async () => {
   const alice = new AIWA({ rewardParams });
   const aliceId = await alice.connect();
   await alice.recordCommitment({ b: 100 });
@@ -635,7 +635,7 @@ test('a channel can claim currently-claimable value for the real owner, through 
   assert.equal(spendableClaims(state, aliceId.identityId).length, 1, 'the real owner (not the channel\'s own session identity) owns the resulting claim');
 });
 
-test('a channel can issue a real bearer voucher — no root-key involvement — and it redeems exactly like an ordinary one', async () => {
+test('a channel can issue a bearer voucher — no root-key involvement — and it redeems exactly like an ordinary one', async () => {
   const alice = new AIWA({ rewardParams });
   await alice.connect();
   await alice.recordCommitment({ b: 100 });
@@ -656,7 +656,7 @@ test('a channel can issue a real bearer voucher — no root-key involvement — 
   assert.equal(await bob.balance(), claimable);
 });
 
-test('a channel can redeem a bearer voucher for the real owner, landing the value in the owner\'s identity, never the channel\'s own session identity', async () => {
+test('a channel can redeem a bearer voucher for the owner, landing the value in the owner\'s identity, never the channel\'s own session identity', async () => {
   const issuer = new AIWA({ rewardParams });
   await issuer.connect();
   await issuer.recordCommitment({ b: 100 });
@@ -679,7 +679,7 @@ test('a channel can redeem a bearer voucher for the real owner, landing the valu
   assert.equal(spendableClaims(state, channel.identity.id).length, 0, 'the channel\'s own session identity never actually owns the redeemed value');
 });
 
-test('channel.log gives access to the same real EventLog the owner\'s AIWA instance uses, even after the app\'s own reference to that instance is dropped — needed to publish a contract through a channel', async () => {
+test('channel.log gives access to the same EventLog the owner\'s AIWA instance uses, even after the app\'s own reference to that instance is dropped — needed to publish a contract through a channel', async () => {
   const owner = new AIWA({ rewardParams });
   const ownerId = await owner.connect();
   const channel = await owner.openChannel('someone-else-id', { requireNetwork: false });
@@ -695,7 +695,7 @@ test('channel.log gives access to the same real EventLog the owner\'s AIWA insta
   assert.equal(bundle.files['index.html'], '<html></html>');
 });
 
-test('_materializeWallet() short-circuits to the exact cached object when the log has not changed since the last call — the real incremental-materialization fix, not just a correctness re-check', async () => {
+test('_materializeWallet() short-circuits to the exact cached object when the log has not changed since the last call — the incremental-materialization fix, not just a correctness re-check', async () => {
   const aiwa = new AIWA({ rewardParams });
   await aiwa.connect();
   await aiwa.recordCommitment({ b: 50 });
@@ -709,7 +709,7 @@ test('_materializeWallet() short-circuits to the exact cached object when the lo
   assert.equal(third.accrual.positions[aiwa.identity.id].b, 25, 'a burn replaces the position (last-action mining)');
 });
 
-test('checkpoint() + pruneToLastCheckpoint() shrinks real local storage while balance()/claimable() stay correct', async () => {
+test('checkpoint() + pruneToLastCheckpoint() shrinks local storage while balance()/claimable() stay correct', async () => {
   const aiwa = new AIWA({ rewardParams });
   await aiwa.connect();
   await aiwa.recordCommitment({ b: 200 });
@@ -734,7 +734,7 @@ test('checkpoint() + pruneToLastCheckpoint() shrinks real local storage while ba
   assert.ok(Number(claimableAfter) > Number(claimableBefore), 'progression after a prune must keep accruing normally, continuing from the checkpoint');
 });
 
-test('onMaterializeProgress fires with real progress data while folding a real, non-trivial backlog', async () => {
+test('onMaterializeProgress fires with progress data while folding a non-trivial backlog', async () => {
   const aiwa = new AIWA({ rewardParams });
   await aiwa.connect();
   await aiwa.recordCommitment({ b: 100 });
@@ -742,7 +742,7 @@ test('onMaterializeProgress fires with real progress data while folding a real, 
 
   const calls = [];
   aiwa.onMaterializeProgress = (current, total) => calls.push([current, total]);
-  aiwa._materializedState = null; // force a real, full fold instead of the incremental cache hit
+  aiwa._materializedState = null; // force a full fold instead of the incremental cache hit
   aiwa._materializedHeads = null;
   aiwa._coveredIds = new Set();
 
@@ -752,7 +752,7 @@ test('onMaterializeProgress fires with real progress data while folding a real, 
   assert.equal(lastCurrent, lastTotal, 'the real, final call must report completion');
 });
 
-test('startAutoCheckpoint() periodically checkpoints and prunes on a real timer, and skips when nothing real changed', async () => {
+test('startAutoCheckpoint() periodically checkpoints and prunes on a timer, and skips when nothing changed', async () => {
   const aiwa = new AIWA({ rewardParams });
   await aiwa.connect();
   await aiwa.recordCommitment({ b: 50 });
@@ -768,7 +768,7 @@ test('startAutoCheckpoint() periodically checkpoints and prunes on a real timer,
   const foundCheckpoint = await findLatestCheckpoint(aiwa.log, aiwa.identity.id);
   assert.ok(foundCheckpoint, 'a real checkpoint must now exist');
 
-  // A second round, with genuinely nothing new since — must not create another, pointless checkpoint.
+  // A second round, with nothing new since — must not create another, pointless checkpoint.
   aiwa.startAutoCheckpoint({ intervalMs: 20 });
   await new Promise((r) => setTimeout(r, 80));
   aiwa.stopAutoCheckpoint();
@@ -776,7 +776,7 @@ test('startAutoCheckpoint() periodically checkpoints and prunes on a real timer,
   assert.equal(countAfterIdleRound, countAfterFirstRound, 'idle time must never produce an empty, pointless checkpoint');
 });
 
-test('a brand-new AIWA instance over the SAME already-pruned backend computes the identical, correct state using only the checkpoint plus what remains — the real "fresh peer after receiving your pruned log" scenario', async () => {
+test('a brand-new AIWA instance over the SAME already-pruned backend computes the identical, correct state using only the checkpoint plus what remains — the "fresh peer after receiving your pruned log" scenario', async () => {
   const backend = createMemoryBackend();
   const original = new AIWA({ rewardParams, backend });
   const { identityId, address } = await original.connect();
@@ -790,7 +790,7 @@ test('a brand-new AIWA instance over the SAME already-pruned backend computes th
   const removed = await original.pruneToLastCheckpoint();
   assert.ok(removed > 0);
 
-  // A genuinely separate AIWA instance — no shared in-memory cache with `original` — reconnecting over the SAME, now-pruned backend, exactly like a page reload or a brand-new device receiving only the pruned log.
+  // A separate AIWA instance — no shared in-memory cache with `original` — reconnecting over the SAME, now-pruned backend, exactly like a page reload or a brand-new device receiving only the pruned log.
   const reconnected = new AIWA({ rewardParams, backend });
   await reconnected.connect({ secretKeyBytes: original._keypair.secretKey });
   assert.equal(reconnected.identity.id, identityId.identityId ?? identityId);

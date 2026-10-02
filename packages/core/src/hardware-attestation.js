@@ -5,12 +5,12 @@
 // as a SEPARATE signal — never a weight, never a vote, never itself
 // the source of Causal Tick's own value. AIWA works fully without it.
 //
-// A real, two-hop signature chain:
-//   origin domain --[issues]--> hardware root --[binds]--> this domain
+// A two-hop signature chain:
+// origin domain --[issues]--> hardware root --[binds]--> this domain
 //
 // HONEST LIMIT: nothing here can verify from software alone that a
-// hardware root's signing key really lives on real, non-clonable
-// hardware. What this DOES verify is a real, traceable chain of
+// hardware root's signing key really lives on non-clonable
+// hardware. What this DOES verify is a traceable chain of
 // signatures from a known origin.
 
 const MIN_INDEPENDENT_ROOTS = 2;

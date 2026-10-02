@@ -1,4 +1,4 @@
-// A real, deterministic replacement for Math.log / Math.exp / (fractional)
+// A deterministic replacement for Math.log / Math.exp / (fractional)
 // Math.pow, built from nothing but BigInt +, -, *, and truncating-toward-zero
 // / — the four operations ECMAScript's own spec (and Rust's num-bigint,
 // mirroring native integer semantics) both guarantee bit-for-bit identical
@@ -6,8 +6,8 @@
 // such guarantee: IEEE 754 only pins down correct rounding for +,-,*,/,
 // never for transcendental functions, so two different libm builds (glibc
 // vs Rust's own) can legitimately disagree on the last bit. Since reward.js
-// feeds a real, on-chain AIWA amount (see accrual.js), that last-bit
-// disagreement is a real consensus risk between a JS node and a future
+// feeds an on-chain AIWA amount (see accrual.js), that last-bit
+// disagreement is a consensus risk between a JS node and a future
 // Rust one — this module closes it.
 //
 // Representation: Q128 binary fixed point. A "Fixed" value is a BigInt
@@ -22,7 +22,7 @@
 // num-bigint's BigInt matches that for negative operands is genuinely
 // unclear from its docs, and this project doesn't trust what it hasn't
 // verified. Every shift below operates on a value already known
-// non-negative (magnitudes, or values proven positive by the real math,
+// non-negative (magnitudes, or values proven positive by the math,
 // like exp()'s result) — sign is tracked and reapplied separately instead.
 
 export class FixedPointError extends Error {}
@@ -64,7 +64,7 @@ export function bitLengthNonNeg(n) {
 // JS via a DataView read, Rust via f64::to_bits() — rather than via
 // float multiplication, which would reintroduce the very kind of
 // implementation-defined rounding this module exists to avoid. Exact
-// (no precision lost) for any input whose real value fits within
+// (no precision lost) for any input whose value fits within
 // FRAC_BITS of the binary point, which every realistic reward.js input
 // (epoch counts, committed capital, the small protocol constants) does.
 export function numberToFixed(x) {
@@ -82,11 +82,11 @@ export function numberToFixed(x) {
 
   let exp2, mantissa;
   if (rawExp === 0n) {
-    // Subnormal: real value = mantissa * 2^-1074, no implicit leading bit.
+    // Subnormal: value = mantissa * 2^-1074, no implicit leading bit.
     exp2 = -1074n;
     mantissa = rawMantissa;
   } else {
-    // Normal: real value = (2^52 + mantissa) * 2^(rawExp-1023-52).
+    // Normal: value = (2^52 + mantissa) * 2^(rawExp-1023-52).
     exp2 = rawExp - 1023n - 52n;
     mantissa = rawMantissa | (1n << 52n);
   }
@@ -141,7 +141,7 @@ function lnSeriesFromY(y) {
 const ONE_THIRD = SCALE / 3n;
 export const LN2 = lnSeriesFromY(ONE_THIRD);
 
-// ln(x) for x > 0 (Fixed). Range-reduces x = t * 2^k with t's real value
+// ln(x) for x > 0 (Fixed). Range-reduces x = t * 2^k with t's value
 // in [1, 2) — an exact bit shift, not an approximation — then
 // ln(realValue) = k*ln(2) + ln(t), with ln(t) via the atanh series above
 // on y = (t-1)/(t+1), which stays in [0, 1/3] for t in [1,2) by
@@ -184,7 +184,7 @@ function divRoundNearest(n, d) {
 // exp(x) for any signed Fixed x. Range-reduces x = k*ln(2) + r with
 // |r| <= ln(2)/2 (round-to-nearest k), so exp(x) = 2^k * exp(r) — the
 // 2^k factor applied as an exact bit shift (always on the series' own
-// result, which the real math guarantees is positive for this bounded
+// result, which the math guarantees is positive for this bounded
 // r, so the shift is always on a non-negative operand).
 export function expFixed(x) {
   const k = divRoundNearest(x, LN2);

@@ -3,12 +3,12 @@
 // direct RTCPeerConnection, STUN-only for NAT traversal (STUN servers
 // never see application data and never even see that two peers are
 // related — they only ever answer "what's my own public address").
-// The one real signaling exchange every new connection needs still has
-// to travel over SOME real, out-of-band channel — pasted text, a QR
+// The one signaling exchange every new connection needs still has
+// to travel over SOME out-of-band channel — pasted text, a QR
 // code, a shared file, an already-open connection to a third peer —
 // but this class never picks or uses one itself: createOfferFor() /
 // acceptOffer() / completeConnection() only ever hand back or accept
-// an opaque, real signal blob (see signaling-codec.js).
+// an opaque, signal blob (see signaling-codec.js).
 //
 // Implements the identical five-method Transport contract every other
 // transport in this package satisfies (connect/disconnect/peers/send/
@@ -17,21 +17,21 @@
 // instead of one shared relay-based room.
 //
 // HONEST LIMIT: RTCPeerConnection doesn't exist in Node, so the real
-// network path (ICE negotiation, real SDP, real data flow) has no
+// network path (ICE negotiation, SDP, data flow) has no
 // meaningful test here — see webrtc-transport.test.mjs for what IS
-// genuinely covered (this class's own connection bookkeeping and
+// covered (this class's own connection bookkeeping and
 // validation, against a minimal, deliberately fake PC) and what isn't.
 //
-// Verified with two real, separate browser tabs (Playwright, real
-// Chromium, real RTCPeerConnection) in this environment: full ICE
+// Verified with two separate browser tabs (Playwright, real
+// Chromium, RTCPeerConnection) in this environment: full ICE
 // gathering (waiting for iceGatheringState === 'complete') hung
 // indefinitely — STUN traffic (UDP) appears to be blocked by this
 // sandbox's network policy, so the srflx candidate never resolves and
 // gathering never reaches 'complete' on its own. `waitForIceGatheringComplete`
-// is bounded by a real timeout for exactly this reason: send the offer/answer
+// is bounded by a timeout for exactly this reason: send the offer/answer
 // with whatever candidates (host, and srflx if it arrived) were gathered
 // in time, rather than waiting forever for one that may never come. This
-// is not a workaround specific to this sandbox — real deployments hit the
+// is not a workaround specific to this sandbox — deployments hit the
 // same failure mode against restrictive firewalls, so a bounded wait is
 // the correct behavior in general, not just here.
 
@@ -73,13 +73,13 @@ export class WebrtcTransport {
     this._iceGatheringTimeoutMs = iceGatheringTimeoutMs;
     this._createPeerConnection = createPeerConnection;
     this._links = new Map(); // peerId -> { pc, channel } — both pending (not yet open) and open connections
-    this._openPeers = new Set(); // the subset of _links whose channel has genuinely opened
+    this._openPeers = new Set(); // the subset of _links whose channel has opened
     this._onMessageHandlers = new Set();
     this._onJoinHandlers = new Set();
     this._onLeaveHandlers = new Set();
   }
 
-  // Nothing to "join" without a relay — real connections are made one
+  // Nothing to "join" without a relay — connections are made one
   // at a time via createOfferFor/acceptOffer/completeConnection.
   async connect() {}
   async disconnect() {
@@ -125,7 +125,7 @@ export class WebrtcTransport {
     if (wasOpen) for (const h of this._onLeaveHandlers) h(peerId);
   }
 
-  /** The initiating side: opens a real data channel, gathers a real offer, returns an opaque blob to send `remotePeerId` over any real out-of-band channel. */
+  /** The initiating side: opens a data channel, gathers an offer, returns an opaque blob to send `remotePeerId` over any out-of-band channel. */
   async createOfferFor(remotePeerId) {
     if (this._links.has(remotePeerId)) throw new Error(`Already connected (or connecting) to '${remotePeerId}'.`);
     const pc = this._createPeerConnection({ iceServers: this._iceServers });
@@ -138,9 +138,9 @@ export class WebrtcTransport {
   }
 
   /**
-   * The responding side: accepts a real offer blob received out-of-band,
-   * returns a real answer blob to send back over the same real channel.
-   * Registers the new connection under the offer's own real `originId`
+   * The responding side: accepts an offer blob received out-of-band,
+   * returns an answer blob to send back over the same channel.
+   * Registers the new connection under the offer's own `originId`
    * unless `peerId` overrides it.
    */
   async acceptOffer(offerBlob, { peerId } = {}) {
@@ -157,7 +157,7 @@ export class WebrtcTransport {
     return encodeSignal('answer', this.selfId, pc.localDescription.sdp);
   }
 
-  /** The initiating side: completes a connection previously started with createOfferFor, using the real answer blob received back out-of-band. */
+  /** The initiating side: completes a connection previously started with createOfferFor, using the answer blob received back out-of-band. */
   async completeConnection(remotePeerId, answerBlob) {
     const link = this._links.get(remotePeerId);
     if (!link) throw new Error(`No pending connection to '${remotePeerId}' — call createOfferFor(remotePeerId) first.`);

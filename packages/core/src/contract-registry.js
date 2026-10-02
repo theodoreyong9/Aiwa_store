@@ -1,5 +1,5 @@
-// A real, general mechanism — not specific to any one contract — for
-// publishing a contract's own real identity as an ordinary event in
+// A general mechanism — not specific to any one contract — for
+// publishing a contract's own identity as an ordinary event in
 // the same log everything else already lives in. No new
 // infrastructure: event.js's own content-addressing (its own
 // computeEventId) is the entire mechanism. Once published and
@@ -10,8 +10,8 @@
 // always meant here.
 //
 // This deliberately does not create a single, network-enforced
-// "canonical registry." Multiple, real, competing contracts can
-// coexist under different names, each with its own real, verifiable
+// "canonical registry." Multiple, competing contracts can
+// coexist under different names, each with its own verifiable
 // identity — wallets and users choose which to trust, exactly like
 // there is no single "true" token contract on any existing chain.
 
@@ -21,19 +21,19 @@ function toHex(bytes) {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** The real, content-derived hash of a contract's own real source. */
+/** The content-derived hash of a contract's own source. */
 export async function computeContractHash(sourceCode) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sourceCode));
   return toHex(new Uint8Array(digest));
 }
 
 /**
- * Publishes a real `contract-spec` event to `log` (an event-log.js
- * EventLog) — the event's own real, content-addressed id becomes the
- * contract's real, immutable identity from this point on. `identity`
- * must be a real, secret-key-bearing identity.js Identity: an event
+ * Publishes a `contract-spec` event to `log` (an event-log.js
+ * EventLog) — the event's own content-addressed id becomes the
+ * contract's immutable identity from this point on. `identity`
+ * must be a secret-key-bearing identity.js Identity: an event
  * here is signed exactly like any other. `sourceCode` is embedded in
- * full — never only its hash — so the real code is genuinely
+ * full — never only its hash — so the code is genuinely
  * recoverable by anyone who receives this event, not merely
  * fingerprint-verifiable against a copy kept elsewhere. `sourceHash`
  * is included alongside for quick, cheap comparison without
@@ -54,8 +54,8 @@ export async function publishContractSpec(identity, log, domain, { name, version
 }
 
 /**
- * The real, actual source code, recovered directly from an
- * already-received real event — never assumed to live anywhere else.
+ * The source code, recovered directly from an
+ * already-received event — never assumed to live anywhere else.
  * Takes this package's own reducer-shaped event ({payload: {type,
  * ...}}) — see adapt-event.js.
  */
@@ -65,8 +65,8 @@ export function readContractSource(specEvent) {
 }
 
 /**
- * @returns {boolean} true only if `sourceCode`'s own real hash
- * genuinely matches what a real, already-published contract-spec
+ * @returns {boolean} true only if `sourceCode`'s own hash
+ * matches what an already-published contract-spec
  * event claims — never trusted from a name or version number alone.
  */
 export async function verifyContractSource(specEvent, sourceCode) {
@@ -75,27 +75,27 @@ export async function verifyContractSource(specEvent, sourceCode) {
   return realHash === specEvent.payload.sourceHash;
 }
 
-/** Every real contract-spec event found in `events` — pure, no browser dependency. Reducer-shaped events. */
+/** Every contract-spec event found in `events` — pure, no browser dependency. Reducer-shaped events. */
 export function scanContractSpecs(events) {
   return events.filter((ev) => ev.payload?.type === 'contract-spec').map((ev) => ({ id: ev.id, ...ev.payload }));
 }
 
 /**
- * The one, real, structural close to the contractId-collision risk —
- * verified concretely: a real signature alone only ever proves
+ * The one, structural close to the contractId-collision risk —
+ * verified concretely: a signature alone only ever proves
  * "signed by this key, over this exact content," never "this is
  * really the trusted module you think it is." Nothing stops a real,
  * different, possibly malicious contract from simply choosing an
  * existing `contractId` string.
  *
  * This makes registration itself demand proof, not just a name:
- * `verifierFn` is only ever added to the real registry if `sourceCode`
- * genuinely, currently hashes to `expectedHash` — a real, deliberate
+ * `verifierFn` is only ever added to the registry if `sourceCode`
+ * currently hashes to `expectedHash` — a deliberate
  * pin the application's own code carries, never trusted from whatever
- * a contract happens to claim about itself. A real mismatch throws
+ * a contract happens to claim about itself. A mismatch throws
  * outright — never a silent skip, never a partial registration.
  *
- * @returns {object} a real, new registry with the real entry added
+ * @returns {object} a new registry with the entry added
  */
 export async function registerVerifiedContract(contractVerifiers, { contractId, sourceCode, expectedHash, verifyPayoutFn }) {
   const realHash = await computeContractHash(sourceCode);

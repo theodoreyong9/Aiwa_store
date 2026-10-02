@@ -89,7 +89,7 @@ test('SECURITY: a duplicate claimId is rejected before either side is touched', 
   assert.equal(after.accrual.balances[aliceId], balanceAfterFirst);
 });
 
-test('a real signed transfer moves ownership between real identities', async () => {
+test('a signed transfer moves ownership between identities', async () => {
   const alice = makeSigner();
   const aliceId = await deriveId(alice.pubkeyBytes);
   const bobId = 'bob-domain-id';
@@ -139,7 +139,7 @@ test('a replayed transfer nonce is rejected', async () => {
   assert.equal(spendableClaims(s, 'bob').length, 1);
 });
 
-test('a real signed split divides a real claim, both amounts real bigint', async () => {
+test('a signed split divides a claim, both amounts bigint', async () => {
   const alice = makeSigner();
   const aliceId = await deriveId(alice.pubkeyBytes);
 
@@ -168,7 +168,7 @@ test('totalBalance sums unclaimed-but-growing plus already-claimed, with no doub
   assert.ok(total < toUnits(claimAmount) * 2n, 'must never double-count the same already-claimed value');
 });
 
-test('materializeWallet folds a real, complete sequence end to end', async () => {
+test('materializeWallet folds a complete sequence end to end', async () => {
   const alice = makeSigner();
   const aliceId = await deriveId(alice.pubkeyBytes);
   const events = [];
@@ -190,11 +190,11 @@ test('materializeWallet folds a real, complete sequence end to end', async () =>
   assert.equal(state.accrual.positions[aliceId].b, 10);
 });
 
-test('THE REAL INCREMENTAL CATCH-UP PROPERTY: applying only newly-arrived events on top of already-materialized state produces byte-identical results to a full replay from scratch', async () => {
+test('THE INCREMENTAL CATCH-UP PROPERTY: applying only newly-arrived events on top of already-materialized state produces byte-identical results to a full replay from scratch', async () => {
   const events = [];
 
-  // Two real, causally-independent domains — the real scenario a
-  // real P2P sync or file import would bring in together.
+  // Two causally-independent domains — the scenario a
+  // P2P sync or file import would bring in together.
   for (const signer of [makeSigner(), makeSigner()]) {
     const domain = await deriveId(signer.pubkeyBytes);
     let previousOutput = 'genesis';
@@ -212,8 +212,8 @@ test('THE REAL INCREMENTAL CATCH-UP PROPERTY: applying only newly-arrived events
 
   const fullReplay = await materializeWallet(rewardParams, events, null, null, {});
 
-  // Real, incremental catch-up: half the events already "covered",
-  // matching what a real, partial materialization looks like.
+  // incremental catch-up: half the events already "covered",
+  // matching what a partial materialization looks like.
   const coveredIds = new Set(events.slice(0, 3).map((e) => e.id));
   let incremental = await materializeWallet(rewardParams, events.filter((e) => coveredIds.has(e.id)), null, null, {});
   for (const event of events.filter((e) => !coveredIds.has(e.id))) {
@@ -223,7 +223,7 @@ test('THE REAL INCREMENTAL CATCH-UP PROPERTY: applying only newly-arrived events
   assert.deepEqual(fullReplay, incremental, 'a real, partial-then-incremental catch-up must produce an identical real wallet state to a full replay — the exact property an incremental sync relies on to avoid O(total history) cost on every real sync');
 });
 
-test('"sign once, click many times": a real delegation lets a delegate key move an owner\'s claim repeatedly, without the owner\'s own key signing again', async () => {
+test('"sign once, click many times": a delegation lets a delegate key move an owner\'s claim repeatedly, without the owner\'s own key signing again', async () => {
   const owner = makeSigner();
   const ownerId = await deriveId(owner.pubkeyBytes);
   const delegateKey = makeSigner();
@@ -232,7 +232,7 @@ test('"sign once, click many times": a real delegation lets a delegate key move 
   const claimAmount = fromUnits(claimableNow(rewardParams, state.accrual, ownerId));
   let s = await applyWalletEvent(rewardParams, state, { id: 'c1', parents: [], payload: { type: 'claim', ...(await buildSignedClaimEvent({ domain: ownerId, claimId: 'claim1', amount: claimAmount }, owner.seed, owner.pubkeyBytes)) } });
 
-  // The one, real signature the owner's own root key ever produces for this whole channel.
+  // The one, signature the owner's own root key ever produces for this whole channel.
   const delegation = await issueDelegation(owner.seed, owner.pubkeyBytes, delegateKey.pubkeyBytes);
   assert.equal(delegation.from, ownerId);
 
@@ -245,7 +245,7 @@ test('"sign once, click many times": a real delegation lets a delegate key move 
   assert.equal(s.conservation.claims.claim1.status, 'consumed');
 });
 
-test('verifyDelegation: a real delegation verifies standalone, with no EventLog or state at all', async () => {
+test('verifyDelegation: a delegation verifies standalone, with no EventLog or state at all', async () => {
   const owner = makeSigner();
   const delegateKey = makeSigner();
   const delegation = await issueDelegation(owner.seed, owner.pubkeyBytes, delegateKey.pubkeyBytes);
@@ -260,7 +260,7 @@ test('SECURITY: verifyDelegation rejects a delegation forged by the delegate its
   assert.equal(await verifyDelegation(forged), false);
 });
 
-test('SECURITY: verifyDelegation rejects a real delegation whose signature was tampered with (different delegate substituted after signing)', async () => {
+test('SECURITY: verifyDelegation rejects a delegation whose signature was tampered with (different delegate substituted after signing)', async () => {
   const owner = makeSigner();
   const realDelegate = makeSigner();
   const impostor = makeSigner();
@@ -275,7 +275,7 @@ test('verifyDelegation: malformed input is rejected without throwing', async () 
   assert.equal(await verifyDelegation({ delegate: 'x', from: 'y', ownerPubkey: 'not-hex', delegationSignature: 'also-not-hex' }), false);
 });
 
-test('SECURITY: a delegated transfer with no real delegation ever issued is rejected', async () => {
+test('SECURITY: a delegated transfer with no delegation ever issued is rejected', async () => {
   const owner = makeSigner();
   const ownerId = await deriveId(owner.pubkeyBytes);
   const delegateKey = makeSigner();
@@ -284,8 +284,8 @@ test('SECURITY: a delegated transfer with no real delegation ever issued is reje
   const claimAmount = fromUnits(claimableNow(rewardParams, state.accrual, ownerId));
   let s = await applyWalletEvent(rewardParams, state, { id: 'c1', parents: [], payload: { type: 'claim', ...(await buildSignedClaimEvent({ domain: ownerId, claimId: 'claim1', amount: claimAmount }, owner.seed, owner.pubkeyBytes)) } });
 
-  // The delegate signs everything themselves — a real delegation, but
-  // issued by their OWN key, never the real owner's — then forges the
+  // The delegate signs everything themselves — a delegation, but
+  // issued by their OWN key, never the owner's — then forges the
   // `from` field afterward to claim it was really the owner.
   const fakeDelegation = { ...(await issueDelegation(delegateKey.seed, delegateKey.pubkeyBytes, delegateKey.pubkeyBytes)), from: ownerId };
   const forged = await buildSignedDelegatedTransferEvent(fakeDelegation, { claimId: 'claim1', to: 'attacker' }, delegateKey.seed, delegateKey.pubkeyBytes);
@@ -295,7 +295,7 @@ test('SECURITY: a delegated transfer with no real delegation ever issued is reje
   assert.equal(s.conservation.claims.claim1.status, 'active');
 });
 
-test('SECURITY: a real delegation for a DIFFERENT delegate key cannot be reused by an unauthorized key', async () => {
+test('SECURITY: a delegation for a DIFFERENT delegate key cannot be reused by an unauthorized key', async () => {
   const owner = makeSigner();
   const ownerId = await deriveId(owner.pubkeyBytes);
   const realDelegate = makeSigner();
@@ -329,7 +329,7 @@ test('SECURITY: a replayed delegated-transfer nonce is rejected, exactly like an
   assert.equal(spendableClaims(s, 'bob').length, 1, 'the replayed event must never move a second, already-consumed claim again');
 });
 
-test('a real delegate can click many times in a row, each a fresh, independent real transfer, reusing the identical one-time delegation', async () => {
+test('a delegate can click many times in a row, each a fresh, independent transfer, reusing the identical one-time delegation', async () => {
   const owner = makeSigner();
   const ownerId = await deriveId(owner.pubkeyBytes);
   const delegateKey = makeSigner();
@@ -376,7 +376,7 @@ test('"sign once, click forever": a delegated split needs no exact-amount claim,
   assert.equal(s.conservation.claims.half2.owner, ownerId, 'the leftover half stays with the real owner');
 });
 
-test('SECURITY: a delegated split with no real delegation ever issued is rejected', async () => {
+test('SECURITY: a delegated split with no delegation ever issued is rejected', async () => {
   const owner = makeSigner();
   const ownerId = await deriveId(owner.pubkeyBytes);
   const delegateKey = makeSigner();
@@ -410,7 +410,7 @@ test('SECURITY: a replayed delegated-split nonce is rejected', async () => {
   assert.deepEqual(once.conservation, twice.conservation, 'the replayed split must never run a second time');
 });
 
-test('a real bearer voucher: issue by hash-lock, redeem by revealing the secret — "the QR can be copied, but only the first redemption succeeds"', async () => {
+test('a bearer voucher: issue by hash-lock, redeem by revealing the secret — "the QR can be copied, but only the first redemption succeeds"', async () => {
   const issuer = makeSigner();
   const issuerId = await deriveId(issuer.pubkeyBytes);
   const redeemer = makeSigner();
@@ -424,7 +424,7 @@ test('a real bearer voucher: issue by hash-lock, redeem by revealing the secret 
   const voucherAddress = await deriveVoucherAddress(secret);
 
   // Issuing needs NO new protocol: an ordinary, already-existing signed
-  // transfer, just addressed to the hash of a secret instead of a real identity.
+  // transfer, just addressed to the hash of a secret instead of an identity.
   const issueTransfer = await buildSignedTransferEvent({ claimId: 'claim1', from: issuerId, to: voucherAddress }, issuer.seed, issuer.pubkeyBytes);
   s = await applyWalletEvent(rewardParams, s, { id: 'issue', parents: ['c1'], payload: { type: 'transfer', ...issueTransfer } });
   assert.equal(spendableClaims(s, voucherAddress).length, 1, 'the value is real and owned by the voucher address — nobody\'s root key can sign for it');
@@ -438,7 +438,7 @@ test('a real bearer voucher: issue by hash-lock, redeem by revealing the secret 
   assert.equal(spendableClaims(s, voucherAddress).length, 0, 'the voucher is spent — nothing left to redeem again');
 });
 
-test('SECURITY: redeeming with the wrong secret has no real effect', async () => {
+test('SECURITY: redeeming with the wrong secret has no effect', async () => {
   const issuer = makeSigner();
   const issuerId = await deriveId(issuer.pubkeyBytes);
   const attacker = makeSigner();
@@ -460,7 +460,7 @@ test('SECURITY: redeeming with the wrong secret has no real effect', async () =>
   assert.equal(spendableClaims(s, voucherAddress).length, 1, 'the voucher is untouched, still redeemable by whoever really knows the secret');
 });
 
-test('SECURITY: the real "only once" property — two real redeemers racing for the same secret, only the first applied wins', async () => {
+test('SECURITY: the "only once" property — two redeemers racing for the same secret, only the first applied wins', async () => {
   const issuer = makeSigner();
   const issuerId = await deriveId(issuer.pubkeyBytes);
   const alice = makeSigner();
@@ -478,8 +478,8 @@ test('SECURITY: the real "only once" property — two real redeemers racing for 
   s = await applyWalletEvent(rewardParams, s, { id: 'issue', parents: ['c1'], payload: { type: 'transfer', ...issueTransfer } });
   const voucherClaimId = spendableClaims(s, voucherAddress)[0].id;
 
-  // Both scanned the identical QR — both real, both signed by a real,
-  // distinct key, both genuinely knowing the real secret.
+  // Both scanned the identical QR — both both signed by a real,
+  // distinct key, both knowing the secret.
   const aliceRedeem = await buildSignedVoucherRedeemEvent({ claimId: voucherClaimId, secret, to: aliceId }, alice.seed, alice.pubkeyBytes);
   const bobRedeem = await buildSignedVoucherRedeemEvent({ claimId: voucherClaimId, secret, to: bobId }, bob.seed, bob.pubkeyBytes);
 
@@ -541,7 +541,7 @@ test('SECURITY: a replayed voucher-redeem nonce is rejected', async () => {
   assert.deepEqual(once.conservation, twice.conservation, 'the replayed identical event must never run a second time');
 });
 
-test('a real delegate can redeem a voucher landing the value in the real owner\'s identity, never the delegate\'s own', async () => {
+test('a delegate can redeem a voucher landing the value in the owner\'s identity, never the delegate\'s own', async () => {
   const issuer = makeSigner();
   const issuerId = await deriveId(issuer.pubkeyBytes);
   const owner = makeSigner();
@@ -567,7 +567,7 @@ test('a real delegate can redeem a voucher landing the value in the real owner\'
   assert.equal(spendableClaims(s, await deriveId(delegateKey.pubkeyBytes)).length, 0, 'the delegate never actually owns the redeemed value');
 });
 
-test('SECURITY: a delegated voucher redemption with no real delegation ever issued is rejected', async () => {
+test('SECURITY: a delegated voucher redemption with no delegation ever issued is rejected', async () => {
   const issuer = makeSigner();
   const issuerId = await deriveId(issuer.pubkeyBytes);
   const owner = makeSigner();
@@ -584,9 +584,9 @@ test('SECURITY: a delegated voucher redemption with no real delegation ever issu
   s = await applyWalletEvent(rewardParams, s, { id: 'issue', parents: ['c1'], payload: { type: 'transfer', ...issueTransfer } });
   const voucherClaimId = spendableClaims(s, voucherAddress)[0].id;
 
-  // A fabricated "delegation" the real owner never actually signed —
+  // A fabricated "delegation" the owner never actually signed —
   // the delegate key itself signs its own fake delegation, then
-  // relabels `from` as the real owner's id.
+  // relabels `from` as the owner's id.
   const fakeDelegation = { ...(await issueDelegation(delegateKey.seed, delegateKey.pubkeyBytes, delegateKey.pubkeyBytes)), from: ownerId };
   const forged = await buildSignedDelegatedVoucherRedeemEvent(fakeDelegation, { claimId: voucherClaimId, secret }, delegateKey.seed, delegateKey.pubkeyBytes);
   s = await applyWalletEvent(rewardParams, s, { id: 'redeem', parents: ['issue'], payload: { type: 'delegated-voucher-redeem', ...forged } });
@@ -595,7 +595,7 @@ test('SECURITY: a delegated voucher redemption with no real delegation ever issu
   assert.equal(spendableClaims(s, voucherAddress).length, 1, 'the voucher stays untouched, still redeemable by whoever really knows the secret');
 });
 
-test('SECURITY: a real delegation for a DIFFERENT delegate key cannot redeem a voucher', async () => {
+test('SECURITY: a delegation for a DIFFERENT delegate key cannot redeem a voucher', async () => {
   const issuer = makeSigner();
   const issuerId = await deriveId(issuer.pubkeyBytes);
   const owner = makeSigner();
@@ -645,7 +645,7 @@ test('SECURITY: a replayed delegated-voucher-redeem nonce is rejected', async ()
   assert.deepEqual(once.conservation, twice.conservation, 'the replayed identical event must never run a second time');
 });
 
-test('SECURITY: a claim event forged by anyone other than the domain itself creates no Conservation claim — the real, narrow griefing vector the signature check closes', async () => {
+test('SECURITY: a claim event forged by anyone other than the domain itself creates no Conservation claim — the narrow griefing vector the signature check closes', async () => {
   const alice = makeSigner();
   const aliceId = await deriveId(alice.pubkeyBytes);
   const attacker = makeSigner();
@@ -656,10 +656,10 @@ test('SECURITY: a claim event forged by anyone other than the domain itself crea
   const claimAmount = fromUnits(claimable);
 
   // Before this check existed, a completely unrelated identity could
-  // sign and submit a real 'claim' event naming a domain they have no
-  // relationship to, and it was honored as if the real owner had
+  // sign and submit a 'claim' event naming a domain they have no
+  // relationship to, and it was honored as if the owner had
   // submitted it — not a theft (the resulting claim's owner is still
-  // the named domain, spendable only by its real key), but it let
+  // the named domain, spendable only by its key), but it let
   // anyone reset that domain's own patience clock without consent.
   const forged = await buildSignedClaimEvent({ domain: aliceId, claimId: 'claim1', amount: claimAmount }, attacker.seed, attacker.pubkeyBytes);
   const after = await applyWalletEvent(rewardParams, state, { id: 'c1', parents: [], payload: { type: 'claim', ...forged } });
@@ -680,7 +680,7 @@ test('SECURITY: an accrual event forged by anyone other than the domain itself i
   assert.equal(after.accrual.positions[aliceId], undefined, 'a real signature from anyone other than the domain itself must never commit capital on its behalf');
 });
 
-test('a real delegate can trigger a claim landing the value under the real owner\'s domain, never the delegate\'s own', async () => {
+test('a delegate can trigger a claim landing the value under the owner\'s domain, never the delegate\'s own', async () => {
   const owner = makeSigner();
   const ownerId = await deriveId(owner.pubkeyBytes);
   const delegateKey = makeSigner();
@@ -697,7 +697,7 @@ test('a real delegate can trigger a claim landing the value under the real owner
   assert.equal(after.accrual.balances[ownerId], toUnits(claimAmount));
 });
 
-test('SECURITY: a delegated claim with no real delegation ever issued creates no Conservation claim', async () => {
+test('SECURITY: a delegated claim with no delegation ever issued creates no Conservation claim', async () => {
   const owner = makeSigner();
   const ownerId = await deriveId(owner.pubkeyBytes);
   const delegateKey = makeSigner();
@@ -713,7 +713,7 @@ test('SECURITY: a delegated claim with no real delegation ever issued creates no
   assert.equal(after.accrual.balances[ownerId] ?? 0n, 0n);
 });
 
-test('SECURITY: a real delegation for a DIFFERENT delegate key cannot trigger a claim', async () => {
+test('SECURITY: a delegation for a DIFFERENT delegate key cannot trigger a claim', async () => {
   const owner = makeSigner();
   const ownerId = await deriveId(owner.pubkeyBytes);
   const realDelegate = makeSigner();

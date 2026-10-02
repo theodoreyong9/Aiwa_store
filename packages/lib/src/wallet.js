@@ -1,31 +1,31 @@
-// The real, developer-facing AIWA wallet facade: composes aiwa-core's
+// The developer-facing AIWA wallet facade: composes aiwa-core's
 // already-existing identity/wallet/accrual/conservation reducers and
 // aiwa-platform's already-existing transport/replicator into the
 // handful of calls a wallet UI actually needs — connect/disconnect,
 // address, balance, claimable, claim, send, receive, plus a fully
 // offline send/receive path (QR/NFC/Bluetooth — no network at all).
 //
-// This is deliberately thin: every real financial rule (reward curve,
+// This is deliberately thin: every financial rule (reward curve,
 // conservation, double-spend prevention) lives in aiwa-core, unchanged
 // and independently tested there. This file only orchestrates real
 // calls into it — it never reimplements or approximates the math.
 //
-// A single real Ed25519 keypair serves as BOTH your Solana address and
+// A single Ed25519 keypair serves as BOTH your Solana address and
 // your AIWA identity (same curve — see aiwa-core's own toIdentity()).
 // "Connect"/"disconnect" here means unlocking/clearing that keypair in
 // memory; it is a SEPARATE concept from joinNetwork()/leaveNetwork()
 // (a live P2P session) — your own already-synced local data (address,
 // balance, claimable) is always available fully offline, whether or
-// not a network session is active, exactly as a real wallet's own
+// not a network session is active, exactly as a wallet's own
 // local state should be.
 //
 // HONEST LIMIT: `rewardParams` ({alpha, beta, gamma, C, minQ}) is a
-// real deployment's own chosen economic parameters — this file never
+// deployment's own chosen economic parameters — this file never
 // invents a default for them. HONEST LIMIT: `claimable()` reflects
-// real elapsed protocol epochs (aiwa-core's own progression.js, driven
-// by real VDF proofs) — a domain that has never had a real progression
+// elapsed protocol epochs (aiwa-core's own progression.js, driven
+// by VDF proofs) — a domain that has never had a progression
 // event recorded stays at epoch 0 and never accrues anything to claim,
-// regardless of how much real wall-clock time passes; wiring a real,
+// regardless of how much wall-clock time passes; wiring a real,
 // continuous VDF-computing loop is a separate, not-yet-built piece
 // (see this repo's own README).
 
@@ -47,9 +47,9 @@ import {
 } from 'aiwa-core';
 import { readWorld, observations, heldProgressions, nextReceptionEpoch } from './observation.js';
 
-// A real, cryptographically random secret — 32 bytes, hex-encoded.
+// A cryptographically random secret — 32 bytes, hex-encoded.
 // This is what a voucher's QR code actually carries; whoever can
-// reveal it first genuinely redeems the real value it hash-locks (see
+// reveal it first redeems the value it hash-locks (see
 // aiwa-core's own wallet.js for the full scheme).
 function randomVoucherSecret() {
   const bytes = new Uint8Array(32);
@@ -57,7 +57,7 @@ function randomVoucherSecret() {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Order-independent comparison of two real head sets — used to decide whether the materialization cache is still current. */
+/** Order-independent comparison of two head sets — used to decide whether the materialization cache is still current. */
 // Whether every event of `newEvents` descends from every one of `oldHeads` (and so, in canonical order, comes after all of
 // what those heads stand for): each event of the batch that has no parent inside the batch must cite all of the old heads.
 function descendsFromAll(newEvents, oldHeads) {
@@ -78,8 +78,8 @@ function sameHeadSet(a, b) {
 import { Replicator, pushToNodes, fetchFromNodes } from 'aiwa-platform';
 import { collectAncestors } from './ancestors.js';
 
-// A real, DETERMINISTIC per-(root, peer) session key — HMAC-SHA256
-// keyed by your own real root secret, so it's always recoverable
+// A DETERMINISTIC per-(root, peer) session key — HMAC-SHA256
+// keyed by your own root secret, so it's always recoverable
 // (never a randomly-generated, potentially-lost throwaway) and unique
 // per counterparty (a compromised session key for one peer's channel
 // never affects any other peer's).
@@ -105,13 +105,13 @@ function fromHex(hex) {
   return bytes;
 }
 
-// The real consent step a channel needs — see AIWA.requestChannel()'s
+// The consent step a channel needs — see AIWA.requestChannel()'s
 // own header for why a unilateral delegation alone was never enough.
 // Only `requestId`/`from`/`accepting`/`timestamp` are signed here: the
 // request's own delegation is ALREADY a complete, independently
 // verifiable proof (verifyDelegation) of who's asking and for which
 // session key, so there's nothing to duplicate — this signature exists
-// purely to prove the ACCEPTING side's real, deliberate consent, tied
+// purely to prove the ACCEPTING side's deliberate consent, tied
 // to one specific request by its id.
 function canonicalChannelAcceptMessage({ requestId, from, accepting, timestamp }) {
   return JSON.stringify({ requestId, from, accepting, timestamp });
@@ -168,20 +168,20 @@ export class AIWA {
     this._materializedHeads = null;
     // Everything already folded into _materializedState, by id — NOT
     // just the last-seen heads. See _materializeWallet()'s own header
-    // for the real bug that using heads alone caused: progressionParents()
-    // can add a real event's own last-progression id as an EXTRA parent
+    // for the bug that using heads alone caused: progressionParents()
+    // can add an event's own last-progression id as an EXTRA parent
     // whenever it isn't already the head, and that edge reaches straight
     // past a heads-only exclusion boundary back into already-covered
     // territory, since it doesn't run through the excluded head itself.
-    // Bounded by real activity since the last checkpoint, not all-time
+    // Bounded by activity since the last checkpoint, not all-time
     // history — exactly what periodic checkpoint()/pruneToLastCheckpoint()
     // calls are for.
     this._coveredIds = new Set();
     this._domainId = null;
     // Optional, app-set: (current, total) => void, called while
-    // _materializeWallet() folds a real, potentially large backlog —
+    // _materializeWallet() folds a potentially large backlog —
     // e.g. the very first call after a reload with no checkpoint yet,
-    // still a real, unbounded-time replay from genesis. Never set by
+    // still a unbounded-time replay from genesis. Never set by
     // this library itself; a wallet UI wanting a "catching up…"
     // indicator sets `aiwa.onMaterializeProgress = (i, total) => ...`
     // once, right after connect(). Left null, materialization is
@@ -208,7 +208,7 @@ export class AIWA {
   // --- Wallet unlock (identity), fully offline -----------------------
 
   /**
-   * Derives or generates the real keypair this wallet signs with. Fully offline — no network, no @solana/web3.js load.
+   * Derives or generates the keypair this wallet signs with. Fully offline — no network, no @solana/web3.js load.
    * With nothing given, a NEW identity is created from a fresh 12-word recovery phrase, readable as `recoveryPhrase`
    * while connected: write it down, it is the only way to be this identity again (connect({ mnemonic }) gives the same
    * address — the same one a Solana wallet derives from those words). Connecting with a mnemonic keeps it readable the
@@ -235,7 +235,7 @@ export class AIWA {
     return { address: this.address, identityId: this.identity.id };
   }
 
-  /** Clears the real keypair from memory. Already-synced local data (this.log) is untouched and stays fully readable. */
+  /** Clears the keypair from memory. Already-synced local data (this.log) is untouched and stays fully readable. */
   async disconnect() {
     await this.leaveNetwork();
     this.stopProgressLoop();
@@ -283,28 +283,28 @@ export class AIWA {
     return miningChainHead(accrual, this.identity.id);
   }
 
-  // --- Real Solana chain operations (need a real Connection) ---------
+  // --- Solana chain operations (need a Connection) ---------
 
-  /** The real solanaWeb3.Keypair, for a real on-chain call — lazily loads @solana/web3.js only when actually needed. */
+  /** The solanaWeb3.Keypair, for an on-chain call — lazily loads @solana/web3.js only when actually needed. */
   async solanaKeypair() {
     this._requireConnected();
     const solanaWeb3 = await loadSolanaWeb3();
     return keypairFromSecretKey(solanaWeb3, this._keypair.secretKey);
   }
 
-  /** Real, on-chain SOL balance, in lamports. `connection` is a real solanaWeb3.Connection the caller provides (this library never picks an RPC endpoint for you). */
+  /** on-chain SOL balance, in lamports. `connection` is a solanaWeb3.Connection the caller provides (this library never picks an RPC endpoint for you). */
   async solBalance(connection) {
     const keypair = await this.solanaKeypair();
     return connection.getBalance(keypair.publicKey);
   }
 
   /**
-   * A real, irreversible burn to Solana's own incinerator address — the
-   * real activation cost this deployment's identity-cost.js verifies.
-   * Atomically also commits the burned amount as real capital via
+   * An irreversible burn to Solana's own incinerator address — the
+   * activation cost this deployment's identity-cost.js verifies.
+   * Atomically also commits the burned amount as capital via
    * recordCommitment() (one action, "burn & ignite" — the same key that holds SOL is the
    * key AIWA accrues to, there is no separate commit step to forget).
-   * Returns the real transaction signature.
+   * Returns the transaction signature.
    */
   async burn(lamports, connection, { T = 0 } = {}) {
     // T is checked BEFORE anything is broadcast: a burn is irreversible, a refusal after it is too late.
@@ -467,25 +467,25 @@ export class AIWA {
   // --- Local AIWA ledger (fully offline; identical whether or not joinNetwork() is active) ---
 
   /**
-   * REAL FIX, a real regression this library reintroduced (see this
+   * FIX, a regression this library reintroduced (see this
    * repo's own README): every call used to fold the ENTIRE event list
    * from genesis, every time — balance()/claimable()/send() all paid
    * that cost on every single call, growing unboundedly for a
    * long-lived domain. Fixed here by caching the last materialized
-   * state, and folding only the real events appended since, tracked via
-   * the GROWING _coveredIds set (not just the latest heads — a real bug
+   * state, and folding only the events appended since, tracked via
+   * the GROWING _coveredIds set (not just the latest heads — a bug
    * found via this exact scenario: aiwa-core's own progressionParents()
    * can add a domain's last progression id as an EXTRA parent whenever
    * it isn't already the head, and that edge reaches straight past a
    * heads-only exclusion boundary back into already-covered territory —
    * collectAncestors would then re-walk and re-fold an already-covered
    * event, which aiwa-core's own causal-chain check then rejects as
-   * "already advanced past this epoch"). Bounded by real activity since
+   * "already advanced past this epoch"). Bounded by activity since
    * the last checkpoint, not all-time history.
    *
    * On the very first call this session (no cache yet), also checks
-   * for a real, self-authored checkpoint (aiwa-core's own
-   * checkpoint.js) to resume from instead of genesis — the real fix
+   * for a self-authored checkpoint (aiwa-core's own
+   * checkpoint.js) to resume from instead of genesis — the fix
    * for unbounded local storage, once pruneToLastCheckpoint() below has
    * actually been used.
    *
@@ -514,7 +514,7 @@ export class AIWA {
 
     // excludeIds is the GROWING set of everything already folded — not
     // just the latest heads (see the constructor's own comment on
-    // _coveredIds for the real bug that distinction fixes).
+    // _coveredIds for the bug that distinction fixes).
     const newEvents = await collectAncestors(this.log, heads, { excludeIds: this._coveredIds });
     // The fold order is canonical (aiwa-core's canonicalOrder: the same for every reader holding the same events), so that a
     // conflict between two branches has the same winner everywhere. Folding new events on top of what is already folded is
@@ -527,12 +527,12 @@ export class AIWA {
       return this._materializeWallet();
     }
     // materializeWalletFromWireEvents, not materializeWallet: newEvents
-    // are the real, un-adapted wire events, and might include a real
+    // are the un-adapted wire events, and might include a real
     // checkpoint appended since the last call (e.g. our own checkpoint()
     // + pruneToLastCheckpoint(), still within this same session) — only
-    // the wire-event form lets its real signature (event.author) verify
+    // the wire-event form lets its signature (event.author) verify
     // at all, and repoints progression's lastId away from whatever it
-    // just pruned. See aiwa-core's own checkpoint.js for the real bug
+    // just pruned. See aiwa-core's own checkpoint.js for the bug
     // this closes.
     const state = await materializeWalletFromWireEvents(this.rewardParams, newEvents, this.onMaterializeProgress, undefined, {}, withConfirmedBurns(base ?? initialWalletState(), this._burnRecords));
     for (const event of newEvents) this._coveredIds.add(event.id);
@@ -542,12 +542,12 @@ export class AIWA {
   }
 
   /**
-   * A real, self-signed checkpoint of your own current materialized
+   * A self-signed checkpoint of your own current materialized
    * state, appended to your own log — the basis pruneToLastCheckpoint()
    * can safely discard prior local storage against. See aiwa-core's own
-   * checkpoint.js for the real, honest tradeoff this makes: a brand-new
+   * checkpoint.js for the honest tradeoff this makes: a brand-new
    * peer who only ever receives your pruned log trusts this
-   * checkpoint's own real signature instead of independently
+   * checkpoint's own signature instead of independently
    * re-deriving your history from genesis.
    */
   async checkpoint() {
@@ -561,7 +561,7 @@ export class AIWA {
     return { eventId: event.id, coveredHeads: heads };
   }
 
-  /** Physically discards local storage for everything your own latest real checkpoint already accounts for. Returns how many real events were removed, or 0 if you have never checkpointed. */
+  /** Physically discards local storage for everything your own latest checkpoint already accounts for. Returns how many events were removed, or 0 if you have never checkpointed. */
   async pruneToLastCheckpoint() {
     const domain = this._domainId ?? this.identity?.id;
     if (!domain) throw new Error('AIWA: pruneToLastCheckpoint needs to know your own domain — connect() at least once first.');
@@ -582,9 +582,9 @@ export class AIWA {
   // folded from its log. The key comes back from the recovery phrase; the log does not, unless someone holds it. These
   // are the ways to hold it, all the same one idea: a CHECKPOINT is the wallet's state signed by its own key, small
   // whatever the history, and a wallet that has one is back where it was.
-  //   exportBackup() / importBackup()   a file (or a QR, a note) the owner keeps
-  //   adoptState()                      for a source that holds the STATE but not the events (a registry's baseline)
-  //   joinNetwork(transport)            peers that received your events hand them back when you reconnect
+  // exportBackup() / importBackup() a file (or a QR, a note) the owner keeps
+  // adoptState() for a source that holds the STATE but not the events (a registry's baseline)
+  // joinNetwork(transport) peers that received your events hand them back when you reconnect
   // The honest tradeoff, as for every checkpoint (aiwa-core): a peer who only ever sees the backup trusts its signature
   // instead of re-deriving the history from genesis.
 
@@ -723,8 +723,8 @@ export class AIWA {
    * itself anyway. A validator that already derived the state up to some point only needs the events after it.
    * @param {object} [options]
    * @param {string} [options.after] the id of the last mining event the validator holds (its baseline's `chainHead`):
-   *   only the events after it are returned — the chain of progression, accrual and claim events from there, and the
-   *   burn records made since
+   * only the events after it are returned — the chain of progression, accrual and claim events from there, and the
+   * burn records made since
    * @param {number} [options.afterEpoch] leave out the progression events up to this epoch (when `after` is not known)
    */
   async exportMiningEvents({ afterEpoch = 0, after = null } = {}) {
@@ -809,7 +809,7 @@ export class AIWA {
     return rankingFigure(await this.mining());
   }
 
-  /** Real AIWA balance: unclaimed-but-claimable, plus already-claimed spendable claims. Decimal string, e.g. "1.5". */
+  /** AIWA balance: unclaimed-but-claimable, plus already-claimed spendable claims. Decimal string, e.g. "1.5". */
   async balance() {
     this._requireConnected();
     const state = await this._materializeWallet();
@@ -819,8 +819,8 @@ export class AIWA {
   /**
    * What you can actually send right now: the sum of your own already
    * -claimed, active claims. `balance()` also includes `claimable()` —
-   * value that has accrued but hasn't been moved into a real, spendable
-   * claim yet, and so genuinely cannot be sent until claim()'d. A UI
+   * value that has accrued but hasn't been moved into a spendable
+   * claim yet, and so cannot be sent until claim()'d. A UI
    * that lets someone "send" `balance()` will hit send()'s own "No
    * single active claim covers..." error the moment even a sliver of
    * new claimable has accrued since their last claim() — this is that
@@ -832,7 +832,7 @@ export class AIWA {
     return fromUnits(spendableClaims(state, this.identity.id).reduce((sum, c) => sum + c.amount, 0n));
   }
 
-  /** What's currently claimable from your own real, accrued position — not yet moved into a spendable claim. Decimal string. */
+  /** What's currently claimable from your own accrued position — not yet moved into a spendable claim. Decimal string. */
   async claimable() {
     this._requireConnected();
     const state = await this._materializeWallet();
@@ -840,13 +840,13 @@ export class AIWA {
   }
 
   /**
-   * Commits real capital `b` (a plain number — see aiwa-core's own
+   * Commits capital `b` (a plain number — see aiwa-core's own
    * reward.js/accrual.js for what it means in this deployment's
    * economics) to your own position, so it starts earning something
-   * real to claim as progression advances. Typically called once,
-   * right after a real burn (see burn() above) establishes why you're
+   * to claim as progression advances. Typically called once,
+   * right after a burn (see burn() above) establishes why you're
    * entitled to commit it — this file never enforces that link itself;
-   * a real deployment's own identity-cost.js verification does.
+   * a deployment's own identity-cost.js verification does.
    */
   async recordCommitment({ b, T = 0 } = {}) {
     this._requireConnected();
@@ -887,10 +887,10 @@ export class AIWA {
   }
 
   /**
-   * Advances your own real progression epoch by exactly one real,
-   * sequential VDF step (aiwa-core's own vdf.js — a real hash chain
+   * Advances your own progression epoch by exactly one real,
+   * sequential VDF step (aiwa-core's own vdf.js — a hash chain
    * bounding the RATE of advancement, not calendar time; see its own
-   * header for why that's a real, different, and honestly weaker
+   * header for why that's a different, and honestly weaker
    * guarantee than a true asymmetric VDF). This is what actually makes
    * claimable() grow — call it periodically (see startProgressLoop
    * below) while the wallet is open.
@@ -908,7 +908,7 @@ export class AIWA {
     const epoch = current.epoch + 1;
     const vdfOutput = await computeVdfChain(seed, vdfIterations);
     // progressionParents(), not just log.head(): if anything else (a recordCommitment(), a checkpoint()) was
-    // appended for this domain since the last progression tick, the log's real head is THAT event, not the last
+    // appended for this domain since the last progression tick, the log's head is THAT event, not the last
     // progression event — aiwa-core's own causal chain check requires the latter as a direct parent too, or every
     // progression event from here on is silently rejected forever. Read AFTER the work: it can take a while.
     const parents = progressionParents(await this.log.head(), current.lastId);
@@ -953,7 +953,7 @@ export class AIWA {
     return { epoch: epoch - epochs, eventId: null, discarded: true };
   }
 
-  /** Calls advanceProgress() on a real timer until stopProgressLoop() — the practical way a wallet UI keeps its own claimable() genuinely growing while open. Errors are surfaced via onError rather than left to reject silently in the background. */
+  /** Calls advanceProgress() on a timer until stopProgressLoop() — the practical way a wallet UI keeps its own claimable() growing while open. Errors are surfaced via onError rather than left to reject silently in the background. */
   startProgressLoop({ intervalMs = 30_000, vdfIterations = 100_000, epochs = 1, onError } = {}) {
     this.stopProgressLoop();
     this._progressTimer = setInterval(() => {
@@ -973,12 +973,12 @@ export class AIWA {
   }
 
   /**
-   * Calls checkpoint() + pruneToLastCheckpoint() on a real timer until
+   * Calls checkpoint() + pruneToLastCheckpoint() on a timer until
    * stopAutoCheckpoint() — the practical way a long-lived wallet keeps
    * its OWN next cold load (a page reload, a restart) fast and bounded,
-   * instead of a real, ever-growing full replay from genesis every
-   * single time. Skips a real checkpoint entirely when nothing genuinely
-   * changed since the last one (same real log heads) — never creates a
+   * instead of an ever-growing full replay from genesis every
+   * single time. Skips a checkpoint entirely when nothing genuinely
+   * changed since the last one (same log heads) — never creates a
    * pointless, empty checkpoint just because the timer fired. Errors are
    * surfaced via onError, same as startProgressLoop().
    */
@@ -1004,7 +1004,7 @@ export class AIWA {
     }
   }
 
-  /** Moves `amount` (decimal string) from claimable into a real, spendable claim you own. */
+  /** Moves `amount` (decimal string) from claimable into a spendable claim you own. */
   async claim(amount) {
     this._requireConnected();
     return this._withMiningLock(async () => {
@@ -1023,17 +1023,17 @@ export class AIWA {
   }
 
   /**
-   * Finds (or creates, via a real, owner-signed split) a single active
+   * Finds (or creates, via an owner-signed split) a single active
    * claim you own worth exactly `amount` — the shared first step
-   * `send()` and a real Channel's own `send()` both need. Splitting is
-   * always an owner-only operation, never delegated: real delegation
+   * `send()` and a Channel's own `send()` both need. Splitting is
+   * always an owner-only operation, never delegated: delegation
    * (see openChannel()) only ever covers TRANSFER authorization, not
    * dividing a claim into new ones.
    *
    * HONEST LIMIT (v1): requires a SINGLE active claim >= `amount` —
    * does not yet combine several smaller claims to reach it. Claim
    * consolidation (splitting into round denominations, or merging) is
-   * a real, separate, not-yet-built convenience, not a protocol limit.
+   * a separate, not-yet-built convenience, not a protocol limit.
    */
   async _ensureSpendableClaim(amount) {
     const amountUnits = toUnits(amount);
@@ -1066,12 +1066,12 @@ export class AIWA {
 
   /**
    * Sends `amount` (decimal string) of already-claimed AIWA to
-   * `toIdentityId`, real signature and all. Splits an existing claim
+   * `toIdentityId`, signature and all. Splits an existing claim
    * first if none matches the amount exactly (see _ensureSpendableClaim).
    *
    * If a live network session is active (joinNetwork()), the new
    * event(s) are also published to every currently-connected peer —
-   * REAL BUG, FOUND LIVE: Replicator's own HELLO/HELLO_ACK exchange
+   * BUG, FOUND LIVE: Replicator's own HELLO/HELLO_ACK exchange
    * only syncs once, at the moment two peers connect; nothing
    * automatically re-syncs afterward. A send() made after that initial
    * handshake, with no explicit replicator.publish() call, reached
@@ -1079,7 +1079,7 @@ export class AIWA {
    * "Send over the network" was never actually verified end to end
    * before this was found.
    *
-   * SECOND REAL BUG, FOUND THE SAME WAY: publishing only the bare new
+   * SECOND BUG, FOUND THE SAME WAY: publishing only the bare new
    * event(s) still silently fails EventLog.appendMany() on the
    * recipient's side whenever their log doesn't already have this
    * event's full ancestor chain (e.g. they connected before your
@@ -1114,23 +1114,23 @@ export class AIWA {
   }
 
   /**
-   * Opens a real "sign once, click many times" channel with `peerId`
+   * Opens a "sign once, click many times" channel with `peerId`
    * (see aiwa-core's own wallet.js for the underlying delegation
-   * mechanism): derives a real, DETERMINISTIC per-peer session key
+   * mechanism): derives a DETERMINISTIC per-peer session key
    * (recoverable later even after a crash — always the same key for
    * the same root identity + peerId, never randomly generated and
-   * potentially lost), and signs ONE real delegation authorizing it.
+   * potentially lost), and signs ONE delegation authorizing it.
    * Every subsequent Channel.send() then signs with the already-
    * unlocked session key alone — your own root key is never touched
    * again for this peer's channel.
    *
    * No funds are pre-funded or moved anywhere at open time: nothing is
    * escrowed into a separate account. The delegate only ever authorizes
-   * moving what you already, genuinely own, one real transfer at a time.
+   * moving what you already, own, one transfer at a time.
    *
    * By default requires a live network session (see joinNetwork()) —
    * opening a channel with a peer you have no way to reach at all
-   * isn't a real channel. Pass `{ requireNetwork: false }` to skip this
+   * isn't a channel. Pass `{ requireNetwork: false }` to skip this
    * (e.g. for tests, or an application with its own reachability check).
    */
   async openChannel(peerId, { requireNetwork = true } = {}) {
@@ -1143,7 +1143,7 @@ export class AIWA {
     const delegation = await issueDelegation(
       this._keypair.secretKey.slice(0, 32), this._keypair.publicKey.toBytes(), sessionKeypair.publicKey.toBytes(),
     );
-    // status: 'confirmed' — this real, existing path is a UNILATERAL
+    // status: 'confirmed' — this existing path is a UNILATERAL
     // delegation, exactly as it always was: you alone decide, the peer
     // never consents to anything before it's already usable. Real
     // consent from both sides needs requestChannel()/acceptChannelRequest()
@@ -1152,9 +1152,9 @@ export class AIWA {
   }
 
   /**
-   * REAL HANDSHAKE, STEP 1 — the real fix for a real gap in openChannel()
+   * HANDSHAKE, STEP 1 — the fix for a gap in openChannel()
    * above: that path is unilateral, the peer never consents to anything
-   * before the channel is already usable — not a real "channel between
+   * before the channel is already usable — not a "channel between
    * two peers" in any meaningful sense, just a delegation one side
    * issues to itself. This builds the identical session key + real
    * delegation, but returns it as a small, portable, independently
@@ -1162,7 +1162,7 @@ export class AIWA {
    * immediately-usable Channel — hand it to `peerId` over ANY real
    * channel: a live network message, pasted text, a QR code, NFC,
    * Bluetooth. This never picks one itself, exactly like
-   * sendOfflineBundle()'s own offline blob — genuinely works with both
+   * sendOfflineBundle()'s own offline blob — works with both
    * sides fully disconnected from any network.
    *
    * The returned Channel is PENDING: every action on it (send, claim,
@@ -1185,17 +1185,17 @@ export class AIWA {
   }
 
   /**
-   * REAL HANDSHAKE, STEP 2 — the peer's own side: decodes and verifies
-   * a requestChannel() blob (real signature check via
+   * HANDSHAKE, STEP 2 — the peer's own side: decodes and verifies
+   * a requestChannel() blob (signature check via
    * verifyDelegation() alone — no EventLog, no state, so this works
-   * fully offline too), then produces a real, signed acknowledgment
-   * proving THIS identity genuinely, deliberately consents to a channel
-   * with the real requester (`request.delegation.from`). Hand the
-   * returned blob back to them over the identical real channel the
+   * fully offline too), then produces a signed acknowledgment
+   * proving THIS identity deliberately consents to a channel
+   * with the requester (`request.delegation.from`). Hand the
+   * returned blob back to them over the identical channel the
    * request arrived on — network, QR, NFC, Bluetooth, whatever was
    * actually available. Never appends anything or touches this
    * identity's own log: accepting a channel request is not, by itself,
-   * a real economic action.
+   * an economic action.
    */
   async acceptChannelRequest(requestBlob) {
     this._requireConnected();
@@ -1217,15 +1217,15 @@ export class AIWA {
 
   // --- Fully offline send/receive: QR code, NFC, Bluetooth, anything ---
   //
-  // A recipient with ZERO prior sync needs the FULL real ancestor
+  // A recipient with ZERO prior sync needs the FULL ancestor
   // chain for the claim(s) involved — EventLog.append() requires every
-  // real parent to already be known. HONEST LIMIT: a claim with a long
-  // real history bundles a correspondingly larger payload; QR codes
-  // have a real, practical size ceiling (NFC/Bluetooth do not) — this
+  // parent to already be known. HONEST LIMIT: a claim with a long
+  // history bundles a correspondingly larger payload; QR codes
+  // have a practical size ceiling (NFC/Bluetooth do not) — this
   // is why claim consolidation (see send()'s own limit) matters for
   // the QR path specifically.
 
-  /** send() plus every real ancestor event the resulting transfer needs — a self-contained bundle a stranger can append with zero prior sync. */
+  /** send() plus every ancestor event the resulting transfer needs — a self-contained bundle a stranger can append with zero prior sync. */
   async sendOfflineBundle(toIdentityId, amount) {
     const { events, newClaimId } = await this.send(toIdentityId, amount);
     const bundle = await collectAncestors(this.log, events.map((e) => e.id));
@@ -1233,12 +1233,12 @@ export class AIWA {
   }
 
   /**
-   * Appends a real offline bundle (from sendOfflineBundle, or its own
-   * encodeOfflineBundle) — real signature/causal verification,
-   * identical to any other real append. Deliberately NOT gated by
+   * Appends an offline bundle (from sendOfflineBundle, or its own
+   * encodeOfflineBundle) — signature/causal verification,
+   * identical to any other append. Deliberately NOT gated by
    * _requireConnected(): appending never signs anything with this
    * wallet's own key — every event in the bundle is already, really
-   * signed by its own real sender — so receiving genuinely works
+   * signed by its own sender — so receiving works
    * whether or not this wallet's own root key is currently unlocked.
    * this.log itself is created in the constructor, independent of
    * connect()/disconnect(), so it's always available regardless.
@@ -1249,7 +1249,7 @@ export class AIWA {
   }
 
   /**
-   * Issues a real bearer voucher: hash-locks `amount` of your own
+   * Issues a bearer voucher: hash-locks `amount` of your own
    * already-owned value behind a fresh, random secret (aiwa-core's own
    * deriveVoucherAddress/'voucher-redeem' — the same idea a Lightning
    * HTLC or a Bitcoin pay-to-hash-of-a-preimage script uses). Reuses
@@ -1258,10 +1258,10 @@ export class AIWA {
    * voucher address is just an ordinary transfer destination nobody's
    * root key happens to control.
    *
-   * Returns a real, self-contained, offline-transportable blob — put
+   * Returns a self-contained, offline-transportable blob — put
    * `secret` (and `claimId`/`events`) in a QR code, share it, whatever:
-   * whoever redeems it FIRST genuinely gets the value. The QR can be
-   * copied; only the first real redemption succeeds — see aiwa-core's
+   * whoever redeems it FIRST gets the value. The QR can be
+   * copied; only the first redemption succeeds — see aiwa-core's
    * own wallet.js for exactly why (its existing single-writer
    * conservation invariant, not new double-spend logic).
    */
@@ -1275,11 +1275,11 @@ export class AIWA {
   }
 
   /**
-   * Redeems a real bearer voucher (from issueVoucher(), or received
+   * Redeems a bearer voucher (from issueVoucher(), or received
    * with zero prior sync — the identical offline mechanism
-   * receiveOfflineBundle() uses) into your own, real identity. Whoever
-   * redeems first genuinely gets it; redeeming an already-consumed
-   * voucher has no real effect.
+   * receiveOfflineBundle() uses) into your own, identity. Whoever
+   * redeems first gets it; redeeming an already-consumed
+   * voucher has no effect.
    */
   async redeemVoucher({ secret, claimId, events }) {
     this._requireConnected();
@@ -1298,7 +1298,7 @@ export class AIWA {
 
   // --- Live network (separate from connect()/disconnect() above) ---
 
-  /** Joins a real P2P session over `transport` (e.g. a real WebrtcTransport) for this wallet's own log domain. */
+  /** Joins a P2P session over `transport` (e.g. a WebrtcTransport) for this wallet's own log domain. */
   async joinNetwork(transport) {
     this._requireConnected();
     this.replicator = new Replicator({ transport, log: this.log, domain: this.logDomain });
@@ -1318,10 +1318,10 @@ export class AIWA {
 }
 
 /**
- * "Sign once, click many times." A real, per-peer delegated-send
+ * "Sign once, click many times." A per-peer delegated-send
  * session — see AIWA.openChannel(). Every send() signs with the
  * already-unlocked session key alone; the owner's root key (still the
- * REAL owner of every claim moved) is never touched again after the
+ * owner of every claim moved) is never touched again after the
  * channel was opened. Fully offline-capable: once the one, real
  * delegation exists, nothing here needs any network at all.
  */
@@ -1336,7 +1336,7 @@ export class Channel {
     this._requestId = requestId;
   }
 
-  /** This channel's own real, deterministic session address — distinct from your own root address, one per peer. */
+  /** This channel's own deterministic session address — distinct from your own root address, one per peer. */
   get address() { return this._keypair.publicKey.toBase58(); }
 
   _requireConfirmed() {
@@ -1346,21 +1346,21 @@ export class Channel {
   }
 
   /**
-   * REAL HANDSHAKE, STEP 3 — verifies `acceptBlob` (from the peer's own
-   * real acceptChannelRequest()) and, only if it genuinely checks out,
+   * HANDSHAKE, STEP 3 — verifies `acceptBlob` (from the peer's own
+   * acceptChannelRequest()) and, only if it checks out,
    * marks this channel confirmed: send()/claim()/issueVoucher()/
-   * redeemVoucher() all refuse to run before this. Three real things
+   * redeemVoucher() all refuse to run before this. Three things
    * are checked, all of them load-bearing:
-   *   - `accept.requestId` really matches THIS channel's own request
-   *     (never some other, unrelated accept);
-   *   - the signature really verifies, AND the signer really derives
-   *     `accept.from` (an ordinary forged-pubkey check, same as every
-   *     other signed payload in this codebase);
-   *   - `accept.from` really is the peer THIS channel was opened
-   *     for — without this, any third party who merely obtained the
-   *     request blob (never secret; a delegation is meant to be handed
-   *     over) could "accept" a channel meant for someone else,
-   *     defeating the entire point of asking for real consent.
+   * - `accept.requestId` really matches THIS channel's own request
+   * (never some other, unrelated accept);
+   * - the signature really verifies, AND the signer really derives
+   * `accept.from` (an ordinary forged-pubkey check, same as every
+   * other signed payload in this codebase);
+   * - `accept.from` really is the peer THIS channel was opened
+   * for — without this, any third party who merely obtained the
+   * request blob (never secret; a delegation is meant to be handed
+   * over) could "accept" a channel meant for someone else,
+   * defeating the entire point of asking for consent.
    * Works fully offline: no EventLog, no network, no state beyond this
    * one object.
    */
@@ -1383,11 +1383,11 @@ export class Channel {
     this.status = 'confirmed';
   }
 
-  /** The same real EventLog the owner's own AIWA instance uses — for passing into aiwa-platform functions that take a log directly (e.g. publishBundle(channel.identity, channel.log, domain, {...})), independent of whether the owner's root identity is currently connected. */
+  /** The same EventLog the owner's own AIWA instance uses — for passing into aiwa-platform functions that take a log directly (e.g. publishBundle(channel.identity, channel.log, domain, {...})), independent of whether the owner's root identity is currently connected. */
   get log() { return this._aiwa.log; }
 
   /**
-   * What the real owner still has available to send through this or
+   * What the owner still has available to send through this or
    * any other channel — delegation never partitions the balance, it
    * only authorizes moving it. Reads the owner's id from the
    * delegation itself, not aiwa.identity — this keeps working even
@@ -1436,23 +1436,23 @@ export class Channel {
   }
 
   /**
-   * "Click to send" — a real, delegate-signed transfer of `amount` to
+   * "Click to send" — a delegate-signed transfer of `amount` to
    * `to`. No further root-key involvement, ever — including for
    * splitting, so this keeps working after the owner's root identity
    * disconnects. If the owner still has a live network session, the
    * new event(s) are also published to connected peers — publishing
    * the FULL ancestor closure, not just the bare new event(s) (see
-   * AIWA.send()'s own header for both real bugs this fixes: a click
+   * AIWA.send()'s own header for both bugs this fixes: a click
    * made after the initial peer handshake reaching nobody, and a peer
    * whose log doesn't yet have this channel's own causal history —
    * commitment, progression, claim, the delegation itself — being
    * unable to append the transfer at all).
    *
    * Private: `to` defaults to this channel's own peer for the public
-   * send() below, but the SAME real delegated-transfer mechanism has
+   * send() below, but the SAME delegated-transfer mechanism has
    * no protocol-level restriction on the destination — issueVoucher()
    * below reuses it unchanged, addressed to a hash-locked voucher
-   * address instead of a real identity.
+   * address instead of an identity.
    */
   async _sendTo(to, amount) {
     this._requireConfirmed();
@@ -1475,7 +1475,7 @@ export class Channel {
     return this._sendTo(this.peerId, amount);
   }
 
-  /** send() plus every real ancestor event the resulting transfer needs — the identical offline mechanism AIWA.sendOfflineBundle() uses, so a channel click works over QR/NFC/Bluetooth exactly like any other send. */
+  /** send() plus every ancestor event the resulting transfer needs — the identical offline mechanism AIWA.sendOfflineBundle() uses, so a channel click works over QR/NFC/Bluetooth exactly like any other send. */
   async sendOfflineBundle(amount) {
     const { events, newClaimId } = await this.send(amount);
     const bundle = await collectAncestors(this._aiwa.log, events.map((e) => e.id));
@@ -1483,12 +1483,12 @@ export class Channel {
   }
 
   /**
-   * Issues a real bearer voucher THROUGH this channel — no further
+   * Issues a bearer voucher THROUGH this channel — no further
    * root-key involvement, ever, exactly like send(). Reuses _sendTo()
    * unchanged, addressed to the hash of a fresh secret instead of a
-   * real identity: the identical, real mechanism AIWA.issueVoucher()
+   * identity: the identical, mechanism AIWA.issueVoucher()
    * uses, needing no new protocol here either (see aiwa-core's own
-   * wallet.js for exactly why). Returns a real, self-contained,
+   * wallet.js for exactly why). Returns a self-contained,
    * offline-transportable blob, same shape as AIWA.issueVoucher().
    */
   async issueVoucher(amount) {
@@ -1500,11 +1500,11 @@ export class Channel {
   }
 
   /**
-   * Redeems a real bearer voucher THROUGH this channel, landing the
-   * value in the real owner's identity (this._delegation.from), never
+   * Redeems a bearer voucher THROUGH this channel, landing the
+   * value in the owner's identity (this._delegation.from), never
    * this channel's own session identity — see aiwa-core's own
    * buildSignedDelegatedVoucherRedeemEvent for exactly why an ordinary
-   * voucher-redeem can't do this (it requires the real signer to
+   * voucher-redeem can't do this (it requires the signer to
    * derive the claimed destination directly, which a session key never
    * does by construction) and why the SAME delegation send() already
    * uses closes that gap here too.
@@ -1526,8 +1526,8 @@ export class Channel {
   }
 
   /**
-   * Claims currently-claimable value into a real, spendable claim for
-   * the real owner (this._delegation.from) — through this channel,
+   * Claims currently-claimable value into a spendable claim for
+   * the owner (this._delegation.from) — through this channel,
    * with no root-key involvement. Uses aiwa-core's own
    * buildSignedDelegatedClaimEvent ('delegated-claim'): a channel's
    * session key is a fresh, deterministic keypair distinct from the
@@ -1535,7 +1535,7 @@ export class Channel {
    * aiwa-core's own domain-owner signature check on a plain 'claim'
    * event (deriveId(signerPubkey) === domain) — the identical reason
    * redeemVoucher() below needs 'delegated-voucher-redeem' instead of
-   * plain 'voucher-redeem'. The already-issued real delegation
+   * plain 'voucher-redeem'. The already-issued delegation
    * (this._delegation) is reused, exactly like every other Channel
    * action here; the owner's root key never signs again.
    */
@@ -1571,7 +1571,7 @@ export class Channel {
   close() {}
 }
 
-/** A real, compact, transportable encoding for QR/NFC/Bluetooth — the same pattern aiwa-platform's own signaling-codec.js uses. */
+/** A compact, transportable encoding for QR/NFC/Bluetooth — the same pattern aiwa-platform's own signaling-codec.js uses. */
 export function encodeOfflineBundle(bundle) {
   return btoa(encodeURIComponent(JSON.stringify(bundle)));
 }

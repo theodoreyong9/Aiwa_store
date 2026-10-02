@@ -63,7 +63,7 @@ test('numberToFixed rejects non-finite input', () => {
   assert.throws(() => numberToFixed(-Infinity), FixedPointError);
 });
 
-test('numberToFixed / fixedToNumber round-trips a real decimal within double precision', () => {
+test('numberToFixed / fixedToNumber round-trips a decimal within double precision', () => {
   for (const v of [1.1, 2.2, 0.4, 33 ** 3, 0.001, 123456.789]) {
     assertClose(fixedToNumber(numberToFixed(v)), v, 1e-14, `round-trip ${v}`);
   }
@@ -73,7 +73,7 @@ test('LN2 matches Math.LN2 within double precision, derived rather than hardcode
   assertClose(fixedToNumber(LN2), Math.LN2, 1e-15);
 });
 
-test('lnFixed matches Math.log across a real range, including sub-1 and very large values', () => {
+test('lnFixed matches Math.log across a range, including sub-1 and very large values', () => {
   const values = [1, 2, 3, 10, 100, 1e6, 1e9, 1e15, 0.5, 0.1, 0.001, 1.0000001];
   for (const v of values) {
     const got = fixedToNumber(lnFixed(numberToFixed(v)));
@@ -90,7 +90,7 @@ test('lnFixed rejects zero and negative input, same domain Math.log itself has (
   assert.throws(() => lnFixed(-SCALE), FixedPointError);
 });
 
-test('expFixed matches Math.exp across a real range, including negative arguments', () => {
+test('expFixed matches Math.exp across a range, including negative arguments', () => {
   const values = [0, 1, -1, 2, -2, 10, -10, 27.3, 0.0001, -0.0001, 50, -50];
   for (const v of values) {
     const got = fixedToNumber(expFixed(numberToFixed(v)));
@@ -107,7 +107,7 @@ test('expFixed stays positive for exponents well within Q128 range', () => {
 });
 
 test('expFixed underflows cleanly to exactly zero below Q128\'s own representable floor, rather than a wrong nonzero value', () => {
-  // exp(-1000) is a real, positive number (~10^-435) — just one Q128
+  // exp(-1000) is a positive number (~10^-435) — just one Q128
   // cannot represent at all, since its smallest positive value is
   // 2^-128 (~2.9e-39). This is an inherent property of fixed-point (a
   // fixed number of fractional bits, unlike a float's own floating
@@ -116,7 +116,7 @@ test('expFixed underflows cleanly to exactly zero below Q128\'s own representabl
   assert.equal(expFixed(numberToFixed(-1000)), 0n);
 });
 
-test('exp(ln(x)) round-trips x for a real range of values', () => {
+test('exp(ln(x)) round-trips x for a range of values', () => {
   for (const v of [1, 2, 100, 1e9, 0.3, 12345.6789]) {
     const got = fixedToNumber(expFixed(lnFixed(numberToFixed(v))));
     assertClose(got, v, 1e-13, `exp(ln(${v}))`);
@@ -136,7 +136,7 @@ test('powFixed rejects a non-positive base, the identical domain restriction lnF
   assert.throws(() => powFixed(-SCALE, numberToFixed(2)), FixedPointError);
 });
 
-test('THE REAL CASE THIS MODULE EXISTS FOR: one full year of continuous domain progression (~112M epochs) stays accurate to double precision, never overflowing', () => {
+test('THE CASE THIS MODULE EXISTS FOR: one full year of continuous domain progression (~112M epochs) stays accurate to double precision, never overflowing', () => {
   const A = 112_000_000;
   const beta = 2.2, T = 0.2;
   const exponent = beta * (1 - T);

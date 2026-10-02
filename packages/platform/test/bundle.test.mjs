@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { generateIdentity, EventLog, createMemoryBackend } from 'aiwa-core';
 import { publishBundle, readBundle, latestBundle, listBundlesByAuthor } from '../src/bundle.js';
 
-test('publish/read round-trips a real, multi-file bundle', async () => {
+test('publish/read round-trips a multi-file bundle', async () => {
   const identity = await generateIdentity();
   const log = new EventLog();
   const { manifestEventId } = await publishBundle(identity, log, 'sample-app', {
@@ -23,7 +23,7 @@ test('publish/read round-trips a real, multi-file bundle', async () => {
   assert.equal(bundle.files['js/app.js'], 'console.log("hello");');
 });
 
-test('THE REAL DEDUP PROPERTY: an unchanged file across two versions is published exactly once, never retransmitted or duplicated', async () => {
+test('THE DEDUP PROPERTY: an unchanged file across two versions is published exactly once, never retransmitted or duplicated', async () => {
   const identity = await generateIdentity();
   const log = new EventLog();
 
@@ -38,7 +38,7 @@ test('THE REAL DEDUP PROPERTY: an unchanged file across two versions is publishe
   const v2 = await publishBundle(identity, log, 'sample-app', {
     name: 'sample-app', version: '2.0.0',
     files: [
-      { path: 'index.html', content: '<html>v2</html>' }, // real, changed content
+      { path: 'index.html', content: '<html>v2</html>' }, // changed content
       { path: 'css/style.css', content: 'body { margin: 0; }' }, // byte-identical to v1
     ],
   });
@@ -47,7 +47,7 @@ test('THE REAL DEDUP PROPERTY: an unchanged file across two versions is publishe
   assert.notEqual(v1.fileEventIds['index.html'], v2.fileEventIds['index.html'], 'genuinely changed content must be a genuinely new event');
 
   // The unchanged file's own event was appended exactly once — appending
-  // it "again" during v2's publish is EventLog.append's own real no-op.
+  // it "again" during v2's publish is EventLog.append's own no-op.
   const allIds = await log.backend.allIds();
   const cssEventCount = allIds.filter((id) => id === v1.fileEventIds['css/style.css']).length;
   assert.equal(cssEventCount, 1);
@@ -76,11 +76,11 @@ test('latestBundle scopes strictly by domain — another domain\'s published bun
   assert.equal(await latestBundle(log, 'other-app'), null);
 });
 
-test('SECURITY: two real, concurrent, competing manifests (a genuine fork) are surfaced, never silently resolved for the caller', async () => {
+test('SECURITY: two concurrent, competing manifests (a fork) are surfaced, never silently resolved for the caller', async () => {
   const identityA = await generateIdentity();
   const identityB = await generateIdentity();
 
-  // Two real, independent peers — neither has ever seen the other's
+  // Two independent peers — neither has ever seen the other's
   // history, so neither manifest chains from the other.
   const logA = new EventLog();
   await publishBundle(identityA, logA, 'sample-app', { name: 'sample-app', version: '2.0.0-a', files: [{ path: 'a.js', content: 'variant-a' }] });
@@ -88,7 +88,7 @@ test('SECURITY: two real, concurrent, competing manifests (a genuine fork) are s
   const logB = new EventLog();
   await publishBundle(identityB, logB, 'sample-app', { name: 'sample-app', version: '2.0.0-b', files: [{ path: 'a.js', content: 'variant-b' }] });
 
-  // A real merge — the exact shape a Replicator sync between them produces.
+  // A merge — the exact shape a Replicator sync between them produces.
   const mergedLog = new EventLog();
   const allA = await Promise.all((await logA.backend.allIds()).map((id) => logA.get(id)));
   const allB = await Promise.all((await logB.backend.allIds()).map((id) => logB.get(id)));
@@ -105,7 +105,7 @@ test('readBundle returns null (an honest "not fully synced"), never a corrupted 
     files: [{ path: 'a.js', content: 'x' }, { path: 'b.js', content: 'y' }],
   });
 
-  // A real, partial peer: has the manifest, but only one of the two real files.
+  // A partial peer: has the manifest, but only one of the two files.
   const partialLog = new EventLog();
   const manifestEvent = await sourceLog.get(manifestEventId);
   const aEvent = await sourceLog.get(manifestEvent.payload.files['a.js']);
@@ -114,28 +114,28 @@ test('readBundle returns null (an honest "not fully synced"), never a corrupted 
   assert.equal(await readBundle(partialLog, manifestEventId), null);
 });
 
-// Regression test for a real EventLog.head() bug (fixed in aiwa-core):
-// a fresh EventLog constructed over an already-populated real backend
+// Regression test for an EventLog.head() bug (fixed in aiwa-core):
+// a fresh EventLog constructed over an already-populated backend
 // — exactly what a service worker restart or a page reload does
-// against real IndexedDB — used to report every past manifest as a
+// against IndexedDB — used to report every past manifest as a
 // "head" too, not just the latest one, so latestBundle() threw a false
-// "real fork" error after any restart of a domain with more than one
-// real, linearly-published version. Two real versions, then a brand
+// "fork" error after any restart of a domain with more than one
+// linearly-published version. Two versions, then a brand
 // new EventLog over the same backend, must still resolve cleanly.
-test('latestBundle resolves the real latest version from a FRESH EventLog instance after a restart, even with real prior versions in history', async () => {
+test('latestBundle resolves the latest version from a FRESH EventLog instance after a restart, even with prior versions in history', async () => {
   const identity = await generateIdentity();
-  const backend = createMemoryBackend(); // stands in for a real, persisted backend surviving a restart
+  const backend = createMemoryBackend(); // stands in for a persisted backend surviving a restart
   const sessionOne = new EventLog(backend);
   await publishBundle(identity, sessionOne, 'sample-app', { name: 'sample-app', version: '1.0.0', files: [{ path: 'a.js', content: 'v1' }] });
   await publishBundle(identity, sessionOne, 'sample-app', { name: 'sample-app', version: '2.0.0', files: [{ path: 'a.js', content: 'v2' }] });
 
-  const sessionTwo = new EventLog(backend); // a brand-new instance, same real backend — this is the "restart"
+  const sessionTwo = new EventLog(backend); // a brand-new instance, same backend — this is the "restart"
   const bundle = await latestBundle(sessionTwo, 'sample-app');
   assert.equal(bundle.version, '2.0.0');
   assert.equal(bundle.files['a.js'], 'v2');
 });
 
-test('a bundle with no real files still produces a valid, readable manifest', async () => {
+test('a bundle with no files still produces a valid, readable manifest', async () => {
   const identity = await generateIdentity();
   const log = new EventLog();
   const { manifestEventId } = await publishBundle(identity, log, 'sample-app', { name: 'sample-app', version: '0.0.1', files: [] });
@@ -143,7 +143,7 @@ test('a bundle with no real files still produces a valid, readable manifest', as
   assert.deepEqual(bundle.files, {});
 });
 
-test('listBundlesByAuthor finds every real version this author published, across different domains, needing no new protocol beyond the already-verified author field', async () => {
+test('listBundlesByAuthor finds every version this author published, across different domains, needing no new protocol beyond the already-verified author field', async () => {
   const author = await generateIdentity();
   const someoneElse = await generateIdentity();
   const log = new EventLog();

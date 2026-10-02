@@ -1,11 +1,11 @@
 // Turns "a bundle was published and can be reconstructed" into "a
-// browser can actually run it": a real service worker's own fetch
+// browser can actually run it": a service worker's own fetch
 // handler, resolving requests under a given scope from a real,
-// locally-reconstructed AIWA bundle (aiwa-core's real IndexedDB-backed
+// locally-reconstructed AIWA bundle (aiwa-core's IndexedDB-backed
 // EventLog + this package's own latestBundle) instead of the network.
 //
 // A fresh EventLog is constructed on every single resolution, on
-// purpose: a service worker's own real lifecycle is "the browser kills
+// purpose: a service worker's own lifecycle is "the browser kills
 // and restarts it whenever it wants" — there is no long-lived instance
 // to hold state in. This only works correctly because EventLog.head()
 // (and therefore latestBundle) is itself correct from a fresh instance
@@ -37,11 +37,11 @@ function contentTypeFor(path) {
 
 /**
  * Resolves `pathname` (already relative to whatever scope the caller
- * strips) against the real, latest bundle published to `domain` in
- * `log`. Returns a real `Response` on a hit, or null — a real, honest
+ * strips) against the latest bundle published to `domain` in
+ * `log`. Returns a `Response` on a hit, or null — a honest
  * "not published (yet)" — on a miss. Never throws for an ordinary
  * not-found; `latestBundle`'s own real-fork error still propagates,
- * since that genuinely needs a caller/operator to resolve it.
+ * since that needs a caller/operator to resolve it.
  */
 export async function resolveFromBundle(log, domain, pathname) {
   const bundle = await latestBundle(log, domain);
@@ -53,15 +53,15 @@ export async function resolveFromBundle(log, domain, pathname) {
 }
 
 /**
- * Builds a real fetch-event handler for `self.addEventListener('fetch', ...)`
- * inside an actual service worker. Only intercepts (calls
+ * Builds a fetch-event handler for `self.addEventListener('fetch', ...)`
+ * inside an service worker. Only intercepts (calls
  * `event.respondWith`) requests whose path falls under `scope` — every
  * other request is left alone for the browser's own normal handling,
  * so this can share a service worker with unrelated same-origin
  * traffic without interfering with it.
  *
- * `createLog` is injectable (defaults to a real `createIndexedDbBackend`)
- * purely so this can be exercised with a real, in-memory `EventLog` in
+ * `createLog` is injectable (defaults to a `createIndexedDbBackend`)
+ * purely so this can be exercised with an in-memory `EventLog` in
  * `node --test` — `ServiceWorkerGlobalScope`/`indexedDB` don't exist in
  * Node, the same honest limit `webrtc-transport.js` documents for
  * `RTCPeerConnection`.

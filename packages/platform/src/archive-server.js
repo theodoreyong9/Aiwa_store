@@ -1,8 +1,8 @@
 // An Aiwa archive node: the always-on holder of wallets' backups that makes "my history is in the network" true.
 //
-//   PUT /v1/backup          a wallet's backup (aiwa-lib's exportBackup): a checkpoint signed by the key it belongs to
-//   GET /v1/backup/<domain> the latest backup held for that domain (404 if none)
-//   GET /v1/status          { ok, domains, version }
+// PUT /v1/backup a wallet's backup (aiwa-lib's exportBackup): a checkpoint signed by the key it belongs to
+// GET /v1/backup/<domain> the latest backup held for that domain (404 if none)
+// GET /v1/status { ok, domains, version }
 //
 // What it checks before keeping anything: the body is small; it is an Aiwa backup holding ONE event; that event is a
 // checkpoint whose envelope verifies (id, signature) and whose author is the domain the backup names — so only the

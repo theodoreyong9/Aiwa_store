@@ -4,7 +4,7 @@ import { evaluate, prove, verify, RSA_2048_MODULUS } from '../src/wesolowski-vdf
 
 const TEST_N = 9241n * 9257n;
 
-test('a real, honestly-computed VDF proof verifies', async () => {
+test('a honestly-computed VDF proof verifies', async () => {
   const x = 7n;
   const T = 500;
   const y = evaluate(x, T, TEST_N);
@@ -24,7 +24,7 @@ test('a different T produces a different y for the same x', () => {
   assert.notEqual(evaluate(7n, 200, TEST_N), evaluate(7n, 201, TEST_N));
 });
 
-test('SECURITY: a fabricated y with no real computation behind it is rejected', async () => {
+test('SECURITY: a fabricated y with no computation behind it is rejected', async () => {
   const x = 7n;
   const T = 300;
   const y = evaluate(x, T, TEST_N);
@@ -33,7 +33,7 @@ test('SECURITY: a fabricated y with no real computation behind it is rejected', 
   assert.equal(await verify(x, T, fabricatedY, proof, TEST_N), false);
 });
 
-test('SECURITY: a proof computed for fewer real iterations than claimed is rejected', async () => {
+test('SECURITY: a proof computed for fewer iterations than claimed is rejected', async () => {
   const x = 7n;
   const realY = evaluate(x, 300, TEST_N);
   const shortcutY = evaluate(x, 250, TEST_N);
@@ -65,7 +65,7 @@ test('verify rejects a malformed proof shape without throwing', async () => {
   assert.equal(await verify(7n, 300, 1n, { pi: 'not-a-bigint', l: 5n }, TEST_N), false);
 });
 
-test('THE REAL PROPERTY: verification time does not scale with iteration count, unlike evaluation time', async () => {
+test('THE PROPERTY: verification time does not scale with iteration count, unlike evaluation time', async () => {
   const x = 7n;
   const smallT = 500;
   const largeT = 8000;
@@ -93,7 +93,7 @@ test('THE REAL PROPERTY: verification time does not scale with iteration count, 
   assert.ok(verifyTimeLarge < evalTimeLarge / 3, `verify must stay cheap even at large T: verify=${verifyTimeLarge}ms eval=${evalTimeLarge}ms`);
 });
 
-test('a real end-to-end round trip against the actual RSA-2048 modulus, at a small iteration count for test speed', async () => {
+test('an end-to-end round trip against the RSA-2048 modulus, at a small iteration count for test speed', async () => {
   const x = 7n;
   const T = 50;
   const y = evaluate(x, T, RSA_2048_MODULUS);

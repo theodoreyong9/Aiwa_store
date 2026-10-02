@@ -12,19 +12,19 @@ import { checkCausalConsistency } from '../src/causal-tick.js';
 import { evaluate, verify as verifyWesolowski } from '../src/wesolowski-vdf.js';
 import { rewardFixed } from '../src/reward.js';
 
-// A real, independent Rust implementation (interop/rust-vdf) of
-// specific, real pieces of this project's own protocol logic — never
+// An independent Rust implementation (interop/rust-vdf) of
+// specific, pieces of this project's own protocol logic — never
 // a wrapper or transpilation of the JS. This test builds and runs the
-// real Rust binary, then compares its real output against the real,
+// Rust binary, then compares its output against the real,
 // live JS modules' own output for the identical test vectors, byte
 // for byte. This is the cross-runtime check described in the Yellow
 // Paper (§16.1), covering the current event format (with a real,
 // signed event, not just bare canonicalization).
 //
-// SKIPPED, not failed, if no real Rust toolchain (cargo) is available
+// SKIPPED, not failed, if no Rust toolchain (cargo) is available
 // — a missing optional toolchain in a given environment is a real,
 // honest absence, never grounds to fail the rest of this project's
-// own real test suite.
+// own test suite.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rustProjectDir = path.join(__dirname, '..', 'interop', 'rust-vdf');
@@ -38,14 +38,14 @@ function hasCargo() {
   }
 }
 
-test('THE REAL CROSS-RUNTIME PROPERTY: an independent Rust implementation produces byte-for-byte identical output to the real, live JS modules, for the identical real test vectors', { skip: !hasCargo() && 'cargo not available in this environment' }, async () => {
+test('THE CROSS-RUNTIME PROPERTY: an independent Rust implementation produces byte-for-byte identical output to the live JS modules, for the identical test vectors', { skip: !hasCargo() && 'cargo not available in this environment' }, async () => {
   execSync('cargo build --release', { cwd: rustProjectDir, stdio: 'ignore' });
   const binaryPath = path.join(rustProjectDir, 'target', 'release', 'vdf-interop');
   assert.ok(existsSync(binaryPath), 'the real Rust binary must exist after a real, successful build');
 
   const rustOutput = JSON.parse(execSync(binaryPath, { encoding: 'utf8' }));
 
-  // vdf.js's own real, sequential hash chain — the identical, real
+  // vdf.js's own sequential hash chain — the identical, real
   // test vectors main.rs's own header documents.
   const vdf1 = await computeVdfChain(vdfSeed('earth-domain', 'genesis'), 500);
   const vdf2 = await computeVdfChain(vdfSeed('mars-domain', vdf1), 500);
@@ -55,20 +55,20 @@ test('THE REAL CROSS-RUNTIME PROPERTY: an independent Rust implementation produc
   assert.equal(rustOutput.vdf2, vdf2, 'a real, chained (epoch depends on prior real output) VDF chain must match exactly');
   assert.equal(rustOutput.vdf3, vdf3, 'a real, full-length (12000-iteration) VDF chain must match exactly');
 
-  // event.js's own ACTUAL, current canonical format — wider than a
+  // event.js's own current canonical format — wider than a
   // bare {parents,payload} pair (domain/author/authorPublicKey/
-  // parents/type/payload/createdAt) — plus a real Ed25519 signature,
-  // independently re-derived by a genuinely different library
+  // parents/type/payload/createdAt) — plus an Ed25519 signature,
+  // independently re-derived by a different library
   // (ed25519-dalek, never this project's own @noble/curves). The
-  // identical, real, fixed secret key, domain, out-of-order parents,
+  // identical, fixed secret key, domain, out-of-order parents,
   // nested payload, and timestamp main.rs's own header documents.
   const SECRET_KEY_HEX = '762eecb4508ccf9e3940db1148a593616b8f9acf57862a911ad24a325081f1d3';
   const identity = await identityFromSecretKey(SECRET_KEY_HEX);
   const event = await createEvent(identity, {
     domain: 'rust-interop-test',
-    parents: ['zzz-parent-2', 'aaa-parent-1'], // deliberately out of order — exercises the real sort
+    parents: ['zzz-parent-2', 'aaa-parent-1'], // deliberately out of order — exercises the sort
     type: 'test-event',
-    payload: { zebra: 1, apple: { charlie: 3, bravo: 2 }, list: [3, 1, 2] }, // deliberately out-of-order keys — exercises the real, recursive canonicalize()
+    payload: { zebra: 1, apple: { charlie: 3, bravo: 2 }, list: [3, 1, 2] }, // deliberately out-of-order keys — exercises the recursive canonicalize()
     createdAt: 1735689600000,
   });
   const localVerify = await verifyEvent(event);
@@ -80,22 +80,22 @@ test('THE REAL CROSS-RUNTIME PROPERTY: an independent Rust implementation produc
   assert.equal(rustOutput.eventSignature, event.signature, 'THE REAL, STRONGEST CHECK: Ed25519 signing is deterministic (RFC 8032) — the identical real secret key, signing the identical real message bytes, must produce a BYTE-IDENTICAL signature in a genuinely different, independent real library, not merely one that happens to verify');
   assert.equal(rustOutput.selfVerify, true, "sanity: the real Rust library must verify its own real signature too");
 
-  // weighted-median.js's own real, custom crossing-point algorithm —
+  // weighted-median.js's own custom crossing-point algorithm —
   // never an average of the two middle values.
   const median1 = weightedMedian([{ value: 100, weight: 30 }, { value: 50, weight: 45 }, { value: 200, weight: 10 }, { value: 75, weight: 15 }]);
   const median2 = weightedMedian([{ value: 1000, weight: 5 }, { value: 2000, weight: 5 }, { value: 3000, weight: 90 }]);
   assert.equal(rustOutput.median1, median1, 'the real, custom crossing-point median must match exactly across runtimes');
   assert.equal(rustOutput.median2, median2, 'a real, heavily-skewed-weight case must match exactly across runtimes too');
 
-  // conservation.js's own real split invariant — a real, large,
+  // conservation.js's own split invariant — a large,
   // 18-decimal AIWA amount.
   const total = 1000123456789012345678n;
   const firstAmount = 333333333333333333333n;
   const secondAmount = total - firstAmount;
   assert.equal(rustOutput.secondAmount, secondAmount.toString(), "a real, large, 18-decimal AIWA split must match exactly across runtimes — u128 in Rust playing BigInt's own real role");
 
-  // mirror.js's own real reception monotonicity — the identical,
-  // real, inline logic applyMirrorEvent uses, isolated here.
+  // mirror.js's own reception monotonicity — the identical,
+  // inline logic applyMirrorEvent uses, isolated here.
   function checkMonotonicity(priorMax, resolvedEpochs) {
     for (const [sourceDomain, newMax] of Object.entries(resolvedEpochs)) {
       const previous = priorMax[sourceDomain] ?? 0;
@@ -107,14 +107,14 @@ test('THE REAL CROSS-RUNTIME PROPERTY: an independent Rust implementation produc
   assert.equal(rustOutput.monotonicityCase1, checkMonotonicity(priorMax1, { mars: 55, jupiter: 10 }));
   assert.equal(rustOutput.monotonicityCase2, checkMonotonicity(priorMax1, { mars: 40, jupiter: 15 }), 'a real regression on even one real source domain must be rejected identically across runtimes');
 
-  // relative-rate.js's own real, central ratio — real IEEE 754 double
+  // relative-rate.js's own central ratio — IEEE 754 double
   // division, must agree bit-for-bit across runtimes.
   const observerDelta = 133 - 10;
   const targetDelta = 481 - 100;
   const ratio = targetDelta / observerDelta;
   assert.equal(rustOutput.ratio, ratio, 'a real, non-integer relative-rate ratio must match exactly across runtimes, down to the last real floating-point digit');
 
-  // causal-tick.js's own real consistency check.
+  // causal-tick.js's own consistency check.
   const consistentResult = checkCausalConsistency(100, { tick: 95 }, 10);
   const inconsistentResult = checkCausalConsistency(100, { tick: 50 }, 10);
   assert.equal(rustOutput.consistentCase, consistentResult.consistent);
@@ -122,8 +122,8 @@ test('THE REAL CROSS-RUNTIME PROPERTY: an independent Rust implementation produc
   assert.equal(rustOutput.inconsistentCase, inconsistentResult.consistent);
   assert.equal(rustOutput.inconsistentGap, inconsistentResult.gap);
 
-  // wesolowski-vdf.js's own real, PRACTICAL verification — the one
-  // path a real, external, gas-constrained chain would actually use
+  // wesolowski-vdf.js's own PRACTICAL verification — the one
+  // path an external, gas-constrained chain would actually use
   // (never the raw, symmetric hash chain, prohibitively expensive to
   // redo).
   const x = 123456789n;
@@ -136,14 +136,14 @@ test('THE REAL CROSS-RUNTIME PROPERTY: an independent Rust implementation produc
   assert.equal(rustOutput.wesolowskiValid, jsValid, 'a real, valid Wesolowski proof must verify identically across runtimes');
   assert.equal(rustOutput.wesolowskiInvalid, jsInvalid, 'a real, tampered y must be rejected identically across runtimes');
 
-  // THE REAL FIX this test file exists to prove: reward.js's own
+  // THE FIX this test file exists to prove: reward.js's own
   // rewardFixed (Q128 fixed-point BigInt, never Math.log/Math.pow)
-  // must agree with a genuinely independent Rust implementation of
-  // the identical, real algorithm — bit-for-bit, compared as decimal
+  // must agree with an independent Rust implementation of
+  // the identical, algorithm — bit-for-bit, compared as decimal
   // strings, never through either language's own float type. This is
   // the concrete demonstration that closes this project's own,
-  // previously-real cross-runtime gap: reward.js's output funds a
-  // real, on-chain AIWA claim (accrual.js), and Math.log/Math.pow
+  // previously-cross-runtime gap: reward.js's output funds a
+  // on-chain AIWA claim (accrual.js), and Math.log/Math.pow
   // carry no such guarantee across runtimes — only +,-,*, and
   // truncating-toward-zero / do.
   // commitmentBacking: 'none' — these tests are not about the burn gate (burn-backed-commitment.test.mjs is)

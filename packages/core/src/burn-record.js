@@ -84,7 +84,7 @@ export async function fetchBurnRecord(connection, signature, options = {}) {
 }
 
 /**
- * Is `record` a real burn, made by `domain`'s own key? (verifyBurnProof: finalized, no error, positive amount;
+ * Is `record` a burn, made by `domain`'s own key? (verifyBurnProof: finalized, no error, positive amount;
  * plus the binding described at the top.)
  * @returns {Promise<{ valid: boolean, reason?: string }>}
  */

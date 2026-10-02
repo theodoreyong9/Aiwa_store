@@ -29,8 +29,8 @@ async function waitUntil(predicate, { timeoutMs = 2000, intervalMs = 5 } = {}) {
 // A linear chain's own head length stays exactly 1 at EVERY intermediate
 // step of appendMany()'s own incremental, one-at-a-time application —
 // comparing head().length alone can match prematurely, mid-append, long
-// before every real event has actually landed. Waiting for every real,
-// specific event id to genuinely be present is the only real signal.
+// before every event has actually landed. Waiting for every real,
+// specific event id to be present is the only signal.
 async function waitUntilAllPresent(log, events) {
   await waitUntil(async () => {
     for (const event of events) if (!(await log.has(event.id))) return false;
@@ -38,11 +38,11 @@ async function waitUntilAllPresent(log, events) {
   });
 }
 
-// LoopbackTransport keeps a real, process-wide static registry (see its
+// LoopbackTransport keeps a process-wide static registry (see its
 // own header) — a peer id that never disconnect()s stays registered
-// forever, so every real pair in this file uses a fresh, unique real
+// forever, so every pair in this file uses a fresh, unique real
 // identity id (never a hardcoded 'a'/'b') and stops both replicators
-// before returning, exactly the same real discipline aiwa-lib's own
+// before returning, exactly the same discipline aiwa-lib's own
 // LoopbackTransport tests already established.
 async function connectedPair({ chunkSizeA, chunkSizeB, logA, logB } = {}) {
   const idA = await generateIdentity();
@@ -87,7 +87,7 @@ test('a small backlog still syncs in a single EVENTS message — chunking never 
   }
 });
 
-test('THE REAL FIX: a backlog larger than the chunk size is split into several bounded EVENTS messages, never one unbounded message', async () => {
+test('THE FIX: a backlog larger than the chunk size is split into several bounded EVENTS messages, never one unbounded message', async () => {
   const identity = await generateIdentity();
   const events = await chainOfEvents(identity, 'aiwa', 25);
   const logA = new EventLog();
@@ -102,13 +102,13 @@ test('THE REAL FIX: a backlog larger than the chunk size is split into several b
   try {
     await waitUntilAllPresent(logB, events);
 
-    // The real property this closes: never one message carrying the
+    // The property this closes: never one message carrying the
     // entire 25-event backlog.
     for (const size of sizesToB) assert.ok(size <= 10, `every real chunk must respect chunkSize, got ${size}`);
     assert.ok(sizesToB.length >= 3, `a 25-event backlog at chunkSize 10 must genuinely take at least 3 real messages, got ${sizesToB.length}`);
     assert.equal(sizesToB.reduce((sum, n) => sum + n, 0), 25, 'every real event accounted for exactly once across all chunks sent to B');
 
-    // Correctness, not just chunking: every real event genuinely arrives, and B's own head converges on the same real tip.
+    // Correctness, not just chunking: every event arrives, and B's own head converges on the same tip.
     for (const event of events) assert.equal(await logB.has(event.id), true);
     assert.deepEqual(await logB.head(), [events[events.length - 1].id]);
   } finally {
@@ -117,7 +117,7 @@ test('THE REAL FIX: a backlog larger than the chunk size is split into several b
   }
 });
 
-test('a chunked sync survives an unrelated publish() ACK arriving mid-sync — the chunk queue only ever advances on its own real ACK', async () => {
+test('a chunked sync survives an unrelated publish() ACK arriving mid-sync — the chunk queue only ever advances on its own ACK', async () => {
   const identity = await generateIdentity();
   const events = await chainOfEvents(identity, 'aiwa', 22);
   const logA = new EventLog();
@@ -129,8 +129,8 @@ test('a chunked sync survives an unrelated publish() ACK arriving mid-sync — t
   await replicatorB.start();
   await replicatorA.start();
   try {
-    // A real, unrelated, standalone event, published mid-sync — its own
-    // real ACK from B must never be mistaken for the pending chunk's ACK.
+    // A unrelated, standalone event, published mid-sync — its own
+    // ACK from B must never be mistaken for the pending chunk's ACK.
     const strayIdentity = await generateIdentity();
     const stray = await createEvent(strayIdentity, { domain: 'aiwa', parents: [], type: 'note', payload: { stray: true } });
     await replicatorA.publish([stray]);
@@ -144,13 +144,13 @@ test('a chunked sync survives an unrelated publish() ACK arriving mid-sync — t
   }
 });
 
-test('a real, connecting peer whose own log already has a real prefix only receives the real, genuinely missing suffix, still chunked and bounded', async () => {
+test('a connecting peer whose own log already has a prefix only receives the missing suffix, still chunked and bounded', async () => {
   const identity = await generateIdentity();
   const events = await chainOfEvents(identity, 'aiwa', 15);
   const logA = new EventLog();
   await logA.appendMany(events);
   const logB = new EventLog();
-  await logB.appendMany(events.slice(0, 8)); // B already has the real first 8
+  await logB.appendMany(events.slice(0, 8)); // B already has the first 8
 
   const { transportA, replicatorA, replicatorB } = await connectedPair({ chunkSizeA: 5, chunkSizeB: 5, logA, logB });
   const sizesToB = spyOnEventsMessages(transportA);
@@ -168,7 +168,7 @@ test('a real, connecting peer whose own log already has a real prefix only recei
   }
 });
 
-test('a real, empty-to-empty connection sends no EVENTS message at all', async () => {
+test('an empty-to-empty connection sends no EVENTS message at all', async () => {
   const { transportA, replicatorA, replicatorB } = await connectedPair({});
   const sizesToB = spyOnEventsMessages(transportA);
 

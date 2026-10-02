@@ -2,14 +2,14 @@
 // mining without trusting the wallet — and what the app does with it. Turnkey: an app keeps its own storage and
 // policy (what a figure is worth, who may publish), and gets the protocol part from here.
 //
-//   evidence    { version, domain, afterEpoch, events, witnesses }   (aiwa-lib: wallet.submissionEvidence())
-//   baseline    { domain, epoch, head, state }    what the app derived for this domain last time, kept as is
-//   witnessed   [{ id, epoch }]                   what other wallets hold of this domain (see below)
+// evidence { version, domain, afterEpoch, events, witnesses } (aiwa-lib: wallet.submissionEvidence())
+// baseline { domain, epoch, head, state } what the app derived for this domain last time, kept as is
+// witnessed [{ id, epoch }] what other wallets hold of this domain (see below)
 //
-//   assessSubmission(...)    verifies the evidence and derives the mining state (assessMining) — burns confirmed by
-//                            THIS reader, chained from the baseline — and checks the witnesses.
-//   ingestWitnesses(...)     which of the witnesses a submission brings about OTHER domains are worth keeping.
-//   mergeWitnessStore(...)   the store with those added, bounded, and what has since been validated dropped.
+// assessSubmission(...) verifies the evidence and derives the mining state (assessMining) — burns confirmed by
+// THIS reader, chained from the baseline — and checks the witnesses.
+// ingestWitnesses(...) which of the witnesses a submission brings about OTHER domains are worth keeping.
+// mergeWitnessStore(...) the store with those added, bounded, and what has since been validated dropped.
 //
 // WHY WITNESSES. The mining events of a domain are one signed chain (accrual.js): an action cannot be left out of a
 // history, and proven work cannot be re-signed over another one for free. That is not "no second history": a domain
@@ -53,9 +53,9 @@ export async function domainOfAddress(address) {
  * @param {Array<{ id: string, epoch: number }>} [args.witnessed] what others hold of this domain (kept by the app)
  * @param {{ getTransaction: Function }} [args.connection] Solana — needed only to confirm burns the baseline did not count
  * @returns {Promise<{ ok: boolean, reason: string, mining: object|null, ranking: object|null, rejections: object[], baseline: object|null }>}
- *   `ok` is false when the evidence cannot be used at all (shape, domain, continuity, limits, a witness missing);
- *   `ok` with `mining: null` means a valid history with no position (no confirmed burn, nothing committed). `baseline`
- *   is what to keep for the next submission of this domain.
+ * `ok` is false when the evidence cannot be used at all (shape, domain, continuity, limits, a witness missing);
+ * `ok` with `mining: null` means a valid history with no position (no confirmed burn, nothing committed). `baseline`
+ * is what to keep for the next submission of this domain.
  */
 export async function assessSubmission({ rewardParams, evidence, domain, baseline = null, witnessed = [], connection, limits = SUBMISSION_LIMITS }) {
   const no = (reason, extra = {}) => ({ ok: false, reason, mining: null, ranking: null, rejections: [], baseline: null, ...extra });

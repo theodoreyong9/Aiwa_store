@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { EventLog, generateIdentity } from 'aiwa-core';
 import { defineContract, Contract, signedAction, verifySignedAction } from '../src/contract.js';
 
-// A real, minimal custom token — the same worked example the
+// A minimal custom token — the same worked example the
 // smart-contract guide uses. Mint (owner-only) and transfer (real
-// balance check) both authorize via a REAL, embedded signature
+// balance check) both authorize via an embedded signature
 // (signedAction/verifySignedAction) — never a plain, unverified
 // `payload.from` field, which anyone could forge in their own,
 // otherwise validly self-signed event. See contract.js's own header
@@ -15,11 +15,11 @@ function myToken({ owner, cap }) {
     initialState: () => ({ balances: {}, minted: 0n }),
     handlers: {
       async mint(state, event) {
-        if (!(await verifySignedAction(event.payload))) return state; // a real, forged or malformed action — silent no-op
+        if (!(await verifySignedAction(event.payload))) return state; // a forged or malformed action — silent no-op
         const { from, to, amount } = event.payload;
-        if (from !== owner) return state; // not the real owner
+        if (from !== owner) return state; // not the owner
         const amt = BigInt(amount);
-        if (state.minted + amt > cap) return state; // real supply cap enforced
+        if (state.minted + amt > cap) return state; // supply cap enforced
         return { ...state, minted: state.minted + amt, balances: { ...state.balances, [to]: (state.balances[to] ?? 0n) + amt } };
       },
       async transfer(state, event) {
@@ -27,7 +27,7 @@ function myToken({ owner, cap }) {
         const { from, to, amount } = event.payload;
         const amt = BigInt(amount);
         const fromBalance = state.balances[from] ?? 0n;
-        if (fromBalance < amt) return state; // real, insufficient-balance rejection
+        if (fromBalance < amt) return state; // insufficient-balance rejection
         return { ...state, balances: { ...state.balances, [from]: fromBalance - amt, [to]: (state.balances[to] ?? 0n) + amt } };
       },
     },
@@ -43,7 +43,7 @@ async function transfer(contract, identity, to, amount) {
   return contract.dispatch('transfer', payload);
 }
 
-test('a real custom token: mint respects the real owner and the real supply cap, transfer respects real balances', async () => {
+test('a custom token: mint respects the owner and the supply cap, transfer respects balances', async () => {
   const owner = await generateIdentity();
   const alice = await generateIdentity();
   const bob = await generateIdentity();
@@ -57,25 +57,25 @@ test('a real custom token: mint respects the real owner and the real supply cap,
   assert.equal(state.balances[alice.id], 600n);
   assert.equal(state.minted, 600n);
 
-  // A non-owner minting — a real, genuinely signed event, just not by
-  // the owner — is a real, silent no-op, never a crash or a privilege escalation.
+  // A non-owner minting — a signed event, just not by
+  // the owner — is a silent no-op, never a crash or a privilege escalation.
   const aliceContract = new Contract({ identity: alice, log, domain: 'my-token', definition });
   await mint(aliceContract, alice, alice.id, '999999');
   state = await aliceContract.state();
   assert.equal(state.balances[alice.id], 600n, 'unauthorized mint had no real effect');
 
-  // Minting past the real cap is likewise a real no-op.
+  // Minting past the cap is likewise a no-op.
   await mint(ownerContract, owner, alice.id, '500'); // 600 + 500 > 1000 cap
   state = await ownerContract.state();
   assert.equal(state.minted, 600n, 'over-cap mint had no real effect');
 
-  // A real transfer, alice -> bob.
+  // A transfer, alice -> bob.
   await transfer(aliceContract, alice, bob.id, '250');
-  state = await ownerContract.state(); // any handle on the same real domain sees the identical real state
+  state = await ownerContract.state(); // any handle on the same domain sees the identical state
   assert.equal(state.balances[alice.id], 350n);
   assert.equal(state.balances[bob.id], 250n);
 
-  // Bob overspending is a real, silent no-op.
+  // Bob overspending is a silent no-op.
   const bobContract = new Contract({ identity: bob, log, domain: 'my-token', definition });
   await transfer(bobContract, bob, alice.id, '999');
   state = await bobContract.state();
@@ -89,7 +89,7 @@ test('SECURITY: a forged payload.from (claiming to be the owner, signed by someo
   const definition = myToken({ owner: owner.id, cap: 1000n });
   const attackerContract = new Contract({ identity: attacker, log, domain: 'my-token', definition });
 
-  // The attacker signs the action as THEMSELVES (a real, valid
+  // The attacker signs the action as THEMSELVES (a valid
   // signature) but claims `from: owner.id` in the plain fields — this
   // is exactly the forgery a naive `payload.from` check would miss.
   const forged = { from: owner.id, to: attacker.id, amount: '999', nonce: crypto.randomUUID(), timestamp: Date.now(), signerPubkey: attacker.publicKey };
@@ -104,7 +104,7 @@ test('SECURITY: a forged payload.from (claiming to be the owner, signed by someo
   assert.equal(state.minted, 0n, 'the forged mint had no real effect');
 });
 
-test('state() reflects real events dispatched by multiple independent Contract handles on the same domain', async () => {
+test('state() reflects events dispatched by multiple independent Contract handles on the same domain', async () => {
   const owner = await generateIdentity();
   const log = new EventLog();
   const definition = myToken({ owner: owner.id, cap: 100n });
@@ -115,13 +115,13 @@ test('state() reflects real events dispatched by multiple independent Contract h
   assert.equal(stateFromB.balances[owner.id], 10n);
 });
 
-test('signedAction/verifySignedAction round-trip for an arbitrary real action shape', async () => {
+test('signedAction/verifySignedAction round-trip for an arbitrary action shape', async () => {
   const identity = await generateIdentity();
   const payload = await signedAction(identity, { from: identity.id, action: 'ping', value: 42 });
   assert.equal(await verifySignedAction(payload), true);
 });
 
-test('verifySignedAction rejects a tampered field even with an otherwise-real signature', async () => {
+test('verifySignedAction rejects a tampered field even with an otherwise-signature', async () => {
   const identity = await generateIdentity();
   const payload = await signedAction(identity, { from: identity.id, amount: '10' });
   const tampered = { ...payload, amount: '999999' };

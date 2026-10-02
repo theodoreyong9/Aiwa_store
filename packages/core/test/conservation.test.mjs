@@ -101,7 +101,7 @@ test('SECURITY: splitClaim rejects reusing an existing claim id', () => {
   assert.throws(() => splitClaim(state, { claimId: 'c1', firstAmount: 3n, firstId: 'existing', secondId: 'b' }), /fresh/);
 });
 
-test('a split-off half is real, active, and independently transferable', () => {
+test('a split-off half is active, and independently transferable', () => {
   let state = initialConservationState();
   state = issueClaim(state, { id: 'c1', kind: 'AIWA', amount: 10n, owner: 'alice' });
   state = splitClaim(state, { claimId: 'c1', firstAmount: 3n, firstId: 'c1a', secondId: 'c1b' });

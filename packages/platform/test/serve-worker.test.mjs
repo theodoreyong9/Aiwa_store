@@ -11,7 +11,7 @@ async function publishedLog(files, domain = 'sample-app') {
   return log;
 }
 
-test('resolveFromBundle serves a real published file with the correct content type', async () => {
+test('resolveFromBundle serves a published file with the correct content type', async () => {
   const log = await publishedLog([
     { path: 'index.html', content: '<h1>hi</h1>' },
     { path: 'js/app.js', content: 'console.log(1)' },
@@ -29,7 +29,7 @@ test('resolveFromBundle treats an empty or "/" path as index.html', async () => 
   assert.equal(await (await resolveFromBundle(log, 'sample-app', '/')).text(), 'root page');
 });
 
-test('resolveFromBundle returns null for a real path not in the bundle', async () => {
+test('resolveFromBundle returns null for a path not in the bundle', async () => {
   const log = await publishedLog([{ path: 'index.html', content: 'x' }]);
   assert.equal(await resolveFromBundle(log, 'sample-app', 'missing.js'), null);
 });
@@ -39,7 +39,7 @@ test('resolveFromBundle returns null when nothing has been published to this dom
   assert.equal(await resolveFromBundle(log, 'sample-app', 'index.html'), null);
 });
 
-test('resolveFromBundle resolves the real latest version from a FRESH EventLog over a persisted backend (a real restart)', async () => {
+test('resolveFromBundle resolves the latest version from a FRESH EventLog over a persisted backend (a restart)', async () => {
   const identity = await generateIdentity();
   const backend = createMemoryBackend();
   const sessionOne = new EventLog(backend);
@@ -62,7 +62,7 @@ test('createFetchHandler ignores a request outside its scope — never calls res
   assert.equal(called, false);
 });
 
-test('createFetchHandler serves a real, in-scope request via respondWith', async () => {
+test('createFetchHandler serves an in-scope request via respondWith', async () => {
   const log = await publishedLog([{ path: 'index.html', content: 'served' }]);
   const handler = createFetchHandler({ domain: 'sample-app', scope: '/app/', createLog: () => log });
   let responsePromise;

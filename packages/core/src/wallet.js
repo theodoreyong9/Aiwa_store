@@ -3,7 +3,7 @@
 // matching spendable Conservation claim in the same pass — both
 // checked before either is applied, so they can never drift apart.
 //
-// 'transfer' and 'split' require a real Ed25519 signature — moving or
+// 'transfer' and 'split' require an Ed25519 signature — moving or
 // dividing a claim must prove control over it.
 
 import { applyAccrualEvent, initialAccrualState, claimableNow } from './accrual.js';
@@ -57,22 +57,22 @@ function canonicalSplitMessage({ claimId, owner, firstAmount, firstId, secondId,
   return JSON.stringify({ claimId, owner, firstAmount, firstId, secondId, nonce, timestamp });
 }
 
-// Real delegated authorization: "sign once, then click as many times
+// delegated authorization: "sign once, then click as many times
 // as you want" without ever moving funds into a separate, pre-funded
-// account first. Two REAL, separate signatures compose:
+// account first. Two separate signatures compose:
 //
-// - The real, one-time DELEGATION itself: the real claim owner signs
-//   `canonicalDelegationMessage({delegate, from})` — no amount, no
-//   expiry, by design (a deployment wanting either can layer it into
-//   its own contractVerifiers via 'contract-payout' instead of forcing
-//   it on every caller here). This is the one signature a slower,
-//   more-trusted context (the owner's own root key) ever has to
-//   produce for this whole channel.
-// - Each real, individual transfer: signed by the DELEGATE's own key,
-//   over `canonicalDelegatedTransferMessage(...)` — cheap, repeatable,
-//   never touches the owner's root key again.
+// - The one-time DELEGATION itself: the claim owner signs
+// `canonicalDelegationMessage({delegate, from})` — no amount, no
+// expiry, by design (a deployment wanting either can layer it into
+// its own contractVerifiers via 'contract-payout' instead of forcing
+// it on every caller here). This is the one signature a slower,
+// more-trusted context (the owner's own root key) ever has to
+// produce for this whole channel.
+// - Each individual transfer: signed by the DELEGATE's own key,
+// over `canonicalDelegatedTransferMessage(...)` — cheap, repeatable,
+// never touches the owner's root key again.
 //
-// A transfer's actual real signer (verified via signerPubkey, exactly
+// A transfer's signer (verified via signerPubkey, exactly
 // like an ordinary transfer) is the delegate, NOT the claim's real
 // owner — `from` is instead proven via a SEPARATE, embedded proof:
 // ownerPubkey really derives to `from`, AND the embedded delegation
@@ -88,7 +88,7 @@ function canonicalDelegatedTransferMessage({ claimId, from, to, delegate, nonce,
   return JSON.stringify({ claimId, from, to, delegate, nonce, timestamp });
 }
 
-/** The real, one-time delegation signature — computed once by the real claim owner, then reused, unchanged, on every subsequent buildSignedDelegatedTransferEvent() call for this same delegate. */
+/** The one-time delegation signature — computed once by the claim owner, then reused, unchanged, on every subsequent buildSignedDelegatedTransferEvent() call for this same delegate. */
 export async function issueDelegation(ownerSeed, ownerPubkeyBytes, delegatePubkeyBytes) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const delegate = toHex(delegatePubkeyBytes);
@@ -99,10 +99,10 @@ export async function issueDelegation(ownerSeed, ownerPubkeyBytes, delegatePubke
 
 /**
  * Standalone, independently verifiable — true iff `delegation` really
- * is a one-time delegation `delegation.from` genuinely signed,
+ * is a one-time delegation `delegation.from` signed,
  * authorizing `delegation.delegate` as their own delegate. Needs
  * nothing but the object itself: no EventLog, no prior state — this is
- * exactly what a real recipient checks before trusting a delegation
+ * exactly what a recipient checks before trusting a delegation
  * handed to them out of band (a channel-open request, say), before any
  * event referencing it ever reaches their own log.
  */
@@ -118,7 +118,7 @@ export async function verifyDelegation(delegation) {
   }
 }
 
-/** One real, delegate-signed transfer, reusing an already-issued real delegation (see issueDelegation) — this is the repeatable "click" side; it never needs the owner's own key again. */
+/** One delegate-signed transfer, reusing an already-issued delegation (see issueDelegation) — this is the repeatable "click" side; it never needs the owner's own key again. */
 export async function buildSignedDelegatedTransferEvent(delegation, fields, delegateSeed, delegatePubkeyBytes, { now = Date.now(), nonce = crypto.randomUUID() } = {}) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const { claimId, to } = fields;
@@ -138,7 +138,7 @@ async function verifyDelegatedTransferAuthorization(event) {
   const { claimId, from, to, delegate, nonce, timestamp, ownerPubkey, delegationSignature, signerPubkey, signature } = event;
 
   if ((await deriveId(fromHex(ownerPubkey))) !== from) return false; // the claimed owner must really derive from the embedded owner pubkey
-  if (toHex(fromHex(signerPubkey)) !== delegate) return false; // the transfer's own real signer must be exactly the delegated key, not anyone else
+  if (toHex(fromHex(signerPubkey)) !== delegate) return false; // the transfer's own signer must be exactly the delegated key, not anyone else
 
   let delegationValid;
   try {
@@ -146,7 +146,7 @@ async function verifyDelegatedTransferAuthorization(event) {
   } catch {
     return false;
   }
-  if (!delegationValid) return false; // the real owner never actually authorized this delegate
+  if (!delegationValid) return false; // the owner never actually authorized this delegate
 
   let transferSigValid;
   try {
@@ -178,7 +178,7 @@ async function verifySplitAuthorization(event) {
   return (await deriveId(fromHex(event.signerPubkey))) === event.owner;
 }
 
-// The same real delegation (see issueDelegation above) also authorizes
+// The same delegation (see issueDelegation above) also authorizes
 // splitting the owner's own claims — a channel that needed the owner's
 // root key back the moment an amount didn't exactly match an existing
 // claim would not actually be "sign once, click forever". No separate
@@ -188,7 +188,7 @@ function canonicalDelegatedSplitMessage({ claimId, owner, firstAmount, firstId, 
   return JSON.stringify({ claimId, owner, firstAmount, firstId, secondId, delegate, nonce, timestamp });
 }
 
-/** One real, delegate-signed split of the owner's own claim, reusing an already-issued real delegation — never needs the owner's own key again. */
+/** One delegate-signed split of the owner's own claim, reusing an already-issued delegation — never needs the owner's own key again. */
 export async function buildSignedDelegatedSplitEvent(delegation, fields, delegateSeed, delegatePubkeyBytes, { now = Date.now(), nonce = crypto.randomUUID() } = {}) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const { claimId, firstAmount, firstId, secondId } = fields;
@@ -227,15 +227,15 @@ async function verifyDelegatedSplitAuthorization(event) {
   return splitSigValid;
 }
 
-// A real, redeemable-by-whoever-shows-up-first voucher: a real, ordinary,
+// A redeemable-by-whoever-shows-up-first voucher: an ordinary,
 // signed transfer (buildSignedTransferEvent, unchanged) to a SYNTHETIC
-// destination — the hash of a secret, not any real identity's derived
-// id — followed by a real 'voucher-redeem' revealing that secret. The
+// destination — the hash of a secret, not any identity's derived
+// id — followed by a 'voucher-redeem' revealing that secret. The
 // classic hash-lock pattern (the same idea a Lightning HTLC or a
 // Bitcoin "pay to hash of a preimage" script uses): whoever can
 // produce the preimage of a public hash proves they "know" it by
 // simply revealing it. Nothing in conservation.js validates that
-// owner/from/to are real identities — they're opaque strings — so the
+// owner/from/to are identities — they're opaque strings — so the
 // issuing transfer needs no new protocol at all.
 //
 // "The QR can be copied, but only the first redemption succeeds" falls
@@ -254,7 +254,7 @@ function canonicalVoucherRedeemMessage({ claimId, secret, to, nonce, timestamp }
   return JSON.stringify({ claimId, secret, to, nonce, timestamp });
 }
 
-/** The redeemer's own real signature over the revealed secret and where they want the value to land — proves THEY are making this specific redemption (not a replay of someone else's), even though nobody's root key ever "owned" the voucher address itself. */
+/** The redeemer's own signature over the revealed secret and where they want the value to land — proves THEY are making this specific redemption (not a replay of someone else's), even though nobody's root key ever "owned" the voucher address itself. */
 export async function buildSignedVoucherRedeemEvent(fields, signerSeed, signerPubkeyBytes, { now = Date.now(), nonce = crypto.randomUUID() } = {}) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const withMeta = { ...fields, nonce, timestamp: now };
@@ -274,21 +274,21 @@ async function verifyVoucherRedemption(event) {
 }
 
 // Redeeming a voucher INTO a delegate's own channel, landing the value
-// in the real OWNER's identity (`to`), not the delegate's own —
-// genuinely different from an ordinary voucher-redeem, which requires
-// the real signer to BE the destination (`deriveId(signerPubkey) === to`,
+// in the OWNER's identity (`to`), not the delegate's own —
+// different from an ordinary voucher-redeem, which requires
+// the signer to BE the destination (`deriveId(signerPubkey) === to`,
 // checked above). A session key's own derived id is never the owner's,
 // by construction (a fresh, deterministic keypair — see aiwa-lib's
 // sessionKeypairFor), so plain verifyVoucherRedemption can never accept
 // a delegate's own signature for this. The identical, already-proven
 // delegation (see issueDelegation above) closes that gap: the same two
-// real, separate signatures compose — the one-time delegation itself,
+// separate signatures compose — the one-time delegation itself,
 // plus this specific redemption, signed by the delegate's own key.
 function canonicalDelegatedVoucherRedeemMessage({ claimId, secret, to, delegate, nonce, timestamp }) {
   return JSON.stringify({ claimId, secret, to, delegate, nonce, timestamp });
 }
 
-/** One real, delegate-signed voucher redemption, landing the value in the real owner's identity (delegation.from) — reuses an already-issued real delegation, never needs the owner's own key again. */
+/** One delegate-signed voucher redemption, landing the value in the owner's identity (delegation.from) — reuses an already-issued delegation, never needs the owner's own key again. */
 export async function buildSignedDelegatedVoucherRedeemEvent(delegation, fields, delegateSeed, delegatePubkeyBytes, { now = Date.now(), nonce = crypto.randomUUID() } = {}) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const { claimId, secret } = fields;
@@ -307,8 +307,8 @@ async function verifyDelegatedVoucherRedemption(event) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const { claimId, secret, to, delegate, nonce, timestamp, ownerPubkey, delegationSignature, signerPubkey, signature } = event;
 
-  if ((await deriveId(fromHex(ownerPubkey))) !== to) return false; // the redemption's own real destination must really derive from the embedded owner pubkey
-  if (toHex(fromHex(signerPubkey)) !== delegate) return false; // the redemption's own real signer must be exactly the delegated key, not anyone else
+  if ((await deriveId(fromHex(ownerPubkey))) !== to) return false; // the redemption's own destination must really derive from the embedded owner pubkey
+  if (toHex(fromHex(signerPubkey)) !== delegate) return false; // the redemption's own signer must be exactly the delegated key, not anyone else
 
   let delegationValid;
   try {
@@ -316,7 +316,7 @@ async function verifyDelegatedVoucherRedemption(event) {
   } catch {
     return false;
   }
-  if (!delegationValid) return false; // the real owner never actually authorized this delegate
+  if (!delegationValid) return false; // the owner never actually authorized this delegate
 
   let redeemSigValid;
   try {
@@ -336,7 +336,7 @@ export async function applyWalletEvent(rewardParams, state, event, verifyFn, con
   }
 
   // A burn's commitment replaces the position, and pays what the previous one had accrued first (see accrual.js):
-  // that payment is a real claim, owned by the domain, spendable like any other. Its id is derived from the event's
+  // that payment is a claim, owned by the domain, spendable like any other. Its id is derived from the event's
   // own nonce, so every reader names it the same.
   if (payload.type === 'accrual') {
     const { domain, nonce } = payload;
@@ -354,8 +354,8 @@ export async function applyWalletEvent(rewardParams, state, event, verifyFn, con
   // payload instead — see accrual.js's buildSignedAccrualEvent/
   // buildSignedClaimEvent — a checkpoint is the one type that doesn't,
   // by design; see checkpoint.js's header). verifyCheckpoint needs the
-  // real, un-adapted wire event to mean anything. See
-  // materializeWalletFromWireEvents below for the real, correct way to
+  // un-adapted wire event to mean anything. See
+  // materializeWalletFromWireEvents below for the correct way to
   // fold a batch that might contain one.
   if (payload.type === 'checkpoint') {
     return state;
@@ -363,7 +363,7 @@ export async function applyWalletEvent(rewardParams, state, event, verifyFn, con
 
   // 'delegated-claim' shares this exact body: the discriminating
   // verification (domain-owner signature vs. a delegate's, proven
-  // against an embedded real delegation) happens entirely inside
+  // against an embedded delegation) happens entirely inside
   // applyAccrualEvent, keyed off this same event's own payload.type —
   // by the time either type reaches issueClaim below, it has already
   // been authenticated one way or the other.
@@ -397,8 +397,8 @@ export async function applyWalletEvent(rewardParams, state, event, verifyFn, con
     }
   }
 
-  // "Sign once, then click as many times as you want": a real, one-time
-  // delegation (see issueDelegation) lets a real delegate key move the
+  // "Sign once, then click as many times as you want": a one-time
+  // delegation (see issueDelegation) lets a delegate key move the
   // owner's already-owned claims repeatedly, without the owner's own
   // root key signing more than once. No amount cap, no expiry — a real
   // deployment wanting either layers it into contractVerifiers via
@@ -466,13 +466,13 @@ export async function applyWalletEvent(rewardParams, state, event, verifyFn, con
       const { state: conservation } = transfer(state.conservation, { claimId, from, to, n: 0, derivation: 'identity' }, derivations);
       return { ...state, conservation, usedNonces: { ...state.usedNonces, [nonce]: true } };
     } catch (e) {
-      return reject(e.message); // covers both a wrong secret (claim.owner mismatch inside proveTransfer) AND a real double-redemption race (deactivate() on an already-consumed claim)
+      return reject(e.message); // covers both a wrong secret (claim.owner mismatch inside proveTransfer) AND a double-redemption race (deactivate() on an already-consumed claim)
     }
   }
 
   // The identical delegation already used for delegated-transfer/split,
   // reused here so a channel can redeem a voucher landing the value in
-  // the real owner's identity, never the delegate's own.
+  // the owner's identity, never the delegate's own.
   if (payload.type === 'delegated-voucher-redeem') {
     const { claimId, secret, to, delegate, nonce, timestamp, ownerPubkey, delegationSignature, signerPubkey, signature } = payload;
     const reject = (reason) => ({ ...state, rejections: [...state.rejections, { eventId: event.id, reason }] });
@@ -492,16 +492,16 @@ export async function applyWalletEvent(rewardParams, state, event, verifyFn, con
     }
   }
 
-  // A real, generic extension point — never a per-contract case added
-  // here. Any external contract wanting to move real, already-owned
+  // A generic extension point — never a per-contract case added
+  // here. Any external contract wanting to move already-owned
   // AIWA conditionally exposes its own real
   // `verifyPayout(payload)`, registered by the application under its
-  // own real `contractId` (never wallet.js's own source) in
+  // own `contractId` (never wallet.js's own source) in
   // `contractVerifiers`. wallet.js only ever guarantees the one thing
   // every such contract needs and can safely share: the pre-signed
-  // transfer's own signature is real and valid, checked identically to
+  // transfer's own signature is and valid, checked identically to
   // an ordinary transfer, before ever asking the contract's own logic
-  // whether its own conditions were genuinely met.
+  // whether its own conditions were met.
   if (payload.type === 'contract-payout') {
     const { contractId, claimId, from, to, nonce, timestamp, signerPubkey, signature } = payload;
     const reject = (reason) => ({ ...state, rejections: [...state.rejections, { eventId: event.id, reason }] });
@@ -540,13 +540,13 @@ export async function applyWalletEvent(rewardParams, state, event, verifyFn, con
 // which events to pass at all.
 export async function materializeWallet(rewardParams, orderedEvents, onProgress, verifyFn, contractVerifiers = {}, baseState) {
   let state = baseState ?? initialWalletState();
-  // Throttled by real elapsed time, not a fixed event count: a single
-  // slow event (e.g. a real VDF re-verification, deliberately as
+  // Throttled by elapsed time, not a fixed event count: a single
+  // slow event (e.g. a VDF re-verification, deliberately as
   // expensive to verify as to produce — see progression.js/vdf.js) can
   // by itself take far longer than an entire small backlog of cheap
   // ones. A fixed "every 20 events" cadence would then report ONCE and
   // go silent until the very end — indistinguishable, to whoever is
-  // watching a real progress bar, from a genuine freeze.
+  // watching a progress bar, from a freeze.
   let lastReportedAt = 0;
   for (let i = 0; i < orderedEvents.length; i++) {
     state = await applyWalletEvent(rewardParams, state, orderedEvents[i], verifyFn, contractVerifiers);
@@ -567,14 +567,14 @@ export async function materializeWallet(rewardParams, orderedEvents, onProgress,
  * collectAncestors/EventLog.get, before toReducerEvent) instead of
  * already-adapted ones.
  *
- * The one real reason this needs to exist, rather than everyone just
+ * The one reason this needs to exist, rather than everyone just
  * calling materializeWallet(rewardParams, toReducerEvents(events), ...)
- * directly: a real checkpoint's authenticity (verifyCheckpoint) reads
+ * directly: a checkpoint's authenticity (verifyCheckpoint) reads
  * event.author straight off the wire event, which toReducerEvent
  * deliberately strips before any reducer ever sees it. Folding a batch
  * that might contain a checkpoint — whether starting fresh from genesis
  * or resuming an already-cached base — needs that check to genuinely
- * run at the checkpoint's own real position in the sequence, and needs
+ * run at the checkpoint's own position in the sequence, and needs
  * applyCheckpointEvent's own repoint of progression's lastId to
  * actually happen there too; materializeWallet alone can only ever see
  * a checkpoint as an inert pass-through.

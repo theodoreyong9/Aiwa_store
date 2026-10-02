@@ -13,7 +13,7 @@ async function grantedCapabilities(issuer, subject, resource, action) {
   return set;
 }
 
-test('a write with a real, granted capability for the resource+action succeeds', async () => {
+test('a write with a granted capability for the resource+action succeeds', async () => {
   const issuer = await generateIdentity();
   const writer = await generateIdentity();
   const capabilities = await grantedCapabilities(issuer, writer, 'sphere-1', 'write');
@@ -48,7 +48,7 @@ test('SECURITY: a capability for a different action (read, not write) does not a
   await assert.rejects(store.set('name', 'Alice'), /Write refused/);
 });
 
-test('a custom resourceOf mapping is genuinely used instead of the default (store.domain)', async () => {
+test('a custom resourceOf mapping is used instead of the default (store.domain)', async () => {
   const issuer = await generateIdentity();
   const writer = await generateIdentity();
   const capabilities = await grantedCapabilities(issuer, writer, 'profile:name', 'write');
@@ -69,6 +69,6 @@ test('transact() is gated exactly like set()/delete() — it also routes through
   await assert.rejects(store.transact((tx) => tx.set('a', 1)), /Write refused/);
 });
 
-test('GuardedDataStore requires a real capabilities set at construction — never silently ungated', () => {
+test('GuardedDataStore requires a capabilities set at construction — never silently ungated', () => {
   assert.throws(() => new GuardedDataStore({ identity: null, domain: 'd', log: new EventLog() }), /requires a real CapabilitySet/);
 });

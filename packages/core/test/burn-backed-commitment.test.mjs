@@ -163,7 +163,7 @@ test('it reads a versioned transaction (static keys + loaded addresses) and keys
   assert.equal((await verifyBurnRecordFor(alice.domain, record)).valid, true);
 });
 
-test('base58Decode round-trips a real key', async () => {
+test('base58Decode round-trips a key', async () => {
   const alice = await person();
   assert.deepEqual(base58Decode(alice.address), alice.pubkey);
 });

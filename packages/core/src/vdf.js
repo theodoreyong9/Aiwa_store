@@ -1,42 +1,16 @@
-// Sequential hash chain: h_0 = SHA-256(seed), h_i = SHA-256(h_{i-1}).
-// Each step depends on the output of the one before it — no shortcut,
-// regardless of parallel hardware. This bounds the RATE at which a
-// domain can advance its own progression; it does not bound calendar
-// time, by design.
-//
-// Not an asymmetric VDF in the cryptographic sense (Wesolowski,
-// Pietrzak) — verifying costs exactly what producing costs, not
-// asymptotically less. See wesolowski-vdf.js for that. What it does
-// provide: production cannot be parallelized or shortcut, with any
-// amount of hardware.
+// The sequential hash chain: h_0 = SHA-256(seed), h_i = SHA-256(h_{i-1}). Each step needs the one before it, so no amount
+// of parallel hardware shortcuts it: it bounds the rate at which a domain advances, not calendar time.
+// Verifying costs what producing costs (the succinct proof of wesolowski-vdf.js is what makes verification cheap).
 
-async function sha256(bytes) {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return new Uint8Array(digest);
-}
+import { toHex } from './bytes.js';
 
-function toHex(bytes) {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+const sha256 = async (bytes) => new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
 
-// A real yield to the browser's macrotask queue — crypto.subtle's own
-// promise typically resolves via the microtask queue, which never
-// gives the browser a chance to paint, handle input, or process a
-// reload request on its own. Thousands of awaited microtasks back to
-// back can starve the main thread just as completely as a real
-// synchronous loop would, even though every individual step is
-// technically async.
-function yieldToMain() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
+// A browser cannot paint or take input while microtasks run back to back: yield to the macrotask queue now and then.
+const yieldToMain = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-// Binds the chain to one domain and one position in its own history —
-// the prior epoch's own output, or 'genesis' for the first. Chaining
-// across epochs, not just within one, means epoch N cannot begin
-// before epoch N-1 has genuinely finished.
-export function vdfSeed(domain, previousOutput) {
-  return `${domain}:${previousOutput}`;
-}
+/** The chain starts from the domain and the previous epoch's output ('genesis' for the first): epoch N cannot start before N-1 is done. */
+export const vdfSeed = (domain, previousOutput) => `${domain}:${previousOutput}`;
 
 export async function computeVdfChain(seed, iterations) {
   let h = await sha256(new TextEncoder().encode(seed));

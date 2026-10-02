@@ -9,7 +9,7 @@ import {
 import { SOLANA_INCINERATOR_ADDRESS } from '../src/identity-cost.js';
 import { deriveId } from '../src/identity.js';
 
-test('generateKeypair produces a real, usable Ed25519 keypair', () => {
+test('generateKeypair produces a usable Ed25519 keypair', () => {
   const kp = generateKeypair(solanaWeb3);
   assert.ok(kp.publicKey instanceof solanaWeb3.PublicKey);
   assert.equal(kp.secretKey.length, 64);
@@ -21,7 +21,7 @@ test('keypairFromSecretKey reconstructs the identical keypair', () => {
   assert.equal(rebuilt.publicKey.toBase58(), original.publicKey.toBase58());
 });
 
-test('encryptSecretKey / decryptSecretKey round-trips the real secret key bytes', async () => {
+test('encryptSecretKey / decryptSecretKey round-trips the secret key bytes', async () => {
   const kp = generateKeypair(solanaWeb3);
   const record = await encryptSecretKey(kp.secretKey, 'a real password');
   const decrypted = await decryptSecretKey(record, 'a real password');
@@ -34,7 +34,7 @@ test('decryptSecretKey rejects the wrong password instead of returning garbage',
   await assert.rejects(decryptSecretKey(record, 'wrong password'), /Wrong password/);
 });
 
-test('buildBurnTransaction targets the real incinerator address', () => {
+test('buildBurnTransaction targets the incinerator address', () => {
   const kp = generateKeypair(solanaWeb3);
   const tx = buildBurnTransaction(solanaWeb3, { fromPubkey: kp.publicKey, lamports: 1000, recentBlockhash: solanaWeb3.Keypair.generate().publicKey.toBase58() });
   const instruction = tx.instructions[0];
@@ -47,7 +47,7 @@ test('buildBurnTransaction rejects a non-positive lamport amount', () => {
   assert.throws(() => buildBurnTransaction(solanaWeb3, { fromPubkey: kp.publicKey, lamports: 0, recentBlockhash: solanaWeb3.Keypair.generate().publicKey.toBase58() }), RangeError);
 });
 
-test('buildTransferTransaction targets the real, chosen recipient — never the incinerator', () => {
+test('buildTransferTransaction targets the chosen recipient — never the incinerator', () => {
   const kp = generateKeypair(solanaWeb3);
   const recipient = generateKeypair(solanaWeb3);
   const tx = buildTransferTransaction(solanaWeb3, { fromPubkey: kp.publicKey, toAddress: recipient.publicKey.toBase58(), lamports: 1000, recentBlockhash: solanaWeb3.Keypair.generate().publicKey.toBase58() });
@@ -63,12 +63,12 @@ test('buildTransferTransaction rejects a non-positive lamport amount', () => {
   assert.throws(() => buildTransferTransaction(solanaWeb3, { fromPubkey: kp.publicKey, toAddress: recipient.publicKey.toBase58(), lamports: -1, recentBlockhash: solanaWeb3.Keypair.generate().publicKey.toBase58() }), RangeError);
 });
 
-test('SECURITY: buildTransferTransaction rejects a real, malformed, invalid Solana address rather than silently sending nowhere', () => {
+test('SECURITY: buildTransferTransaction rejects a malformed, invalid Solana address rather than silently sending nowhere', () => {
   const kp = generateKeypair(solanaWeb3);
   assert.throws(() => buildTransferTransaction(solanaWeb3, { fromPubkey: kp.publicKey, toAddress: 'not-a-real-address', lamports: 1000, recentBlockhash: solanaWeb3.Keypair.generate().publicKey.toBase58() }), /valid Solana address/);
 });
 
-test('signAndSerialize produces real, validly-signed bytes', () => {
+test('signAndSerialize produces validly-signed bytes', () => {
   const kp = generateKeypair(solanaWeb3);
   const tx = buildBurnTransaction(solanaWeb3, { fromPubkey: kp.publicKey, lamports: 1000, recentBlockhash: solanaWeb3.Keypair.generate().publicKey.toBase58() });
   const raw = signAndSerialize(tx, kp);
@@ -76,20 +76,20 @@ test('signAndSerialize produces real, validly-signed bytes', () => {
   assert.equal(roundTripped.signatures[0].publicKey.toBase58(), kp.publicKey.toBase58());
 });
 
-test('generateLightweightKeypair produces a real, usable keypair shape, no @solana/web3.js involved', async () => {
+test('generateLightweightKeypair produces a usable keypair shape, no @solana/web3.js involved', async () => {
   const kp = await generateLightweightKeypair();
   assert.equal(kp.secretKey.length, 64);
   assert.equal(kp.publicKey.toBytes().length, 32);
   assert.equal(typeof kp.publicKey.toBase58(), 'string');
 });
 
-test('THE REAL PROPERTY: a lightweight keypair and a real solanaWeb3 keypair from the identical seed derive the identical base58 address', async () => {
+test('THE PROPERTY: a lightweight keypair and a solanaWeb3 keypair from the identical seed derive the identical base58 address', async () => {
   const solanaKp = generateKeypair(solanaWeb3);
   const rebuilt = await lightweightKeypairFromSecretKey(solanaKp.secretKey);
   assert.equal(rebuilt.publicKey.toBase58(), solanaKp.publicKey.toBase58(), 'the lightweight path must derive the exact same real identity as the full library would');
 });
 
-test('lightweightKeypairFromSecretKey round-trips a real secret key exactly', async () => {
+test('lightweightKeypairFromSecretKey round-trips a secret key exactly', async () => {
   const original = await generateLightweightKeypair();
   const rebuilt = await lightweightKeypairFromSecretKey(original.secretKey);
   assert.deepEqual(Array.from(rebuilt.secretKey), Array.from(original.secretKey));
@@ -109,28 +109,28 @@ test('lightweightKeypairFromSecretKey rejects the wrong length', async () => {
   await assert.rejects(lightweightKeypairFromSecretKey(new Uint8Array(32)), /64-byte/);
 });
 
-test('THE REAL PROPERTY: the same passphrase derives the identical real identity, every time', async () => {
+test('THE PROPERTY: the same passphrase derives the identical identity, every time', async () => {
   const a = await deriveKeypairFromPassphrase('correct horse battery staple');
   const b = await deriveKeypairFromPassphrase('correct horse battery staple');
   assert.equal(a.publicKey.toBase58(), b.publicKey.toBase58());
   assert.deepEqual(Array.from(a.secretKey), Array.from(b.secretKey));
 });
 
-test('a different passphrase derives a different, real identity', async () => {
+test('a different passphrase derives a different, identity', async () => {
   const a = await deriveKeypairFromPassphrase('passphrase one');
   const b = await deriveKeypairFromPassphrase('passphrase two');
   assert.notEqual(a.publicKey.toBase58(), b.publicKey.toBase58());
 });
 
-test('deriveKeypairFromPassphrase produces a real, usable keypair shape', async () => {
+test('deriveKeypairFromPassphrase produces a usable keypair shape', async () => {
   const kp = await deriveKeypairFromPassphrase('a real test passphrase');
   assert.equal(kp.secretKey.length, 64);
   assert.equal(kp.publicKey.toBytes().length, 32);
   assert.equal(typeof kp.publicKey.toBase58(), 'string');
 });
 
-test('THE REAL STANDARD PROPERTY: a real BIP39 mnemonic derives the identical real address a standard Solana wallet (Phantom/Solflare) would show, at the real m/44\'/501\'/0\'/0\' path', async () => {
-  // Real, independently-known test vectors — cross-checked against a
+test('THE STANDARD PROPERTY: a BIP39 mnemonic derives the identical address a standard Solana wallet (Phantom/Solflare) would show, at the m/44\'/501\'/0\'/0\' path', async () => {
+  // independently-known test vectors — cross-checked against a
   // second, independent library (ed25519-hd-key) before ever being
   // trusted here. Never invented, never assumed.
   const vectors = [
@@ -144,20 +144,20 @@ test('THE REAL STANDARD PROPERTY: a real BIP39 mnemonic derives the identical re
   }
 });
 
-test('deriveKeypairFromBip39Mnemonic is deterministic — the identical mnemonic always derives the identical real address', async () => {
+test('deriveKeypairFromBip39Mnemonic is deterministic — the identical mnemonic always derives the identical address', async () => {
   const mnemonic = 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong';
   const a = await deriveKeypairFromBip39Mnemonic(mnemonic);
   const b = await deriveKeypairFromBip39Mnemonic(mnemonic);
   assert.equal(a.publicKey.toBase58(), b.publicKey.toBase58());
 });
 
-test('a different, real, valid mnemonic derives a different, real address', async () => {
+test('a different, valid mnemonic derives a different, address', async () => {
   const a = await deriveKeypairFromBip39Mnemonic('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
   const b = await deriveKeypairFromBip39Mnemonic('zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong');
   assert.notEqual(a.publicKey.toBase58(), b.publicKey.toBase58());
 });
 
-test('a different real account index derives a different real address from the same real mnemonic', async () => {
+test('a different account index derives a different address from the same mnemonic', async () => {
   const mnemonic = 'zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong';
   const account0 = await deriveKeypairFromBip39Mnemonic(mnemonic, 0);
   const account1 = await deriveKeypairFromBip39Mnemonic(mnemonic, 1);
@@ -168,12 +168,12 @@ test('SECURITY: an invalid mnemonic (bad checksum, wrong words) is rejected, nev
   await assert.rejects(deriveKeypairFromBip39Mnemonic('not a real bip39 mnemonic at all here whatsoever'), /valid BIP39/);
 });
 
-test('validateBip39Mnemonic correctly distinguishes real, valid mnemonics from invalid ones', async () => {
+test('validateBip39Mnemonic correctly distinguishes valid mnemonics from invalid ones', async () => {
   assert.equal(await validateBip39Mnemonic('legal winner thank year wave sausage worth useful legal winner thank yellow'), true);
   assert.equal(await validateBip39Mnemonic('not a real mnemonic'), false);
 });
 
-test('toIdentity bridges this module\'s keypair into a real identity.js Identity sharing the identical Ed25519 seed', async () => {
+test('toIdentity bridges this module\'s keypair into an identity.js Identity sharing the identical Ed25519 seed', async () => {
   const kp = await generateLightweightKeypair();
   const identity = await toIdentity(kp);
   assert.equal(identity.id, await deriveId(kp.publicKey.toBytes()));

@@ -1,29 +1,29 @@
 // A domain's own progression epoch advances only through a valid
 // transition: monotonic (+1 exactly), causally chained to the domain's
-// last accepted transition, carrying a real sequential VDF proof (see
+// last accepted transition, carrying a sequential VDF proof (see
 // vdf.js) — bounding the RATE of advancement, not calendar time — AND,
 // like every other event type that changes a domain's own economic
-// state, a real Ed25519 signature proving the real signer controls
+// state, an Ed25519 signature proving the signer controls
 // `domain`.
 //
-// THE REAL GAP THIS CLOSES, found the same way accrual.js's own
-// 'claim'/'accrual' gap was: the VDF proof alone is NOT a real proof
+// THE GAP THIS CLOSES, found the same way accrual.js's own
+// 'claim'/'accrual' gap was: the VDF proof alone is NOT a proof
 // of who submitted it — vdfSeed(domain, previousOutput) is a public,
 // deterministic function of values already visible to anyone watching
 // the log, so anyone (not just the domain owner) can compute the exact
 // same next-epoch vdfOutput and publish it as a 'progression' event
 // naming that domain. Not a theft — the resulting epoch is exactly
-// what the real owner's own hardware would have produced — but it lets
+// what the owner's own hardware would have produced — but it lets
 // anyone advance a domain's own qTotal (domainAge, reward.js's own
 // denominator reference) without consent, at zero cost to themselves
-// beyond the real, sequential VDF work. Verified directly against
-// reward.js's own real formula: reward(b=100, q=1, qTotal, T=0) drops
+// beyond the sequential VDF work. Verified directly against
+// reward.js's own formula: reward(b=100, q=1, qTotal, T=0) drops
 // from ~0.087 at qTotal=1 to ~0.0097 at qTotal=20000 — a real,
 // permanent, roughly 9x griefing reduction in a domain's own future
 // reward per accrual, since domainAge never resets. Signer-scoped from
 // here on, mirroring accrual.js's own buildSignedAccrualEvent/
 // verifyAccrualAuthorization exactly (adapt-event.js's own
-// toReducerEvent strips the outer event envelope's real `author`
+// toReducerEvent strips the outer event envelope's `author`
 // before any reducer ever sees it, by design — see its own header —
 // so this embeds its own inner signature the identical way).
 //
@@ -63,7 +63,7 @@ export function progressionSeed(domain, previousOutput, previous) {
   return `${vdfSeed(domain, previousOutput ?? 'genesis')}:${previous ?? 'none'}`;
 }
 
-/** A real, domain-owner-signed progression transition — the only way a 'progression' event now passes applyProgressionEvent's own authorization check. */
+/** A domain-owner-signed progression transition — the only way a 'progression' event now passes applyProgressionEvent's own authorization check. */
 export async function buildSignedProgressionEvent(fields, signerSeed, signerPubkeyBytes, { now = Date.now(), nonce = crypto.randomUUID() } = {}) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const withMeta = { ...fields, nonce, timestamp: now };
@@ -76,7 +76,7 @@ export async function verifyProgressionAuthorization(payload) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   const { domain, epoch, vdfIterations, vdfOutput, nonce, timestamp, previous, signerPubkey, signature } = payload;
   if (typeof signerPubkey !== 'string' || typeof signature !== 'string') return false;
-  if ((await deriveId(fromHex(signerPubkey))) !== domain) return false; // only the domain's real key can advance its own progression
+  if ((await deriveId(fromHex(signerPubkey))) !== domain) return false; // only the domain's key can advance its own progression
   try {
     return ed25519.verify(fromHex(signature), new TextEncoder().encode(canonicalProgressionMessage({ domain, epoch, vdfIterations, vdfOutput, nonce, timestamp, previous })), fromHex(signerPubkey));
   } catch {
@@ -89,12 +89,12 @@ export function initialProgressionState() {
 }
 
 /**
- * The real parent set a NEW progression event for a domain must declare.
+ * The parent set a NEW progression event for a domain must declare.
  *
  * applyProgressionEvent's own causal-chain check below requires the
  * domain's last accepted progression event id to be a DIRECT parent —
  * not just a transitive ancestor. `heads` (a log's own current heads,
- * the parents every other real event builder in this codebase uses)
+ * the parents every other event builder in this codebase uses)
  * only satisfies that for free when nothing else was published for
  * this domain since the last progression tick. The moment any other
  * event (an accrual, a claim, a checkpoint...) becomes the sole head in
@@ -102,23 +102,23 @@ export function initialProgressionState() {
  * right before advanceProgress() — `heads` alone silently drops the
  * chain, and every progression event from then on is permanently
  * rejected as "not chained", since the reducer's own lastId can then
- * never again match a real parent.
+ * never again match a parent.
  *
- * Real fix, not a verification workaround: a progression event
- * genuinely does have two real causal dependencies — the log's current
+ * fix, not a verification workaround: a progression event
+ * does have two causal dependencies — the log's current
  * tip, AND its own type's last accepted transition — so it should
- * honestly declare both as parents (a real merge, not a forced choice).
- * Any real progression-event builder should route its parents through
+ * honestly declare both as parents (a merge, not a forced choice).
+ * Any progression-event builder should route its parents through
  * this, rather than reimplementing the same rule.
  */
 export function progressionParents(heads, lastId) {
   return lastId && !heads.includes(lastId) ? [...heads, lastId] : heads;
 }
 
-// verifyFn defaults to the real, main-thread verifyVdfChain — every
+// verifyFn defaults to the main-thread verifyVdfChain — every
 // existing call site, and this project's own Node-based test suite,
-// keeps working unchanged. A caller with access to a real worker
-// thread (catching up on a real, possibly large backlog) can inject a
+// keeps working unchanged. A caller with access to a worker
+// thread (catching up on a possibly large backlog) can inject a
 // worker-backed verifier instead, so that even this one-time catch-up
 // work never has to run on the same thread that also needs to render
 // and handle input.

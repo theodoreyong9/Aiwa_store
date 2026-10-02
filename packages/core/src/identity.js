@@ -1,42 +1,10 @@
-// The identity primitive: an identity is a real, cryptographic root, not
-// merely a user account. It signs events, authorizes capabilities,
-// and authenticates peers — the same real root for a human, an
-// application, a service, or an agent.
+// An identity is an Ed25519 key. Its id is the SHA-256 of the public key; the same key is also the holder's Solana address.
 
 import { ed25519 } from '@noble/curves/ed25519.js';
+import { toHex, fromHex, sha256Hex } from './bytes.js';
 
-function toHex(bytes) {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-function hexToBytes(hex) {
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return out;
-}
-
-/** The real, deterministic id — SHA-256 of the real public key, identical in spirit across every real project this unifies. */
-export async function deriveId(publicKeyBytes) {
-  const digest = await crypto.subtle.digest('SHA-256', publicKeyBytes);
-  return toHex(new Uint8Array(digest));
-}
-
-export async function generateIdentity() {
-  const secretKey = ed25519.utils.randomSecretKey();
-  const publicKey = ed25519.getPublicKey(secretKey);
-  const id = await deriveId(publicKey);
-  return new Identity({ id, secretKeyHex: toHex(secretKey), publicKeyHex: toHex(publicKey) });
-}
-
-export function identityFromSecretKey(secretKeyHex) {
-  const publicKey = ed25519.getPublicKey(hexToBytes(secretKeyHex));
-  const publicKeyHex = toHex(publicKey);
-  return deriveId(publicKey).then((id) => new Identity({ id, secretKeyHex, publicKeyHex }));
-}
-
-/** A real, public-only identity — can verify, can never sign. Used to represent a real, remote peer. */
-export function publicIdentity(publicKeyHex) {
-  return deriveId(hexToBytes(publicKeyHex)).then((id) => new Identity({ id, secretKeyHex: null, publicKeyHex }));
-}
+/** The id of a public key: SHA-256 of its bytes, hex. */
+export const deriveId = (publicKeyBytes) => sha256Hex(publicKeyBytes);
 
 export class Identity {
   constructor({ id, secretKeyHex, publicKeyHex }) {
@@ -45,17 +13,31 @@ export class Identity {
     this._secretKey = secretKeyHex;
   }
 
-  /** Real, exact bytes in — real, exact signature out. Never signs on behalf of a real, public-only identity. */
+  /** Signs bytes; hex signature. An identity without its secret key can only verify. */
   async sign(bytes) {
-    if (!this._secretKey) throw new Error('This real identity has no real secret key — it can verify, never sign.');
-    return toHex(ed25519.sign(bytes, hexToBytes(this._secretKey)));
+    if (!this._secretKey) throw new Error('This identity has no secret key: it can verify, never sign.');
+    return toHex(ed25519.sign(bytes, fromHex(this._secretKey)));
   }
 
   async verify(bytes, signatureHex) {
     try {
-      return ed25519.verify(hexToBytes(signatureHex), bytes, hexToBytes(this.publicKey));
+      return ed25519.verify(fromHex(signatureHex), bytes, fromHex(this.publicKey));
     } catch {
       return false;
     }
   }
+}
+
+export async function generateIdentity() {
+  return identityFromSecretKey(toHex(ed25519.utils.randomSecretKey()));
+}
+
+export async function identityFromSecretKey(secretKeyHex) {
+  const publicKey = ed25519.getPublicKey(fromHex(secretKeyHex));
+  return new Identity({ id: await deriveId(publicKey), secretKeyHex, publicKeyHex: toHex(publicKey) });
+}
+
+/** A remote identity known by its public key only: it can verify, never sign. */
+export async function publicIdentity(publicKeyHex) {
+  return new Identity({ id: await deriveId(fromHex(publicKeyHex)), secretKeyHex: null, publicKeyHex });
 }

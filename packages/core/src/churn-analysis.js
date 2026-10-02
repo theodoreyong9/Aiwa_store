@@ -1,41 +1,41 @@
-// A real, concrete answer to a real, parameter-dependent question:
+// A concrete answer to a parameter-dependent question:
 // does identity-cost.js's churn cost curve actually make repeatedly
 // abandoning an aging domain for a fresh one net-unprofitable, given
-// a specific deployment's real reward parameters?
+// a specific deployment's reward parameters?
 //
 // This is NOT a structural guarantee the way progression's own
 // epoch-cannot-skip-ahead property is. Whether churn is profitable is
-// a genuine economic question — the reward formula's own A-denominator
-// gives a real, measured advantage to a young domain; identity-cost.js's
+// an economic question — the reward formula's own A-denominator
+// gives a measured advantage to a young domain; identity-cost.js's
 // burn requirement makes repeating that advantage cost something, but
 // "costs something" and "costs enough" are different claims. This
-// module computes the real, honest answer for a given, concrete set
+// module computes the honest answer for a given, concrete set
 // of parameters — it never asserts churn is unprofitable in general.
 
 import { reward } from './reward.js';
 
 /**
- * Compares two real strategies over the identical total real elapsed
- * epochs, for the identical total real committed capital S per cycle:
+ * Compares two strategies over the identical total elapsed
+ * epochs, for the identical total committed capital S per cycle:
  *
  * - "stay": commit once, let the position mature the entire span,
- *   claim once at the end. A domain's own age (A) and its own
- *   patience (t) both equal the full span, since it never resets.
+ * claim once at the end. A domain's own age (A) and its own
+ * patience (t) both equal the full span, since it never resets.
  * - "churn": commit S again every `churnInterval` epochs in a fresh
- *   domain, paying a real burn cost every time, claiming at the end
- *   of each real interval before abandoning that domain. A and t both
- *   equal only the interval each time — the young-domain reward
- *   advantage this real churn cost curve exists specifically to make
- *   not worth exploiting.
+ * domain, paying a burn cost every time, claiming at the end
+ * of each interval before abandoning that domain. An and t both
+ * equal only the interval each time — the young-domain reward
+ * advantage this churn cost curve exists specifically to make
+ * not worth exploiting.
  *
- * Real slot-to-epoch correspondence is simplified 1:1 — a real
- * deployment's own actual timing may differ; treat this as a
- * real, order-of-magnitude tool, not an exact prediction.
+ * slot-to-epoch correspondence is simplified 1:1 — a real
+ * deployment's own timing may differ; treat this as a
+ * order-of-magnitude tool, not an exact prediction.
  *
  * @returns {{
- *   stayReward: number, stayNet: number,
- *   churnCycles: number, churnGrossReward: number, churnTotalCost: number, churnNet: number,
- *   churnProfitable: boolean, advantageRatio: number
+ * stayReward: number, stayNet: number,
+ * churnCycles: number, churnGrossReward: number, churnTotalCost: number, churnNet: number,
+ * churnProfitable: boolean, advantageRatio: number
  * }}
  */
 export function compareChurnVsStay(rewardParams, churnCostCurve, { S, totalEpochs, churnInterval, genesisSlot = 0 }) {
@@ -66,8 +66,8 @@ export function compareChurnVsStay(rewardParams, churnCostCurve, { S, totalEpoch
 }
 
 /**
- * Sweeps a real range of churn intervals and reports whether ANY of
- * them beats staying — the real, practical question a deployer needs
+ * Sweeps a range of churn intervals and reports whether ANY of
+ * them beats staying — the practical question a deployer needs
  * answered, since a single interval passing the "unprofitable" check
  * says nothing about a different interval.
  */

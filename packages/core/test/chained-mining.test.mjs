@@ -91,7 +91,7 @@ test('the same proven work re-signed over a history without the action is refuse
   const outputBefore = w.output;
   const x = await w.commit({ b: 1, T: 0.4 });
   const after = await w.work(3);
-  // the cheat: take the real proof of the epochs after X, name the earlier event as the predecessor, sign it again
+  // the cheat: take the proof of the epochs after X, name the earlier event as the predecessor, sign it again
   const forged = await buildSignedProgressionEvent(
     { domain: a.id, epoch: after.payload.epoch, vdfIterations: after.payload.vdfIterations, vdfOutput: after.payload.vdfOutput, previous: beforeAction },
     a.secretKeyBytes, a.publicKeyBytes,
@@ -127,7 +127,7 @@ test('an action cannot be placed earlier than it was made: it must follow the la
   await w.commit({ b: 4 });
   const old = w.head;
   await w.work(5);
-  await w.claim('c1', '0.000001'); // a real claim, after five epochs
+  await w.claim('c1', '0.000001'); // a claim, after five epochs
   const backdated = await w.commit({ b: 4 }, { previous: old }); // pretends to have followed the first accrual
   const r = await assess(a, w.events);
   assert.ok(r.rejections.some((rej) => rej.eventId === backdated.id && /last mining event/.test(rej.reason)));

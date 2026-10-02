@@ -46,7 +46,7 @@ test('SECURITY: the same signature cannot back two different domains', () => {
   assert.equal(result.accepted, false);
 });
 
-test('THE REAL FIX: a second, real, valid burn from the same domain accumulates onto its real, total committed capital — never rejected outright', () => {
+test('THE FIX: a second, valid burn from the same domain accumulates onto its total committed capital — never rejected outright', () => {
   const first = registerIdentityCost(initialIdentityCostState(), { domain: 'alice', tx: tx({ incineratorBalanceDeltaLamports: 1000 }) });
   assert.equal(first.accepted, true);
   const second = registerIdentityCost(first.state, { domain: 'alice', tx: tx({ signature: 'sig2', incineratorBalanceDeltaLamports: 500 }) });
@@ -61,12 +61,12 @@ test('registeredAt and the original registration slot never move on a later, add
   assert.equal(second.state.registered.alice.slot, 10);
 });
 
-test('SECURITY: a later, additional burn must independently satisfy the churn curve at its OWN real slot, never grandfathered at the original registration\'s lower requirement', () => {
+test('SECURITY: a later, additional burn must independently satisfy the churn curve at its OWN slot, never grandfathered at the original registration\'s lower requirement', () => {
   const curve = linearCostCurve({ baseLamports: 100, lamportsPerSlot: 10 });
   const churnConfig = { genesisSlot: 0, costCurve: curve };
   const first = registerIdentityCost(initialIdentityCostState(), { domain: 'alice', tx: tx({ slot: 0, incineratorBalanceDeltaLamports: 100 }), churnConfig });
   assert.equal(first.accepted, true);
-  // A later burn at slot 200 requires >= 100 + 200*10 = 2100 lamports on its OWN — a small, real amount is correctly rejected, even though the domain is already registered.
+  // A later burn at slot 200 requires >= 100 + 200*10 = 2100 lamports on its OWN — a small, amount is correctly rejected, even though the domain is already registered.
   const second = registerIdentityCost(first.state, { domain: 'alice', tx: tx({ signature: 'sig2', slot: 200, incineratorBalanceDeltaLamports: 50 }), churnConfig });
   assert.equal(second.accepted, false, 'a small, real burn at a later real slot must still meet the real, current curve requirement on its own');
 });

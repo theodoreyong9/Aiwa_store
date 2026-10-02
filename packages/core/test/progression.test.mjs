@@ -12,7 +12,7 @@ function toHex(bytes) {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** A real Ed25519 keypair plus the domain id it really derives — every progression payload built with it can only ever be signed by this exact signer. */
+/** An Ed25519 keypair plus the domain id it really derives — every progression payload built with it can only ever be signed by this exact signer. */
 async function realSigner() {
   const seed = ed25519.utils.randomSecretKey();
   const pubkeyBytes = ed25519.getPublicKey(seed);
@@ -33,7 +33,7 @@ async function progressionPayload(signer, epoch, previousOutput = 'genesis', ite
   return signedTestPayload(signer, { domain: signer.domain, epoch, vdfIterations: iterations, vdfOutput });
 }
 
-/** Same `type` restoration as progressionPayload(), for tests that need to hand-pick specific (often deliberately invalid) fields rather than a real, honestly-computed chain. */
+/** Same `type` restoration as progressionPayload(), for tests that need to hand-pick specific (often deliberately invalid) fields rather than a honestly-computed chain. */
 async function signedTestPayload(signer, fields) {
   const signed = await buildSignedProgressionEvent(fields, signer.seed, signer.pubkeyBytes);
   return { type: 'progression', ...signed };
@@ -77,7 +77,7 @@ test('a forked competing transition at the same epoch is rejected', async () => 
   assert.equal(state.domains[signer.domain].lastId, 'e2a');
 });
 
-test('SECURITY: a transition with no real VDF proof is rejected', async () => {
+test('SECURITY: a transition with no VDF proof is rejected', async () => {
   const signer = await realSigner();
   const payload = await signedTestPayload(signer, { domain: signer.domain, epoch: 1, vdfIterations: 50, vdfOutput: null });
   const state = await applyProgressionEvent(initialProgressionState(), { id: 'e1', parents: [], payload });
@@ -93,7 +93,7 @@ test('SECURITY: a fabricated VDF output is rejected', async () => {
   assert.match(state.rejections[0].reason, /VDF proof does not verify/);
 });
 
-test('SECURITY: a real chain computed for fewer iterations than claimed is rejected', async () => {
+test('SECURITY: a chain computed for fewer iterations than claimed is rejected', async () => {
   const signer = await realSigner();
   const shortcut = await computeVdfChain(vdfSeed(signer.domain, 'genesis'), 40);
   const payload = await signedTestPayload(signer, { domain: signer.domain, epoch: 1, vdfIterations: 50, vdfOutput: shortcut });
@@ -111,12 +111,12 @@ test('SECURITY: a VDF proof computed for a different domain cannot be reused', a
   assert.match(state.rejections[0].reason, /VDF proof does not verify/);
 });
 
-test('SECURITY, THE REAL GAP FOUND AND CLOSED: a progression event naming a domain the real signer does not control is rejected — no more free advancement of someone else\'s progression', async () => {
+test('SECURITY, THE GAP FOUND AND CLOSED: a progression event naming a domain the signer does not control is rejected — no more free advancement of someone else\'s progression', async () => {
   const attacker = await realSigner();
   const victim = await realSigner();
-  // The attacker signs for real, but hand-crafts a payload naming the
+  // The attacker signs for but hand-crafts a payload naming the
   // victim's domain — the exact griefing vector: vdfSeed/vdfOutput are
-  // both public, so anyone can compute a real, valid VDF proof for the
+  // both public, so anyone can compute a valid VDF proof for the
   // victim's own next epoch. Only the signature-vs-domain check below
   // can stop it.
   const seed = vdfSeed(victim.domain, 'genesis');
@@ -152,7 +152,7 @@ test('non-progression events pass through unchanged', async () => {
   assert.deepEqual(state, initialProgressionState());
 });
 
-test('a real, honestly-computed sequence of several epochs is accepted end to end', async () => {
+test('a honestly-computed sequence of several epochs is accepted end to end', async () => {
   const signer = await realSigner();
   let state = initialProgressionState();
   let lastId = null;
@@ -168,7 +168,7 @@ test('a real, honestly-computed sequence of several epochs is accepted end to en
   assert.equal(state.rejections.length, 0);
 });
 
-test('materializeProgression folds a real sequence via a real reducer-shaped event list', async () => {
+test('materializeProgression folds a sequence via a reducer-shaped event list', async () => {
   const signer = await realSigner();
   const p1 = await progressionPayload(signer, 1);
   const p2 = await progressionPayload(signer, 2, p1.vdfOutput);
@@ -180,7 +180,7 @@ test('materializeProgression folds a real sequence via a real reducer-shaped eve
   assert.equal(state.domains[signer.domain].epoch, 2);
 });
 
-test('THE REAL INJECTION: a custom verifyFn is genuinely used instead of the default, real recomputation', async () => {
+test('THE INJECTION: a custom verifyFn is used instead of the default, recomputation', async () => {
   let realVerifyCalls = 0;
   const spy = async (seed, iterations, output) => {
     realVerifyCalls += 1;
@@ -193,7 +193,7 @@ test('THE REAL INJECTION: a custom verifyFn is genuinely used instead of the def
   assert.equal(state.domains[signer.domain].epoch, 1);
 });
 
-test('SECURITY: an injected verifyFn that always returns false rejects even a real, honestly-computed proof — the caller stays in full control', async () => {
+test('SECURITY: an injected verifyFn that always returns false rejects even a honestly-computed proof — the caller stays in full control', async () => {
   const alwaysFalse = async () => false;
   const signer = await realSigner();
   const payload = await progressionPayload(signer, 1);
@@ -202,7 +202,7 @@ test('SECURITY: an injected verifyFn that always returns false rejects even a re
   assert.equal(state.rejections.length, 1);
 });
 
-test('materializeProgression also accepts and genuinely uses a custom verifyFn', async () => {
+test('materializeProgression also accepts and uses a custom verifyFn', async () => {
   let calls = 0;
   const spy = async (seed, iterations, output) => { calls += 1; return await verifyVdfChain(seed, iterations, output); };
   const signer = await realSigner();
@@ -214,7 +214,7 @@ test('materializeProgression also accepts and genuinely uses a custom verifyFn',
   assert.equal(state.domains[signer.domain].epoch, 2);
 });
 
-test('SECURITY, THE REAL REGRESSION FOUND AND CLOSED: an explicit null verifyFn (never the same as omitting the argument) falls back to real, full VDF verification, instead of crashing', async () => {
+test('SECURITY, THE REGRESSION FOUND AND CLOSED: an explicit null verifyFn (never the same as omitting the argument) falls back to full VDF verification, instead of crashing', async () => {
   const signer = await realSigner();
   const p1 = await progressionPayload(signer, 1);
   const events = [{ id: 'e1', parents: [], payload: p1 }];
@@ -223,7 +223,7 @@ test('SECURITY, THE REAL REGRESSION FOUND AND CLOSED: an explicit null verifyFn 
   assert.equal(state.rejections.length, 0);
 });
 
-test('SECURITY: with an explicit null verifyFn, a real, invalid VDF proof is still genuinely rejected — the fallback is real verification, never a silent bypass', async () => {
+test('SECURITY: with an explicit null verifyFn, an invalid VDF proof is still rejected — the fallback is verification, never a silent bypass', async () => {
   const signer = await realSigner();
   const fake = await signedTestPayload(signer, { domain: signer.domain, epoch: 1, vdfIterations: 30, vdfOutput: 'fabricated-never-computed' });
   const state = await applyProgressionEvent(initialProgressionState(), { id: 'e1', parents: [], payload: fake }, null);
@@ -238,7 +238,7 @@ test('progressionParents: adds lastId only when heads do not already carry it, n
   assert.deepEqual(progressionParents(['h1', 'p0'], 'p0'), ['h1', 'p0'], 'already present among multiple heads — must not duplicate');
 });
 
-test('THE REAL REGRESSION FOUND AND CLOSED: a progression event still chains correctly after an unrelated event (e.g. an accrual) became the log head in between — the exact real sequence recordCommitment() then advanceProgress() produces', async () => {
+test('THE REGRESSION FOUND AND CLOSED: a progression event still chains correctly after an unrelated event (e.g. an accrual) became the log head in between — the exact sequence recordCommitment() then advanceProgress() produces', async () => {
   const signer = await realSigner();
   const domain = signer.domain;
   let state = initialProgressionState();
@@ -248,11 +248,11 @@ test('THE REAL REGRESSION FOUND AND CLOSED: a progression event still chains cor
   assert.equal(state.domains[domain].epoch, 1);
 
   // An unrelated, non-progression event becomes the log's sole head —
-  // exactly what recordCommitment() does in real usage. progression.js
+  // exactly what recordCommitment() does in usage. progression.js
   // never even sees it (non-progression events pass through unchanged),
-  // but a REAL event builder must still route parents through
-  // progressionParents(), using the domain's real current head plus its
-  // own real last accepted progression id.
+  // but an event builder must still route parents through
+  // progressionParents(), using the domain's current head plus its
+  // own last accepted progression id.
   const realHeadsAfterAccrual = ['accrual1'];
 
   const p2 = await progressionPayload(signer, 2, p1.vdfOutput);

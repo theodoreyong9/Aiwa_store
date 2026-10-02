@@ -8,7 +8,7 @@ import { createArchiveServer, checkBackup } from '../src/archive-server.js';
 import { pushBackup, fetchBackup, pushToNodes, fetchFromNodes, normalizeNodeUrl } from '../src/archive.js';
 
 // An archive node: holds, per domain, the latest backup (a checkpoint signed by the wallet's own key), and hands it back.
-// A real HTTP server on a local port, real signatures; nothing is stubbed.
+// A HTTP server on a local port, signatures; nothing is stubbed.
 
 async function backupOf(identity, { epoch = 0, createdAt, domain = identity.id } = {}) {
   const state = initialWalletState();
@@ -70,7 +70,7 @@ test('only the owner of a key can write that key\'s backup: forged, altered or f
     const raw = await fetch(`${n.url}/v1/backup`, { method: 'PUT', body: '{nope' });
     assert.equal(raw.status, 400);
     assert.equal(await fetchBackup(n.url, alice.id), null, 'nothing was kept');
-    // and the genuine one still goes in
+    // and the one still goes in
     assert.equal((await pushBackup(n.url, good)).stored, true);
   } finally { n.close(); }
 });

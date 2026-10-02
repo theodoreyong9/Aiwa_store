@@ -4,7 +4,7 @@
 // with the identity derivation). Load-bearing invariant:
 // count(Consume(p)) <= 1, enforced by an idempotent consumed-proof set.
 //
-// Amounts are always real bigint smallest-units.
+// Amounts are always bigint smallest-units.
 
 function assertBigInt(amount, label) {
   if (typeof amount !== 'bigint') throw new Error(`${label} must be a bigint, got ${typeof amount}`);

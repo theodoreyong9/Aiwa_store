@@ -184,7 +184,7 @@ test('witnesses: a history cut short is refused; a witness the baseline already 
   assert.equal(next.ok, true, next.reason);
 });
 
-test('ingestWitnesses keeps a real progression event of another domain, and ignores everything else', async () => {
+test('ingestWitnesses keeps a progression event of another domain, and ignores everything else', async () => {
   const a = await person(); const b = await person();
   const { h: mine } = await withHiddenAction(a);
   const { last } = await withHiddenAction(b);

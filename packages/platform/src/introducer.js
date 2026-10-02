@@ -1,15 +1,15 @@
-// The real, concrete answer to the part of "the bootstrap problem"
+// The concrete answer to the part of "the bootstrap problem"
 // that's actually solvable: once a brand-new peer has its very first
-// real connection — obtained via ANY genuine out-of-band exchange (a
+// connection — obtained via ANY out-of-band exchange (a
 // pasted link, a QR code, in person; see webrtc-transport.js's own
 // createOfferFor/acceptOffer, which deliberately never picks that
 // channel itself) — it can grow the rest of its connections with zero
 // fixed server, zero directory, ever: ask that first peer (a
 // "mediator") to introduce it to one of the mediator's OTHER real
 // peers, exactly the way a person introduces two friends who don't
-// know each other. The mediator relays a real WebRTC offer/answer
+// know each other. The mediator relays a WebRTC offer/answer
 // between the two over its own two already-open data channels — a
-// real, working, automatic substitute for a human manually
+// working, automatic substitute for a human manually
 // copy-pasting a signal blob — after which the two have a genuinely
 // DIRECT connection; the mediator is not in that connection's data
 // path at all once it's done.
@@ -17,15 +17,15 @@
 // HONEST LIMIT: this only ever GROWS an existing connection. The very
 // first connection of a brand-new peer — or the first two peers of a
 // brand-new network, with nobody around yet to mediate — still needs
-// a genuine, real out-of-band exchange. No P2P system of any kind
+// an out-of-band exchange. No P2P system of any kind
 // (BitTorrent's own magnet link, a DHT's bootstrap nodes, Bitcoin's
 // own seed nodes) escapes this; it isn't specific to AIWA, and isn't
 // solved here.
 //
 // Only meaningful with WebrtcTransport (or any transport exposing the
-// same createOfferFor/acceptOffer/completeConnection real signaling
+// same createOfferFor/acceptOffer/completeConnection signaling
 // methods) — a relay-based transport where every peer already shares
-// one room (LoopbackTransport) has no real "introduction" to make.
+// one room (LoopbackTransport) has no "introduction" to make.
 
 const PROTOCOL = 'aiwa-platform-introduction-v1';
 
@@ -40,11 +40,11 @@ export class Introducer {
   constructor({ transport }) {
     this.transport = transport;
     this._requests = new Map(); // sessionId -> { resolve, reject } — our own pending requestIntroduction() calls
-    this._mediating = new Map(); // sessionId -> { a, b } — two real peer ids we're relaying between, as a mediator
+    this._mediating = new Map(); // sessionId -> { a, b } — two peer ids we're relaying between, as a mediator
     this._roles = new Map(); // sessionId -> { role, peerId } — our own role when WE are one of the two being introduced
-    // Two independent real connections (mediator<->A, mediator<->P) give
+    // Two independent connections (mediator<->A, mediator<->P) give
     // no cross-channel delivery-order guarantee: an INTRO_RELAY can
-    // genuinely arrive here before the INTRO_ASSIGN that explains it.
+    // arrive here before the INTRO_ASSIGN that explains it.
     // Buffered here until the matching ASSIGN tells us what to do with it.
     this._bufferedRelays = new Map(); // sessionId -> { from, payload }
   }
@@ -58,9 +58,9 @@ export class Introducer {
   }
 
   /**
-   * Asks `mediatorPeerId` (an existing, real, currently-open peer) to
-   * introduce us to one of ITS other real peers. Resolves with the new
-   * peer's real id once a genuinely direct connection is established;
+   * Asks `mediatorPeerId` (an existing, currently-open peer) to
+   * introduce us to one of ITS other peers. Resolves with the new
+   * peer's id once a direct connection is established;
    * rejects if the mediator has nobody new to offer, or the real
    * connection attempt itself fails.
    */
@@ -99,7 +99,7 @@ export class Introducer {
         }
         return;
       }
-      // role === 'answerer': the real offer normally arrives next, via
+      // role === 'answerer': the offer normally arrives next, via
       // INTRO_RELAY — but it may already have (see this._bufferedRelays).
       const buffered = this._bufferedRelays.get(msg.sessionId);
       if (buffered) {
@@ -110,7 +110,7 @@ export class Introducer {
     }
 
     if (msg.type === 'INTRO_RELAY') {
-      // We are the mediator: forward verbatim to the OTHER real participant in this session.
+      // We are the mediator: forward verbatim to the OTHER participant in this session.
       const pair = this._mediating.get(msg.sessionId);
       if (pair) {
         const other = pair.a === peerId ? pair.b : pair.a;
@@ -118,7 +118,7 @@ export class Introducer {
         return;
       }
       // We are one of the two being introduced. If our own INTRO_ASSIGN
-      // (a different real connection) hasn't arrived yet, buffer this —
+      // (a different connection) hasn't arrived yet, buffer this —
       // no ordering is guaranteed across two independent connections.
       if (!this._roles.has(msg.sessionId)) {
         this._bufferedRelays.set(msg.sessionId, { payload: msg.payload });

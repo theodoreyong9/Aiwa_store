@@ -1,9 +1,9 @@
-// A real, nested/graph-shaped Materializer for aiwa-core's own
+// A nested/graph-shaped Materializer for aiwa-core's own
 // Materializer contract ({initialState, apply}) — the flat-KV
-// defaultKvMaterializer covers one real field per key; this covers many
-// real fields per node, where a field's own value can be a real
+// defaultKvMaterializer covers one field per key; this covers many
+// fields per node, where a field's own value can be a real
 // reference to another node's id, resolved by the reader, never
-// eagerly denormalized. The same real principle GUN's own "soul"
+// eagerly denormalized. The same principle GUN's own "soul"
 // references use — built on aiwa-core's own event/materializer
 // contract, not a bespoke one.
 
@@ -29,6 +29,6 @@ export const graphMaterializer = {
       const { [field]: _removed, ...rest } = existing;
       return { nodes: { ...state.nodes, [node]: rest } };
     }
-    return state; // a real, unrecognized event type is a real no-op here, never an error
+    return state; // a unrecognized event type is a no-op here, never an error
   },
 };

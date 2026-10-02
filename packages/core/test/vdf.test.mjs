@@ -25,14 +25,14 @@ test('a different seed produces a different chain for the same iteration count',
   assert.notEqual(out1, out2);
 });
 
-test('a different iteration count produces a different output for the same seed — genuinely sequential', async () => {
+test('a different iteration count produces a different output for the same seed — sequential', async () => {
   const seed = vdfSeed('d', 'genesis');
   const out500 = await computeVdfChain(seed, 500);
   const out501 = await computeVdfChain(seed, 501);
   assert.notEqual(out500, out501);
 });
 
-test('verifyVdfChain accepts a genuinely computed chain', async () => {
+test('verifyVdfChain accepts a computed chain', async () => {
   const seed = vdfSeed('d', 'genesis');
   const out = await computeVdfChain(seed, 500);
   assert.equal(await verifyVdfChain(seed, 500, out), true);
@@ -61,7 +61,7 @@ test('verifyVdfChain rejects malformed claimed output without throwing', async (
   assert.equal(await verifyVdfChain(seed, 500, 123), false);
 });
 
-test('epoch-to-epoch chaining: a later seed genuinely depends on the earlier output', async () => {
+test('epoch-to-epoch chaining: a later seed depends on the earlier output', async () => {
   const epoch1Output = await computeVdfChain(vdfSeed('d', 'genesis'), 500);
   const epoch2Seed = vdfSeed('d', epoch1Output);
   const wrongEpoch2Seed = vdfSeed('d', 'f'.repeat(64));

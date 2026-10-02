@@ -6,7 +6,7 @@
 // built to avoid.
 //
 // Computed in Q128 fixed-point BigInt (fixed-point-math.js), not
-// Math.log/Math.pow — reward() output funds a real, on-chain AIWA claim
+// Math.log/Math.pow — reward() output funds an on-chain AIWA claim
 // (see accrual.js), and IEEE 754 never guarantees Math.log/Math.pow agree
 // bit-for-bit between two different runtimes the way +,-,*,/ do. See
 // fixed-point-math.js's own header for the full reasoning. rewardFixed()

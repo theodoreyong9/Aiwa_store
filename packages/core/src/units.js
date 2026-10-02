@@ -1,10 +1,8 @@
-// 18-decimal fixed-point AIWA amounts. Always bigint smallest units,
-// never a float. Conversion is string-based, never float multiplication.
+// AIWA amounts: bigint base units, 18 decimals, never a float. Conversions go through strings.
 
 import { SCALE } from './fixed-point-math.js';
 
 export const DECIMALS = 18;
-const UNIT = 10n ** BigInt(DECIMALS);
 
 export function toUnits(amount, decimals = DECIMALS) {
   const str = typeof amount === 'string' ? amount.trim() : String(amount);
@@ -33,23 +31,14 @@ export function fromUnits(units, decimals = DECIMALS) {
   return negative && abs > 0n ? `-${body}` : body;
 }
 
-// Converts a float (e.g. a reward formula output) via its own true
-// fixed-decimal string, never via direct multiplication — that would
-// silently overflow Number.MAX_SAFE_INTEGER for realistic values.
+/** A float through its own fixed-decimal string (multiplying would overflow Number.MAX_SAFE_INTEGER for realistic values). */
 export function fromFloat(value, decimals = DECIMALS) {
   if (!Number.isFinite(value)) throw new Error(`Non-finite value: ${value}`);
   if (Math.abs(value) >= 1e21) throw new Error(`Value too large: ${value}`);
   return toUnits(value.toFixed(decimals), decimals);
 }
 
-// A Q128 fixed-point value (fixed-point-math.js's own Fixed — see
-// reward.js's rewardFixed) straight to base units: one BigInt multiply,
-// one truncating divide, never a float in between. This is what
-// accrual.js's own real claim path uses instead of fromFloat(reward(...)):
-// rewardFixed()'s whole point is a cross-runtime-reproducible BigInt
-// result, and routing it through a JS Number first (fromFloat's own
-// value.toFixed(decimals)) would reintroduce exactly the kind of
-// non-guaranteed rounding step that exists to avoid.
+/** A Q128 fixed-point value to base units: one multiply, one truncating divide, no float in between (the claim path needs the reproducible result). */
 export function fixedToUnits(fixedValue, decimals = DECIMALS) {
   if (typeof fixedValue !== 'bigint') throw new Error(`Expected bigint, got ${typeof fixedValue}`);
   if (fixedValue < 0n) throw new Error(`fixedToUnits: negative value ${fixedValue}`);

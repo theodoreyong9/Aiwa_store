@@ -23,11 +23,11 @@ async function realAttestation(originKeypair, originDomain, targetDomain) {
   return { issuance, binding };
 }
 
-test('MIN_INDEPENDENT_ROOTS is the real, documented minimum of two', () => {
+test('MIN_INDEPENDENT_ROOTS is the documented minimum of two', () => {
   assert.equal(MIN_INDEPENDENT_ROOTS, 2);
 });
 
-test('a real, complete attestation verifies', async () => {
+test('a complete attestation verifies', async () => {
   const origin = makeKeypair();
   const originDomain = await deriveId(origin.publicKey.toBytes());
   const attestation = await realAttestation(origin, originDomain, 'target-domain');
@@ -61,14 +61,14 @@ test('SECURITY: a forged binding (wrong hardware root signature) is rejected', a
   assert.equal(await verifyHardwareAttestation({ issuance, binding: forgedBinding }, 'target-domain'), false);
 });
 
-test('SECURITY: THE REAL BOUNDARY — a single, real, fully valid attestation is NOT enough', async () => {
+test('SECURITY: THE BOUNDARY — a single, fully valid attestation is NOT enough', async () => {
   const origin = makeKeypair();
   const originDomain = await deriveId(origin.publicKey.toBytes());
   const one = await realAttestation(origin, originDomain, 'target-domain');
   assert.equal(await isIndependenceAttested([one], 'target-domain'), false, 'one real root must never pass the gate — the whole point of requiring two');
 });
 
-test('two real, distinct, fully valid attestations DO pass the gate', async () => {
+test('two distinct, fully valid attestations DO pass the gate', async () => {
   const origin = makeKeypair();
   const originDomain = await deriveId(origin.publicKey.toBytes());
   const a = await realAttestation(origin, originDomain, 'target-domain');

@@ -19,7 +19,7 @@ function makeSigner() {
   return { seed, pubkeyBytes };
 }
 
-// A shared, real signer for the domain nearly every test below commits
+// A shared, signer for the domain nearly every test below commits
 // capital to and claims from — signing is required (see accrual.js's
 // own header) but doesn't need to vary per test, since each test starts
 // from its own fresh initialAccrualState().
@@ -36,7 +36,7 @@ async function claim(state, amount, { id, parents = [] } = {}) {
   return applyAccrualEvent(rewardParams, state, { id, parents, payload: { type: 'claim', ...signed } });
 }
 
-// forDomain is always the shared `domain` above in every real call site
+// forDomain is always the shared `domain` above in every call site
 // here, so domainSigner is really the correct — and only — signer able
 // to produce a progression event that verifies for it.
 async function advanceEpochs(state, forDomain, count) {
@@ -72,7 +72,7 @@ test('a second accrual event REPLACES the position (last-action mining): what mi
   assert.equal(state.positions[domain].b, 5);
 });
 
-test('THE REAL FIX, VERIFIED ON A SECOND BURN: a later accrual event on an already-matured position resets the patience clock too, not just the first one', async () => {
+test('THE FIX, VERIFIED ON A SECOND BURN: a later accrual event on an already-matured position resets the patience clock too, not just the first one', async () => {
   let state = await advanceEpochs(initialAccrualState(), domain, 10);
   state = await accrue(state, 5, { id: 'a1' });
   assert.equal(state.positions[domain].lastActionEpoch, 10);
@@ -86,14 +86,14 @@ test('THE REAL FIX, VERIFIED ON A SECOND BURN: a later accrual event on an alrea
   assert.equal(claimableNow(rewardParams, state, domain), 0n, 'claimable must drop back to zero right after the second burn too — t genuinely resets every time, not only once');
 });
 
-test('claimableNow reflects real, positive reward once epochs have passed since the position opened', async () => {
+test('claimableNow reflects positive reward once epochs have passed since the position opened', async () => {
   let state = await advanceEpochs(initialAccrualState(), domain, 5);
   state = await accrue(state, 10, { id: 'a1' });
   state = await advanceEpochs(state, domain, 5);
   assert.ok(claimableNow(rewardParams, state, domain) > 0n);
 });
 
-test('a claim debits real bigint balance up to what is currently claimable', async () => {
+test('a claim debits bigint balance up to what is currently claimable', async () => {
   let state = await advanceEpochs(initialAccrualState(), domain, 5);
   state = await accrue(state, 10, { id: 'a1' });
   state = await advanceEpochs(state, domain, 5);
@@ -112,7 +112,7 @@ test('SECURITY: a claim larger than what is currently claimable is rejected', as
   assert.equal(state.rejections.length, 1);
 });
 
-test('THE REAL FIX: claiming resets the patience clock — claimableNow drops right after a claim, at the same real epoch', async () => {
+test('THE FIX: claiming resets the patience clock — claimableNow drops right after a claim, at the same epoch', async () => {
   let state = await advanceEpochs(initialAccrualState(), domain, 5);
   state = await accrue(state, 10, { id: 'a1' });
   state = await advanceEpochs(state, domain, 10);
@@ -126,7 +126,7 @@ test('THE REAL FIX: claiming resets the patience clock — claimableNow drops ri
   assert.ok(claimableRightAfter < claimableBefore, 'the clock must reset — at the identical real epoch, claiming again should yield far less');
 });
 
-test('THE REAL FIX, VERIFIED ON A SECOND CLAIM: claiming a second time, well after the first, resets the patience clock again from that real, current epoch — never from the first claim', async () => {
+test('THE FIX, VERIFIED ON A SECOND CLAIM: claiming a second time, well after the first, resets the patience clock again from that current epoch — never from the first claim', async () => {
   let state = await advanceEpochs(initialAccrualState(), domain, 5);
   state = await accrue(state, 10, { id: 'a1' });
   state = await advanceEpochs(state, domain, 10);
@@ -144,7 +144,7 @@ test('THE REAL FIX, VERIFIED ON A SECOND CLAIM: claiming a second time, well aft
   assert.equal(claimableNow(rewardParams, state, domain), 0n, 'claimable must drop back to zero right after the second claim too');
 });
 
-test('SECURITY, THE REAL BUG FOUND AND FIXED: no payload field can fabricate an early reference epoch', async () => {
+test('SECURITY, THE BUG FOUND AND FIXED: no payload field can fabricate an early reference epoch', async () => {
   let state = await advanceEpochs(initialAccrualState(), domain, 5);
   const signed = await buildSignedAccrualEvent({ domain, b: 10 }, domainSigner.seed, domainSigner.pubkeyBytes);
   state = await applyAccrualEvent(rewardParams, state, { id: 'a1', parents: [], payload: { type: 'accrual', ...signed, q0: -99999 } });
@@ -171,7 +171,7 @@ test('genesis and other non-economic events pass through unchanged', async () =>
   assert.deepEqual(state, initialAccrualState());
 });
 
-test('materializeAccrual folds a real sequence end to end', async () => {
+test('materializeAccrual folds a sequence end to end', async () => {
   const events = [];
   let previousOutput = 'genesis';
   let lastId = null;
@@ -191,12 +191,12 @@ test('materializeAccrual folds a real sequence end to end', async () => {
   assert.equal(finalState.positions[domain].b, 10);
 });
 
-test('SECURITY: an accrual event naming a domain the real signer does not control is rejected', async () => {
+test('SECURITY: an accrual event naming a domain the signer does not control is rejected', async () => {
   const victim = makeSigner();
   const victimId = await deriveId(victim.pubkeyBytes);
   const attacker = makeSigner();
 
-  // The attacker signs for real, but names the victim's domain instead of their own.
+  // The attacker signs for but names the victim's domain instead of their own.
   const forged = await buildSignedAccrualEvent({ domain: victimId, b: 1000 }, attacker.seed, attacker.pubkeyBytes);
   const state = await applyAccrualEvent(rewardParams, initialAccrualState(), { id: 'a1', parents: [], payload: { type: 'accrual', ...forged } });
 
@@ -204,7 +204,7 @@ test('SECURITY: an accrual event naming a domain the real signer does not contro
   assert.equal(state.rejections.length, 1);
 });
 
-test('SECURITY: a claim event naming a domain the real signer does not control is rejected — this is the real, narrow griefing vector the signature check closes', async () => {
+test('SECURITY: a claim event naming a domain the signer does not control is rejected — this is the narrow griefing vector the signature check closes', async () => {
   let state = await advanceEpochs(initialAccrualState(), domain, 10);
   state = await accrue(state, 10, { id: 'a1' });
   state = await advanceEpochs(state, domain, 10);
@@ -212,9 +212,9 @@ test('SECURITY: a claim event naming a domain the real signer does not control i
   assert.ok(claimableBefore > 0n);
   const positionBefore = state.positions[domain];
 
-  // An attacker with no relationship to `domain` signs a real claim
+  // An attacker with no relationship to `domain` signs a claim
   // naming it anyway — before this check existed, this was honored
-  // exactly as if the real owner had submitted it, silently resetting
+  // exactly as if the owner had submitted it, silently resetting
   // their patience clock without consent.
   const attacker = makeSigner();
   const forged = await buildSignedClaimEvent({ domain, amount: fromUnits(claimableBefore), claimId: 'stolen-claim' }, attacker.seed, attacker.pubkeyBytes);

@@ -57,7 +57,7 @@ test('fixedToUnits converts a Q128 fixed-point value straight to base units, exa
   assert.equal(fixedToUnits(0n), 0n);
 });
 
-test('fixedToUnits agrees with fromFloat within double precision — the two take genuinely different rounding paths (truncating BigInt division vs toFixed\'s round-to-nearest) below the 18th decimal, so this checks the value they both actually mean, not bit-for-bit string equality that far down', () => {
+test('fixedToUnits agrees with fromFloat within double precision — the two take different rounding paths (truncating BigInt division vs toFixed\'s round-to-nearest) below the 18th decimal, so this checks the value they both actually mean, not bit-for-bit string equality that far down', () => {
   const fixed = numberToFixed(123456.789);
   assert.equal(format(fixedToUnits(fixed), 8), format(fromFloat(123456.789), 8));
 });

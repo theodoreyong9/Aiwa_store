@@ -5,13 +5,13 @@
 // X's key can sign. So an observation is a PROOF that X got at least that far, not a vote on where X is.
 // Three consequences, none of which needs a weight:
 //
-//  - lowerBound: the highest epoch of X that any observer provably received. One honest observer is
-//    enough to establish it; any number of observers who saw less cannot lower it, and nobody can raise
-//    it — only X produces new evidence about X.
-//  - contradiction: if X reports an epoch BELOW that bound, X contradicts its own signed history. The
-//    evidence is the witnessing event, checkable by anyone.
-//  - fork: two progression events of X held by observers, neither an ancestor of the other, are two
-//    histories of X from one identity (a progression must chain to the last accepted one). Also provable.
+// - lowerBound: the highest epoch of X that any observer provably received. One honest observer is
+// enough to establish it; any number of observers who saw less cannot lower it, and nobody can raise
+// it — only X produces new evidence about X.
+// - contradiction: if X reports an epoch BELOW that bound, X contradicts its own signed history. The
+// evidence is the witnessing event, checkable by anyone.
+// - fork: two progression events of X held by observers, neither an ancestor of the other, are two
+// histories of X from one identity (a progression must chain to the last accepted one). Also provable.
 //
 // Every progression event it relies on is re-checked (`isAuthentic`, by default the signature check of
 // progression.js: signed by the key whose id is the domain). An event that fails is dropped and reported in
@@ -19,18 +19,18 @@
 // to X but forged by someone else, admitted by a log that did not check, raised the bound for free.
 //
 // What it cannot do — stated rather than hidden:
-//  - It gives no UPPER bound. A domain that progressed offline is legitimately ahead of everything any
-//    observer saw; `ahead` reports how far, and does not call it wrong.
-//  - It is only as fresh as the freshest observer who really received something. Observers can carry
-//    evidence or withhold it; they cannot forge it.
-//  - It says nothing about whether observers are distinct actors. `observers` counts distinct identities and
-//    is informational only — a coalition inflates it for free. Independence is a separate question.
-//  - By default it checks the signature on the progression event, not its sequential (VDF) proof; the
-//    chain check (replayProgression) does both, and assessPosition uses it whenever the reader holds the
-//    domain's history from epoch 1.
+// - It gives no UPPER bound. A domain that progressed offline is legitimately ahead of everything any
+// observer saw; `ahead` reports how far, and does not call it wrong.
+// - It is only as fresh as the freshest observer who really received something. Observers can carry
+// evidence or withhold it; they cannot forge it.
+// - It says nothing about whether observers are distinct actors. `observers` counts distinct identities and
+// is informational only — a coalition inflates it for free. Independence is a separate question.
+// - By default it checks the signature on the progression event, not its sequential (VDF) proof; the
+// chain check (replayProgression) does both, and assessPosition uses it whenever the reader holds the
+// domain's history from epoch 1.
 //
 // Status: EXPERIMENTAL. Exercised on the synthetic worlds of experiments/triangulation-scenarios.mjs, not on
-// real networks.
+// networks.
 
 import { verifyProgressionAuthorization, applyProgressionEvent, initialProgressionState } from './progression.js';
 
@@ -80,9 +80,9 @@ function isAncestor(byId, ancestorId, descendantId) {
 }
 
 /**
- * Replays `domain`'s progression events through the real reducer (applyProgressionEvent: epoch + 1, chained to the
+ * Replays `domain`'s progression events through the reducer (applyProgressionEvent: epoch + 1, chained to the
  * last accepted transition, signed by the domain's key, sequential proof verified) and says which were ACCEPTED.
- * An event that only carries a genuine signature — e.g. one the domain signed itself, far ahead, with no
+ * An event that only carries a signature — e.g. one the domain signed itself, far ahead, with no
  * sequential work — is rejected here, as it is by anyone who verifies.
  * `genesis` is true when the reader holds the chain from epoch 1: without it nothing can be chained, so nothing
  * would be accepted, and the caller should not read that as "everything is forged".
@@ -127,7 +127,7 @@ export async function authenticEvents(orderedEvents, domain, isAuthentic = defau
  * @param {string} targetDomain
  * @param {{ isAuthentic?: (progressionEvent: object) => boolean | Promise<boolean> }} [options]
  * @returns {Promise<{ lowerBound: number, witnesses: object[], views: object[], observers: number, forks: Array<{ a: string, b: string }>, rejected: string[] } | null>}
- *   null when no observer has provably received anything of the target.
+ * null when no observer has provably received anything of the target.
  */
 export async function triangulate(mirrorState, orderedEvents, targetDomain, { isAuthentic = defaultIsAuthentic } = {}) {
   const byId = new Map(orderedEvents.map((event) => [event.id, event]));

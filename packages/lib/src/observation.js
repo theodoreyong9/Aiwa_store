@@ -5,8 +5,8 @@
 // signed a reception commitment when peers synced, and the wallet never rebuilt Mirror state. This file is that
 // missing half:
 //
-//   readWorld(log)            the log, read as core's reducers want it: the events and the Mirror state
-//   observations(world, me)   what `me` could honestly commit to having received, per foreign domain
+// readWorld(log) the log, read as core's reducers want it: the events and the Mirror state
+// observations(world, me) what `me` could honestly commit to having received, per foreign domain
 //
 // AIWA.observe() signs those as 'reception' events; AIWA.position() hands the world to assessPosition.
 //

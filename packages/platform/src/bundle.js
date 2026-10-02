@@ -1,4 +1,4 @@
-// Publishing a real, multi-file application bundle (an entire app —
+// Publishing a multi-file application bundle (an entire app —
 // index.html, css/, js/ — not just one contract's source string, the
 // way aiwa-core's own contract-registry.js does for a single file) as
 // verifiable, content-addressed AIWA events, so a peer can receive,
@@ -8,22 +8,22 @@
 // Two kinds of event, deliberately different in shape:
 //
 // - `bundle.file`: one per file, PARENTLESS and createdAt=0 on
-//   purpose. A file's own bytes don't causally depend on when or by
-//   whom they were published — only their content does, and content
-//   addressing already captures that. Fixing createdAt removes the
-//   one real source of non-determinism event.js's own id computation
-//   would otherwise have, so publishing the SAME file content again
-//   (an unchanged file across two app versions) yields the identical
-//   event id and is a real no-op (`EventLog.append`'s own dedup) —
-//   never retransmitted or restored twice. HONEST LIMIT: this only
-//   dedups a byte-identical file; a one-byte change is a wholly new
-//   event, same as any other content-addressed store.
-// - `bundle.manifest`: the real, signed, timestamped "domain X
-//   publishes app version Y, consisting of these exact files"
-//   statement. Its parents are every real file event it references
-//   PLUS the domain's own prior heads, so `EventLog.head()` naturally
-//   resolves to the latest manifest and `since()` naturally computes
-//   the minimal real update between two versions.
+// purpose. A file's own bytes don't causally depend on when or by
+// whom they were published — only their content does, and content
+// addressing already captures that. Fixing createdAt removes the
+// one source of non-determinism event.js's own id computation
+// would otherwise have, so publishing the SAME file content again
+// (an unchanged file across two app versions) yields the identical
+// event id and is a no-op (`EventLog.append`'s own dedup) —
+// never retransmitted or restored twice. HONEST LIMIT: this only
+// dedups a byte-identical file; a one-byte change is a wholly new
+// event, same as any other content-addressed store.
+// - `bundle.manifest`: the signed, timestamped "domain X
+// publishes app version Y, consisting of these exact files"
+// statement. Its parents are every file event it references
+// PLUS the domain's own prior heads, so `EventLog.head()` naturally
+// resolves to the latest manifest and `since()` naturally computes
+// the minimal update between two versions.
 
 import { createEvent } from 'aiwa-core';
 
@@ -54,13 +54,13 @@ export async function publishBundle(identity, log, domain, { name, version, file
 }
 
 /**
- * Reconstructs a real, published bundle from its manifest event id —
- * every file's own real content, keyed by path. Every event involved
+ * Reconstructs a published bundle from its manifest event id —
+ * every file's own content, keyed by path. Every event involved
  * was already cryptographically verified on `EventLog.append()`
  * (content-addressing + signature) — this function only reassembles,
  * it never re-verifies.
  *
- * @returns {Promise<{ name: string, version: string, files: Record<string, string> } | null>} null if the manifest (or any file it references) isn't in `log` yet — a real, honest "not fully synced", never a partial or corrupted result.
+ * @returns {Promise<{ name: string, version: string, files: Record<string, string> } | null>} null if the manifest (or any file it references) isn't in `log` yet — a honest "not fully synced", never a partial or corrupted result.
  */
 export async function readBundle(log, manifestEventId) {
   const manifestEvent = await log.get(manifestEventId);
@@ -76,7 +76,7 @@ export async function readBundle(log, manifestEventId) {
   return { name, version, files };
 }
 
-/** The real, current published version for a domain — the manifest event among the log's own heads, or null if none has been published yet. Throws if more than one manifest head exists (a real fork — the caller must resolve which to trust, never silently picked for them). */
+/** The current published version for a domain — the manifest event among the log's own heads, or null if none has been published yet. Throws if more than one manifest head exists (a fork — the caller must resolve which to trust, never silently picked for them). */
 export async function latestBundle(log, domain) {
   const heads = await log.head();
   const manifests = [];
@@ -90,8 +90,8 @@ export async function latestBundle(log, domain) {
 }
 
 /**
- * Every real, published version whose manifest was really signed by
- * `author` — "find published code by its creator's real address"
+ * Every published version whose manifest was really signed by
+ * `author` — "find published code by its creator's address"
  * needs no new protocol: every event's `author` is already a real,
  * cryptographically verified field (aiwa-core's own event.js), so this
  * just scans for it. Returns manifest SUMMARIES (domain, name,
@@ -99,7 +99,7 @@ export async function latestBundle(log, domain) {
  * caller resolves whichever ones it actually wants to open via
  * readBundle()/latestBundle(). Every version this author ever
  * published is included, not just the current head per domain — a
- * real publish history, not a directory of "latest only"; the caller
+ * publish history, not a directory of "latest only"; the caller
  * decides what "current" means for its own listing.
  */
 export async function listBundlesByAuthor(log, author) {

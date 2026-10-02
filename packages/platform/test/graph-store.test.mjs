@@ -5,14 +5,14 @@ import { issueCapability, verifyCapability, CapabilitySet } from '../src/capabil
 import { GraphStore } from '../src/graph-store.js';
 import { ref, isRef } from '../src/graph-materializer.js';
 
-test('put/get round-trips a real field on a node', async () => {
+test('put/get round-trips a field on a node', async () => {
   const identity = await generateIdentity();
   const store = new GraphStore({ identity, domain: 'sphere-1', log: new EventLog() });
   await store.put('alice', 'name', 'Alice');
   assert.equal(await store.get('alice', 'name'), 'Alice');
 });
 
-test('a node accumulates multiple real fields across separate puts', async () => {
+test('a node accumulates multiple fields across separate puts', async () => {
   const identity = await generateIdentity();
   const store = new GraphStore({ identity, domain: 'sphere-1', log: new EventLog() });
   await store.put('alice', 'name', 'Alice');
@@ -20,7 +20,7 @@ test('a node accumulates multiple real fields across separate puts', async () =>
   assert.deepEqual(store.node('alice'), { name: 'Alice', age: 30 });
 });
 
-test('unset removes exactly the one real field, others untouched', async () => {
+test('unset removes exactly the one field, others untouched', async () => {
   const identity = await generateIdentity();
   const store = new GraphStore({ identity, domain: 'sphere-1', log: new EventLog() });
   await store.put('alice', 'name', 'Alice');
@@ -29,7 +29,7 @@ test('unset removes exactly the one real field, others untouched', async () => {
   assert.deepEqual(store.node('alice'), { name: 'Alice' });
 });
 
-test('has() reflects the real, current presence of a field', async () => {
+test('has() reflects the current presence of a field', async () => {
   const identity = await generateIdentity();
   const store = new GraphStore({ identity, domain: 'sphere-1', log: new EventLog() });
   assert.equal(await store.has('alice', 'name'), false);
@@ -39,12 +39,12 @@ test('has() reflects the real, current presence of a field', async () => {
   assert.equal(await store.has('alice', 'name'), false);
 });
 
-test('a node with no real fields yet is an empty object, never undefined', () => {
+test('a node with no fields yet is an empty object, never undefined', () => {
   const store = new GraphStore({ identity: null, domain: 'sphere-1', log: new EventLog() });
   assert.deepEqual(store.node('ghost'), {});
 });
 
-test('THE REAL GRAPH PROPERTY: a field holding a real reference resolves to the referenced node\'s own full field map', async () => {
+test('THE GRAPH PROPERTY: a field holding a reference resolves to the referenced node\'s own full field map', async () => {
   const identity = await generateIdentity();
   const store = new GraphStore({ identity, domain: 'sphere-1', log: new EventLog() });
   await store.put('bob', 'name', 'Bob');
@@ -55,14 +55,14 @@ test('THE REAL GRAPH PROPERTY: a field holding a real reference resolves to the 
   assert.deepEqual(resolved, { name: 'Bob', company: 'Acme' });
 });
 
-test('isRef distinguishes a real reference from an ordinary value', () => {
+test('isRef distinguishes a reference from an ordinary value', () => {
   assert.equal(isRef(ref('bob')), true);
   assert.equal(isRef('bob'), false);
   assert.equal(isRef({ name: 'bob' }), false);
   assert.equal(isRef(null), false);
 });
 
-test('nodeIds lists every real node with at least one real field', async () => {
+test('nodeIds lists every node with at least one field', async () => {
   const identity = await generateIdentity();
   const store = new GraphStore({ identity, domain: 'sphere-1', log: new EventLog() });
   await store.put('alice', 'name', 'Alice');
@@ -70,7 +70,7 @@ test('nodeIds lists every real node with at least one real field', async () => {
   assert.deepEqual((await store.nodeIds()).sort(), ['alice', 'bob']);
 });
 
-test('rebuild() reconstructs the identical real graph state from the EventLog alone', async () => {
+test('rebuild() reconstructs the identical graph state from the EventLog alone', async () => {
   const identity = await generateIdentity();
   const log = new EventLog();
   const store = new GraphStore({ identity, domain: 'sphere-1', log });
@@ -84,7 +84,7 @@ test('rebuild() reconstructs the identical real graph state from the EventLog al
   assert.deepEqual(rebuilt.node('bob'), store.node('bob'));
 });
 
-test('subscribe() fires with the real, current state on every real write', async () => {
+test('subscribe() fires with the current state on every write', async () => {
   const identity = await generateIdentity();
   const store = new GraphStore({ identity, domain: 'sphere-1', log: new EventLog() });
   const seen = [];
@@ -108,13 +108,13 @@ test('SECURITY: an ungated GraphStore (no capabilities passed) allows any write 
   assert.equal(await store.get('alice', 'name'), 'Alice');
 });
 
-test('a capability-gated GraphStore refuses a write with no real grant', async () => {
+test('a capability-gated GraphStore refuses a write with no grant', async () => {
   const identity = await generateIdentity();
   const store = new GraphStore({ identity, domain: 'sphere-1', log: new EventLog(), capabilities: new CapabilitySet() });
   await assert.rejects(store.put('alice', 'name', 'Alice'), /Write refused/);
 });
 
-test('a capability-gated GraphStore accepts a write covered by a real, verified grant', async () => {
+test('a capability-gated GraphStore accepts a write covered by a verified grant', async () => {
   const issuer = await generateIdentity();
   const writer = await generateIdentity();
   const capability = await issueCapability(issuer, { resource: 'sphere-1:alice.name', actions: ['write'], subject: writer.id });

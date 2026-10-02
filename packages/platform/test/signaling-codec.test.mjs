@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeSignal, decodeSignal } from '../src/signaling-codec.js';
 
-test('encode/decode round-trips a real offer', () => {
+test('encode/decode round-trips an offer', () => {
   const blob = encodeSignal('offer', 'alice', 'v=0\r\no=- 123 2 IN IP4 127.0.0.1\r\n');
   const decoded = decodeSignal(blob);
   assert.equal(decoded.kind, 'offer');
@@ -10,7 +10,7 @@ test('encode/decode round-trips a real offer', () => {
   assert.equal(decoded.sdp, 'v=0\r\no=- 123 2 IN IP4 127.0.0.1\r\n');
 });
 
-test('encode/decode round-trips a real answer', () => {
+test('encode/decode round-trips an answer', () => {
   const blob = encodeSignal('answer', 'bob', 'real-sdp-content');
   const decoded = decodeSignal(blob);
   assert.equal(decoded.kind, 'answer');
@@ -36,7 +36,7 @@ test('decodeSignal rejects a missing or empty sdp', () => {
   assert.throws(() => decodeSignal(blob), /missing or empty sdp/);
 });
 
-test('the encoded blob carries no plaintext SDP visible without decoding — real, if minimal, obfuscation against a careless glance', () => {
+test('the encoded blob carries no plaintext SDP visible without decoding — if minimal, obfuscation against a careless glance', () => {
   const blob = encodeSignal('offer', 'alice', 'SECRET-LOOKING-SDP-MARKER');
   assert.ok(!blob.includes('SECRET-LOOKING-SDP-MARKER'));
 });

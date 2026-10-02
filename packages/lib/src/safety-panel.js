@@ -1,20 +1,20 @@
 // The part of a wallet's screen that keeps it from being lost — the same in every app that has an Aiwa wallet, so an app
 // mounts it instead of writing its own:
 //
-//   mountWalletSafety(container, aiwa, { classes, sources, onRestored })
+// mountWalletSafety(container, aiwa, { classes, sources, onRestored })
 //
-//   Recovery phrase   shown only when asked for, hidden again on demand, copyable. Never stored by this library. A wallet
-//                     that came from a raw secret key (a Solana wallet imported as a key) has no phrase: its private
-//                     key is what is shown instead, the same way.
-//   Backup            a small file (the wallet's state, signed by its key) the owner keeps; restoring it brings the
-//                     wallet back after connecting with the same phrase (aiwa.exportBackup / importBackup).
-//   Archive nodes     the addresses of aiwa-platform archive nodes (always-on holders of backups): add one, and the wallet's
-//                     backup is kept there — Back up now, and Restore from the nodes after logging in on a new device.
-//                     The list is saved in the browser (loadArchiveNodes), the same one the wallet's automatic backups use.
-//   Sources           where else a state may come from, which the app provides: `{ label, fetch(aiwa) }`, where fetch
-//                     resolves to `{ backup }` (as exportBackup made it) or `{ state }` (a wallet state, aiwa.adoptState),
-//                     or null when the source holds nothing for this wallet. A registry that keeps what it derived from
-//                     the wallet's submissions is one.
+// Recovery phrase shown only when asked for, hidden again on demand, copyable. Never stored by this library. A wallet
+// that came from a raw secret key (a Solana wallet imported as a key) has no phrase: its private
+// key is what is shown instead, the same way.
+// Backup a small file (the wallet's state, signed by its key) the owner keeps; restoring it brings the
+// wallet back after connecting with the same phrase (aiwa.exportBackup / importBackup).
+// Archive nodes the addresses of aiwa-platform archive nodes (always-on holders of backups): add one, and the wallet's
+// backup is kept there — Back up now, and Restore from the nodes after logging in on a new device.
+// The list is saved in the browser (loadArchiveNodes), the same one the wallet's automatic backups use.
+// Sources where else a state may come from, which the app provides: `{ label, fetch(aiwa) }`, where fetch
+// resolves to `{ backup }` (as exportBackup made it) or `{ state }` (a wallet state, aiwa.adoptState),
+// or null when the source holds nothing for this wallet. A registry that keeps what it derived from
+// the wallet's submissions is one.
 //
 // DOM only, no dependency, nothing but textContent written (a phrase or a message is never parsed as HTML). Styling is
 // minimal and inherits the page's colours; `classes` ({ button, box, note }) lets an app dress it in its own.

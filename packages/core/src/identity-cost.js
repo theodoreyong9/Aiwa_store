@@ -1,4 +1,4 @@
-// Identity activation cost: a real, irrecoverable SOL burn to Solana's
+// Identity activation cost: an irrecoverable SOL burn to Solana's
 // well-known incinerator address. A burn, not a bond: its protection
 // doesn't depend on later enforcement (slashing) ever propagating,
 // which matters for a protocol that must keep working through
@@ -38,11 +38,11 @@ export function verifyBurnProof(tx, { minLamports = 0 } = {}) {
   return { valid: true };
 }
 
-// Accumulates every real, valid burn from a domain — a domain that
-// commits additional real capital later must see its real, total
+// Accumulates every valid burn from a domain — a domain that
+// commits additional capital later must see its total
 // committed capital reflected, exactly like accrual.js's own `b`
 // already does. Each individual burn is still checked against the
-// churn cost curve at its own real slot — a real commitment made
+// churn cost curve at its own slot — a commitment made
 // later in protocol time must still meet whatever the curve requires
 // at that later time, never grandfathered in at the original
 // registration's own, possibly much lower, requirement.
@@ -69,9 +69,9 @@ export function registerIdentityCost(state, { domain, tx, minLamports = 0, now =
         [domain]: {
           domain,
           burnedLamports: totalBurnedLamports,
-          signature: tx.signature, // the most recent contributing signature — every real signature that ever contributed remains individually verifiable via usedSignatures
+          signature: tx.signature, // the most recent contributing signature — every signature that ever contributed remains individually verifiable via usedSignatures
           registeredAt: prior?.registeredAt ?? now, // when this domain FIRST proved identity cost — never moves on a later, additional burn
-          slot: prior?.slot ?? (tx.slot ?? null), // the same real, original registration slot
+          slot: prior?.slot ?? (tx.slot ?? null), // the same original registration slot
         },
       },
       usedSignatures: { ...state.usedSignatures, [tx.signature]: true },

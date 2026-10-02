@@ -8,7 +8,7 @@ import { RSA_2048_MODULUS } from '../src/wesolowski-vdf.js';
 import { buildSignedProgressionEvent, applyProgressionEvent, initialProgressionState, progressionSeed } from '../src/progression.js';
 import { replayProgression } from '../src/triangulation.js';
 
-// A deployment that fixes the work of one epoch: epochIterations. Small here so the tests are quick; a real one is
+// A deployment that fixes the work of one epoch: epochIterations. Small here so the tests are quick; a one is
 // large (the wallet page uses 300 000).
 const EI = 200;
 const opts = { epochIterations: EI };

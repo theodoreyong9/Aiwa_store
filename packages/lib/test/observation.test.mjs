@@ -57,7 +57,7 @@ test('observe() is idempotent, and follows the other domain forward with increas
   assert.equal((await bob.position(aliceId)).position, 5);
 });
 
-test('a foreign progression event that is not a real step is never cited, and position() reports it as rejected', async () => {
+test('a foreign progression event that is not a step is never cited, and position() reports it as rejected', async () => {
   const { aiwa: alice, id: aliceId } = await wallet();
   const { aiwa: bob } = await wallet();
   const { aiwa: carol } = await wallet();

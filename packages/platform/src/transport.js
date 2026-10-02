@@ -1,17 +1,17 @@
-// The real Transport — knows nothing of profiles, DAGs, AIWA,
-// messages, users, or transactions. Only real bytes, to real peers.
+// The Transport — knows nothing of profiles, DAGs, AIWA,
+// messages, users, or transactions. Only bytes, to peers.
 // No third-party transport is used anywhere
-// in this package — see webrtc-transport.js for the real, relay-free
+// in this package — see webrtc-transport.js for the relay-free
 // WebRTC implementation, and LoopbackTransport below for tests.
 //
-// Every real transport in this package (and any future one — a
+// Every transport in this package (and any future one — a
 // WebSocket relay, LAN discovery, ...) implements the identical, real,
 // five-method contract, so nothing above it (Replicator) ever changes:
-//   connect(), disconnect(), peers(), send(peer, bytes),
-//   broadcast(bytes), onMessage(handler), onPeerJoin(handler),
-//   onPeerLeave(handler)
+// connect(), disconnect(), peers(), send(peer, bytes),
+// broadcast(bytes), onMessage(handler), onPeerJoin(handler),
+// onPeerLeave(handler)
 
-/** A real, in-process, in-memory transport — for real, deterministic tests, never for two real, separate devices. */
+/** An in-process, in-memory transport — for deterministic tests, never for two separate devices. */
 export class LoopbackTransport {
   static _registry = new Map();
 
