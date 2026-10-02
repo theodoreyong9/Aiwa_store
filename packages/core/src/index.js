@@ -6,6 +6,8 @@
 
 export { generateIdentity, identityFromSecretKey, publicIdentity, deriveId, Identity } from './identity.js';
 export { createEvent, verifyEvent, computeEventId } from './event.js';
+export { toHex, fromHex, sha256Hex } from './bytes.js';
+export { signHex, verifyHex } from './signing.js';
 export { EventLog, createMemoryBackend, createIndexedDbBackend } from './event-log.js';
 export { canonicalOrder } from './canonical-order.js';
 export { defaultKvMaterializer } from './materializer.js';
@@ -30,7 +32,7 @@ export { RSA_2048_MODULUS, evaluate as wesolowskiEvaluate, prove as wesolowskiPr
 export { weightedMedian } from './weighted-median.js';
 
 export {
-  generateLightweightKeypair, lightweightKeypairFromSecretKey, deriveKeypairFromPassphrase,
+  generateLightweightKeypair, lightweightKeypairFromSecretKey, lightweightKeypairFromSeed, deriveKeypairFromPassphrase,
   deriveKeypairFromBip39Mnemonic, validateBip39Mnemonic, generateBip39Mnemonic, generateKeypair, keypairFromSecretKey,
   encryptSecretKey, decryptSecretKey, buildBurnTransaction, buildTransferTransaction,
   signAndSerialize, broadcastBurnTransaction, broadcastTransferTransaction, loadSolanaWeb3,

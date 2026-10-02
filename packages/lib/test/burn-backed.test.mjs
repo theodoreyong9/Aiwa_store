@@ -34,7 +34,7 @@ function solana(known) {
 }
 const bundleOf = async (aiwa) => ({ events: await collectAncestors(aiwa.log, await aiwa.log.head()) });
 async function advance(aiwa, times) { for (let i = 0; i < times; i++) await aiwa.advanceProgress({ vdfIterations: VDF_ITERATIONS }); }
-const position = async (reader, domain) => (await reader._materializeWallet()).accrual.positions[domain];
+const position = async (reader, domain) => (await reader.walletState()).accrual.positions[domain];
 
 test('MANDATORY: committing capital with no burn is refused, with the reason — and so nothing accrues', async () => {
   const { aiwa } = await wallet();
@@ -98,14 +98,14 @@ test('quoting someone else\'s burn signature earns nothing — whether or not it
 
   await bob.receiveOfflineBundle(await bundleOf(mallory));
   await bob.confirmBurns(connection);
-  let state = await bob._materializeWallet();
+  let state = await bob.walletState();
   assert.equal(state.accrual.burns.covered[malloryId], undefined);
   assert.ok(state.accrual.rejections.some((r) => /not paid by this domain's own key/.test(r.reason)), 'the binding check is what refuses it');
 
   // and once alice does publish hers, hers counts and mallory's still does not
   await alice.recordBurn('alices', connection);
   await bob.receiveOfflineBundle(await bundleOf(alice));
-  state = await bob._materializeWallet();
+  state = await bob.walletState();
   assert.equal(state.accrual.burns.covered[malloryId], undefined);
   assert.equal(state.accrual.burns.covered[alice.identity.id], 9e9);
 });

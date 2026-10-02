@@ -71,7 +71,7 @@ test('the creator fee is enforced by the registry: a commitment at T > 0 whose b
   const signature = await plain.burn(1e9, connection, { T: 0 });  // 1 SOL, all of it to the incinerator
   const evader = async (T, b) => {
     const wallet = new AIWA({ rewardParams: noFee });
-    await wallet.connect({ secretKeyBytes: plain._keypair.secretKey });
+    await wallet.connect({ secretKeyBytes: plain.keypair.secretKey });
     await wallet.recordBurn(signature, connection);
     await wallet.recordCommitment({ b, T });                         // that wallet accepts it: it asks nothing of the creator
     await wallet.advanceProgress({ epochs: 3 });

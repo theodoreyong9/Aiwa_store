@@ -44,6 +44,12 @@ export async function generateLightweightKeypair() {
   return wrapAsKeypairShape(secretKey32, publicKey32);
 }
 
+/** The keypair of a 32-byte seed. */
+export async function lightweightKeypairFromSeed(seed32) {
+  const { ed25519 } = await import('@noble/curves/ed25519.js');
+  return wrapAsKeypairShape(seed32, ed25519.getPublicKey(seed32));
+}
+
 export async function lightweightKeypairFromSecretKey(secretKeyBytes) {
   const { ed25519 } = await import('@noble/curves/ed25519.js');
   if (secretKeyBytes.length !== 64) throw new Error(`Expected a 64-byte secret key, got ${secretKeyBytes.length}`);

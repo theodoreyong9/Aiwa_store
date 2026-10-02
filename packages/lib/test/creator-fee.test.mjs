@@ -75,10 +75,10 @@ test('a burn that did not pay the creator cannot back a commitment at T > 0 (the
   assert.equal(connection.transactions[signature].transfers.length, 1);
 
   const aiwa = new AIWA({ rewardParams });
-  await aiwa.connect({ secretKeyBytes: plain._keypair.secretKey });
+  await aiwa.connect({ secretKeyBytes: plain.keypair.secretKey });
   await aiwa.recordBurn(signature, connection);
   await assert.rejects(aiwa.recordCommitment({ b: 0.6, T: 0.4 }), /owes the creator 400000 lamports/);
-  assert.equal((await aiwa._materializeWallet()).accrual.rejections.length, 0, 'refused before anything was appended');
+  assert.equal((await aiwa.walletState()).accrual.rejections.length, 0, 'refused before anything was appended');
   await aiwa.recordCommitment({ b: 1, T: 0 });                       // T = 0 owes nothing
   assert.equal((await aiwa.mining()).capital, 1);
 });

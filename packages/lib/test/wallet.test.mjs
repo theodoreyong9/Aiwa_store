@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spendableClaims, EventLog, createMemoryBackend, findLatestCheckpoint } from 'aiwa-core';
 import { LoopbackTransport, publishBundle, readBundle } from 'aiwa-platform';
-import { AIWA, encodeOfflineBundle, decodeOfflineBundle, fromUnits, toUnits } from '../src/wallet.js';
+import { AIWA } from '../src/wallet.js';
+import { encodeOfflineBundle, decodeOfflineBundle } from '../src/offline-bundle.js';
+import { fromUnits, toUnits } from 'aiwa-core';
 
 // The same test economic parameters aiwa-core's own test suite
 // uses (see wallet.test.mjs/accrual.test.mjs there) — a real
@@ -25,7 +27,7 @@ test('connect() derives an identity and a displayable Solana address', async () 
 test('connect() is deterministic from the same secret key bytes', async () => {
   const a = new AIWA({ rewardParams });
   const { address: addr1 } = await a.connect();
-  const secretKeyBytes = a._keypair.secretKey;
+  const secretKeyBytes = a.keypair.secretKey;
 
   const b = new AIWA({ rewardParams });
   const { address: addr2 } = await b.connect({ secretKeyBytes });
@@ -97,7 +99,7 @@ test('advanceProgress() keeps chaining correctly across an intervening recordCom
   await aiwa.advanceProgress({ vdfIterations: VDF_ITERATIONS });
   await aiwa.advanceProgress({ vdfIterations: VDF_ITERATIONS });
 
-  const state = await aiwa._materializeWallet();
+  const state = await aiwa.walletState();
   assert.equal(state.accrual.progression.domains[aiwa.identity.id].epoch, 3, 'must really reach epoch 3 — a stuck reducer would silently cap this at 1');
   assert.equal(state.accrual.progression.rejections.length, 0, 'zero real rejections — a real chain, not a masked one');
 
@@ -228,7 +230,7 @@ test('"sign once, click many times": a Channel sends repeatedly without the root
   await channel.send(third);
   await channel.send(third);
 
-  const state = await aiwa._materializeWallet();
+  const state = await aiwa.walletState();
   const bobClaims = spendableClaims(state, 'bob-id');
   assert.equal(bobClaims.length, 2, 'two real, independent clicks, each its own real delegated transfer');
 });
@@ -292,7 +294,7 @@ test('THE HANDSHAKE: request -> accept -> confirm makes a channel usable, entire
 
   // Now usable.
   await channel.send(claimable);
-  const state = await alice._materializeWallet();
+  const state = await alice.walletState();
   assert.equal(spendableClaims(state, bobId).length, 1);
 });
 
@@ -413,7 +415,7 @@ test('a channel keeps working — balance() AND a split — after the owner\'s r
   await assert.doesNotReject(channel.send(partial));
   await assert.doesNotReject(channel.send(partial));
 
-  const state = await alice._materializeWallet();
+  const state = await alice.walletState();
   const bobClaims = spendableClaims(state, 'bob-id');
   assert.equal(bobClaims.length, 2, 'two real, independent delegated sends, each needing its own real, delegate-signed split — no root key involved for either');
 });
@@ -474,7 +476,7 @@ test('SECURITY: a "only once" property through the wallet API — two wallets, e
     await mergedLog.appendMany(events);
   }
   const merged = new AIWA({ rewardParams, backend: mergedLog.backend });
-  const state = await merged._materializeWallet();
+  const state = await merged.walletState();
 
   const bobGotIt = spendableClaims(state, bobId).length === 1;
   const carolGotIt = spendableClaims(state, carolId).length === 1;
@@ -608,7 +610,7 @@ test('receiveOfflineBundle() works on a disconnected wallet — appending never 
 
   const bob = new AIWA({ rewardParams });
   const bobId = await bob.connect();
-  const bobSecretKeyBytes = bob._keypair.secretKey;
+  const bobSecretKeyBytes = bob.keypair.secretKey;
   await bob.disconnect(); // root key + identity gone from memory
 
   const bundle = await alice.sendOfflineBundle(bobId.identityId, claimable);
@@ -631,7 +633,7 @@ test('a channel can claim currently-claimable value for the owner, through a del
   await assert.doesNotReject(channel.claim(claimable));
   assert.equal(await channel.balance(), claimable, 'the claimed value lands in the real owner\'s own position, spendable through the channel');
 
-  const state = await alice._materializeWallet();
+  const state = await alice.walletState();
   assert.equal(spendableClaims(state, aliceId.identityId).length, 1, 'the real owner (not the channel\'s own session identity) owns the resulting claim');
 });
 
@@ -673,7 +675,7 @@ test('a channel can redeem a bearer voucher for the owner, landing the value in 
 
   await assert.doesNotReject(channel.redeemVoucher(decodeOfflineBundle(blob)));
 
-  const state = await owner._materializeWallet();
+  const state = await owner.walletState();
   assert.equal(spendableClaims(state, ownerId.identityId).length, 1, 'the real owner receives it');
   assert.equal(spendableClaims(state, ownerId.identityId)[0].amount, toUnits(claimable));
   assert.equal(spendableClaims(state, channel.identity.id).length, 0, 'the channel\'s own session identity never actually owns the redeemed value');
@@ -695,16 +697,16 @@ test('channel.log gives access to the same EventLog the owner\'s AIWA instance u
   assert.equal(bundle.files['index.html'], '<html></html>');
 });
 
-test('_materializeWallet() short-circuits to the exact cached object when the log has not changed since the last call — the incremental-materialization fix, not just a correctness re-check', async () => {
+test('walletState() short-circuits to the exact cached object when the log has not changed since the last call — the incremental-materialization fix, not just a correctness re-check', async () => {
   const aiwa = new AIWA({ rewardParams });
   await aiwa.connect();
   await aiwa.recordCommitment({ b: 50 });
-  const first = await aiwa._materializeWallet();
-  const second = await aiwa._materializeWallet();
+  const first = await aiwa.walletState();
+  const second = await aiwa.walletState();
   assert.equal(second, first, 'no new events were appended between the two calls — the cached state object itself must come back, never a freshly recomputed one');
 
   await aiwa.recordCommitment({ b: 25 });
-  const third = await aiwa._materializeWallet();
+  const third = await aiwa.walletState();
   assert.notEqual(third, first, 'a real, new event must invalidate the cache');
   assert.equal(third.accrual.positions[aiwa.identity.id].b, 25, 'a burn replaces the position (last-action mining)');
 });
@@ -742,11 +744,9 @@ test('onMaterializeProgress fires with progress data while folding a non-trivial
 
   const calls = [];
   aiwa.onMaterializeProgress = (current, total) => calls.push([current, total]);
-  aiwa._materializedState = null; // force a full fold instead of the incremental cache hit
-  aiwa._materializedHeads = null;
-  aiwa._coveredIds = new Set();
+  aiwa.ledger.reset(); // force a full fold instead of the incremental cache hit
 
-  await aiwa._materializeWallet();
+  await aiwa.walletState();
   assert.ok(calls.length > 0, 'a real, non-trivial backlog must report at least one real progress tick');
   const [lastCurrent, lastTotal] = calls[calls.length - 1];
   assert.equal(lastCurrent, lastTotal, 'the real, final call must report completion');
@@ -792,7 +792,7 @@ test('a brand-new AIWA instance over the SAME already-pruned backend computes th
 
   // A separate AIWA instance — no shared in-memory cache with `original` — reconnecting over the SAME, now-pruned backend, exactly like a page reload or a brand-new device receiving only the pruned log.
   const reconnected = new AIWA({ rewardParams, backend });
-  await reconnected.connect({ secretKeyBytes: original._keypair.secretKey });
+  await reconnected.connect({ secretKeyBytes: original.keypair.secretKey });
   assert.equal(reconnected.identity.id, identityId.identityId ?? identityId);
   assert.equal(reconnected.address, address);
   assert.equal(await reconnected.balance(), balanceBefore, 'a fresh instance reading a pruned log must recover the identical real balance, via the checkpoint alone for everything before it');

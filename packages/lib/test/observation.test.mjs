@@ -68,7 +68,7 @@ test('a foreign progression event that is not a step is never cited, and positio
   // carol writes an event that claims to be alice's epoch 999 — signed by carol's key, so it cannot be alice's
   const forgedPayload = await buildSignedProgressionEvent(
     { domain: aliceId, epoch: 999, vdfIterations: VDF_ITERATIONS, vdfOutput: 'f'.repeat(64) },
-    carol._keypair.secretKey.slice(0, 32), carol._keypair.publicKey.toBytes(),
+    carol.keypair.secretKey.slice(0, 32), carol.keypair.publicKey.toBytes(),
   );
   const forged = await createEvent(carol.identity, { domain: bob.logDomain, parents: await bob.log.head(), type: 'progression', payload: forgedPayload });
   await bob.log.append(forged); // the envelope verifies — that is all the log checks
@@ -103,7 +103,7 @@ test('a witness weighs what it committed (b, signed into its own position) — a
 
   // carol signs an accrual commitment naming BOB's domain: only bob's own key can commit capital to bob's position
   const forged = await buildSignedAccrualEvent(
-    { domain: bobId, b: 5 }, carol._keypair.secretKey.slice(0, 32), carol._keypair.publicKey.toBytes(),
+    { domain: bobId, b: 5 }, carol.keypair.secretKey.slice(0, 32), carol.keypair.publicKey.toBytes(),
   );
   await bob.log.append(await createEvent(carol.identity, { domain: bob.logDomain, parents: await bob.log.head(), type: 'accrual', payload: forged }));
   assert.equal((await bob.position(aliceId)).estimate, null, "carol's statement gives bob no weight");

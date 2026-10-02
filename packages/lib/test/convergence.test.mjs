@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spendableClaims, EventLog, generateIdentity } from 'aiwa-core';
-import { AIWA, encodeOfflineBundle, decodeOfflineBundle } from '../src/wallet.js';
+import { AIWA } from '../src/wallet.js';
+import { encodeOfflineBundle, decodeOfflineBundle } from '../src/offline-bundle.js';
 import { defineContract, Contract, signedAction, verifySignedAction } from '../src/contract.js';
 
 // Two branches that contradict each other (one voucher redeemed by two people, one token balance spent twice) must have the
@@ -45,7 +46,7 @@ test('the same voucher redeemed twice: every reader picks the same winner, whate
     const log = new EventLog();
     for (const events of order) await log.appendMany(events);
     const reader = new AIWA({ rewardParams, backend: log.backend });
-    winners.add(winnerOf(await reader._materializeWallet(), bobId, carolId));
+    winners.add(winnerOf(await reader.walletState(), bobId, carolId));
   }
   assert.equal(winners.size, 1, 'both merge orders give the same winner');
 });
@@ -55,15 +56,15 @@ test('a reader that folds one arrival at a time (incremental) ends where one tha
 
   const atOnce = new EventLog();
   await atOnce.appendMany([...bobEvents, ...carolEvents]);
-  const expected = winnerOf(await new AIWA({ rewardParams, backend: atOnce.backend })._materializeWallet(), bobId, carolId);
+  const expected = winnerOf(await new AIWA({ rewardParams, backend: atOnce.backend }).walletState(), bobId, carolId);
 
   for (const [first, second] of [[bobEvents, carolEvents], [carolEvents, bobEvents]]) {
     const log = new EventLog();
     const reader = new AIWA({ rewardParams, backend: log.backend });
     await log.appendMany(first);
-    await reader._materializeWallet();          // folded with the first branch only: its redemption won, for now
+    await reader.walletState();          // folded with the first branch only: its redemption won, for now
     await log.appendMany(second);                // the other branch arrives, concurrent with what is folded
-    assert.equal(winnerOf(await reader._materializeWallet(), bobId, carolId), expected, 'the late branch is not simply refused: the order decides, not the arrival');
+    assert.equal(winnerOf(await reader.walletState(), bobId, carolId), expected, 'the late branch is not simply refused: the order decides, not the arrival');
   }
 });
 
@@ -85,9 +86,9 @@ test('many random arrival orders, one event at a time with a fold after each: th
       const next = ready[Math.floor(random() * ready.length)];
       await log.append(next);
       waiting.splice(waiting.indexOf(next), 1);
-      await reader._materializeWallet();
+      await reader.walletState();
     }
-    winners.add(winnerOf(await reader._materializeWallet(), bobId, carolId));
+    winners.add(winnerOf(await reader.walletState(), bobId, carolId));
   }
   assert.equal(winners.size, 1, 'eight different arrival orders, one winner');
 });

@@ -81,7 +81,7 @@ async function renderHistory() {
   for await (const event of aiwa.log.since([])) events.push(event);
   events.sort((a, b) => b.createdAt - a.createdAt);
 
-  const state = await aiwa._materializeWallet();
+  const state = await aiwa.walletState();
   const amountFor = (claimId) => fromUnits(state.conservation.claims[claimId]?.amount ?? 0n);
 
   const rows = [];

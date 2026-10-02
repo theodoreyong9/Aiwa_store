@@ -4,7 +4,10 @@
 // authoring SDK, composed from what those two packages already prove
 // out, never a reimplementation of either.
 
-export { AIWA, Channel, encodeOfflineBundle, decodeOfflineBundle, fromUnits, toUnits, SOLANA_INCINERATOR_ADDRESS } from './wallet.js';
+export { fromUnits, toUnits, SOLANA_INCINERATOR_ADDRESS } from 'aiwa-core';
+export { AIWA } from './wallet.js';
+export { Channel } from './channel.js';
+export { encodeOfflineBundle, decodeOfflineBundle } from './offline-bundle.js';
 export { collectAncestors } from './ancestors.js';
 export { mountWalletSafety } from './safety-panel.js';
 export { loadArchiveNodes, saveArchiveNodes } from './archive-nodes.js';
