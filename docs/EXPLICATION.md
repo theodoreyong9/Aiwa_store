@@ -105,6 +105,14 @@ Pas démontré : aucun déploiement réel, pas d'essai sur le vrai devnet de Sol
 
 **Pas vérifié :** le parcours complet n'a été joué que contre un faux Solana (25 vérifications sur 25), pas sur le vrai devnet ni sur de vrais téléphones. Que Claude écrive un contrat qui fonctionne n'a pas non plus été vérifié.
 
+## 8. Le Store
+
+Le Store liste des apps qui s'ouvrent dedans. Une app est un fichier HTML que son auteur a **signé** ; le Store vérifie la signature et l'empreinte avant de l'ouvrir, donc un hébergeur ne peut pas changer le fichier, puis l'ouvre dans un cadre qui n'a aucun accès à ton portefeuille ni au reste de la page.
+
+La liste est classée selon ce que chaque auteur a **miné** : `score / laps` (ce que l'auteur peut réclamer, rapporté aux époques depuis sa dernière action), figé quand le registre a accepté la soumission. Aucune intervention éditoriale. Pour publier, un auteur doit avoir brûlé et miné : c'est le prix d'entrée, et le registre le vérifie lui-même auprès de Solana, part du créateur comprise. Le registre est un ensemble de fichiers du dépôt et un workflow qui lit une pull request comme des données, sans jamais l'exécuter.
+
+Pas résolu : rien n'est relu ; une app peut utiliser le réseau (elle ne peut pas atteindre le portefeuille) ; le classement favorise le capital et le temps, pas la qualité ; deux auteurs peuvent n'être qu'une personne.
+
 ## Pour aller plus loin
 
 [Yellow paper](YELLOWPAPER.md) (protocole formel, en anglais) · [`packages/core`](../packages/core) (le protocole) · [`packages/platform`](../packages/platform) (transport, stockage, nœud d'archive) · [`packages/lib`](../packages/lib) (API du portefeuille et SDK de contrats) · [plan](PLAN.md).

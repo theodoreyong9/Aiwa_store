@@ -105,6 +105,14 @@ Not demonstrated: no real deployment yet, no run on the real Solana devnet, econ
 
 **Not verified:** the complete path has only been played against a stand-in Solana (25 checks out of 25), not on the real devnet nor on real phones. That Claude writes a working contract has not been verified either.
 
+## 8. The store
+
+The store lists apps that run inside it. An app is one HTML file that its author **signed**; the store checks the signature and the hash before opening it, so a host cannot swap the file, and opens it in a frame that has no access to your wallet or to the rest of the page.
+
+The list is ordered by what each author has **mined**: `score / laps` (what the author can claim, over the epochs since their last action), frozen when the registry accepted the submission. There is no editorial override. To publish, an author must have burned and mined: that is the entry price, and it is checked by the registry against Solana itself, the creator part of the burn included. The registry is a set of files in the repository and a workflow that reads a pull request as data, never runs it.
+
+Not solved: nothing is reviewed; an app can use the network (it cannot reach the wallet); the ranking favours capital and time, not quality; two authors may be one person.
+
 ## Where to read more
 
 [Yellow paper](YELLOWPAPER.md) (formal protocol) · [`packages/core`](../packages/core) (the protocol) · [`packages/platform`](../packages/platform) (transport, storage, archive node) · [`packages/lib`](../packages/lib) (wallet API and contract SDK) · [plan](PLAN.md).
