@@ -512,7 +512,7 @@ def _instruction_lines(repo, work, base, direct):
         ))
     if deploy == "store":
         # Not tied to a repository: an app is written, checked and sent to the phone, where the user reads it, tries it
-        # and signs it in the Store's Publish tab.
+        # and publishes it from the Store's publish sheet.
         lines.append((
             "deploy",
             "Déploiement (Store Aiwa) : le livrable est UNE app pour le Store Aiwa, un fichier `nom.app.html` (nom en minuscules, chiffres et tirets, 40 caractères au plus) : "
