@@ -17,7 +17,7 @@
     "epochIterations": 100000
   },
   "creatorFee": {
-    "address": null,
+    "address": "GABatPZGUZbURx1FfvS3YBFkqjUWxMNCgze2b4NqvWEp",
     "rateOfT": 0.001
   }
 }

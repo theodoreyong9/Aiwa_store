@@ -27,7 +27,7 @@ A fixed share of the burn is sent to a creator address that is a constant of the
 | Step | State |
 |---|---|
 | Protocol, distribution and wallet packages in one workspace, one lock file | done — core 418 tests, platform 85, lib 100, CI green |
-| The creator fee in the burn: rule, verification, wallet transaction | done, with tests (core 8 + lib 5); the creator address is `null` in `deployment.json` until the author gives it |
+| The creator fee in the burn: rule, verification, wallet transaction | done, with tests (core 8 + lib 5); the creator address is set in `deployment.json` |
 | The yellow paper, standalone, with the fee (§7.3) and the order of conflicting branches (§11.2) | done |
 | The registry: signed packages, validation with the protocol's own checks, ranking `score / laps`, workflow | done, 13 tests against a stand-in Solana; the workflow itself has not run on GitHub |
 | The web app: store, wallet, publish | done, 13 tests including 8 in Chromium (ranking, sandbox, tampering host, offline, the burn with the fee, a submission the registry accepts, the Android hand-off and back button) |

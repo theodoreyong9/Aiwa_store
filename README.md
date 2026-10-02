@@ -20,7 +20,7 @@ An app store you carry in your pocket, with its own wallet, on a protocol that n
 | [`apps/web`](apps/web) | the store and the wallet as one web app, tested in Chromium |
 | [`android`](android) | the APK: the web app in a WebView, plus the optional dictation module |
 | [`docs`](docs) | yellow paper, plain-words explanation, plan, business model, Android notes |
-| [`deployment.json`](deployment.json) | the parameters the wallet and the registry share, including the creator fee (its address is `null` until set) |
+| [`deployment.json`](deployment.json) | the parameters the wallet and the registry share, including the creator fee and its address |
 
 ## Try it
 
