@@ -700,7 +700,8 @@ device the journal must come from somewhere:
   small however long the history, restorable after logging in with the phrase. Refused if it is of another identity, or no
   further along than the wallet is: it can never roll a wallet back.
 - **A registry's baseline** (`adoptState`): an application that kept the state it derived from a wallet's submissions (§7.2)
-  can hand it back; it holds what the registry saw, not value received from others.
+  can hand it back; it holds what the registry saw, not value received from others. The store's registry publishes it per author
+  (`store/baselines/<address>.json`), and its wallet asks for it by itself when a new phone has no history.
 - **An archive node** (`aiwa-platform`): an always-on program anyone can run, that keeps per wallet the latest backup. Only the
   owner of a key can write its backup (the checkpoint must verify and be authored by the domain), the most recent wins,
   reads are public (a backup holds no secret), sizes and rates are limited. A wallet pushes its backup to the nodes it
@@ -709,7 +710,12 @@ device the journal must come from somewhere:
   simplest form.
 - **Peers** (`joinNetwork`): the replicator hands back what peers that received your events hold, as far as you have any
   connected.
+- **The platform's own backup**: where an application's storage is backed up by its operating system (Android's automatic backup of
+  the store's WebView), the journal follows its owner to a new device with no server of ours; only the phrase is typed.
 
+A wallet application takes these in this order, by itself, and the user is asked for nothing but the 12 words: what the device restored, the
+archive nodes its deployment lists, the registry's baseline. It never starts working epochs before it has looked: a log that began from
+nothing would fork the history that was about to come back.
 Same tradeoff as every checkpoint: whoever only sees a backup trusts its signature instead of re-deriving the history from
 genesis. **Not claimed:** a wallet with no backup, no node and no peer that lost its device loses its journal (the burns stay
 on Solana; the key stays in the phrase).
@@ -1053,6 +1059,15 @@ A different mechanism from §16, which publishes one file's own source
 for *verification* against a pinned hash. This publishes and serves a
 whole, independently-runnable application — what the store lists.
 
+**Two kinds of entry in the store, both submitted on GitHub.** In a `code` entry the package carries the app's one HTML file. In an
+`aiwa` entry it carries only a *pointer*, the id of the signed manifest below, and the author signs the hash of that pointer
+(`sha256` of `[id, name, version, description, kind, manifestId]`). The submission also carries the bundle's events, which the registry
+has an event log verify (id, signature, parents), then checks against the pin: the manifest is signed by the author's domain, names
+exactly this app and version, lists files all signed by that domain, and nothing else is in the bundle. The store does the same check
+again before it runs anything, so the code is immutable and is what its author published whoever served the events; the bundle is
+published in a log of its own, so that a manifest cites only its files and never the author's other history. What the bundle's code loads
+from the network (a CDN, the SDK) is *not* pinned by the manifest.
+
 $$e_{\mathrm{file}} = \{\mathrm{type}: \texttt{bundle.file}, \mathrm{domain}, \mathrm{payload}: \{\mathrm{path}, \mathrm{content}\}, \mathrm{parents}: [\,], \mathrm{createdAt}: 0\}$$
 
 $$e_{\mathrm{manifest}} = \{\mathrm{type}: \texttt{bundle.manifest}, \mathrm{domain}, \mathrm{payload}: \{\mathrm{name}, \mathrm{version}, \mathrm{files}: \{\mathrm{path} \mapsto \mathrm{id}(e_{\mathrm{file}})\}\}, \mathrm{parents}\}$$
@@ -1105,41 +1120,42 @@ event log is the safe default for a contract's own internal state.
 | Accrual formula (§7) | `aiwa-core` | `src/reward.js`, `src/fixed-point-math.js` |
 | Accrual position | `aiwa-core` | `src/accrual.js` |
 | Genesis Commitment (§8) | `aiwa-core` | `src/identity-cost.js`, `src/solana-wallet.js`, `src/burn-record.js` |
-| Creator fee (§7.3) | `aiwa-core` + `aiwa-lib` | `aiwa-core/src/accrual.js` (`creatorFeeLamports`, `burnQuote`), `src/burn-record.js`, `src/solana-wallet.js`; `aiwa-lib/src/wallet.js` (`burn`, `burnQuote`) |
+| Creator fee (§7.3) | `aiwa-core` + `aiwa-lib` | `aiwa-core/src/accrual.js` (`creatorFeeLamports`, `burnQuote`), `src/burn-record.js`, `src/solana-wallet.js`; `aiwa-lib/src/burns.js` (`burn`, `burnQuote`) |
 | Churn profitability check (§8) | `aiwa-core` | `src/churn-analysis.js` — parameter-specific, not a general guarantee |
 | Conservation (§9) | `aiwa-core` | `src/conservation.js` |
 | Denomination (§10) | `aiwa-core` | `src/units.js` |
 | Mirror (§4) | `aiwa-core` | `src/mirror.js` |
 | Checkpoints, storage bound (§12.1) | `aiwa-core` | `src/checkpoint.js` |
 | Recovery phrase (§12.2) | `aiwa-core` + `aiwa-lib` | `src/solana-wallet.js` (`generateBip39Mnemonic`), `aiwa-lib/src/wallet.js` (`recoveryPhrase`) |
-| Backup, restore, adopt a state (§12.2) | `aiwa-lib` | `src/wallet.js` (`exportBackup`, `importBackup`, `adoptState`) |
-| Archive node (§12.2) | `aiwa-platform` + `aiwa-lib` | `src/archive.js`, `src/archive-server.js`, `node/aiwa-node.js`; `aiwa-lib/src/wallet.js` (`archiveNow`, `restoreFromArchive`, `startAutoArchive`) |
-| Recovery panel (§12.2) | `aiwa-lib` | `src/safety-panel.js` (`mountWalletSafety`) |
+| Backup, restore, adopt a state (§12.2) | `aiwa-lib` | `src/backup.js` (`exportBackup`, `importBackup`, `adoptState`) |
+| Archive node (§12.2) | `aiwa-platform` + `aiwa-lib` | `src/archive.js`, `src/archive-server.js`, `node/aiwa-node.js`; `aiwa-lib/src/backup.js` (`archiveNow`, `restoreFromArchive`, `startAutoArchive`) |
+| Wallet start and restore, by itself (§12.2) | applications | `apps/web/src/wallet.js`, `keys.js`; `android/.../SecretStore.kt` |
 | Mining state, evidence an app takes (§7.2, §6.2) | `aiwa-core` | `src/mining-state.js`, `src/submission.js` |
 | Succinct progression (§6.2) | `aiwa-core` | `src/succinct-vdf.js`, `src/progression.js` |
 | Causal Tick (§13) | `aiwa-core` | `src/causal-tick.js`, `src/weighted-median.js` |
 | Hardware roots (§13.1) | `aiwa-core` | `src/hardware-attestation.js` |
 | Relative rate (§14) | `aiwa-core` | `src/relative-rate.js` |
-| Fold order of concurrent branches (§11.2) | `aiwa-core` + `aiwa-lib` | `aiwa-core/src/canonical-order.js`; `aiwa-lib/src/ancestors.js`, `src/wallet.js` (`_materializeWallet`) |
+| Fold order of concurrent branches (§11.2) | `aiwa-core` + `aiwa-lib` | `aiwa-core/src/canonical-order.js`; `aiwa-lib/src/ancestors.js`, `src/ledger.js` (`state`) |
 | Contract extension point (§15) | `aiwa-core` | `src/wallet.js` (`contractVerifiers`, `contract-payout`) |
 | Single-file contract publishing (§16) | `aiwa-core` | `src/contract-registry.js` |
-| Delegation, Channel (§17) | `aiwa-core` + `aiwa-lib` | `aiwa-core/src/wallet.js`, `aiwa-lib/src/wallet.js` (`Channel`) |
-| Bearer vouchers (§18) | `aiwa-core` + `aiwa-lib` | `aiwa-core/src/wallet.js`, `aiwa-lib/src/wallet.js` (`issueVoucher`/`redeemVoucher`) |
+| Signed actions, delegation (§17) | `aiwa-core` | `src/signing.js` (one place for every signed action), `src/wallet.js` |
+| Channel (§17) | `aiwa-lib` | `src/channel.js` |
+| Bearer vouchers (§18) | `aiwa-core` + `aiwa-lib` | `aiwa-core/src/wallet.js`, `aiwa-lib/src/payments.js` (`issueVoucher`/`redeemVoucher`) |
 | Coherent composition (wallet state) | `aiwa-core` | `src/wallet.js`, `src/materializer.js` |
 | Transport, replication | `aiwa-platform` | `src/webrtc-transport.js`, `src/replicator.js`, `src/introducer.js` |
 | Capability-gated storage | `aiwa-platform` | `src/capability.js`, `src/guarded-data-store.js`, `src/graph-store.js` |
 | Multi-file bundle publishing (§19) | `aiwa-platform` | `src/bundle.js`, `src/serve-worker.js` |
-| Public wallet API | `aiwa-lib` | `src/wallet.js` (`AIWA`) |
+| Public wallet API | `aiwa-lib` | `src/wallet.js` (`AIWA`, a thin facade over `ledger`, `mining`, `burns`, `payments`, `observer`, `backup`, `evidence`) |
 | Smart-contract/token SDK | `aiwa-lib` | `src/contract.js` |
 | Cross-runtime interoperability (§16.1) | `aiwa-core` | `interop/rust-vdf/` (Rust), `test/rust-interop.test.mjs` |
-| The store: listing, ranking, sandboxed execution of bundles (§7.2, §19) | applications | `registry/`, `apps/web/` |
+| The store: listing, ranking, the two kinds of entry, sandboxed execution (§7.2, §19) | applications | `registry/` (`app-package.js`, `bundle.js`), `apps/web/` |
 | The Android shell | applications | `android/` |
 
 ## Status
 
-418 passing tests (`aiwa-core`, including a real Rust build+run
+421 passing tests (`aiwa-core`, including a real Rust build+run
 cross-check when a Rust toolchain is available), 85 (`aiwa-platform`),
-100 (`aiwa-lib`). Every package is independently testable; none depends
+99 (`aiwa-lib`). Every package is independently testable; none depends
 on a shared, centrally-hosted server to run its own suite.
 
 **Not demonstrated.** No run against the real Solana devnet or mainnet

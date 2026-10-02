@@ -39,7 +39,7 @@ There are two layers, independent of each other:
 
 **Contracts.**
 - There is no machine that runs them for everyone. A contract is a set of rules ("state + event → new state") that each person replays from the events they hold. An action is proved by a signature placed inside the action itself; otherwise anyone could impersonate anyone.
-- You can also publish an application: signed, addressed by its content, immutable, with its versions, and opened in an isolated frame that has no access to your wallet. Publishing needs no burn.
+- You can also publish an application: signed, addressed by its content, immutable, with its versions, and opened in an isolated frame that has no access to your wallet. In the store an application is submitted on GitHub in one of two ways: its code is in the submission, or the submission only points to code published through Aiwa (signed, pinned by its hash), which the store fetches and checks itself. To be listed you must have mined something.
 - A contract does not create AIWA. Only accrual does.
 - Your contract state is what the events you hold give: it can differ from someone who holds other events.
 
@@ -84,7 +84,7 @@ Once you have received someone's events, you can sign a **Mirror**: "this is wha
 
 ## 5. Getting your history back
 
-The 12 words give back the key, not the notebook. It comes back through a backup signed by you, an archive node, the state kept by the store's registry, or peers who received your events. On restore, the most advanced backup is taken, never a step backwards.
+The 12 words give back the key, not the notebook. It comes back through a backup signed by you, an archive node, the state kept by the store's registry, or peers who received your events. On restore, the most advanced backup is taken, never a step backwards. In the app none of this is a button: the wallet makes itself on the first tap, keeps its key in the phone's keystore, and on a new phone, once you type your 12 words, it looks for its history by itself (what Android's backup brought, then the registry's last state of you).
 
 ## 6. What is new, and what is not
 

@@ -39,7 +39,7 @@ Il y a deux couches, indépendantes l'une de l'autre :
 
 **Les contrats.**
 - Il n'y a pas de machine qui les exécute pour tout le monde. Un contrat est un jeu de règles (« état + événement → nouvel état ») que chacun rejoue à partir des événements qu'il détient. Une action est prouvée par une signature placée dans l'action elle-même, sinon n'importe qui pourrait se faire passer pour un autre.
-- On peut aussi publier une application : signée, adressée par son contenu, immuable, avec ses versions, ouverte dans un cadre isolé qui n'a pas accès à ton portefeuille. Publier ne demande pas de brûler.
+- On peut aussi publier une application : signée, adressée par son contenu, immuable, avec ses versions, ouverte dans un cadre isolé qui n'a pas accès à ton portefeuille. Dans le store, une application se soumet sur GitHub de deux façons : son code est dans la soumission, ou la soumission ne fait que pointer vers du code publié par Aiwa (signé, épinglé par son hash), que le store va chercher et vérifie lui-même. Pour être listé, il faut avoir miné quelque chose.
 - Un contrat ne crée pas d'AIWA : il n'y a que l'accrual qui en crée.
 - Ton état de contrat est celui que donnent les événements que tu as : il peut différer chez quelqu'un qui en a d'autres.
 
@@ -84,7 +84,7 @@ Une fois que tu as reçu les événements d'un autre, tu peux signer un **Mirror
 
 ## 5. Retrouver son historique
 
-Les 12 mots redonnent la clé, pas le carnet. Il revient par une sauvegarde signée par toi, un nœud d'archive, l'état que garde le registre du store, ou des pairs qui ont reçu tes événements. À la restauration, la sauvegarde la plus avancée est reprise, jamais un retour en arrière.
+Les 12 mots redonnent la clé, pas le carnet. Il revient par une sauvegarde signée par toi, un nœud d'archive, l'état que garde le registre du store, ou des pairs qui ont reçu tes événements. À la restauration, la sauvegarde la plus avancée est reprise, jamais un retour en arrière. Dans l'application, rien de tout cela n'est un bouton : le portefeuille se crée au premier toucher, garde sa clé dans le coffre-fort du téléphone, et sur un nouveau téléphone, une fois tes 12 mots tapés, il cherche son historique tout seul (ce que la sauvegarde d'Android a rapporté, puis le dernier état que le registre a de toi).
 
 ## 6. Ce qui est nouveau, et ce qui ne l'est pas
 

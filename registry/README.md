@@ -5,20 +5,23 @@ files in this repository (`store/`) and a GitHub workflow that writes them.
 
 ## What an app is
 
-One self-contained HTML file (≤ 512 KB; it loads what it needs from the network itself) and a little metadata: `id`
-(lowercase letters, digits, hyphens), `name`, `version` (`major.minor.patch`), `description`.
+A little metadata — `id` (lowercase letters, digits, hyphens), `name`, `version` (`major.minor.patch`), `description` — and its code, in one of two forms, both submitted on GitHub:
 
-What the author signs is not the file but its hash: the **package** (`src/app-package.js`) carries the content, the hash
-(`sha256` of `[id, name, version, description, html]`) and an authorization — an `aiwa-lib` `signedAction` by the author's
+- **`code`**: one self-contained HTML file (≤ 512 KB; it loads what it needs from the network itself), carried by the package.
+- **`aiwa`**: no code, a **pointer**: the id of a signed `bundle.manifest` event published through Aiwa (`aiwa-platform`'s bundle), which pins every file by hash. The submission carries the bundle's events (`src/bundle.js`): the registry has Aiwa itself verify them against the pinned manifest id — signed by the author's domain, naming exactly this app and version, listing every file, nothing else in the bundle, ≤ 40 files and 1 MB — and keeps them (`store/apps/<id>/<version>.bundle.json`). The Store checks them again before it runs anything, whoever served them: the code is immutable and is exactly what its author published. What a bundle's own dependencies load from the network (a CDN, the Aiwa SDK) is not pinned by the manifest.
+
+What the author signs is not the content but its hash: the **package** (`src/app-package.js`) carries the content (or the pointer), the hash
+(`sha256` of `[id, name, version, description, kind, html or manifestId]`) and an authorization — an `aiwa-lib` `signedAction` by the author's
 key over `(publish-app, id, version, hash)`. The author's identity is their Solana address (the same key as their Aiwa
 wallet). Anyone holding the package can check, offline, that what will run is exactly what the author published,
 whoever hosts it. The store does exactly that before it opens an app.
 
 ## How an app gets in
 
-1. The author's wallet (the store's Publish tab) builds the package and the **evidence** of their mining
-   (`wallet.submissionEvidence()`), and saves `submission.json`.
-2. A pull request adds that one file as `submissions/<name>.json`.
+1. The author's wallet (the Store's publish sheet) builds the package and the **evidence** of their mining
+   (`wallet.submissionEvidence()`: only what the registry's baseline of them does not already hold, when it has one).
+2. The sheet opens a pull request on the author's GitHub account that adds that one file as `submissions/<name>.json` (a browser,
+   which cannot sign in to GitHub, hands the file over instead).
 3. `.github/workflows/registry.yml` runs from `main`, reads the file as data (nothing in it is executed), and calls
    `bin/process.mjs`. If accepted it writes `store/index.json`, `store/apps/<id>/<version>.json` and its internal state,
    commits them to `main`, and closes the pull request with the verdict. A refused submission changes nothing.
@@ -57,7 +60,9 @@ other term.
 ```
 store/index.json                 what the store lists, best first (public, served with the web app)
 store/apps/<id>/<version>.json   each package, never rewritten (public)
-store/state/                     baselines and witnesses (internal: kept in the repository, not served)
+store/apps/<id>/<version>.bundle.json   an aiwa app's signed events (public)
+store/baselines/<author>.json    what the registry derived from an author's events (public): to continue from, and what a wallet restores its mining from on a new phone
+store/state/witnesses.json       what other wallets hold of each author (internal: kept in the repository, not served)
 submissions/                     where a pull request puts its submission
 deployment.json                  the parameters shared by the wallet and the registry (at the root)
 ```
