@@ -28,6 +28,7 @@ An app store you carry in your pocket, with its own wallet, on a protocol that n
 npm install
 npm test                                  # protocol, registry and web app (a real Chromium: npx -w aiwa-store-web playwright install chromium)
 npm run build -w aiwa-store-web           # apps/web/dist
+node scripts/devnet-check.mjs --fake      # the real-network check, dry run; without --fake it burns devnet SOL (see docs/PLAN.md)
 npx http-server apps/web/dist -p 8080     # open http://localhost:8080
 ```
 

@@ -36,7 +36,7 @@ A fixed share of the burn is sent to a creator address that is a constant of the
 
 ## Not verified
 
-- A real burn on Solana (devnet or mainnet), end to end.
+- A real burn on Solana (devnet or mainnet), end to end. `scripts/devnet-check.mjs` does it (burn at T = 0.4 with a creator address made for the run, the creator account read on chain, the registry's own verification, the fail-closed check) and passes against a stand-in; run for real from GitHub (the *Devnet check* workflow) the RPC answered (solana-core 4.3.0) but the faucet refused the shared runner twice (429, daily limit per IP). It needs a devnet wallet funded once — faucet.solana.com — whose phrase goes in the repository secret `DEVNET_PHRASE`, or `node scripts/devnet-check.mjs --phrase "…"` from your own machine or phone.
 - The Android app on a real device: the WebView host, the Termux backend, the widget. Google Play policy.
 - The registry workflow on GitHub, with a real pull request. GitHub Pages must be enabled for the site to be served (Settings → Pages → Source: GitHub Actions).
 - The legal status of the creator fee and of the store, and the economic parameters in the field.

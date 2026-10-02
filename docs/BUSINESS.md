@@ -109,8 +109,9 @@ par mois, part brûlée à T > 0.
 
 ## Étapes, avec de quoi vérifier chacune
 
-1. **Un brûlage réel sur le devnet de Solana**, de bout en bout (portefeuille → transaction → registre qui le confirme). Fait quand :
-   le registre accepte une soumission dont le brûlage a été fait sur le devnet.
+1. **Un brûlage réel sur le devnet de Solana**, de bout en bout (portefeuille → transaction → registre qui le confirme) :
+   `node scripts/devnet-check.mjs` (ou le workflow *Devnet check*) le fait, avec un portefeuille devnet financé une fois. Fait quand :
+   le script passe contre le vrai devnet. Il passe contre un faux Solana ; le faucet a refusé les machines GitHub.
 2. **L'adresse du créateur** renseignée dans `deployment.json` (elle n'est pas inventée ici : `null` tant qu'elle n'est pas donnée).
 3. **Pages activé et le registre en ligne** ; un premier auteur tiers publie une app par pull request.
 4. **Un avis juridique** sur les trois points ci-dessus, avant tout brûlage en argent réel proposé au public.
