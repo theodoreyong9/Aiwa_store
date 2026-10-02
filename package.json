@@ -5,7 +5,11 @@
   "description": "An app store with a wallet, on a protocol that needs no shared ledger.",
   "license": "MIT",
   "type": "module",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*",
+    "registry",
+    "apps/*"
+  ],
   "scripts": {
     "test": "npm test --workspaces --if-present"
   }

@@ -1,0 +1,26 @@
+{
+  "name": "aiwa-registry",
+  "version": "0.1.0",
+  "description": "The store's registry: validates app submissions (author's signature, content hash, mining evidence) and ranks the apps by score / laps",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.js",
+    "./app-package": "./src/app-package.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "process": "node bin/process.mjs"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.4.0",
+    "aiwa-core": "^0.1.0",
+    "aiwa-lib": "^0.1.0"
+  },
+  "optionalDependencies": {
+    "@solana/web3.js": "^1.98.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

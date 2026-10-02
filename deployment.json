@@ -1,0 +1,19 @@
+{
+  "name": "Aiwa Store",
+  "version": 1,
+  "cluster": "devnet",
+  "rpc": "https://api.devnet.solana.com",
+  "registryUrl": "https://theodoreyong9.github.io/Aiwa_store/store",
+  "rewardParams": {
+    "alpha": 1.1,
+    "beta": 2.2,
+    "gamma": 3,
+    "C": 35937,
+    "minQ": 1,
+    "epochIterations": 100000
+  },
+  "creatorFee": {
+    "address": null,
+    "rateOfT": 0.001
+  }
+}
