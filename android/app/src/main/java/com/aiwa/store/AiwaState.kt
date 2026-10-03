@@ -125,8 +125,12 @@ data class AiwaState(
     val githubError: String? = null,
     // Whether the local backend answers: "unknown" (not asked yet), "up", "down",
     // or "starting" (Termux was asked to start it, since backendStartedAt).
+    // "missing" is a backend that cannot be there: Termux is not installed, or it was started twice in vain (not installed in it).
     val backend: String = "unknown",
     val backendStartedAt: Long = 0L,
+    // How many times Termux was asked to start the backend since it last answered, and why it is "missing" ("termux" / "install").
+    val backendStarts: Int = 0,
+    val backendMissing: String? = null,
     val status: Status = Status.READY,
     // The last problem worth telling the user about, shown in the app only
     // (the widget has no message area: its errors are toasts). There is no

@@ -71,6 +71,19 @@ Install the backend in Termux (one command, also for updates):
 curl -fsSL https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh | bash
 ```
 
+**Why the person pastes it.** An app can neither install another app nor write into it, and Termux refuses commands from other apps until
+`allow-external-apps=true` is set in it (the line does that too). So the widget can start the backend once it is there, never install it.
+When it is not there, the widget says what is missing instead of "starting":
+
+| What the widget shows | What it means | What a tap does |
+|---|---|---|
+| "Termux manquant" | Termux is not on the phone (the app checks: Android itself says nothing when asked to start an app that is absent) | copies the line, opens the F-Droid page of Termux |
+| "Installation manquante" | Termux was asked twice to start the backend and it never answered: it is not installed in it (or Termux refuses) | copies the line, opens Termux |
+| "Dernier envoi échoué" | the backend answers but the last send went wrong; the reason was only a toast | opens the app, which shows it |
+
+While it is missing the app stops restarting it; once the line has been pasted and the backend answers, the widget goes back to normal
+by itself. (`BackendHealth.kt`, tested on a JVM; the widget and the activity are compiled in CI, never run on a phone.)
+
 ### The Store and Aiwa modes
 
 The widget's Deploy chip offers two modes, both ending with an app sent to the phone through a public relay (ntfy.sh):

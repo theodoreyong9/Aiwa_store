@@ -231,6 +231,11 @@ private fun FullContent(state: AiwaState) {
     var statusBold = false
     when {
         needsSetup -> { status = "Touche ici pour autoriser Aiwa (une seule fois)"; statusColor = alertText; statusBold = true }
+        // Not "starting": it is not there. The tap copies the one line that installs it (InstallHelpActivity).
+        state.backend == "missing" -> {
+            status = if (state.backendMissing == "termux") "⚠ Termux manquant — touche ici" else "⚠ Installation manquante — touche ici"
+            statusColor = alertText; statusBold = true
+        }
         state.backend == "starting" -> { status = "⏳ Démarrage du backend…"; statusColor = warm }
         state.backend == "down" -> { status = "⚠ Backend arrêté — relance en cours"; statusColor = alertText; statusBold = true }
         needsLogin -> { status = "⚠ Claude n'est pas connecté — touche ici"; statusColor = alertText; statusBold = true }
@@ -242,11 +247,14 @@ private fun FullContent(state: AiwaState) {
             statusBold = true
         }
         relayHint -> { status = "Prêt · alertes cloud bloquées — touche ici"; statusColor = warm }
+        // The last send did not go: its reason was only a toast, and "Prêt" made it look as if nothing was wrong.
+        state.status == AiwaState.Status.ERROR && state.notice != null -> { status = "⚠ Dernier envoi échoué — touche ici"; statusColor = alertText; statusBold = true }
         else -> { status = "Prêt"; statusColor = subtle }
     }
     val titleRoom = avail - avatar - 8f - (if (hasSession) avatar + 8f else 0f)
     val title = when {
         needsSetup -> "Autoriser Aiwa ▸"
+        state.backend == "missing" -> "Installer le backend ▸"
         needsLogin -> "Connecter Claude ▸"
         else -> fitLabel(state.session, titleRoom - textWidth(" ▾", fontScale * 1.25f), fontScale * 1.25f) + " ▾"
     }
@@ -254,8 +262,10 @@ private fun FullContent(state: AiwaState) {
     // What a tap on the name and the status line opens: the fix for what is wrong, else the sessions.
     val bandAction: Action = when {
         needsSetup -> actionStartActivity<SetupActivity>()
+        state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
         relayHint -> actionStartActivity<HealthActivity>()
+        state.status == AiwaState.Status.ERROR && state.notice != null -> actionStartActivity<MainActivity>()
         else -> actionStartActivity<SessionPickerActivity>()
     }
 
@@ -456,6 +466,7 @@ private fun CompactContent(state: AiwaState) {
     val storeReady = storeMode && state.sentApp?.seen == false
     val sessionLabel = when {
         needsSetup -> "Autoriser Aiwa"
+        state.backend == "missing" -> "⚠ À installer"
         state.backend == "starting" -> "⏳ Démarrage"
         state.backend == "down" -> "⚠ Arrêté"
         needsLogin -> "Connecter Claude"
@@ -492,6 +503,7 @@ private fun CompactContent(state: AiwaState) {
                 sessionText, pill, fg,
                 when {
                     needsSetup -> actionStartActivity<SetupActivity>()
+                    state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
                     needsLogin -> actionStartActivity<ClaudeLoginActivity>()
                     else -> actionStartActivity<SessionPickerActivity>()
                 },

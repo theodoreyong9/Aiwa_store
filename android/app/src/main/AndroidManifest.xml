@@ -80,6 +80,11 @@
              windows (see Pickers.kt). Same translucent, own-task setup as
              DictateActivity; not exported — the widget reaches them
              through a PendingIntent created by this app. -->
+        <!-- "Installation manquante" (InstallHelpActivity.kt): copies the line that installs the backend in Termux. -->
+        <activity android:name=".InstallHelpActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <activity android:name=".SessionPickerActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""

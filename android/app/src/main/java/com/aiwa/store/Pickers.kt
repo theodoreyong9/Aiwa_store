@@ -321,9 +321,10 @@ class HealthActivity : ComponentActivity() {
                 add(
                     PickerEntry(
                         if (state.backend == "up") "✓  Backend (Termux) : en marche"
+                        else if (state.backend == "missing") "⚠  Backend " + (if (state.backendMissing == "termux") ": Termux n'est pas installé" else "non installé dans Termux") + " — toucher pour copier la ligne d'installation"
                         else "⚠  Backend " + (if (state.backend == "starting") "en démarrage…" else "arrêté") + " — toucher pour relancer",
                         state.backend == "up",
-                    ) { restartBackend() },
+                    ) { if (state.backend == "missing") installBackend() else restartBackend() },
                 )
                 when (state.claudeLogin) {
                     "ok" -> add(PickerEntry("✓  Claude : connecté", true) { })
@@ -368,6 +369,11 @@ class HealthActivity : ComponentActivity() {
     }
 
     private fun openLogin() = go(ClaudeLoginActivity::class.java)
+
+    private fun installBackend() {
+        startActivity(Intent(this, InstallHelpActivity::class.java))
+        finish()
+    }
 
     private fun restartBackend() {
         startAiwaBackendViaTermux(applicationContext, forceRestart = true)

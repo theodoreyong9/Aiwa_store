@@ -20,7 +20,9 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.glance.appwidget.updateAll
+import com.aiwa.bridge.BackendVerdict
 import com.aiwa.bridge.LocalClaudeBridge
+import com.aiwa.bridge.backendProblemMessage
 import kotlinx.coroutines.launch
 // One forced backend restart per app process at most: if the checkout
 // can't be updated (no network), restarting again would only throw away
@@ -157,11 +159,12 @@ val notice=state.notice?.takeUnless{
 (state.backend=="up"&&it.startsWith("Backend injoignable"))||(state.backendVersion>=EXPECTED_BACKEND_VERSION&&it.startsWith("Backend obsolète"))
 }
 val note=when{
+state.backend=="missing"->backendProblemMessage(if(state.backendMissing=="termux")BackendVerdict.TERMUX_MISSING else BackendVerdict.NOT_INSTALLED)
 state.backend=="starting"->"⏳ Démarrage du backend (Termux)… 10 à 20 s"
 state.backend=="down"->"⚠ Backend arrêté : relance automatique en cours"
 else->notice
 }
-val problem=state.backend=="down"||(state.backend!="starting"&&notice!=null)
+val problem=state.backend=="down"||state.backend=="missing"||(state.backend!="starting"&&notice!=null)
 Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
 // Asked for: say at the top that every function lives in the widget, to be put on the home screen.
 Surface(shape=MaterialTheme.shapes.medium,color=MaterialTheme.colorScheme.secondaryContainer,modifier=Modifier.fillMaxWidth()){

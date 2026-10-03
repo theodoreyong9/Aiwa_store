@@ -2,7 +2,9 @@ package com.aiwa.store
 
 import android.content.Context
 import com.aiwa.bridge.BackendStatus
+import com.aiwa.bridge.BackendVerdict
 import com.aiwa.bridge.ClaudeBridge
+import com.aiwa.bridge.backendVerdict
 import kotlinx.coroutines.delay
 import java.util.concurrent.atomic.AtomicLong
 
@@ -40,6 +42,8 @@ object BackendSync {
                 val title = sessions.find { it.id == cloudId }?.title?.take(30)
                 current.copy(
                     backend = "up",
+                    backendStarts = 0,
+                    backendMissing = null,
                     session = title ?: cloudId?.take(12) ?: "Nouvelle session",
                     cloudSessionId = cloudId,
                     lastSessionId = status.lastSession,
@@ -72,11 +76,18 @@ object BackendSync {
     }
 
     // Down — unless Termux was asked to start it a moment ago (then it is
-    // "starting", for at most a minute).
+    // "starting", for at most a minute). A backend that Termux was asked to start
+    // twice without it ever answering is not slow, it is not installed: "missing"
+    // stops the restarts (KeepAliveService only restarts a "down" one) and says what to do.
     private fun markBackendDown() {
         AiwaRepository.update {
-            if (it.backend == "starting" && System.currentTimeMillis() - it.backendStartedAt < 60_000) it
-            else it.copy(backend = "down")
+            when {
+                it.backend == "missing" -> it
+                it.backend == "starting" && System.currentTimeMillis() - it.backendStartedAt < 60_000 -> it
+                backendVerdict(termuxInstalled = true, startsWithoutAnswer = it.backendStarts) == BackendVerdict.NOT_INSTALLED ->
+                    it.copy(backend = "missing", backendMissing = "install")
+                else -> it.copy(backend = "down")
+            }
         }
     }
 }
@@ -95,7 +106,7 @@ suspend fun ensureBackend(context: Context, bridge: ClaudeBridge): Boolean {
     } catch (err: Exception) {
         if (!isBackendUnreachable(err)) return true
     }
-    AiwaRepository.update { it.copy(backend = "down") }
+    AiwaRepository.update { if (it.backend == "missing") it else it.copy(backend = "down") }
     startAiwaBackendViaTermux(context)
     return awaitBackendStatus(bridge, 30_000) != null
 }

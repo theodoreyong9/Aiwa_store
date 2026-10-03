@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Dictation without the backend: the widget no longer says "Prêt" or promises a start that cannot happen. Without Termux it says "Termux manquant", with Termux but no backend (two starts in vain) "Installation manquante", and a tap copies the install line and opens Termux (or its F-Droid page); the restarts stop while it is missing and the widget recovers by itself when the backend answers. A failed last send shows "Dernier envoi échoué" instead of "Prêt". `BackendHealth.kt` (4 JVM tests).
 - The Android app follows the site instead of freezing the page it was built with. `release.json` (every file with its SHA-256, a version and a date) is made by the *Pages* workflow and by the Android build; the app downloads the files, checks each against its hash, keeps all of it or nothing, and serves it from its own storage under the same origin from the next start, if it is newer than the copy inside the APK. No signature and no key: what the site publishes is what the phones run. `apps/web/release.mjs`, `scripts/describe-site.mjs`, `SiteRelease.kt` (14 JVM tests, one against a release written by the Node side) and 5 Node tests that tie the two together.
 - Initial import of the protocol (`packages/core`), the distribution layer (`packages/platform`) and the wallet API (`packages/lib`) into one workspace, with their tests (core 410, platform 85, lib 95). One lock file; the packages depend on each other through the workspace, not through pinned commits.
 - Plain-words explanation in English and French.

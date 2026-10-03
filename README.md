@@ -82,6 +82,8 @@ The widget talks to Claude Code, which runs in **Termux** on the same phone. You
 
 The widget's logo opens the app. Inside the app, the **Dictate** tab opens the dictation screen (the same one the widget uses).
 
+If Termux or the backend is missing, the widget says so ("Termux manquant" or "Installation manquante") and a tap copies the line above and opens Termux (or the page to download it). It does not keep saying "starting".
+
 The widget is in French for now. Not verified on a real phone: Claude Code has no Android build, so the backend installs it in a Linux layer
 inside Termux, which the script itself marks as experimental. More in [docs/ANDROID.md](docs/ANDROID.md).
 

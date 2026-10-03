@@ -3,6 +3,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import com.aiwa.bridge.BackendVerdict
+import com.aiwa.bridge.backendProblemMessage
+import com.aiwa.bridge.backendVerdict
 
 const val TERMUX_RUN_COMMAND_PERMISSION = "com.termux.permission.RUN_COMMAND"
 
@@ -62,6 +65,14 @@ private val START_SCRIPT = listOf(
     "exec bash \"\$HOME/aiwa_store/android/backend/start.sh\"",
 ).joinToString("\n")
 
+/** Whether Termux is on the phone (the manifest's <queries> lets this app see it). */
+fun isTermuxInstalled(context: Context): Boolean = try {
+    context.packageManager.getPackageInfo(TERMUX_PACKAGE, 0)
+    true
+} catch (err: PackageManager.NameNotFoundException) {
+    false
+}
+
 /**
  * Starts (and keeps up to date) the Aiwa backend inside Termux via its
  * RUN_COMMAND automation API, in the background.
@@ -71,6 +82,11 @@ private val START_SCRIPT = listOf(
  * `allow-external-apps=true` in ~/.termux/termux.properties.
  */
 fun startAiwaBackendViaTermux(context: Context, forceRestart: Boolean = false): Result<Unit> = try {
+    // Android says nothing when the service of an app that is not there is started: without this check it looked like a launch.
+    if (!isTermuxInstalled(context)) {
+        AiwaRepository.update { it.copy(backend = "missing", backendMissing = "termux") }
+        throw IllegalStateException(backendProblemMessage(BackendVerdict.TERMUX_MISSING))
+    }
     val intent = Intent(ACTION_RUN_COMMAND).apply {
         setClassName(TERMUX_PACKAGE, RUN_COMMAND_SERVICE)
         putExtra("com.termux.RUN_COMMAND_PATH", TERMUX_BASH)
@@ -78,6 +94,8 @@ fun startAiwaBackendViaTermux(context: Context, forceRestart: Boolean = false): 
         putExtra("com.termux.RUN_COMMAND_BACKGROUND", true)
     }
     context.startService(intent)
+    // Counted until the backend answers (BackendSync): two starts in vain mean it is not installed, not slow.
+    AiwaRepository.update { it.copy(backendStarts = it.backendStarts + 1) }
     // Only when the backend was known to be down: launching this script while it
     // runs is a no-op, and must not make the widget claim it is starting.
     if (AiwaRepository.state.value.backend == "down") AiwaRepository.markBackendStarting()
@@ -100,9 +118,18 @@ fun isBackendUnreachable(err: Throwable): Boolean =
  * startAiwaBackendViaTermux and surfaced as a clear ask.
  */
 fun autoStartBackendMessage(context: Context): String {
+    // Already known not to be installed: say so, instead of asking Termux again and promising a start that cannot happen.
+    val known = AiwaRepository.state.value
+    if (known.backend == "missing") return backendProblemMessage(if (known.backendMissing == "termux") BackendVerdict.TERMUX_MISSING else BackendVerdict.NOT_INSTALLED)
+    if (!isTermuxInstalled(context)) {
+        AiwaRepository.update { it.copy(backend = "missing", backendMissing = "termux") }
+        return backendProblemMessage(BackendVerdict.TERMUX_MISSING)
+    }
     val result = startAiwaBackendViaTermux(context)
     return if (result.isSuccess) {
-        "Backend pas démarré — lancement automatique en cours, réessaie dans 10-15 secondes."
+        val verdict = backendVerdict(termuxInstalled = true, startsWithoutAnswer = AiwaRepository.state.value.backendStarts - 1)
+        if (verdict == BackendVerdict.NOT_INSTALLED) AiwaRepository.update { it.copy(backend = "missing", backendMissing = "install") }
+        backendProblemMessage(verdict)
     } else {
         "Backend pas démarré et impossible de le lancer depuis le widget (${result.exceptionOrNull()?.message}) — ouvre l'app Aiwa une fois pour autoriser le démarrage automatique."
     }
