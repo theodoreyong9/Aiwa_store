@@ -1379,19 +1379,18 @@ flowchart TB
   APP -. "only if it declares the wallet:<br/>messages the page answers (§18.8)" .-> PGE
 ```
 
-The page is not the APK's: the app follows the site. It downloads a release, `release.json` (every file with its SHA-256) and `release.sig` (an
-Ed25519 signature of its exact bytes), checks the signature with a **site key** that is in the APK and every file against its hash, keeps
-all of it or nothing, and serves it from its own storage under the same origin, from the next start, if it is newer than the copy inside
-the APK. A page not signed by that key is never run, so a hijacked site or a rewriting network changes nothing; a replayed older release is
-not an update. Whoever holds the signing key decides what the phones run, which is the same trust as the APK's own signature.
+The page is not the APK's: the app follows the site. It downloads a release, `release.json` (every file of the page with its SHA-256),
+checks every file against its hash (the page is one whole release, never a mix of two), keeps all of it or nothing, and serves it from its
+own storage under the same origin, from the next start, if it is newer than the copy inside the APK. There is no signature: what the site
+publishes is what the phones run, and the site is published by the repository's GitHub account, which is the key. A signature kept off
+GitHub can be added in front of the same download if that account becomes a risk.
 
 ```mermaid
 sequenceDiagram
   participant S as Site
   participant A as Android app
   participant D as App storage
-  A->>S: release.json and release.sig
-  A->>A: signature checked with the site key in the APK
+  A->>S: release.json
   A->>S: each file the release lists
   A->>A: each file checked against its SHA-256
   A->>D: all of it kept as pending, or nothing
@@ -1807,7 +1806,7 @@ none needs a hosted server.
   (the faucet refuses shared CI runners) whose phrase is the repository secret `DEVNET_PHRASE`.
 - No run on a real phone: the WebView host, the Keystore, GitHub's device login against the real GitHub (it needs an OAuth App with Device
   Flow whose Client ID goes in `deployment.json`), Android's automatic backup carrying the journal to a new phone, the Termux backend, the
-  widget, the page updating itself from the site (the signature and hash checks are unit-tested on a JVM against a release signed by the Node
+  widget, the page updating itself from the site (the hash checks are unit-tested on a JVM against a release written by the Node
   side; the download, the swap and the serving from app storage have never run on a device). The Kotlin that is not plain JVM is compiled in CI only.
 - No pull request opened by the Store's sheet on GitHub, end to end; the registry workflow has not run on GitHub with a real pull request;
   the site needs GitHub Pages enabled to be served.

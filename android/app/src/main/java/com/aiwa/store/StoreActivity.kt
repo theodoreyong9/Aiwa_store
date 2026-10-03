@@ -54,10 +54,11 @@ import java.io.File
  *
  * The page comes from one of two places, under the same origin (so the wallet's storage and the channel below are the same):
  *   /assets/web/  the copy inside the APK: the first run, and always there offline;
- *   /site/        the copy this phone downloaded from the site (deployment.json: siteUrl) and verified (SiteRelease.kt): the
- *                 release must be signed by the site key that is in the APK, and every file must be the one it lists. It is used
- *                 from the next start after the download, and only if it is newer than the copy inside the APK.
- * A page that is not signed by that key is never served: updating the Store needs no new APK, and a hijacked site changes nothing.
+ *   /site/        the copy this phone downloaded from the site (deployment.json: siteUrl) and checked (SiteRelease.kt): every
+ *                 file must be the one the site's release.json lists, so that the page is one whole release. It is used from the
+ *                 next start after the download, and only if it is newer than the copy inside the APK.
+ * Updating the Store needs no new APK. What the site publishes is what the phones run: the site's owner is the GitHub account that
+ * publishes it (the page is read over HTTPS, and there is no signature of its own).
  *
  * What the page may ask of the phone goes through ONE channel, a web message listener restricted to the page's own
  * origin: the sandboxed frame an app runs in has another (opaque) origin, so it can neither see this channel nor
@@ -81,13 +82,11 @@ class StoreActivity : ComponentActivity() {
     private var pageIsDownloaded = false              // the page being served is the downloaded copy
     private var lastUpdateCheck = 0L
 
-    // The site this app follows, and the key its releases must be signed with: from deployment.json, which is part of the APK.
-    private val site: Pair<String, String>? by lazy {
+    // The site this app follows: deployment.json's siteUrl, which is part of the APK.
+    private val siteUrl: String? by lazy {
         try {
-            val json = JSONObject(assets.open("deployment.json").use { String(it.readBytes(), Charsets.UTF_8) })
-            val url = json.optString("siteUrl")
-            val key = json.optString("siteKey")
-            if (url.startsWith("https://") && url.endsWith("/") && key.length == 64) url to key else null
+            val url = JSONObject(assets.open("deployment.json").use { String(it.readBytes(), Charsets.UTF_8) }).optString("siteUrl")
+            if (url.startsWith("https://") && url.endsWith("/")) url else null
         } catch (err: Exception) { null }
     }
 
@@ -192,22 +191,22 @@ class StoreActivity : ComponentActivity() {
         checkForUpdate()
     }
 
-    // At most once an hour, in the background. The release is downloaded and verified whole; it replaces the page at the next start,
+    // At most once an hour, in the background. The release is downloaded and checked whole; it replaces the page at the next start,
     // never while this one is running (a page that loads a script later must find the files of its own release).
     private fun checkForUpdate() {
-        val (url, key) = site ?: return
+        val url = siteUrl ?: return
         val now = SystemClock.elapsedRealtime()
         if (lastUpdateCheck != 0L && now - lastUpdateCheck < 60 * 60 * 1000L) return
         lastUpdateCheck = now
         val have = listOfNotNull(siteStore.latest(), bundled).maxByOrNull { it.createdAt }
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val result = SiteUpdater(url, key, HttpSiteFetcher(), siteStore).update(have)
+                val result = SiteUpdater(url, HttpSiteFetcher(), siteStore).update(have)
                 if (result is SiteUpdate.Updated) {
                     runOnUiThread { Toast.makeText(this@StoreActivity, "Mise à jour du Store prête : ferme l'appli et rouvre-la.", Toast.LENGTH_LONG).show() }
                 }
             } catch (err: Exception) {
-                // No network, no release yet, or a release that is not signed by the site key: the page in use stays.
+                // No network, no release yet, or a release that does not check out: the page in use stays.
                 Log.w("AiwaSite", "no update: ${err.message}")
             }
         }

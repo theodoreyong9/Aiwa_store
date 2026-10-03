@@ -16,22 +16,22 @@ the permissions, the Keystore, this code). Two copies, served under the same ori
 
 The download is checked entirely before it is kept (`SiteRelease.kt`, the same checks as `apps/web/release.mjs`):
 
-1. `release.json` lists every file with its SHA-256; `release.sig` is an Ed25519 signature of its exact bytes. The **site key** that
-   checks it (`siteKey` in `deployment.json`) is in the APK, so a hijacked site, or a network that rewrites the page, cannot make the
-   phone run anything: without the signature nothing is kept.
-2. Each file is read and compared with its hash; a name that climbs out of the folder, a missing `index.html`, more than 400 files,
-   5 MB for a file or 24 MB in all are refused.
+1. `release.json` lists every file of the page with its SHA-256, a version and a date. It is made by the *Pages* workflow, and by the
+   Android build for the copy inside the APK.
+2. Each file is read and compared with its hash, so the page is one whole release and never a mix of two deployments or a file cut short.
+   A name that climbs out of the folder, a missing `index.html`, more than 400 files, 5 MB for a file or 24 MB in all are refused.
 3. All of it goes to `pending/` as a whole, or nothing does. It replaces the page at the **next start**, never while the page runs
    (the Store loads some of its code late, and must find the files of its own release).
-4. A release older than the one held (a replay of an old signed page), or listing the very same files, is not an update. After the
-   APK itself is updated, a downloaded copy older than the page inside it is dropped.
+4. A release older than the one held, or listing the very same files, is not an update. After the APK itself is updated, a downloaded
+   copy older than the page inside it is dropped.
 
-The app looks once an hour, in the background, and says "ferme l'appli et rouvre-la" when a release is ready. The release is signed by the
-**Pages** workflow with the repository secret `SITE_SIGNING_KEY` (the seed that goes with `siteKey`); without the secret the site is
-deployed, a browser opens it, the workflow ends red, and the phones keep the page they have. To change the key: `node scripts/site-key.mjs`,
-put the public key in `deployment.json`, the seed in the secret, and ship a new APK (the old APKs only trust the old key).
+The app looks once an hour, in the background, and says "ferme l'appli et rouvre-la" when a release is ready.
 
-Not run on a phone: the checks are unit-tested on a JVM (`SiteReleaseTest`, against a release signed by the Node side), the download, the
+**Whose word it is.** There is no signature: what the site publishes is what the phones run, and the site is published by the repository's
+GitHub account, so that account is the key. The page travels over HTTPS and the hashes only keep it whole. If one day the Store holds
+real value and the account is a risk, a signature (a key kept off GitHub, checked by the APK) can be added in front of the same download.
+
+Not run on a phone: the checks are unit-tested on a JVM (`SiteReleaseTest`, against a release written by the Node side); the download, the
 swap and the serving from app storage have never run on a device.
 
 **Install, step by step** (the Store and wallet, then the optional widget): [README → Install](../README.md#install-android).

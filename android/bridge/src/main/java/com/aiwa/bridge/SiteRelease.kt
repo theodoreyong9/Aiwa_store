@@ -5,16 +5,16 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
-import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
-import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.json.JSONObject
 
 /*
- * The Store's page is not run from wherever it is served: the app downloads it, checks it, and serves it from its own storage.
+ * The Store's page is not run from wherever it is served: the app downloads it and serves it from its own storage, under its own origin
+ * (so the wallet's storage is the same whichever copy is served).
  *
- * A release is `release.json` (every file with its SHA-256) and `release.sig` (an Ed25519 signature of the exact bytes of
- * release.json). The public key that checks it is in the APK. A page that is not signed by that key, or a file that is not the one
- * the release lists, is never served. This is the Kotlin side of apps/web/release.mjs; both are tested against the same vectors.
+ * A release is `release.json`: every file of the page with its SHA-256. The app reads each file and compares it with its hash, so that
+ * what it serves is one whole release, never a mix of two and never a file cut short. There is no signature: what the site publishes
+ * is what the phones run, and the site's owner is the GitHub account that publishes it (HTTPS carries it).
+ * This is the Kotlin side of apps/web/release.mjs; both are tested against the same release.
  */
 
 /** What a verified release.json says. */
@@ -30,29 +30,9 @@ private val SHA256_HEX = Regex("[0-9a-f]{64}")
 
 class SiteRejected(message: String) : SecurityException(message)
 
-private fun hexBytes(text: String): ByteArray {
-    if (text.length % 2 != 0 || !text.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) throw SiteRejected("not hex")
-    return ByteArray(text.length / 2) { text.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
-}
-
 private fun sha256Hex(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
-/** The release in `bytes` when `signatureHex` is the signature of exactly those bytes by `publicKeyHex`; otherwise it throws SiteRejected. */
-fun verifyRelease(bytes: ByteArray, signatureHex: String, publicKeyHex: String): SiteRelease {
-    val valid = try {
-        val signer = Ed25519Signer()
-        signer.init(false, Ed25519PublicKeyParameters(hexBytes(publicKeyHex), 0))
-        signer.update(bytes, 0, bytes.size)
-        signer.verifySignature(hexBytes(signatureHex))
-    } catch (err: Exception) { false }
-    if (!valid) throw SiteRejected("the release is not signed by the site key")
-    return parseRelease(bytes)
-}
-
-/**
- * What release.json says, well formed, WITHOUT checking a signature: for the copy inside the APK (the APK's own signature vouches
- * for it) and for the copy this phone has already verified. Anything that comes from the network goes through verifyRelease.
- */
+/** What release.json says, if it is well formed; otherwise it throws SiteRejected. */
 fun parseRelease(bytes: ByteArray): SiteRelease {
     val json = try { JSONObject(String(bytes, Charsets.UTF_8)) } catch (err: Exception) { throw SiteRejected("the release is not JSON") }
     if (json.optString("format") != SITE_FORMAT) throw SiteRejected("the release is not $SITE_FORMAT")
@@ -112,7 +92,7 @@ class HttpSiteFetcher : SiteFetcher {
 }
 
 /**
- * The verified copy of the site that this phone holds, in `root`.
+ * The copy of the site that this phone holds, in `root`.
  *
  * `current/` is the one the page is being served from. It is never touched while the app runs: a page that loads a script later
  * (the Store splits its code) must find the files of its own release. A download goes to `pending/` as a whole, complete or absent,
@@ -135,7 +115,7 @@ class SiteStore(private val root: File) {
     /** What a new download is compared with: the newest release held. */
     fun latest(): SiteRelease? = listOfNotNull(current(), pending()).maxByOrNull { it.createdAt }
 
-    /** Writes the (already verified) files as the pending release; `current/` is not touched. */
+    /** Writes the (already checked) files as the pending release; `current/` is not touched. */
     fun install(releaseBytes: ByteArray, files: Map<String, ByteArray>) {
         val incoming = File(root, "incoming")
         incoming.deleteRecursively()
@@ -181,15 +161,14 @@ sealed class SiteUpdate {
 }
 
 /**
- * Looks for a release newer than `have` at `base`, verifies it entirely, and installs it. Nothing is installed unless all of it checks
- * out. A release that is not newer (a replay of an old one) or that lists exactly the files already held is not an update.
+ * Looks for a release newer than `have` at `base`, downloads it, checks every file against its hash, and keeps it. Nothing is kept
+ * unless all of it checks out. A release that is not newer, or that lists exactly the files already held, is not an update.
  */
-class SiteUpdater(private val base: String, private val publicKeyHex: String, private val fetcher: SiteFetcher, private val store: SiteStore) {
+class SiteUpdater(private val base: String, private val fetcher: SiteFetcher, private val store: SiteStore) {
     fun update(have: SiteRelease?): SiteUpdate {
         require(base.startsWith("https://") && base.endsWith("/")) { "the site is an https address ending with /" }
         val releaseBytes = fetcher.get("${base}release.json", 512 * 1024)
-        val signature = String(fetcher.get("${base}release.sig", 256), Charsets.UTF_8).trim()
-        val release = verifyRelease(releaseBytes, signature, publicKeyHex)
+        val release = parseRelease(releaseBytes)
         if (have != null && (release.createdAt <= have.createdAt || release.files == have.files)) return SiteUpdate.UpToDate
         val files = LinkedHashMap<String, ByteArray>()
         var total = 0

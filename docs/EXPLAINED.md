@@ -417,9 +417,9 @@ channel: keep the 12 words and the GitHub token encrypted with a key the phone's
 open the dictation screen. **The frame an app runs in does not get that channel.** Android's own backup carries the wallet's journal to a
 new phone; the secrets are left out on purpose (a Keystore key does not move), so you type your 12 words once.
 
-The page itself is not frozen in the app: the app follows the site and updates its page by itself, with no new APK. It only keeps a new page
-if the page is signed by a key that is built into the app, and if every file is exactly the one the signature lists, so a hijacked site, or
-a network that rewrites pages, cannot make the phone run anything. The new page starts the next time you open the app.
+The page itself is not frozen in the app: the app follows the site and updates its page by itself, with no new APK. It keeps a new page only
+once every file has arrived exactly as the site's list says, so the page is always one whole version. It starts the next time you open the
+app. What the site publishes is what the phones run, and the site is published by the repository's GitHub account.
 
 The dictation widget is optional: it needs Termux and your own Claude login, and nothing about the Store or the wallet needs it.
 
@@ -475,8 +475,8 @@ cost, hash-locked vouchers, session keys. No prior-art search has been done. Wha
 ## 9. What has been verified, and what has not
 
 **Verified by tests** (all run in CI): the protocol (421 tests, including a cross-check against an independent Rust implementation of its
-core computations), the distribution layer (85), the wallet API (100), the registry (17), the web app (46, 21 of them in a real Chromium:
-ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds, an app using the wallet, a click duel between two pages, a QR code read from a fake camera), the dictation backend (73), the Android app's checks of a signed page (15, on a plain JVM), and a whole
+core computations), the distribution layer (85), the wallet API (100), the registry (17), the web app (45, 21 of them in a real Chromium:
+ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds, an app using the wallet, a click duel between two pages, a QR code read from a fake camera), the dictation backend (73), the Android app's checks of a downloaded page (14, on a plain JVM), and a whole
 dry run against a stand-in Solana (`node scripts/devnet-check.mjs --fake`).
 
 **Not verified:** a real burn on Solana (it needs a funded devnet wallet); the Android app on a real phone (it is compiled in CI only),

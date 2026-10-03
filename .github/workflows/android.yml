@@ -6,7 +6,7 @@ name: Android
 on:
   push:
     branches: [main, clean]
-    paths: ['android/**', 'apps/web/**', 'packages/**', 'registry/**', 'scripts/sign-site.mjs', 'deployment.json', '.github/workflows/android.yml']
+    paths: ['android/**', 'apps/web/**', 'packages/**', 'registry/**', 'scripts/describe-site.mjs', 'deployment.json', '.github/workflows/android.yml']
   workflow_dispatch:
 
 permissions:
@@ -29,8 +29,8 @@ jobs:
       - run: npm install
       - run: npm run build -w aiwa-store-web
       # The copy inside the APK is described (release.json: every file, its hash, the date) so that the app can tell whether the one
-      # it downloaded from the site is newer. It is not signed: the APK's own signature vouches for it.
-      - run: node scripts/sign-site.mjs apps/web/dist --unsigned
+      # it downloaded from the site is newer.
+      - run: node scripts/describe-site.mjs apps/web/dist
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

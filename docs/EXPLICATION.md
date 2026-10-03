@@ -438,9 +438,9 @@ ce canal.** La sauvegarde d'Android porte le journal du portefeuille vers un nou
 (une clé du Keystore ne se déplace pas), donc tu tapes tes 12 mots une fois.
 
 La page elle-même n'est pas figée dans l'appli : l'appli suit le site et met sa page à jour toute seule, sans nouvel APK. Elle ne garde une
-nouvelle page que si elle est signée par une clé intégrée à l'appli, et si chaque fichier est exactement celui que la signature liste : un
-site détourné, ou un réseau qui réécrit les pages, ne peut donc rien faire exécuter au téléphone. La nouvelle page démarre à la prochaine
-ouverture de l'appli.
+nouvelle page que lorsque chaque fichier est arrivé exactement comme la liste du site le dit, donc la page est toujours une seule version
+entière. Elle démarre à la prochaine ouverture de l'appli. Ce que le site publie est ce que les téléphones exécutent, et le site est publié par
+le compte GitHub du dépôt.
 
 Le widget de dictée est optionnel : il demande Termux et ta propre connexion à Claude, et rien dans le Store ou le portefeuille n'en a besoin.
 
@@ -498,9 +498,9 @@ qui est inhabituel, c'est la combinaison :
 ## 9. Ce qui a été vérifié, et ce qui ne l'a pas été
 
 **Vérifié par des tests** (tous exécutés en CI) : le protocole (421 tests, dont un recoupement avec une implémentation Rust indépendante de
-ses calculs de base), la couche de distribution (85), l'API du portefeuille (100), le registre (17), l'application web (46, dont 21 dans un
+ses calculs de base), la couche de distribution (85), l'API du portefeuille (100), le registre (17), l'application web (45, dont 21 dans un
 vrai Chromium : classement, bac à sable, falsification, hors ligne, restauration du portefeuille, brûlage avec sa part, publication des deux
-types, une app qui utilise le portefeuille, un duel de clics entre deux pages, un QR code lu par une fausse caméra), le backend de dictée (73), les vérifications d'une page signée par l'appli Android (15, sur une JVM ordinaire), et une répétition complète contre un Solana de substitution (`node scripts/devnet-check.mjs --fake`).
+types, une app qui utilise le portefeuille, un duel de clics entre deux pages, un QR code lu par une fausse caméra), le backend de dictée (73), les vérifications d'une page téléchargée par l'appli Android (14, sur une JVM ordinaire), et une répétition complète contre un Solana de substitution (`node scripts/devnet-check.mjs --fake`).
 
 **Non vérifié :** un vrai brûlage sur Solana (il faut un portefeuille devnet alimenté) ; l'application Android sur un vrai téléphone (elle
 n'est compilée qu'en CI), la connexion d'appareil de GitHub contre le vrai GitHub, la sauvegarde d'Android qui porte le journal ; une vraie
