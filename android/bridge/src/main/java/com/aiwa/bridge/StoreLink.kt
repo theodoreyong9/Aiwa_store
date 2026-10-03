@@ -7,6 +7,13 @@ import java.util.zip.Deflater
 /** The Store's web app, as the Android app serves it from its own assets (StoreActivity). */
 const val STORE_APP_URL = "https://appassets.androidplatform.net/assets/web/index.html"
 
+/** The same page, as served from the copy downloaded from the site (SiteRelease.kt) instead of the one inside the APK. */
+const val SITE_APP_URL = "https://appassets.androidplatform.net/site/index.html"
+
+/** An address of the Store, as the widget writes it (always the page inside the APK), moved to the copy that is actually served. */
+fun servedAddress(url: String, downloaded: Boolean): String =
+    if (downloaded && url.startsWith(STORE_APP_URL)) SITE_APP_URL + url.removePrefix(STORE_APP_URL) else url
+
 // Well under what a WebView accepts in an address and what an Intent can carry (about 1 MB in all). The Store's own limit
 // (512 KB of code) packs far below it; a file whose packed form is longer is over that limit anyway.
 private const val MAX_FRAGMENT_CHARS = 300_000

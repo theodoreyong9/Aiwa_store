@@ -437,6 +437,11 @@ lancer la connexion d'appareil de GitHub, enregistrer un fichier, ouvrir l'écra
 ce canal.** La sauvegarde d'Android porte le journal du portefeuille vers un nouveau téléphone ; les secrets sont laissés de côté exprès
 (une clé du Keystore ne se déplace pas), donc tu tapes tes 12 mots une fois.
 
+La page elle-même n'est pas figée dans l'appli : l'appli suit le site et met sa page à jour toute seule, sans nouvel APK. Elle ne garde une
+nouvelle page que si elle est signée par une clé intégrée à l'appli, et si chaque fichier est exactement celui que la signature liste : un
+site détourné, ou un réseau qui réécrit les pages, ne peut donc rien faire exécuter au téléphone. La nouvelle page démarre à la prochaine
+ouverture de l'appli.
+
 Le widget de dictée est optionnel : il demande Termux et ta propre connexion à Claude, et rien dans le Store ou le portefeuille n'en a besoin.
 
 ---

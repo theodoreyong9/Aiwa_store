@@ -8,7 +8,9 @@ import android.os.Build
 import android.os.Bundle
 import android.content.pm.PackageManager
 import android.os.Environment
+import android.os.SystemClock
 import android.provider.MediaStore
+import android.util.Log
 import android.view.ViewGroup
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
@@ -30,17 +32,32 @@ import androidx.webkit.WebViewClientCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.aiwa.bridge.GitHubDeviceFlow
+import com.aiwa.bridge.HttpSiteFetcher
 import com.aiwa.bridge.STORE_APP_URL
+import com.aiwa.bridge.SiteRelease
+import com.aiwa.bridge.SiteStore
+import com.aiwa.bridge.SiteUpdate
+import com.aiwa.bridge.SiteUpdater
+import com.aiwa.bridge.choose
+import com.aiwa.bridge.parseRelease
+import com.aiwa.bridge.servedAddress
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.io.File
 
 /**
- * The Store: the web app (apps/web) in a WebView, served from this APK's own assets at
- * https://appassets.androidplatform.net/assets/web/ — never from a file:// address, so that the page has a real origin
- * (IndexedDB for the wallet, module scripts, fetch). The wallet, the ranked list and the sandbox that apps run in are
- * the web app's; this activity only hosts it.
+ * The Store: the web app (apps/web) in a WebView, served by this app itself at https://appassets.androidplatform.net/ — never
+ * from a file:// address, so that the page has a real origin (IndexedDB for the wallet, module scripts, fetch). The wallet, the
+ * ranked list and the sandbox that apps run in are the web app's; this activity only hosts it.
+ *
+ * The page comes from one of two places, under the same origin (so the wallet's storage and the channel below are the same):
+ *   /assets/web/  the copy inside the APK: the first run, and always there offline;
+ *   /site/        the copy this phone downloaded from the site (deployment.json: siteUrl) and verified (SiteRelease.kt): the
+ *                 release must be signed by the site key that is in the APK, and every file must be the one it lists. It is used
+ *                 from the next start after the download, and only if it is newer than the copy inside the APK.
+ * A page that is not signed by that key is never served: updating the Store needs no new APK, and a hijacked site changes nothing.
  *
  * What the page may ask of the phone goes through ONE channel, a web message listener restricted to the page's own
  * origin: the sandboxed frame an app runs in has another (opaque) origin, so it can neither see this channel nor
@@ -59,6 +76,20 @@ import org.json.JSONObject
 class StoreActivity : ComponentActivity() {
     private lateinit var web: WebView
     private val secrets by lazy { SecretStore(this) }
+    private val siteStore by lazy { SiteStore(File(filesDir, "site")) }
+    private var bundled: SiteRelease? = null          // the copy inside the APK, as its release.json describes it
+    private var pageIsDownloaded = false              // the page being served is the downloaded copy
+    private var lastUpdateCheck = 0L
+
+    // The site this app follows, and the key its releases must be signed with: from deployment.json, which is part of the APK.
+    private val site: Pair<String, String>? by lazy {
+        try {
+            val json = JSONObject(assets.open("deployment.json").use { String(it.readBytes(), Charsets.UTF_8) })
+            val url = json.optString("siteUrl")
+            val key = json.optString("siteKey")
+            if (url.startsWith("https://") && url.endsWith("/") && key.length == 64) url to key else null
+        } catch (err: Exception) { null }
+    }
 
     // The page asked for the camera before the phone had given it: the request waits here for the answer.
     private var cameraRequest: PermissionRequest? = null
@@ -82,9 +113,15 @@ class StoreActivity : ComponentActivity() {
             WindowInsetsCompat.CONSUMED
         }
 
-        val assets = WebViewAssetLoader.Builder()
-            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
-            .build()
+        bundled = try { assets.open("web/release.json").use { parseRelease(it.readBytes()) } } catch (err: Exception) { null }
+        pageIsDownloaded = try { siteStore.choose(bundled).cached } catch (err: Exception) { false }
+        val loaderBuilder = WebViewAssetLoader.Builder().addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+        try {
+            loaderBuilder.addPathHandler("/site/", WebViewAssetLoader.InternalStoragePathHandler(this, siteStore.currentDir))
+        } catch (err: IllegalArgumentException) {
+            pageIsDownloaded = false
+        }
+        val loader = loaderBuilder.build()
         with(web.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true          // IndexedDB: the wallet's journal
@@ -116,7 +153,7 @@ class StoreActivity : ComponentActivity() {
         }
         web.webViewClient = object : WebViewClientCompat() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                assets.shouldInterceptRequest(request.url)
+                loader.shouldInterceptRequest(request.url)
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 // A frame inside the page (an app in its sandbox) navigates as a browser frame does: it never makes the
@@ -142,12 +179,38 @@ class StoreActivity : ComponentActivity() {
                 }
             }
         })
-        web.loadUrl(intent.getStringExtra(EXTRA_URL) ?: STORE_APP_URL)
+        web.loadUrl(servedAddress(intent.getStringExtra(EXTRA_URL) ?: STORE_APP_URL, pageIsDownloaded))
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent.getStringExtra(EXTRA_URL)?.let { web.loadUrl(it) }
+        intent.getStringExtra(EXTRA_URL)?.let { web.loadUrl(servedAddress(it, pageIsDownloaded)) }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        checkForUpdate()
+    }
+
+    // At most once an hour, in the background. The release is downloaded and verified whole; it replaces the page at the next start,
+    // never while this one is running (a page that loads a script later must find the files of its own release).
+    private fun checkForUpdate() {
+        val (url, key) = site ?: return
+        val now = SystemClock.elapsedRealtime()
+        if (lastUpdateCheck != 0L && now - lastUpdateCheck < 60 * 60 * 1000L) return
+        lastUpdateCheck = now
+        val have = listOfNotNull(siteStore.latest(), bundled).maxByOrNull { it.createdAt }
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val result = SiteUpdater(url, key, HttpSiteFetcher(), siteStore).update(have)
+                if (result is SiteUpdate.Updated) {
+                    runOnUiThread { Toast.makeText(this@StoreActivity, "Mise à jour du Store prête : ferme l'appli et rouvre-la.", Toast.LENGTH_LONG).show() }
+                }
+            } catch (err: Exception) {
+                // No network, no release yet, or a release that is not signed by the site key: the page in use stays.
+                Log.w("AiwaSite", "no update: ${err.message}")
+            }
+        }
     }
 
     override fun onDestroy() {

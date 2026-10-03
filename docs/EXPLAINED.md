@@ -417,6 +417,10 @@ channel: keep the 12 words and the GitHub token encrypted with a key the phone's
 open the dictation screen. **The frame an app runs in does not get that channel.** Android's own backup carries the wallet's journal to a
 new phone; the secrets are left out on purpose (a Keystore key does not move), so you type your 12 words once.
 
+The page itself is not frozen in the app: the app follows the site and updates its page by itself, with no new APK. It only keeps a new page
+if the page is signed by a key that is built into the app, and if every file is exactly the one the signature lists, so a hijacked site, or
+a network that rewrites pages, cannot make the phone run anything. The new page starts the next time you open the app.
+
 The dictation widget is optional: it needs Termux and your own Claude login, and nothing about the Store or the wallet needs it.
 
 ---

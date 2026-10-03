@@ -59,6 +59,8 @@ GitHub keeps the list, Solana keeps the burns, each phone keeps its own signed h
 1. On the phone, open the [latest release](https://github.com/theodoreyong9/Aiwa_store/releases/tag/android-latest) and download **Aiwa_store.apk**.
 2. Open it from Downloads and tap **Install**. Android asks once to allow installs from your browser or Files app. A new version installs over
    the old one.
+   You will not need a new APK for the Store itself: the app follows [the site](https://theodoreyong9.github.io/Aiwa_store/), checks that a new
+   page is signed by the key built into the app, and starts it the next time you open the app. A new APK is for the widget and the app around the page.
 3. Open **Aiwa Store**, tap **Wallet**, then **Create my wallet**. Write down the 12 words: they are the only way back on another phone.
 
 That is all the Store needs. The widget below is optional.
@@ -103,6 +105,7 @@ These are settings and accounts. Until they are done, the matching workflow is *
 | To get | Do this |
 |---|---|
 | The site served (workflow *Pages*) | [Settings → Pages](https://github.com/theodoreyong9/Aiwa_store/settings/pages) → Source: **GitHub Actions**. Then re-run *Pages* |
+| The Android app updating its page by itself | Add the secret [`SITE_SIGNING_KEY`](https://github.com/theodoreyong9/Aiwa_store/settings/secrets/actions): the seed that goes with `siteKey` in `deployment.json`. Without it the site is served but not signed, so *Pages* ends red and the phones keep the page they have |
 | GitHub sign-in in the publish sheet | Create a GitHub OAuth App named *Aiwa Store* with **Device Flow** enabled, put its Client ID in `deployment.json` (`github.clientId`) |
 | A burn on the real network (workflow *Devnet check*) | Fund a devnet wallet once (faucet.solana.com) and add its 12 words as the secret [`DEVNET_PHRASE`](https://github.com/theodoreyong9/Aiwa_store/settings/secrets/actions) |
 | A first real run | Install the APK on a phone and try it: it is the main thing nobody has done |
@@ -113,9 +116,9 @@ These are settings and accounts. Until they are done, the matching workflow is *
 | Tested in CI | Not verified |
 |---|---|
 | The protocol: identity, signed events, proofs of work, accrual, claims, double spend (421 tests, with a cross-check against an independent Rust implementation) | A real burn on Solana |
-| The wallet, the creator's share, backup and restore (100 + 85 tests) | The Android app on a real phone: keystore, GitHub sign-in, Android's backup, the widget (it is compiled in CI, never run) |
+| The wallet, the creator's share, backup and restore (100 + 85 tests) | The Android app on a real phone: keystore, GitHub sign-in, Android's backup, the widget, the page updating itself from the site (compiled in CI and its signature and hash checks unit-tested, never run) |
 | The registry: signatures, proofs, burns, ranking (17 tests) | A real pull request through the registry workflow |
-| The web app in a real Chromium: ranking, sandbox, tampering, offline, restore, burn, publishing of both kinds, an app using the wallet, a click duel between two pages, a scan against a fake camera (40 tests) | The legal status of the creator's share |
+| The web app in a real Chromium: ranking, sandbox, tampering, offline, restore, burn, publishing of both kinds, an app using the wallet, a click duel between two pages, a scan against a fake camera, the signing of the site's release (46 tests) | The legal status of the creator's share |
 | The whole path against a stand-in Solana (`devnet-check --fake`) | The economic parameters in the field |
 | | The click duel between two real phones, and the camera in the APK (the code that grants it is written and compiled in CI, never run) |
 
@@ -139,7 +142,7 @@ These are settings and accounts. Until they are done, the matching workflow is *
 | **CI** | each push | the whole test suite, the dry run of the real-network check, and the documents (every diagram renders) |
 | **Android** | a push touching the app | builds the APK; from `main`, publishes it as the `android-latest` release |
 | **Registry** | a pull request adding `submissions/*.json` | validates the submission as data, writes `store/` if accepted, closes the pull request with the verdict |
-| **Pages** | a push to `main`, or after the registry | publishes the site. **Red until Pages is switched on** (see above) |
+| **Pages** | a push to `main`, or after the registry | publishes the site and signs the web app for the Android app. **Red until Pages is switched on and `SITE_SIGNING_KEY` exists** (see above) |
 | **Devnet check** | by hand | a burn with the creator's share on the real devnet. **Red until `DEVNET_PHRASE` exists** |
 
 </details>
@@ -154,7 +157,7 @@ These are settings and accounts. Until they are done, the matching workflow is *
 | [`packages/lib`](packages/lib) | the wallet API (12-word recovery, backup, restore, burn, payments) and the contract SDK |
 | [`registry`](registry) | what decides which apps are listed and in what order |
 | [`apps/web`](apps/web) | the Store and the wallet as one web app |
-| [`android`](android) | the APK: the web app in a WebView, plus the optional widget |
+| [`android`](android) | the APK: the web app in a WebView (kept up to date from the site, with a copy inside), plus the optional widget |
 | [`deployment.json`](deployment.json) | the parameters the wallet and the registry share, including the creator fee and its address |
 | [`docs/demo-apps`](docs/demo-apps) | the demo apps of the screenshots (`node scripts/screenshots.mjs` redraws them) |
 

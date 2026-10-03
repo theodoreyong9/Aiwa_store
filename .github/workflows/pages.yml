@@ -2,13 +2,15 @@ name: Pages
 # The site: the web app, and the registry's public files (store/index.json, store/apps/) next to it. Run after a push that
 # changes either, and by the registry workflow after it writes store/ (a push made with the workflow token starts no workflow).
 #
-# It needs Pages switched on ONCE, by the owner: Settings → Pages → Source: GitHub Actions. A workflow cannot do that with its
-# own token. Until it is on, nothing is deployed, so this workflow FAILS and says exactly that: a green run that deployed
-# nothing would be a lie.
+# It needs two things from the owner, once. Pages switched on: Settings → Pages → Source: GitHub Actions (a workflow cannot do that
+# with its own token). Until it is on, nothing is deployed, so this workflow FAILS and says exactly that: a green run that deployed
+# nothing would be a lie. And the secret SITE_SIGNING_KEY: the Android app only runs a page signed by the site key (deployment.json:
+# siteKey), so that it updates itself from this site without a new APK and a hijacked site changes nothing. Without the secret the
+# site is deployed all the same (a browser needs no signature) but the apps do not update, and the last step says so by failing.
 on:
   push:
     branches: [main]
-    paths: ['apps/web/**', 'packages/**', 'registry/**', 'deployment.json', 'store/index.json', 'store/apps/**', 'store/baselines/**', '.github/workflows/pages.yml']
+    paths: ['apps/web/**', 'packages/**', 'registry/**', 'scripts/sign-site.mjs', 'deployment.json', 'store/index.json', 'store/apps/**', 'store/baselines/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -43,6 +45,20 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build -w aiwa-store-web
+      # Signed before anything else is put next to it: release.json lists the web app's files, not the registry's (which change
+      # at each accepted app and which the Store reads from the site as data).
+      - name: Describe and sign the web app
+        id: sign
+        env:
+          SITE_SIGNING_KEY: ${{ secrets.SITE_SIGNING_KEY }}
+        run: |
+          if [ -n "$SITE_SIGNING_KEY" ]; then
+            node scripts/sign-site.mjs apps/web/dist
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            node scripts/sign-site.mjs apps/web/dist --unsigned
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: The registry's public files, next to the app
         run: |
           mkdir -p apps/web/dist/store
@@ -54,3 +70,10 @@ jobs:
           path: apps/web/dist
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Is the site signed, so that the Android apps update from it?
+        if: steps.sign.outputs.signed != 'true'
+        run: |
+          url="https://github.com/${{ github.repository }}/settings/secrets/actions"
+          echo "::error title=The site is deployed, but not signed: the Android apps will not update from it::Add the secret SITE_SIGNING_KEY (the seed that goes with siteKey in deployment.json) at $url, then re-run this workflow."
+          { echo "### The site is deployed, but not signed"; echo; echo "A browser opens it as it is. The Android app only runs a page signed by the site key, so it keeps the page it has."; echo; echo "Add the repository secret **SITE_SIGNING_KEY** at [Settings → Secrets → Actions]($url), then re-run this workflow."; } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

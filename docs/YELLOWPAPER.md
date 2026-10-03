@@ -1354,7 +1354,7 @@ checked again like what the network gives. Offline, the last index and the apps 
 
 ### 18.6 The shell around it (Android)
 
-The web app (store and wallet as one) runs in a WebView served from the APK's own assets. The page may ask the phone for four things
+The web app (store and wallet as one) runs in a WebView, served by the app itself (from its own assets, or from a copy it has downloaded and verified). The page may ask the phone for four things
 through one channel, `window.AiwaHost`, which exists only in the page's own origin: **the frame an app runs in does not get it**.
 
 ```mermaid
@@ -1377,6 +1377,25 @@ flowchart TB
   PGE --> DM
   PGE -- "srcdoc, nothing else" --> APP
   APP -. "only if it declares the wallet:<br/>messages the page answers (§18.8)" .-> PGE
+```
+
+The page is not the APK's: the app follows the site. It downloads a release, `release.json` (every file with its SHA-256) and `release.sig` (an
+Ed25519 signature of its exact bytes), checks the signature with a **site key** that is in the APK and every file against its hash, keeps
+all of it or nothing, and serves it from its own storage under the same origin, from the next start, if it is newer than the copy inside
+the APK. A page not signed by that key is never run, so a hijacked site or a rewriting network changes nothing; a replayed older release is
+not an update. Whoever holds the signing key decides what the phones run, which is the same trust as the APK's own signature.
+
+```mermaid
+sequenceDiagram
+  participant S as Site
+  participant A as Android app
+  participant D as App storage
+  A->>S: release.json and release.sig
+  A->>A: signature checked with the site key in the APK
+  A->>S: each file the release lists
+  A->>A: each file checked against its SHA-256
+  A->>D: all of it kept as pending, or nothing
+  Note over A,D: at the next start the page is served from storage if it is newer than the copy in the APK
 ```
 
 The request/response protocol is `{id, command}` → `{id, result}`, `{id, error}` or `{id, progress}`. Android's automatic backup
@@ -1788,7 +1807,8 @@ none needs a hosted server.
   (the faucet refuses shared CI runners) whose phrase is the repository secret `DEVNET_PHRASE`.
 - No run on a real phone: the WebView host, the Keystore, GitHub's device login against the real GitHub (it needs an OAuth App with Device
   Flow whose Client ID goes in `deployment.json`), Android's automatic backup carrying the journal to a new phone, the Termux backend, the
-  widget. The Kotlin that is not plain JVM is compiled in CI only.
+  widget, the page updating itself from the site (the signature and hash checks are unit-tested on a JVM against a release signed by the Node
+  side; the download, the swap and the serving from app storage have never run on a device). The Kotlin that is not plain JVM is compiled in CI only.
 - No pull request opened by the Store's sheet on GitHub, end to end; the registry workflow has not run on GitHub with a real pull request;
   the site needs GitHub Pages enabled to be served.
 - The click duel (§18.8) between two real phones: the camera in the Android WebView (written, compiled in CI, never run; in Chromium the scan is tested against a fake camera) and the WebRTC link between two phones. It is tested between two pages of one Chromium.

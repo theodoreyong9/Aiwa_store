@@ -5,6 +5,8 @@
   "cluster": "devnet",
   "rpc": "https://api.devnet.solana.com",
   "registryUrl": "https://theodoreyong9.github.io/Aiwa_store/store",
+  "siteUrl": "https://theodoreyong9.github.io/Aiwa_store/",
+  "siteKey": "1bdde36bdd94683e014cb55f33a2c21db9db3c0ba71aa9bfcbc8b25679693538",
   "github": {
     "clientId": ""
   },

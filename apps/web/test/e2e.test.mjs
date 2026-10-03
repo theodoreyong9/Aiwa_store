@@ -94,7 +94,9 @@ before(async () => {
       const pkg = JSON.parse(body.toString());
       body = Buffer.from(JSON.stringify({ ...pkg, html: pkg.html.replace('Beta', 'EVIL') }));
     }
-    res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' }).end(body);
+    // the SDK is imported by an app in the sandbox (an opaque origin), which a module can only be fetched for with CORS
+    const cors = path === '/lib/aiwa.js' ? { 'access-control-allow-origin': '*' } : {};
+    res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store', ...cors }).end(body);
   }).listen(0, '127.0.0.1');
   await new Promise((r) => server.once('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -631,10 +633,13 @@ test('a hand-off that is damaged or too big is not opened, and says so', async (
 });
 
 test('an app that uses the Aiwa SDK runs in the sandbox: it imports the module by its address and counts one vote per identity', async () => {
-  const code = readFileSync(join(root, 'docs/aiwa-app-example.html'), 'utf8');
+  const example = readFileSync(join(root, 'docs/aiwa-app-example.html'), 'utf8');
+  assert.equal(SDK_URL, `${JSON.parse(readFileSync(join(root, 'deployment.json'), 'utf8')).siteUrl}lib/aiwa.js`, "the deployed site's address of the SDK");
+  assert.ok(example.includes(`from '${SDK_URL}'`), 'the example imports the SDK by the deployed site\'s address');
+  // Here the same module is the build under test, on the test's own server: the address is the only thing changed. (Answering the
+  // deployed address with the browser's request interception was unreliable: a frame of the sandbox sometimes asked the network first.)
+  const code = example.replace(`from '${SDK_URL}'`, `from '${base}/lib/aiwa.js'`);
   const { page, errors, context } = await openPage();
-  // the SDK's address is the deployed site's; here it is answered by the build under test
-  await context.route(SDK_URL, (route) => route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'text/javascript' }, body: readFileSync(join(site, 'lib/aiwa.js')) }));
   await handoff(page, 'aiwa', 'show-of-hands', code);
   await page.waitForSelector('#sheet:not([hidden])');
   assert.equal(await page.inputValue('#app-description'), 'A vote that anyone can replay from its signed events: one vote per identity, proved by a signature inside the action.');
@@ -726,7 +731,7 @@ test('an app that says it uses the wallet gets a banner and a door; one that doe
   await context.close();
 });
 
-test('click duel: two phones link by two codes, click for 20 seconds, and the one who clicked less pays what they clicked', { timeout: 180000 }, async () => {
+test('click duel: two phones link by two codes, click for 20 seconds, and the one who clicked less pays what they clicked', { timeout: 300000 }, async () => {
   const duel = readFileSync(join(root, 'docs/demo-apps/click-duel.html'), 'utf8');
   const chain = new Map();                                // one Solana for both phones
   const A = await openPage(async (p) => { await injectSolana(p, chain); await injectHost(p); });
@@ -769,9 +774,11 @@ test('click duel: two phones link by two codes, click for 20 seconds, and the on
   assert.equal(await a.locator('#mine').textContent(), '12');
   await until(async () => (await b.locator('#theirs').textContent()) === '12', { ms: 5000, what: 'B to see A\'s clicks' });   // B sees A's clicks live
 
+  const shows = async (frame) => (await frame.locator('body').innerText()).replace(/\s+/g, ' ');
   for (const [name, frame] of [['A', a], ['B', b]]) {
-    await frame.locator('#end').waitFor({ state: 'visible', timeout: 60000 }).catch(async (error) => {
-      throw new Error(`${name} never reached the end of the duel. It shows: ${(await frame.locator('body').innerText()).replace(/\s+/g, ' ')}`, { cause: error });
+    // The winner's phone checks everything the loser's payment carries, the history of a wallet that has been mining every 150 ms: some 30 s of work here.
+    await frame.locator('#end').waitFor({ state: 'visible', timeout: 120000 }).catch(async (error) => {
+      throw new Error(`${name} never reached the end of the duel. A shows: ${await shows(a)} | B shows: ${await shows(b)} | page errors: ${JSON.stringify([A.errors, B.errors])}`, { cause: error });
     });
   }
   assert.match(await a.locator('#result').textContent(), /You won 0\.0001 AIWA/);

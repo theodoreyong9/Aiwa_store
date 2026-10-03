@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The Android app follows the site instead of freezing the page it was built with. `release.json` (every file with its SHA-256) and `release.sig` (an Ed25519 signature of its exact bytes) are made by the *Pages* workflow with the secret `SITE_SIGNING_KEY`; the app downloads them, checks the signature with the `siteKey` of `deployment.json` (in the APK) and every file against its hash, keeps all of it or nothing, and serves it from its own storage under the same origin from the next start, if it is newer than the copy inside the APK. `apps/web/release.mjs`, `scripts/site-key.mjs`, `scripts/sign-site.mjs`, `SiteRelease.kt` (15 JVM tests, one against a release signed by the Node side) and 2 Node tests that tie the two together.
 - Initial import of the protocol (`packages/core`), the distribution layer (`packages/platform`) and the wallet API (`packages/lib`) into one workspace, with their tests (core 410, platform 85, lib 95). One lock file; the packages depend on each other through the workspace, not through pinned commits.
 - Plain-words explanation in English and French.
 - The creator fee: a deployment may set `rewardParams.creatorFee = { address, rateOfT }`. A fixed part of the T share of every burn then goes to that address in the same transaction; readers count it and refuse a commitment at T > 0 whose burn did not pay it. Core 418 tests, lib 100.

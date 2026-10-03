@@ -23,5 +23,9 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // Ed25519, to check that the page is the one the site key signed (the platform has it only from Android 13)
+    implementation("org.bouncycastle:bcprov-jdk18on:1.80")
     testImplementation("junit:junit:4.13.2")
+    // org.json as the phone has it: the unit tests run on a plain JVM, where the Android stub does nothing
+    testImplementation("org.json:json:20250107")
 }

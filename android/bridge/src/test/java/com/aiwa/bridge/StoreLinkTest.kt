@@ -63,4 +63,14 @@ class StoreLinkTest {
         assertTrue(storePublishUrl("a", "x")!!.contains("#publish=code;a;"))
         assertNull(storePublishUrl("a", "x", kind = "sphere"))
     }
+
+    @Test fun theWidgetsAddressFollowsTheCopyThatIsServed() {
+        val url = storePublishUrl("demo-app", app)!!
+        assertEquals(url, servedAddress(url, downloaded = false))
+        val moved = servedAddress(url, downloaded = true)
+        assertTrue(moved.startsWith("https://appassets.androidplatform.net/site/index.html#publish=code;demo-app;"))
+        assertEquals(url.substringAfter('#'), moved.substringAfter('#'))
+        // an address that is not the Store's page is left alone
+        assertEquals("https://example.com/", servedAddress("https://example.com/", downloaded = true))
+    }
 }

@@ -40,6 +40,8 @@ android {
     kotlinOptions { jvmTarget = "17" }
     // The Store's web app is part of the APK: its build (apps/web/dist) is copied into the assets, never committed here.
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/web-assets"))
+    // The site this app follows for its page (siteUrl) and the key that must have signed it (siteKey) are deployment.json's.
+    sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/deployment-assets"))
 }
 
 val webDist = rootProject.file("../apps/web/dist")
@@ -49,7 +51,12 @@ val copyWeb by tasks.registering(Copy::class) {
     from(webDist)
     into(layout.buildDirectory.dir("generated/web-assets/web"))
 }
-tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach { dependsOn(copyWeb) }
+val copyDeployment by tasks.registering(Copy::class) {
+    description = "Copies deployment.json into the APK's assets: where the app finds the site to follow and the key that signs it"
+    from(rootProject.file("../deployment.json"))
+    into(layout.buildDirectory.dir("generated/deployment-assets"))
+}
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach { dependsOn(copyWeb, copyDeployment) }
 dependencies {
     implementation(project(":bridge"))
     implementation("androidx.core:core-ktx:1.17.0")
