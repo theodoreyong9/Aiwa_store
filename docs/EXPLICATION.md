@@ -13,6 +13,12 @@ chacun garde son propre carnet d'événements signés, le montre aux autres quan
 
 Trois choses extérieures servent, chacune pour un seul travail :
 
+<!-- diagram: explication-01-afe83c59.png -->
+![Diagram: Tout en une minute](img/diagrams/explication-01-afe83c59.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   subgraph phone["Ton téléphone (tout ce qui est ici marche aussi hors ligne)"]
@@ -30,6 +36,9 @@ flowchart LR
   GH -- "la liste des apps" --> ST
   WA <-. "des événements, par n'importe quel moyen" .-> OTH
 ```
+
+</details>
+<!-- /diagram -->
 
 | | Internet nécessaire ? |
 |---|---|
@@ -53,6 +62,12 @@ rien n'est envoyé nulle part.
 - un **numéro**, qui est l'empreinte de son contenu (change une lettre et le numéro change) ;
 - ses **parents** : les événements qu'il suit, qu'il désigne par leurs numéros.
 
+<!-- diagram: explication-02-92e80878.png -->
+![Diagram: 1. Ta clé et ton carnet](img/diagrams/explication-02-92e80878.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   e0(("e0")) --> e1(("e1")) --> e2(("e2"))
@@ -60,6 +75,9 @@ flowchart LR
   e2 --> e4(("e4<br/>cite les deux<br/>comme parents"))
   e3 --> e4
 ```
+
+</details>
+<!-- /diagram -->
 
 Comme chaque événement contient les numéros de ses parents, **modifier le passé casse tout ce qui suit**. Deux événements qui ne se
 connaissent pas (`e2` et `e3`) sont deux *branches* : c'est ordinaire, cela veut simplement dire que deux choses se sont passées sur
@@ -77,6 +95,12 @@ Personne ne garde le carnet de tout le monde. Tu gardes ce qui te concerne ; les
 
 Tout ce que fait le carnet est l'un de trois travaux. Chacun répond à une question :
 
+<!-- diagram: explication-03-4f4d2203.png -->
+![Diagram: 2. Les trois travaux du carnet](img/diagrams/explication-03-4f4d2203.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart TB
   N[("Ton carnet<br/>événements signés")]
@@ -85,6 +109,9 @@ flowchart TB
   N --> M["LA MÉMOIRE DES AUTRES<br/>Qu'ai-je reçu d'eux ?<br/>→ des reçus signés"]
 ```
 
+</details>
+<!-- /diagram -->
+
 ### 2.1 Le temps, sans horloge : le travail
 
 Il n'y a pas d'horloge commune, donc le temps se montre par du **travail** : ton appareil fait un calcul qu'on ne peut pas accélérer en
@@ -92,10 +119,19 @@ le répartissant sur plusieurs machines. Un morceau de travail est une **époque
 Chaque fois que tu en fais, tu signes un événement avec une **preuve** du travail, et n'importe qui vérifie cette preuve en environ 3,6
 millièmes de seconde, quelle qu'ait été la durée de ton travail.
 
+<!-- diagram: explication-04-ce9f6e72.png -->
+![Diagram: 2.1 Le temps, sans horloge : le travail](img/diagrams/explication-04-ce9f6e72.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   A["l'engagement de ton brûlage<br/>(section 3)"] --> W1["travail : époque 1"] --> W2["travail : époques 2 et 3"] --> C["tu réclames<br/>ce que tu as gagné"] --> W3["travail : époque 4"]
 ```
+
+</details>
+<!-- /diagram -->
 
 Trois détails comptent :
 
@@ -112,6 +148,12 @@ Les AIWA se détiennent sous forme de **créances**. Une créance est un montant
 créance X va à Bob ». Derrière cette unique signature, la créance suit une suite fixe d'étapes, chacune devant réussir pour que la
 suivante ait lieu :
 
+<!-- diagram: explication-05-727f9fcd.png -->
+![Diagram: 2.2 La propriété : une créance ne bouge qu'une fois](img/diagrams/explication-05-727f9fcd.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 stateDiagram-v2
   [*] --> active: créée par ton minage
@@ -124,12 +166,21 @@ stateDiagram-v2
   end note
 ```
 
+</details>
+<!-- /diagram -->
+
 La valeur est **déplacée, jamais copiée**. Un deuxième essai avec la même signature est refusé, et déplacer une créance qui n'est plus
 active l'est aussi. Tu peux aussi **découper** une créance en deux (les parts font toujours le total d'origine).
 
 **Un QR code qui contient de l'argent (un bon).** Parfois on ne connaît pas encore le destinataire, par exemple un code de retrait. Tu
 déplaces la créance vers une adresse qui est l'empreinte d'un secret. Celui qui montre le secret *et* signe avec sa propre clé reçoit la
 créance, une seule fois :
+
+<!-- diagram: explication-06-e8cb63c1.png -->
+![Diagram: 2.2 La propriété : une créance ne bouge qu'une fois](img/diagrams/explication-06-e8cb63c1.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -144,6 +195,9 @@ sequenceDiagram
   L->>L: le premier encaissement déplace la créance
   Note over L: un second la trouve déjà dépensée, donc il est refusé
 ```
+
+</details>
+<!-- /diagram -->
 
 **Signer une fois, cliquer autant que tu veux.** Tu peux signer une seule déclaration qui autorise une seconde clé (une « clé de
 session ») à déplacer tes créances. Ensuite, chaque clic est signé par la clé de session et tu n'utilises plus ta clé principale. Cela ne
@@ -173,6 +227,12 @@ C'est le seul prix de la création d'AIWA. Ta clé, ton carnet, recevoir et envo
 
 ### 3.2 Les quatre étapes
 
+<!-- diagram: explication-07-4e17037f.png -->
+![Diagram: 3.2 Les quatre étapes](img/diagrams/explication-07-4e17037f.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   A["1. BRÛLER<br/>le SOL va à l'incinérateur<br/>sur Solana, tu choisis T"] --> B["2. S'ENGAGER<br/>tu signes : ce brûlage est mon capital"]
@@ -180,6 +240,9 @@ flowchart LR
   C --> D["4. RÉCLAMER<br/>ce qui s'est accumulé devient<br/>une créance qui est à toi"]
   D -. "un nouveau brûlage remplace la position<br/>et paie l'ancienne d'abord" .-> A
 ```
+
+</details>
+<!-- /diagram -->
 
 1. **Brûler.** Le portefeuille envoie du SOL à l'incinérateur et, dans la même transaction, une petite part au créateur (3.6). Tu vois la
    répartition avant de signer.
@@ -229,6 +292,12 @@ Ta position est ce que ta **dernière action** en a fait :
 Le brûlage est **une transaction avec deux transferts** : presque tout à l'incinérateur, et une petite part à une adresse fixe, celle du
 créateur.
 
+<!-- diagram: explication-08-6098d12e.png -->
+![Diagram: 3.6 La part du créateur](img/diagrams/explication-08-6098d12e.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   U["Tu brûles 1 SOL<br/>avec T = 20 %"] --> TX{{"une transaction,<br/>deux transferts"}}
@@ -236,6 +305,9 @@ flowchart LR
   TX -- "0,0002 SOL" --> CR["Adresse du créateur"]
   U -. "compté comme ton capital" .-> CAP["0,8 SOL<br/>(les 0,2 restants sont la part T :<br/>ils ne comptent pour rien)"]
 ```
+
+</details>
+<!-- /diagram -->
 
 La part est de **0,1 % de la part T** : à T = 40 %, 0,0004 SOL par SOL brûlé. À T = 0 (le défaut), rien. Tu ne choisis pas qui est payé.
 L'adresse et le taux sont écrits dans les règles du protocole, pas dans un réglage, et ne changent qu'avec une nouvelle version des règles.
@@ -268,6 +340,12 @@ créance dépensée deux fois, le même bon encaissé deux fois. Un lecteur en g
 
 Alice détient une créance. Hors ligne, elle signe deux paiements de cette même créance, à Bob et à Carol. Chacun croit avoir été payé.
 
+<!-- diagram: explication-09-25d8552e.png -->
+![Diagram: 4.3 La double dépense, pas à pas](img/diagrams/explication-09-25d8552e.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant A as Alice
@@ -286,6 +364,9 @@ sequenceDiagram
   R->>R: le paiement de Carol est accepté, celui de Bob est refusé (créance déjà dépensée)
   R->>R: et garde la preuve : deux signatures valides d'Alice sur la créance X
 ```
+
+</details>
+<!-- /diagram -->
 
 Trois choses à comprendre.
 
@@ -323,6 +404,12 @@ Les 12 mots redonnent ta clé. Ils ne redonnent **pas** ton carnet : personne ne
 l'historique doit revenir de quelque part. Dans l'application, rien de tout cela n'est un bouton. Une fois que tu as tapé tes 12 mots sur le
 nouveau téléphone :
 
+<!-- diagram: explication-10-57b063b0.png -->
+![Diagram: 5. Perdre son téléphone](img/diagrams/explication-10-57b063b0.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart TB
   P["Nouveau téléphone : tu tapes tes 12 mots"] --> K["Même clé, même adresse"]
@@ -335,6 +422,9 @@ flowchart TB
   S3 --> M
   M --> G["et seulement ensuite le minage reprend"]
 ```
+
+</details>
+<!-- /diagram -->
 
 Il ne commence jamais à miner avant d'avoir cherché : un historique parti de rien ferait bifurquer celui qui allait revenir. Chaque source
 est un état signé par ta propre clé (ou déduit par le registre de tes soumissions), donc une source peut oublier mais pas inventer. **Non
@@ -359,6 +449,12 @@ une, toutes deux sur GitHub :
 
 Tu dictes à Claude Code, qui écrit l'application. Depuis le widget tu appuies sur ▦ et le Store ouvre une feuille unique qui montre
 l'application. Tu la lis, tu l'essaies, et tu appuies sur **Publier**. Rien n'est signé ni envoyé avant.
+
+<!-- diagram: explication-11-2599d3aa.png -->
+![Diagram: 6.2 Publier](img/diagrams/explication-11-2599d3aa.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -385,6 +481,9 @@ sequenceDiagram
   R->>H: répond sur la pull request avec le verdict, et la ferme
 ```
 
+</details>
+<!-- /diagram -->
+
 ### 6.3 Ce que le registre vérifie
 
 - le fichier est bien formé, son empreinte correspond à son contenu, et **la signature est celle de l'auteur**, pour cette app et cette
@@ -408,6 +507,12 @@ qualité.
 
 ### 6.5 Ouvrir une application
 
+<!-- diagram: explication-12-fd049e95.png -->
+![Diagram: 6.5 Ouvrir une application](img/diagrams/explication-12-fd049e95.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant R as Ton Store
@@ -424,6 +529,9 @@ sequenceDiagram
   R->>F: l'ouvre dans un cadre isolé
   Note over F: aucun accès à ton stockage ni au téléphone, et aucun à ton portefeuille sauf si l'app le dit
 ```
+
+</details>
+<!-- /diagram -->
 
 Le cadre est un bac à sable standard du navigateur, avec sa propre identité vide : quoi que fasse l'app, elle **ne peut pas atteindre ton
 portefeuille toute seule**, et cela ne dépend pas du bon comportement de l'auteur. Une exception, plus bas : une app qui dit utiliser le portefeuille. Un hébergeur qui sert un autre fichier que celui qui a été signé est
@@ -452,6 +560,12 @@ Une app peut dire qu'elle utilise ton portefeuille. Le Store affiche alors une b
 payer quelqu'un, recevoir un paiement, montrer ou lire un code. **Click duel** est une app de ce genre : deux téléphones côte à côte, un prix
 par clic, 20 secondes de clics. Celui qui a cliqué le moins paie ce qu'il a cliqué.
 
+<!-- diagram: explication-13-d3dc9733.png -->
+![Diagram: 6.7 Une app qui utilise le portefeuille : le duel de clics](img/diagrams/explication-13-d3dc9733.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant A as Téléphone A
@@ -465,6 +579,9 @@ sequenceDiagram
   B->>A: un seul paiement, signé par une clé de session : rien n'est signé par clic
   A->>A: le solde monte (dès que l'on sait que ces AIWA viennent d'un vrai brûlage : voir plus bas)
 ```
+
+</details>
+<!-- /diagram -->
 
 Ce que ça montre : rien n'est signé par clic. Le premier paiement à quelqu'un signe une délégation (section 2.2), et le paiement lui-même est
 signé par une clé de session. Le jeu ne touche jamais Solana. Le portefeuille, lui, y va une fois pour tout AIWA qu'il reçoit : il vérifie que le

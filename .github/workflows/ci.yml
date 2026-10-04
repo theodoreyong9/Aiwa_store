@@ -22,3 +22,5 @@ jobs:
       - run: node scripts/devnet-check.mjs --fake
       # the documents: every diagram renders, every § names a heading of the yellow paper
       - run: node scripts/check-diagrams.mjs
+      # every diagram is also a picture in its document (a viewer that does not draw Mermaid shows nothing otherwise)
+      - run: node scripts/render-diagrams.mjs --check

@@ -4,6 +4,12 @@ The protocol, pure and without I/O: no transport, no storage backend of its own 
 
 Where it sits in the repository (highlighted):
 
+<!-- diagram: pkg-core-01-79f0d2e7.png -->
+![Diagram: aiwa-core](../../docs/img/diagrams/pkg-core-01-79f0d2e7.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart BT
   core["<b>packages/core</b><br/>the protocol: identity, signed events,<br/>verifiable work, conservation"]
@@ -21,6 +27,9 @@ flowchart BT
   android -. "carries the build of" .-> web
   style core fill:#fde68a,stroke:#b45309,stroke-width:2px
 ```
+
+</details>
+<!-- /diagram -->
 
 ```
 npm test        # 421 tests, including a cross-check against an independent Rust implementation when cargo is available

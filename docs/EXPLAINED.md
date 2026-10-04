@@ -12,6 +12,12 @@ signed events, shows it to others when useful, and anyone can check what they ar
 
 Three outside things are used, each for one job:
 
+<!-- diagram: explained-01-ffae117f.png -->
+![Diagram: The whole thing in one minute](img/diagrams/explained-01-ffae117f.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   subgraph phone["Your phone (everything here also works offline)"]
@@ -29,6 +35,9 @@ flowchart LR
   GH -- "the list of apps" --> ST
   WA <-. "events, by any means" .-> OTH
 ```
+
+</details>
+<!-- /diagram -->
 
 | | Needs the internet? |
 |---|---|
@@ -51,6 +60,12 @@ the same 12 words open the same account in any Solana wallet. There is no accoun
 - a **number**, which is the fingerprint of its content (change one letter and the number changes);
 - its **parents**: the events it follows, which it names by their numbers.
 
+<!-- diagram: explained-02-6db318c2.png -->
+![Diagram: 1. Your key and your notebook](img/diagrams/explained-02-6db318c2.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   e0(("e0")) --> e1(("e1")) --> e2(("e2"))
@@ -58,6 +73,9 @@ flowchart LR
   e2 --> e4(("e4<br/>names both<br/>as parents"))
   e3 --> e4
 ```
+
+</details>
+<!-- /diagram -->
 
 Because each event contains its parents' numbers, **changing the past breaks everything after it**. Two events that do not know of each
 other (`e2` and `e3`) are two *branches*: that is ordinary, it simply means two things happened on two devices. They meet again as soon
@@ -75,6 +93,12 @@ Nobody keeps everyone's notebook. You keep what concerns you; others keep what c
 
 Everything the notebook does is one of three jobs. Each answers one question:
 
+<!-- diagram: explained-03-a5c0623d.png -->
+![Diagram: 2. The three jobs of the notebook](img/diagrams/explained-03-a5c0623d.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart TB
   N[("Your notebook<br/>signed events")]
@@ -83,16 +107,28 @@ flowchart TB
   N --> M["MEMORY OF OTHERS<br/>What did I receive from them?<br/>→ signed receipts"]
 ```
 
+</details>
+<!-- /diagram -->
+
 ### 2.1 Time, without a clock: work
 
 There is no common clock, so time is shown by **work**: your device does a computation that cannot be made faster by spreading it over
 many machines. One piece of work is an **epoch** (about half a second on an ordinary machine). Each time you do some, you sign an event
 with a **proof** of the work, and anyone can check that proof in about 3.6 thousandths of a second, however long the work took you.
 
+<!-- diagram: explained-04-239e61fb.png -->
+![Diagram: 2.1 Time, without a clock: work](img/diagrams/explained-04-239e61fb.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   A["your burn's commitment<br/>(section 3)"] --> W1["work: epoch 1"] --> W2["work: epochs 2 and 3"] --> C["you claim<br/>what you have earned"] --> W3["work: epoch 4"]
 ```
+
+</details>
+<!-- /diagram -->
 
 Three details matter:
 
@@ -107,6 +143,12 @@ Three details matter:
 AIWA is held as **claims**. A claim is an amount owned by one key. To pay Bob, you sign "claim X goes to Bob". Behind that one signature,
 the claim goes through a fixed sequence, and each step must succeed for the next:
 
+<!-- diagram: explained-05-75236a2a.png -->
+![Diagram: 2.2 Ownership: a claim moves once](img/diagrams/explained-05-75236a2a.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 stateDiagram-v2
   [*] --> active: created by your mining
@@ -119,11 +161,20 @@ stateDiagram-v2
   end note
 ```
 
+</details>
+<!-- /diagram -->
+
 The value is **moved, never copied**. A second try with the same signature is refused, and so is moving a claim that is no longer active.
 You can also **split** a claim in two (the parts always add up to the original).
 
 **A QR code that holds money (a voucher).** Sometimes you do not know the recipient yet, for instance a withdrawal code. You move the
 claim to an address that is the fingerprint of a secret. Whoever shows the secret *and* signs with their own key gets the claim, once:
+
+<!-- diagram: explained-06-77304cf0.png -->
+![Diagram: 2.2 Ownership: a claim moves once](img/diagrams/explained-06-77304cf0.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -138,6 +189,9 @@ sequenceDiagram
   L->>L: the first redemption moves the claim
   Note over L: a second one finds it already spent, so it is refused
 ```
+
+</details>
+<!-- /diagram -->
 
 **Sign once, click many times.** You can sign one statement that authorises a second key (a "session key") to move your claims. After
 that, each click is signed by the session key and you do not use your main key again. It does not lock any money in advance, and it has
@@ -164,6 +218,12 @@ AIWA. Your key, notebook, receiving and sending AIWA, contracts and apps cost no
 
 ### 3.2 The four steps
 
+<!-- diagram: explained-07-04130fbb.png -->
+![Diagram: 3.2 The four steps](img/diagrams/explained-07-04130fbb.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   A["1. BURN<br/>SOL goes to the incinerator<br/>on Solana, you choose T"] --> B["2. COMMIT<br/>you sign: this burn is my capital"]
@@ -171,6 +231,9 @@ flowchart LR
   C --> D["4. CLAIM<br/>what has piled up becomes<br/>a claim that is yours"]
   D -. "a new burn replaces the position<br/>and pays the old one first" .-> A
 ```
+
+</details>
+<!-- /diagram -->
 
 1. **Burn.** The wallet sends SOL to the incinerator and, in the same transaction, a small share to the creator (3.6). You see the split
    before you sign.
@@ -219,6 +282,12 @@ Your position is what your **last action** left it:
 The burn is **one transaction with two transfers**: almost everything to the incinerator, and a small part to one fixed address, the
 creator's.
 
+<!-- diagram: explained-08-b483f691.png -->
+![Diagram: 3.6 The creator's share](img/diagrams/explained-08-b483f691.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   U["You burn 1 SOL<br/>with T = 20 %"] --> TX{{"one transaction,<br/>two transfers"}}
@@ -226,6 +295,9 @@ flowchart LR
   TX -- "0.0002 SOL" --> CR["Creator's address"]
   U -. "counted as your capital" .-> CAP["0.8 SOL<br/>(the 0.2 left is the T share:<br/>it counts for nothing)"]
 ```
+
+</details>
+<!-- /diagram -->
 
 The part is **0.1 % of the T share**: at T = 40 %, 0.0004 SOL per SOL burned. At T = 0 (the default), nothing. You do not choose who is
 paid. The address and the rate are written in the protocol's rules, not in a setting, and they change only with a new version of the rules.
@@ -257,6 +329,12 @@ spent twice, the same voucher redeemed twice. A reader keeps one and refuses the
 
 Alice holds a claim. Offline, she signs two payments of that same claim, to Bob and to Carol. Each one believes they were paid.
 
+<!-- diagram: explained-09-0a1270cf.png -->
+![Diagram: 4.3 The double spend, step by step](img/diagrams/explained-09-0a1270cf.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant A as Alice
@@ -275,6 +353,9 @@ sequenceDiagram
   R->>R: Carol's payment is accepted, Bob's is refused (claim already spent)
   R->>R: and keeps the proof: two valid signatures by Alice on claim X
 ```
+
+</details>
+<!-- /diagram -->
 
 Three things to understand.
 
@@ -308,6 +389,12 @@ followed by nothing, can be left out.
 The 12 words give back your key. They do **not** give back your notebook: nobody keeps everyone's notebooks, so after a loss the history
 has to come from somewhere. In the app, none of this is a button. Once you type your 12 words on the new phone:
 
+<!-- diagram: explained-10-8a77d7e7.png -->
+![Diagram: 5. Losing your phone](img/diagrams/explained-10-8a77d7e7.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart TB
   P["New phone: you type your 12 words"] --> K["Same key, same address"]
@@ -320,6 +407,9 @@ flowchart TB
   S3 --> M
   M --> G["and only then does mining resume"]
 ```
+
+</details>
+<!-- /diagram -->
 
 It never starts mining before it has looked: a history started from nothing would fork the one that was about to come back. Each source is
 a state signed by your own key (or derived by the registry from your submissions), so a source can forget but cannot invent. **Not claimed:**
@@ -343,6 +433,12 @@ An app is **one HTML file** (or a small set of files) that its author *signed*. 
 
 You dictate to Claude Code, which writes the app. From the widget you press ▦ and the Store opens a single sheet showing the app. You
 read it, try it, and press **Publish**. Nothing is signed or sent before.
+
+<!-- diagram: explained-11-76b9c28e.png -->
+![Diagram: 6.2 Publishing](img/diagrams/explained-11-76b9c28e.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -369,6 +465,9 @@ sequenceDiagram
   R->>H: answers on the pull request with the verdict, and closes it
 ```
 
+</details>
+<!-- /diagram -->
+
 ### 6.3 What the registry checks
 
 - the file is well formed, its fingerprint matches its content, and **the signature is the author's**, over this app and this version;
@@ -389,6 +488,12 @@ capital and time, not quality: that is a limit, not a feature.
 
 ### 6.5 Opening an app
 
+<!-- diagram: explained-12-5630e206.png -->
+![Diagram: 6.5 Opening an app](img/diagrams/explained-12-5630e206.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant R as Your Store
@@ -405,6 +510,9 @@ sequenceDiagram
   R->>F: opens it in an isolated frame
   Note over F: no access to your storage or the phone, and none to your wallet unless the app says so
 ```
+
+</details>
+<!-- /diagram -->
 
 The frame is a standard browser sandbox with its own empty identity: whatever the app does, it **cannot reach your wallet by itself**, and
 this does not depend on the author behaving. One exception, below: an app that says it uses the wallet. A host that serves another file than the one signed is refused. It can use the network, and it is not
@@ -431,6 +539,12 @@ An app can say it uses your wallet. The Store then shows a banner, and the app c
 receive a payment, to show or read a code. **Click duel** is such an app: two phones side by side, a price per click, 20 seconds of
 clicking. Whoever clicked less pays what they clicked.
 
+<!-- diagram: explained-13-84714632.png -->
+![Diagram: 6.7 An app that uses the wallet: the click duel](img/diagrams/explained-13-84714632.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant A as Phone A
@@ -444,6 +558,9 @@ sequenceDiagram
   B->>A: one payment, signed by a session key: nothing is signed per click
   A->>A: the balance goes up (once the AIWA is known to come from a real burn: see below)
 ```
+
+</details>
+<!-- /diagram -->
 
 What it shows: nothing is signed per click. The first payment to someone signs one delegation (section 2.2), and the payment itself is
 signed by a session key. The game itself never touches Solana. The wallet does, once, for any AIWA it receives: it checks that the burn it

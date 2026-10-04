@@ -102,6 +102,12 @@ over links that may be continuous, intermittent, delayed, asymmetric or absent, 
 
 ### 2.2 The whole protocol on one page
 
+<!-- diagram: yellowpaper-01-6e5a5044.png -->
+![Diagram: 2.2 The whole protocol on one page](img/diagrams/yellowpaper-01-6e5a5044.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart TB
   subgraph local["Everything below happens on one device, offline"]
@@ -127,12 +133,21 @@ flowchart TB
   OTHER -. "readers fold what they hold<br/>in one canonical order" .-> CONS
 ```
 
+</details>
+<!-- /diagram -->
+
 Reading the picture: a domain's key signs events; the events are one log. Three mechanisms read that log. *Progression*
 turns work into epochs; *accrual* turns capital (a burn) and epochs into claimable AIWA; *conservation* says who owns each
 claim; *mirror* records what a domain has received from others. Events reach other domains by any transport, and each
 reader folds what it holds in one canonical order (§13.4) so that readers with the same events agree.
 
 ### 2.3 The life of a value
+
+<!-- diagram: yellowpaper-02-8ab20ea2.png -->
+![Diagram: 2.3 The life of a value](img/diagrams/yellowpaper-02-8ab20ea2.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 flowchart LR
@@ -144,6 +159,9 @@ flowchart LR
   F --> G["7. Be read<br/>by anyone holding the events:<br/>mining state, ranking figure"]
   E -. "a new burn replaces the position<br/>and pays the old one first" .-> A
 ```
+
+</details>
+<!-- /diagram -->
 
 Steps 1–3 need the network once (to burn and to confirm the burn). Steps 4–6 are local. Step 7 is what applications such
 as the store build on (§12, §18).
@@ -197,6 +215,12 @@ outside content-addressing, which is a forgery class (a payload signed for one t
 would only encode arrival order. The events of a log therefore form a directed acyclic graph, and changing any past event
 changes its id and breaks every event that cites it.
 
+<!-- diagram: yellowpaper-03-d0dcb563.png -->
+![Diagram: 4.3 Parents, and what a log is](img/diagrams/yellowpaper-03-d0dcb563.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   e0(("e0")) --> e1(("e1")) --> e2(("e2"))
@@ -204,6 +228,9 @@ flowchart LR
   e2 --> m(("e4<br/>names both heads<br/>as parents"))
   e3 --> m
 ```
+
+</details>
+<!-- /diagram -->
 
 $e_2$ and $e_3$ do not know of each other: two **branches**, which is ordinary (two things happening on two devices). They
 meet again when a later event cites both. A log's **heads** are its events no other event cites.
@@ -232,6 +259,12 @@ action type (Appendix A.2 gives every list; a field that is undefined is left ou
 3. the `nonce` has not been used (every action except a progression, which is single-use by construction: its epochs must
    go past the ones already accepted, §6.1).
 
+<!-- diagram: yellowpaper-04-d05eceb8.png -->
+![Diagram: 5. Signed actions](img/diagrams/yellowpaper-04-d05eceb8.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant K as Owner's key
@@ -245,6 +278,9 @@ sequenceDiagram
   R->>R: nonce unused ?
   R-->>K: accept, or reject with the reason (kept as a rejection)
 ```
+
+</details>
+<!-- /diagram -->
 
 **Delegation.** The owner may sign **once** a statement authorising another key, $\mathrm{Sign}_{\text{owner}}(\{\mathrm{delegate},
 \mathrm{from}\})$ (no amount, no expiry, by design: §7.5). An action signed by the delegate then carries that statement and a
@@ -338,6 +374,12 @@ In a deployment that sets $E$, every `progression`, `accrual` and `claim` of $D$
 payload the mining event it follows, $\mathrm{prev}$ (an id, or none before the first), and a progression's work starts from
 a seed that includes $\mathrm{prev}$ (§6.4).
 
+<!-- diagram: yellowpaper-05-a71bb528.png -->
+![Diagram: 6.5 The mining events are one signed chain](img/diagrams/yellowpaper-05-a71bb528.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   A["accrual<br/>(the burn's commitment)<br/>prev = none"] --> P1["progression<br/>epochs 1 to 1<br/>prev = accrual"]
@@ -346,6 +388,9 @@ flowchart LR
   C --> P3["progression<br/>epochs 4 to 4<br/>prev = claim"]
   X["a second history that<br/>leaves out the claim"] -. "its work would have to start from P2,<br/>not from the claim: it must be redone" .-> P3
 ```
+
+</details>
+<!-- /diagram -->
 
 Consequences:
 
@@ -389,6 +434,12 @@ by the owner of $C$, $C$ deactivated. Signed by the owner (or a delegate, §7.5)
 
 A transfer is five steps, each a precondition of the next:
 
+<!-- diagram: yellowpaper-06-bc60e86c.png -->
+![Diagram: 7.3 Transfer](img/diagrams/yellowpaper-06-bc60e86c.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 stateDiagram-v2
   [*] --> active: issued<br/>(accrual, claim, or a part of a split)
@@ -403,6 +454,9 @@ stateDiagram-v2
   end note
 ```
 
+</details>
+<!-- /diagram -->
+
 The proof id is deterministic, $\mathrm{claimId}{:}\mathrm{from}{:}\mathrm{to}{:}n{:}\mathrm{derivation}$, and the set of consumed
 proofs is idempotent: a second attempt at the same proof is rejected, and `deactivate` refuses a claim that is not `active`.
 The value is moved, never copied; the new claim keeps the amount.
@@ -416,6 +470,12 @@ For the case neither a transfer nor a delegation covers: **the recipient is not 
 hash-lock (the idea of a Lightning HTLC).
 
 $$\mathrm{voucherAddress} = \texttt{voucher:}\,\mathrm{SHA}(\mathrm{secret})$$
+
+<!-- diagram: yellowpaper-07-c9bf21a1.png -->
+![Diagram: 7.4 Bearer vouchers — a withdrawal QR](img/diagrams/yellowpaper-07-c9bf21a1.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -433,6 +493,9 @@ sequenceDiagram
   Note over L: a second redemption finds the claim already consumed: rejected
 ```
 
+</details>
+<!-- /diagram -->
+
 Redemption is signed by the identity the value is to land in, and a reader checks (a) the redeemer's key derives `to` (a
 secret revealed by someone who does not control the claimed destination must not move value there) and (b) the transfer
 itself, with $\mathrm{from}$ recomputed from the secret. A wrong secret fails because the claim is not owned by that address.
@@ -447,6 +510,12 @@ succeeded until their logs meet; then every reader agrees on one winner (§13.4:
 The owner signs one delegation (§5) authorising a session key; the delegate then signs each transfer, split, voucher
 redemption or claim for the owner, with no further use of the owner's root key.
 
+<!-- diagram: yellowpaper-08-1132d3e0.png -->
+![Diagram: 7.5 Delegation — "sign once, click many times"](img/diagrams/yellowpaper-08-1132d3e0.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant O as Owner (root key)
@@ -460,6 +529,9 @@ sequenceDiagram
     R->>R: delegation signature valid ?  action signature valid ?
   end
 ```
+
+</details>
+<!-- /diagram -->
 
 - **No pre-funding, no escrow.** Issuing a delegation moves nothing. The delegate only authorises moving what the owner
   already owns at click time; a compromised session key threatens only what the owner holds, for that counterparty, as the
@@ -487,6 +559,12 @@ $$\mathrm{reception} = \big(\mathrm{domain}=D,\ \mathrm{epoch}=n,\ \mathrm{kind}
 `epoch` is $D$'s own commitment sequence number (never the observed domain's epoch); `kind = empty` requires an empty list,
 `full` a non-empty one.
 
+<!-- diagram: yellowpaper-09-eaa034ac.png -->
+![Diagram: 8. Mirror](img/diagrams/yellowpaper-09-eaa034ac.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant X as Domain X
@@ -498,6 +576,9 @@ sequenceDiagram
   X-->>D: later: X's epoch 25
   D->>D: reception #n+1: must name an epoch ≥ 20 for X (monotonicity)
 ```
+
+</details>
+<!-- /diagram -->
 
 **Rules.** A reception is rejected unless its signature derives $D$, every cited event really exists (and is attributed to the
 source domain it names: `does not correspond to a real event there`), and **reception monotonicity** holds: for successive
@@ -525,6 +606,12 @@ creates value. This part does: a **burn** (§9) lets a domain commit capital; **
 epochs worked into claimable AIWA; a small **creator fee** (§11) rides on the burn; and any third party can **read** what a
 domain has earned without trusting it (§12).
 
+<!-- diagram: yellowpaper-10-9bbb8c17.png -->
+![Diagram: Part III — Creating value](img/diagrams/yellowpaper-10-9bbb8c17.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   subgraph net["needs the network, once"]
@@ -538,6 +625,9 @@ flowchart LR
   end
   Q -. "§12 any reader derives it<br/>from the events alone" .-> X["mining state<br/>ranking figure"]
 ```
+
+</details>
+<!-- /diagram -->
 
 ---
 
@@ -553,6 +643,12 @@ identities would earn the same as one, and making identities would be free. A bu
 verifiable by anyone, and set by something the protocol does not control.
 
 ### 9.1 The path of a burn
+
+<!-- diagram: yellowpaper-11-4927da26.png -->
+![Diagram: 9.1 The path of a burn](img/diagrams/yellowpaper-11-4927da26.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -572,6 +668,9 @@ sequenceDiagram
   R->>S: fetches the same transaction ITSELF
   R->>R: same checks, then folds the accrual (§9.2)
 ```
+
+</details>
+<!-- /diagram -->
 
 The reference wallet does the first steps in one call (`burn`): broadcast, record, commit, one button. If the transaction is
 broadcast but not yet finalized, `record(signature)` finishes the job later; the commitment stays uncredited until then.
@@ -664,6 +763,12 @@ query, never accepted from an event payload. A caller-supplied reference epoch w
 
 A domain's position is what its **last action** left it.
 
+<!-- diagram: yellowpaper-12-b8ef89da.png -->
+![Diagram: 10.1 "Last action" mining](img/diagrams/yellowpaper-12-b8ef89da.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   autonumber
@@ -680,6 +785,9 @@ sequenceDiagram
   P->>P: THEN: position := (b₂, T₂), q resets, qtot does not
   D->>B: claim { amount }: debit up to what is claimable, q resets, T stays as it was
 ```
+
+</details>
+<!-- /diagram -->
 
 - **A burn's commitment replaces the position.** $b$ is the capital that now mines; a small burn after a big one lowers $b$.
   That is the rule, not a bug.
@@ -741,6 +849,12 @@ fee is $0$ and nothing below applies.
 
 ### 11.1 Where one SOL goes
 
+<!-- diagram: yellowpaper-13-d7265ba0.png -->
+![Diagram: 11.1 Where one SOL goes](img/diagrams/yellowpaper-13-d7265ba0.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   U["Wallet debit<br/>burned = 1 SOL, T = 0.2"] --> TX{{"one transaction,<br/>two transfers"}}
@@ -748,6 +862,9 @@ flowchart LR
   TX -- "fee = 0.0002 SOL" --> CR["Creator address<br/>(deployment.json)"]
   U -. "accounting, not a transfer" .-> CAP["counts as capital: b = burned × (1 − T) = 0.8 SOL<br/>the T share (0.2 SOL) counts for nothing:<br/>0.0002 of it goes to the creator, 0.1998 is destroyed"]
 ```
+
+</details>
+<!-- /diagram -->
 
 (Example: $T = 0.2$.) The fee is part of the $T$ share, which is part of the burn: capital is still $b = \mathrm{burned}\cdot(1-T)$,
 and the user's debit is still $\mathrm{burned}$, network fee aside. `burnQuote` returns the split before anything is signed.
@@ -785,6 +902,12 @@ small by design (above). The fee and the store have not had a legal review (Appe
 Any holder of a domain's events (an app, a validator, a registry) can derive two things from them, trusting nobody: the **mining
 state** and the **ranking figure**. This is what the store ranks by (§18.4).
 
+<!-- diagram: yellowpaper-14-5b077892.png -->
+![Diagram: 12. What a third party can read of a domain](img/diagrams/yellowpaper-14-5b077892.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant A as Author's wallet
@@ -798,6 +921,9 @@ sequenceDiagram
   G->>G: check the witnesses it holds (§12.4)
   G-->>A: mining state, ranking figure, new baseline (or a refusal and why)
 ```
+
+</details>
+<!-- /diagram -->
 
 ### 12.1 The mining state
 
@@ -849,6 +975,12 @@ Each domain continues through a partition on its own: none decrements state for 
 permission. Reconciliation is verification of signatures, ancestry and receptions over newly available evidence, never a question
 of clock authority.
 
+<!-- diagram: yellowpaper-15-51b0df8b.png -->
+![Diagram: 13.1 Independent histories](img/diagrams/yellowpaper-15-51b0df8b.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   subgraph earth["Earth: entirely alone (Mars need not exist for any of this)"]
@@ -860,6 +992,9 @@ flowchart LR
   e4 -.-> r(("r<br/>a reception:<br/>'I received these'"))
   m2 -.-> r
 ```
+
+</details>
+<!-- /diagram -->
 
 When a link finally opens (or a file, or a QR code), $r$ is **not a merge and not a correction** of either chain: $e_4$ and
 $m_2$ stay exactly what they were. $r$ is a new event, a signed statement by whichever domain builds it of what it has now
@@ -889,6 +1024,12 @@ A reader that folded events in the order they **arrived** would pick whichever i
 events, having received them in a different order, would pick different winners, and keep them. Convergence would fail even after
 everything had been exchanged.
 
+<!-- diagram: yellowpaper-16-84ba811c.png -->
+![Diagram: 13.3 Why arrival order cannot decide](img/diagrams/yellowpaper-16-84ba811c.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant A as Alice (offline)
@@ -901,6 +1042,9 @@ sequenceDiagram
   Note over B,C: by ARRIVAL order<br/>Reader 1 keeps T1, Reader 2 keeps T2: they disagree for good
   Note over B,C: by CANONICAL order (§13.4)<br/>both fold the smaller id first: they agree
 ```
+
+</details>
+<!-- /diagram -->
 
 ### 13.4 The canonical order
 
@@ -936,6 +1080,12 @@ Nothing prevents a signer who holds their key from writing two contradicting eve
 claim to prevent it: it makes the double spend **visible once histories meet, and the same for everyone**, and it never lets value
 be duplicated in any reader's view.
 
+<!-- diagram: yellowpaper-17-7f92b9a1.png -->
+![Diagram: 13.5 What offline can and cannot prevent](img/diagrams/yellowpaper-17-7f92b9a1.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant A as Alice
@@ -954,6 +1104,9 @@ sequenceDiagram
   R->>R: T2 accepted. T1 refused: "claim already consumed"
   R->>R: proof kept: two valid signatures by Alice on claim X
 ```
+
+</details>
+<!-- /diagram -->
 
 What stays possible: the person whose payment loses may have believed they were paid until they saw the other branch. Closing
 that needs a common authority or a clock, which the protocol does not have. What remains:
@@ -978,6 +1131,12 @@ reader, because each event verifies on its own (§4.2):
 
 The replicator (used by anything that has a direct link) is deliberately simple:
 
+<!-- diagram: yellowpaper-18-d91833b3.png -->
+![Diagram: 13.6 How events travel](img/diagrams/yellowpaper-18-d91833b3.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant P as Peer P
@@ -992,6 +1151,9 @@ sequenceDiagram
   end
   Note over P: the next chunk is released only on the ACK: real backpressure, not a fixed delay
 ```
+
+</details>
+<!-- /diagram -->
 
 *Honest limit.* The `HELLO`/`HELLO_ACK` exchange computes "what is missing" twice per connection; in a narrow race this can send
 one chunk twice. `append` is idempotent, so it is harmless; removing it would mean redesigning the handshake (future work).
@@ -1013,6 +1175,12 @@ without bound. Each is bounded, none is solved for free: each trades something e
 
 A running domain accumulates one event per epoch and one per economic action, forever, unless pruned.
 
+<!-- diagram: yellowpaper-19-fe6d1fb8.png -->
+![Diagram: 14.1 Local storage: checkpoints](img/diagrams/yellowpaper-19-fe6d1fb8.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   subgraph before["before"]
@@ -1023,6 +1191,9 @@ flowchart LR
   end
   before ==> after
 ```
+
+</details>
+<!-- /diagram -->
 
 A **checkpoint** is a self-signed event embedding the domain's own already-materialized state as of a set of log heads
 (`verifyCheckpoint` requires `author === payload.domain`: the same signer-scoping discipline as §5).
@@ -1063,6 +1234,12 @@ phrase; its private key is shown instead. **The journal is not in the phrase.** 
 node keeps all of it; here nobody replicates everything, an event is kept by its owner and by whoever received it, so after a lost
 device the journal has to come from somewhere.
 
+<!-- diagram: yellowpaper-20-32c172a8.png -->
+![Diagram: 15. History recovery](img/diagrams/yellowpaper-20-32c172a8.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart TB
   P["New phone: the user types the 12 words"] --> K["Key restored<br/>= same domain, same Solana address"]
@@ -1078,6 +1255,9 @@ flowchart TB
   M --> G["importBackup / adoptState"]
   G --> W["only now: progression resumes"]
 ```
+
+</details>
+<!-- /diagram -->
 
 | Source | What it is | Trust it needs |
 |---|---|---|
@@ -1111,6 +1291,12 @@ There is no machine that runs a contract for everyone. A contract is a set of ru
 holder replays from the events they have. Two holders with the same events get the same state; two with different events may
 not (§13), exactly as for the rest of the protocol.
 
+<!-- diagram: yellowpaper-21-a58f47aa.png -->
+![Diagram: 16.1 What a contract is here](img/diagrams/yellowpaper-21-a58f47aa.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   subgraph signed["signed events (anyone may relay them)"]
@@ -1122,6 +1308,9 @@ flowchart LR
   H --> S1["Reader 1's state<br/>holds E1, E2, E3"]
   H --> S2["Reader 2's state<br/>holds E1, E2 only"]
 ```
+
+</details>
+<!-- /diagram -->
 
 The SDK (`aiwa-lib`: `defineContract`, `Contract`, `signedAction`, `verifySignedAction`) is the pattern the protocol uses for itself,
 opened to third parties: a handler gets the state and `{id, parents, payload}` and returns the new state; a contract dispatches
@@ -1143,6 +1332,12 @@ has to apply a state transition to the claim ledger, and it must not be a change
 one generic hook: a map `contractVerifiers = { contractId → verifyPayout }`, supplied by the **application**, never by the
 protocol's source.
 
+<!-- diagram: yellowpaper-22-05bedfe0.png -->
+![Diagram: 16.3 Moving AIWA from a contract: the one extension point](img/diagrams/yellowpaper-22-05bedfe0.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant O as Owner of claim X
@@ -1157,6 +1352,9 @@ sequenceDiagram
   K-->>W: the same claim, from, to, nonce, signature (anything else is rejected)
   W->>W: spend the nonce, apply the transfer
 ```
+
+</details>
+<!-- /diagram -->
 
 The wallet guarantees only what every contract shares (the pre-signed transfer is genuinely signed, once); the contract decides
 whether its conditions were met. A new contract needs no change to the core, only an entry in the application's registry.
@@ -1189,6 +1387,12 @@ $$e_{\mathrm{file}} = \{\mathrm{type}: \texttt{bundle.file},\ \mathrm{payload}: 
 
 $$e_{\mathrm{manifest}} = \{\mathrm{type}: \texttt{bundle.manifest},\ \mathrm{payload}: \{\mathrm{name}, \mathrm{version}, \mathrm{files}: \{\mathrm{path} \mapsto \mathrm{id}(e_{\mathrm{file}})\}\},\ \mathrm{parents}\}$$
 
+<!-- diagram: yellowpaper-23-53582f90.png -->
+![Diagram: 17.1 The two event types](img/diagrams/yellowpaper-23-53582f90.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart BT
   F1["bundle.file<br/>index.html"] --> M
@@ -1197,6 +1401,9 @@ flowchart BT
   M["bundle.manifest<br/>name, version,<br/>files: { path → file event id }<br/>signed by the author's domain"]
   PM["the previous manifest<br/>(the domain's prior head)"] --> M
 ```
+
+</details>
+<!-- /diagram -->
 
 A file event is deliberately **parentless with `createdAt` fixed at 0**: its bytes do not causally depend on when or by whom they
 were published, only their content does, and content addressing already captures that. Publishing the same content again (an
@@ -1229,6 +1436,12 @@ across sessions; an in-memory event log is the safe default for its internal sta
 
 The store is what an author, a registry and a reader do together. Four actors, and the protocol does the checking:
 
+<!-- diagram: yellowpaper-24-242dbd36.png -->
+![Diagram: 18. The store](img/diagrams/yellowpaper-24-242dbd36.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   AU["Author<br/>wallet = key"] -- "signed package<br/>+ mining evidence" --> PR["a GitHub pull request"]
@@ -1239,6 +1452,9 @@ flowchart LR
   PG --> RD["Reader's Store app<br/>verifies before it opens"]
   RD --> SB["sandboxed frame"]
 ```
+
+</details>
+<!-- /diagram -->
 
 ### 18.1 Two kinds of entry, both submitted on GitHub
 
@@ -1258,6 +1474,12 @@ action (§16.2) by the author's key over `(publish-app, id, version, hash)`. The
 key as their wallet). Anyone holding the package can verify offline that what will run is what the author published.
 
 ### 18.2 Publishing
+
+<!-- diagram: yellowpaper-25-6db57375.png -->
+![Diagram: 18.2 Publishing](img/diagrams/yellowpaper-25-6db57375.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -1288,6 +1510,9 @@ sequenceDiagram
   RG->>GH: comments the verdict, closes the pull request
 ```
 
+</details>
+<!-- /diagram -->
+
 Nothing is signed or sent until the author presses **Publish**. In a plain browser, which cannot sign in to GitHub, the sheet hands
 over the signed file to add to a pull request by hand. A **refresh** is a submission of another kind: a signed request, from fresh
 evidence, to re-read the ranking figure of an app the author already owns.
@@ -1296,6 +1521,12 @@ The workflow reads the file as data and never runs anything from the pull reques
 a time (a concurrency group); the pull request is never merged, only closed with the verdict.
 
 ### 18.3 What the registry checks
+
+<!-- diagram: yellowpaper-26-14b1e595.png -->
+![Diagram: 18.3 What the registry checks](img/diagrams/yellowpaper-26-14b1e595.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 flowchart TB
@@ -1317,6 +1548,9 @@ flowchart TB
   A --> W["write store/index.json, apps/‹id›/‹version›.json,<br/>(bundle), baselines/‹author›.json, witnesses"]
 ```
 
+</details>
+<!-- /diagram -->
+
 The **permission ratio** keeps what an author may publish from shrinking with what the author has contributed: a new app is accepted
 only if the author's current $\mathrm{score}/\mathrm{laps}$ is not below that of their last publication (a first publication is free of
 it); an update needs only ownership. A refused submission changes nothing.
@@ -1330,6 +1564,12 @@ the entry**. There is no editorial override and no other term. This is the ranki
 taken over unchanged.
 
 ### 18.5 Opening an app
+
+<!-- diagram: yellowpaper-27-cac8e10d.png -->
+![Diagram: 18.5 Opening an app](img/diagrams/yellowpaper-27-cac8e10d.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -1349,6 +1589,9 @@ sequenceDiagram
   Note over FR: opaque origin: no page storage, no AiwaHost, and no wallet unless it declares it (§18.8)
 ```
 
+</details>
+<!-- /diagram -->
+
 A host that serves another file than the one signed is refused. A cached package is never stale (it is content-addressed) and is
 checked again like what the network gives. Offline, the last index and the apps already opened still work.
 
@@ -1356,6 +1599,12 @@ checked again like what the network gives. Offline, the last index and the apps 
 
 The web app (store and wallet as one) runs in a WebView, served by the app itself (from its own assets, or from a copy it has downloaded and verified). The page may ask the phone for four things
 through one channel, `window.AiwaHost`, which exists only in the page's own origin: **the frame an app runs in does not get it**.
+
+<!-- diagram: yellowpaper-28-347c397f.png -->
+![Diagram: 18.6 The shell around it (Android)](img/diagrams/yellowpaper-28-347c397f.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 flowchart TB
@@ -1379,11 +1628,20 @@ flowchart TB
   APP -. "only if it declares the wallet:<br/>messages the page answers (§18.8)" .-> PGE
 ```
 
+</details>
+<!-- /diagram -->
+
 The page is not the APK's: the app follows the site. It downloads a release, `release.json` (every file of the page with its SHA-256),
 checks every file against its hash (the page is one whole release, never a mix of two), keeps all of it or nothing, and serves it from its
 own storage under the same origin, from the next start, if it is newer than the copy inside the APK. There is no signature: what the site
 publishes is what the phones run, and the site is published by the repository's GitHub account, which is the key. A signature kept off
 GitHub can be added in front of the same download if that account becomes a risk.
+
+<!-- diagram: yellowpaper-29-6d145e28.png -->
+![Diagram: 18.6 The shell around it (Android)](img/diagrams/yellowpaper-29-6d145e28.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -1396,6 +1654,9 @@ sequenceDiagram
   A->>D: all of it kept as pending, or nothing
   Note over A,D: at the next start the page is served from storage if it is newer than the copy in the APK
 ```
+
+</details>
+<!-- /diagram -->
 
 The request/response protocol is `{id, command}` → `{id, result}`, `{id, error}` or `{id, progress}`. Android's automatic backup
 carries the WebView's storage (the wallet's journal) to a new phone; the secrets are excluded (a Keystore key does not move), so the
@@ -1428,6 +1689,12 @@ The door asks nothing of the player and has no cap or expiry: that is the gap na
 **The click duel** (`docs/demo-apps/click-duel.html`) is an app that uses it. Two phones side by side, a price per click, 20 seconds.
 Nobody signs anything per click: clicks are counted, and at the end the one who clicked **less** pays what they clicked, once.
 
+<!-- diagram: yellowpaper-30-1de12993.png -->
+![Diagram: 18.8 An app that uses the wallet: the door, and the click duel](img/diagrams/yellowpaper-30-1de12993.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   participant A as Phone A (challenger)
@@ -1446,6 +1713,9 @@ sequenceDiagram
   B->>A: payment { offline bundle }
   A->>A: door receive: append B's events, balance up once B's burn is confirmed (§9.2)
 ```
+
+</details>
+<!-- /diagram -->
 
 *What it shows.* "Sign once, click many": the player is asked for no signature at all. The wallet signs one delegation the first
 time, and the session key signs the payment. The receiver checks the origin of the claim itself (§9.2), so the winner needs no trust
@@ -1469,6 +1739,12 @@ ever changing what a domain may claim. The store's ranking does not use these me
 A domain's own $\mathrm{epoch}_D$ (§6) is unconditional and needs no external observer. Observation is a complementary,
 externally-corroborated position. It is **reported, never applied** to any domain's own earned value.
 
+<!-- diagram: yellowpaper-31-d419a6b7.png -->
+![Diagram: 19. Observation: Causal Tick, hardware roots, relative rate](img/diagrams/yellowpaper-31-d419a6b7.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   subgraph evidence["What observers hold (each is a signed reception, §8)"]
@@ -1482,6 +1758,9 @@ flowchart LR
   P --> POS
   P --> ACC["accusation: from PROOFS only"]
 ```
+
+</details>
+<!-- /diagram -->
 
 ### 19.1 Causal Tick: a weighted median
 

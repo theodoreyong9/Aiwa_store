@@ -4,6 +4,12 @@ The public API for apps and wallets, composed from [aiwa-core](../core) and [aiw
 
 Where it sits in the repository (highlighted):
 
+<!-- diagram: pkg-lib-01-05aa10f5.png -->
+![Diagram: aiwa-lib](../../docs/img/diagrams/pkg-lib-01-05aa10f5.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart BT
   core["<b>packages/core</b><br/>the protocol: identity, signed events,<br/>verifiable work, conservation"]
@@ -21,6 +27,9 @@ flowchart BT
   android -. "carries the build of" .-> web
   style lib fill:#fde68a,stroke:#b45309,stroke-width:2px
 ```
+
+</details>
+<!-- /diagram -->
 
 ```
 npm test

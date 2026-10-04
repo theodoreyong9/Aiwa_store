@@ -12,7 +12,8 @@
   ],
   "scripts": {
     "test": "npm test --workspaces --if-present",
-    "check:docs": "node scripts/check-diagrams.mjs"
+    "check:docs": "node scripts/check-diagrams.mjs && node scripts/render-diagrams.mjs --check",
+    "diagrams": "node scripts/render-diagrams.mjs"
   },
   "devDependencies": {
     "mermaid": "^11.17.2"

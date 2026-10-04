@@ -31,6 +31,12 @@ payment can be a file, and two phones can settle a game with nothing in between.
 
 ## How it works
 
+<!-- diagram: readme-01-8fe5005d.png -->
+![Diagram: How it works](docs/img/diagrams/readme-01-8fe5005d.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   A["1. Build<br/>dictate, Claude Code<br/>writes the app"] --> B["2. Earn<br/>burn SOL once, your phone<br/>works while the app is open"]
@@ -38,6 +44,9 @@ flowchart LR
   C --> D["4. Rank<br/>a GitHub workflow checks it<br/>and ranks you"]
   D --> E["5. Use<br/>every Store checks it,<br/>opens it sealed, apps can pay"]
 ```
+
+</details>
+<!-- /diagram -->
 
 1. **Build.** The widget sends your voice to Claude Code, which writes one self-contained app (or one published through Aiwa, signed and pinned by hash).
 2. **Earn.** The only thing that costs anything, and the only thing that needs Solana, is the burn. 0.1 % of the part you choose to set aside
@@ -152,6 +161,12 @@ These are settings and accounts. Until they are done, the matching workflow is *
 <details>
 <summary>What is in the repository</summary>
 
+<!-- diagram: readme-02-3be74b70.png -->
+![Diagram: Read more](docs/img/diagrams/readme-02-3be74b70.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart BT
   core["<b>packages/core</b><br/>the protocol: identity, signed events,<br/>verifiable work, conservation"]
@@ -168,6 +183,9 @@ flowchart BT
   web --> registry
   android -. "carries the build of" .-> web
 ```
+
+</details>
+<!-- /diagram -->
 
 An arrow means "uses". Nothing in `core` knows about anything above it.
 

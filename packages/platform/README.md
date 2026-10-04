@@ -4,6 +4,12 @@ Distribution for [aiwa-core](../core): moving and keeping signed events. It has 
 
 Where it sits in the repository (highlighted):
 
+<!-- diagram: pkg-platform-01-6c527f32.png -->
+![Diagram: aiwa-platform](../../docs/img/diagrams/pkg-platform-01-6c527f32.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
 ```mermaid
 flowchart BT
   core["<b>packages/core</b><br/>the protocol: identity, signed events,<br/>verifiable work, conservation"]
@@ -21,6 +27,9 @@ flowchart BT
   android -. "carries the build of" .-> web
   style platform fill:#fde68a,stroke:#b45309,stroke-width:2px
 ```
+
+</details>
+<!-- /diagram -->
 
 ```
 npm test        # 85 tests
