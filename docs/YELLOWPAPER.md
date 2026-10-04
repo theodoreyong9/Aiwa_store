@@ -1518,6 +1518,13 @@ $X$'s key can sign. So an observation is also a *proof*. From proofs alone:
   be chained, so the check falls back to the signature alone and the result says so. A fork is the one exception, on purpose: a second
   lineage is rejected by the linear chain and is exactly the evidence of one, so forks are read from the signed events.
 
+**What the reference wallet does with it.** Only the fork. After a bundle is received, `accusations()` lists the identities in it for
+which the log holds two unrelated histories, both signed by them, and the wallet warns under *Receive*. A rewind is not used: it is
+judged against what a domain reports *now*, and a payment that travelled slowly reports an old state, so it would accuse honest
+senders. The registry needs none of this for its own protection: it asks an author's next submission to contain the witnesses other
+wallets hold (§12.4), so a fork cannot be hidden from it. The weighted median, hardware roots and relative rate are not used by the
+wallet, the registry or the app.
+
 **"$X$ signs a fake itself".** A domain may write whatever it likes in its own log. That is not an attack on the protocol: it is an
 invalid history, refused by whoever verifies its sequential proof, and left in the DAG as a dead branch nobody counts. It matters
 here for one narrow reason: Mirror resolves a commitment's references against the DAG as it is, so *colluders* can sign commitments
@@ -1792,7 +1799,7 @@ without a Rust toolchain. It cross-checks the fundamentals; it is not a second i
 ## Appendix D. Verification status
 
 **What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 85 in `aiwa-platform`,
-100 in `aiwa-lib`, 17 in `aiwa-registry`, 45 in `aiwa-store-web` (21 of them drive the app in Chromium: ranking, the sandbox refusing
+103 in `aiwa-lib`, 17 in `aiwa-registry`, 45 in `aiwa-store-web` (21 of them drive the app in Chromium: ranking, the sandbox refusing
 `parent.document`, a tampering host, offline use, the wallet starting and restoring by itself, the burn with its fee, publishing both
 kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK, an app using the wallet through the door, a click duel between two pages that pays the winner, and a QR code read by the page from a fake camera),
 73 for the dictation backend. `node scripts/devnet-check.mjs --fake` plays the whole path (burn, record, mine, evidence, registry) against

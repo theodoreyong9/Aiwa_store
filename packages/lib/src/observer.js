@@ -70,9 +70,13 @@ export class Observer {
    * capital the domain signed into its own position). Read-only: needs no unlocked key.
    */
   async position(domain, { selfReportedEpoch = null, tolerance, verifyChain } = {}) {
+    const world = await readWorld(this.wallet.ledger.log);
+    const { accrual } = await this.wallet.ledger.state();
+    return this._assess(world, accrual, domain, { selfReportedEpoch, tolerance, verifyChain });
+  }
+
+  _assess(world, accrual, domain, { selfReportedEpoch = null, tolerance, verifyChain } = {}) {
     const { wallet } = this;
-    const world = await readWorld(wallet.ledger.log);
-    const { accrual } = await wallet.ledger.state();
     return assessPosition({
       mirrorState: world.mirror,
       identityCostState: wallet.rewardParams.commitmentBacking === 'none' ? identityCostFromCommitments(accrual.positions) : identityCostFromBurns(accrual.burns),
@@ -80,5 +84,29 @@ export class Observer {
       targetDomain: domain, selfReportedEpoch, epochIterations: wallet.rewardParams.epochIterations,
       ...(tolerance === undefined ? {} : { tolerance }), ...(verifyChain === undefined ? {} : { verifyChain }),
     });
+  }
+
+  /**
+   * The other domains this log holds PROOF against: two unrelated histories of one domain, both signed by it (a fork).
+   * Proofs only, so it cannot accuse an honest domain whose payment merely travelled slowly or whose view is old: a
+   * rewind is judged against what a domain reports NOW, which a log of past events does not have. Read-only.
+   * @returns {Promise<Array<{ domain: string, reason: 'fork', forks: object[] }>>}
+   */
+  async accusations() {
+    const { wallet } = this;
+    const me = wallet.identity?.id ?? null;
+    const world = await readWorld(wallet.ledger.log);
+    const { accrual } = await wallet.ledger.state();
+    const foreign = new Set();
+    for (const event of world.events) {
+      const p = event.payload;
+      if (p?.type === 'progression' && typeof p.domain === 'string' && p.domain !== me) foreign.add(p.domain);
+    }
+    const accused = [];
+    for (const domain of foreign) {
+      const where = await this._assess(world, accrual, domain);
+      if (where.forks.length > 0) accused.push({ domain, reason: 'fork', forks: where.forks });
+    }
+    return accused;
   }
 }

@@ -498,7 +498,7 @@ qui est inhabituel, c'est la combinaison :
 ## 9. Ce qui a été vérifié, et ce qui ne l'a pas été
 
 **Vérifié par des tests** (tous exécutés en CI) : le protocole (421 tests, dont un recoupement avec une implémentation Rust indépendante de
-ses calculs de base), la couche de distribution (85), l'API du portefeuille (100), le registre (17), l'application web (45, dont 21 dans un
+ses calculs de base), la couche de distribution (85), l'API du portefeuille (103), le registre (17), l'application web (45, dont 21 dans un
 vrai Chromium : classement, bac à sable, falsification, hors ligne, restauration du portefeuille, brûlage avec sa part, publication des deux
 types, une app qui utilise le portefeuille, un duel de clics entre deux pages, un QR code lu par une fausse caméra), le backend de dictée (73), les vérifications d'une page téléchargée par l'appli Android (14, sur une JVM ordinaire), et une répétition complète contre un Solana de substitution (`node scripts/devnet-check.mjs --fake`).
 

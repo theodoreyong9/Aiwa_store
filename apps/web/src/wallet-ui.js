@@ -178,9 +178,22 @@ async function receive() {
     await refreshLocalState();
     $('receive-result').textContent = 'Received and verified.';
     renderHistory();
+    warnIfAccused(session.aiwa, bundle);
   } catch (err) {
     $('receive-result').textContent = `Rejected: ${err.message}`;
   }
+}
+
+// A sender whose own signatures show two different histories (a fork) is something this wallet can prove, not suspect. It is looked for
+// after the answer, because it replays what the log holds, and only for the identities in what was just received.
+async function warnIfAccused(aiwa, bundle) {
+  try {
+    await aiwa.settled();                      // the reception it signs for what just arrived is part of the evidence
+    const inBundle = new Set(bundle.events.flatMap((event) => [event.author, event.payload?.domain]));
+    const accused = (await aiwa.accusations()).filter((a) => inBundle.has(a.domain));
+    if (accused.length === 0 || session.aiwa !== aiwa) return;
+    $('receive-result').textContent = `Received and verified. Warning: ${accused.map((a) => short(a.domain)).join(', ')} signed two different histories (a fork). Be careful with what it sends.`;
+  } catch { /* nothing proven */ }
 }
 
 // ---------- the author's apps ----------

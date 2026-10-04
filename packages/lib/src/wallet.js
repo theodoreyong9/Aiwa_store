@@ -171,6 +171,8 @@ export class AIWA {
   observe() { return this.observer.observe(); }
   settled() { return this.observer.settled(); }
   position(domain, options) { return this.observer.position(domain, options); }
+  /** The other domains this wallet holds proof against: two signed histories of one domain (a fork). See Observer.accusations(). */
+  accusations() { return this.observer.accusations(); }
 
   // --- Checkpoints, backups, archive nodes ---
 
