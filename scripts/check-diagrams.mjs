@@ -1,9 +1,9 @@
 // Documentation checks that nothing else would catch:
-//   1. every ```mermaid block of the README and docs/*.md renders (a diagram with a syntax error shows as a red box on GitHub);
+//   1. every ```mermaid block of the README, docs/*.md and the packages' READMEs renders (a diagram with a syntax error shows as a red box on GitHub);
 //   2. every "§N.M" of the documents, and every "yellow paper §N.M" of the source comments, names a heading of the yellow paper.
 // Run: node scripts/check-diagrams.mjs   (needs the Chromium of Playwright: npx -w aiwa-store-web playwright install chromium)
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -11,7 +11,8 @@ import { createRequire } from 'node:module';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 // Playwright is the web app's dev dependency (its tests drive Chromium); resolve it from there.
 const { chromium } = createRequire(join(root, 'apps/web/package.json'))('playwright');
-const docs = ['README.md', ...readdirSync(join(root, 'docs')).filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`)];
+const docs = ['README.md', ...readdirSync(join(root, 'docs')).filter((f) => f.endsWith('.md')).map((f) => `docs/${f}`),
+  ...readdirSync(join(root, 'packages')).map((d) => `packages/${d}/README.md`).filter((f) => existsSync(join(root, f)))];
 let failures = 0;
 const fail = (message) => { failures++; console.log(`FAIL  ${message}`); };
 
