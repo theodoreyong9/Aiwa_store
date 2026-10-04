@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- An app dictated in the "store" or "aiwa" mode no longer needs the cloud environment to allow `ntfy.sh`, when a repository is chosen: if the relay command fails, Claude pushes `aiwa-out/<name>` and `aiwa-out/LATEST` to its own branch and the backend reads them from `raw.githubusercontent.com` for 20 minutes after each message (public repositories). 7 backend tests (80 in all); not tried with a real cloud session.
 - `docs/CONTRACTS.md`: how to write a contract (a vote in 20 lines, three rules, sharing events between phones, what a contract cannot do), with `packages/lib/test/contract-guide.test.mjs` running its snippets (4 tests).
 - The wallet warns when what it receives comes from an identity that signed two different histories (a fork): `AIWA.accusations()` (proofs only, read-only, no key needed) and a warning under *Receive*. A rewind is deliberately not an accusation here (a payment that travelled slowly would look like one). 3 lib tests.
 - Dictation without the backend: the widget no longer says "Prêt" or promises a start that cannot happen. Without Termux it says "Termux manquant", with Termux but no backend (two starts in vain) "Installation manquante", and a tap copies the install line and opens Termux (or its F-Droid page); the restarts stop while it is missing and the widget recovers by itself when the backend answers. A failed last send shows "Dernier envoi échoué" instead of "Prêt". `BackendHealth.kt` (4 JVM tests).

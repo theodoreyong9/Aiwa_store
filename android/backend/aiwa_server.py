@@ -74,6 +74,12 @@ APP_FILE_RE = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?\.(?:app|aiwa)\.h
 # (see _sources_line).
 REFERENCE_REPO = "theodoreyong9/Aiwa_store"
 REFERENCE_RAW = f"https://raw.githubusercontent.com/{REFERENCE_REPO}/main"
+# The mailbox: when the cloud environment blocks the relay, an app can still leave the session through GitHub, the one road a session
+# always has (the GitHub proxy), on a repository attached to it: Claude pushes aiwa-out/<name> and aiwa-out/LATEST to its own branch, and
+# the phone reads them from raw.githubusercontent.com (public repositories) for a while after a message. Overridable for the tests.
+RAW_BASE = os.environ.get("AIWA_RAW_BASE", "https://raw.githubusercontent.com")
+MAILBOX_WAIT = 20 * 60
+MAILBOX_EVERY = 15
 # The Aiwa SDK as one ES module, served with the Store's site: what an app of the "aiwa" mode imports.
 AIWA_SDK_URL = "https://theodoreyong9.github.io/Aiwa_store/lib/aiwa.js"
 HTML_TITLE_RE = re.compile(r"<title[^>]*>([^<]{1,200})</title>", re.I)
@@ -442,6 +448,18 @@ def _sources_line():
     )
 
 
+def _mailbox_fallback(repo, work, example):
+    """What Claude does when the relay command fails (the environment's network blocks ntfy.sh). With a repository attached to the session
+    it still has one road out, GitHub, and only on its own branch (a cloud session pushes nowhere else)."""
+    if not repo or not work:
+        return "si le réseau bloque la commande, dis-le-moi et colle le code dans ta réponse"
+    return (
+        f"si la commande échoue (réseau bloqué), repli : écris le fichier sous `aiwa-out/{example}` et un fichier `aiwa-out/LATEST` qui contient seulement ce nom, "
+        f"commite les deux sur ta branche {work} et pousse-la (`git push origin {work}`) : c'est le seul cas où l'app va sur GitHub, sur cette branche seulement, "
+        "jamais sur la branche principale ; dis-moi ensuite que c'est fait. Si ce push est refusé, dis-le-moi et colle le code dans ta réponse"
+    )
+
+
 def _instruction_lines(repo, work, base, direct):
     """What the user's switches ask of Claude Code, in words, as (key, text)
     pairs. Claude Code does all of it itself, with its own GitHub access."""
@@ -523,11 +541,11 @@ def _instruction_lines(repo, work, base, direct):
             "(4) un `<title>` (il devient le nom) et un `<meta name=\"description\">` de 280 caractères au plus ; "
             "(5) pensée d'abord pour un téléphone (~390 px de large), sans débordement horizontal. "
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/store-app-example.html. "
-            "Ne la pousse sur AUCUN dépôt : je la relis, l'essaie et la publie moi-même depuis le Store (bouton ▦ du widget), avec mon identité. "
+            "Ne la pousse sur AUCUN dépôt" + (" (sauf le repli décrit plus bas)" if repo else "") + " : je la relis, l'essaie et la publie moi-même depuis le Store (bouton ▦ du widget), avec mon identité. "
             "Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile), puis envoie-la sur mon téléphone "
             f"avec cette commande, telle quelle : `curl -s -m 60 -T nom.app.html -H 'Filename: nom.app.html' -H 'Title: aiwa-app' {NTFY_SERVER}/{topic}` "
             "(un seul fichier par envoi ; si je te demande une correction, renvoie le fichier complet de la même façon ; "
-            "si le réseau bloque la commande, dis-le-moi et colle le code dans ta réponse). Dis-moi ensuite en une phrase ce que fait l'app.",
+            + _mailbox_fallback(repo, work, "nom.app.html") + "). Dis-moi ensuite en une phrase ce que fait l'app.",
         ))
         # Where to look first when the request touches the Store or the protocol under it.
         lines.append(("sources", _sources_line()))
@@ -549,11 +567,11 @@ def _instruction_lines(repo, work, base, direct):
             "(7) pensée d'abord pour un téléphone (~390 px de large), sans débordement horizontal. "
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/aiwa-app-example.html. "
             f"Lis aussi le yellow paper ({REFERENCE_RAW}/docs/YELLOWPAPER.md : identité, journal d'événements, contrats) : ce que l'app fait avec le SDK doit correspondre à ce document, pas à ce que tu supposes. "
-            "Ne la pousse sur AUCUN dépôt. Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile ; "
+            "Ne la pousse sur AUCUN dépôt" + (" (sauf le repli décrit plus bas)" if repo else "") + ". Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile ; "
             "github.io peut être inaccessible depuis ta session : dis-le-moi alors, et dis ce que tu as pu vérifier quand même), puis envoie-la sur mon téléphone "
             f"avec cette commande, telle quelle : `curl -s -m 60 -T nom.aiwa.html -H 'Filename: nom.aiwa.html' -H 'Title: aiwa-app' {NTFY_SERVER}/{topic}` "
             "(un seul fichier par envoi ; si je te demande une correction, renvoie le fichier complet de la même façon ; "
-            "si le réseau bloque la commande, dis-le-moi et colle le code dans ta réponse). Dis-moi ensuite en une phrase ce que fait l'app.",
+            + _mailbox_fallback(repo, work, "nom.aiwa.html") + "). Dis-moi ensuite en une phrase ce que fait l'app.",
         ))
         lines.append(("sources", _sources_line()))
     # Mandatory, not a switch: it is how the widget learns that Claude is
@@ -754,6 +772,7 @@ def cloud_send(text, command=False):
             if not command:
                 _note_message_sent()
                 _save_cloud_session(session_id, title, result["url"], instr=fingerprint)
+                _mailbox_watch(entry.get("repo"), work)
             return {"ok": True, "session_id": session_id, "url": result["url"]}
         directory, work, base = CLOUD_DIR, None, None
         if repo:
@@ -819,6 +838,7 @@ def cloud_send(text, command=False):
             current_cloud = last_cloud = found
             _save_state()
         _save_cloud_session(found, title, url, repo=repo, work=work, base=base, direct=direct_now if repo else None, instr=fingerprint, model=model or "", effort=effort or "")
+        _mailbox_watch(repo, work)
         threading.Thread(target=_rename_session, args=(found, title), daemon=True).start()
         return {"ok": True, "session_id": found, "url": url}
     except subprocess.TimeoutExpired:
@@ -1245,7 +1265,6 @@ def _app_name(name, code):
 def _app_received(event):
     """An app Claude sent (`curl -T name.app.html … Title: aiwa-app`, or name.aiwa.html): ntfy turns the file into an
     attachment, which is downloaded here and kept."""
-    global sent_app
     attachment = event.get("attachment") if isinstance(event.get("attachment"), dict) else None
     try:
         if attachment:
@@ -1266,6 +1285,15 @@ def _app_received(event):
     except (OSError, ValueError) as err:  # UnicodeDecodeError is a ValueError
         print(f"[{_ts()}] app from the relay not kept: {err}", flush=True)
         return
+    _app_ready(code, sent_name, event.get("id"))
+
+
+def _app_ready(code, sent_name, event_id):
+    """An app has come (through the relay, or the GitHub mailbox): kept, and announced to the widget. The same event twice is one app."""
+    global sent_app
+    with lock:
+        if sent_app is not None and event_id and sent_app.get("event") == event_id:
+            return
     name = _app_name(sent_name, code)
     try:
         APP_DIR.mkdir(parents=True, exist_ok=True)
@@ -1276,9 +1304,83 @@ def _app_received(event):
         print(f"[{_ts()}] app could not be saved: {err}", flush=True)
         return
     with lock:
-        sent_app = {"name": name, "size": len(code.encode("utf-8")), "ts": int(time.time()), "seen": False, "event": event.get("id")}
+        sent_app = {"name": name, "size": len(code.encode("utf-8")), "ts": int(time.time()), "seen": False, "event": event_id}
         _save_state()
-    print(f"[{_ts()}] app received from the relay: {name} ({len(code)} chars)", flush=True)
+    print(f"[{_ts()}] app received: {name} ({len(code)} chars)", flush=True)
+
+
+# ---- The GitHub mailbox ---------------------------------------------------------------------------------------
+
+mailbox = {"key": None, "until": 0.0, "running": False, "seen": None}
+mailbox_lock = threading.Lock()
+BRANCH_RE = re.compile(r"[A-Za-z0-9._/-]{1,100}")
+
+
+def _raw_get(url, limit):
+    """The bytes at `url` (None for anything but a 200, a timeout, or something larger than `limit`)."""
+    try:
+        request = urllib.request.Request(url, headers={"User-Agent": "aiwa", "Cache-Control": "no-cache"})
+        with urllib.request.urlopen(request, timeout=15) as reply:
+            data = reply.read(limit + 1)
+    except OSError:
+        return None
+    return data if len(data) <= limit else None
+
+
+def _mailbox_once(repo, work):
+    """One look: `aiwa-out/LATEST` of the branch names the app Claude pushed; when it is a new one, it is fetched and kept. True if one came."""
+    base = f"{RAW_BASE}/{repo}/refs/heads/{work}/aiwa-out"
+    stamp = int(time.time() * 1000)          # a new address each time: the raw CDN keeps a file for minutes
+    latest = _raw_get(f"{base}/LATEST?t={stamp}", 200)
+    name = latest.decode("utf-8", "replace").strip() if latest else ""
+    if not APP_FILE_RE.fullmatch(name):
+        return False
+    raw = _raw_get(f"{base}/{name}?t={stamp}", APP_MAX)
+    if not raw:
+        return False
+    digest = hashlib.sha1(raw).hexdigest()
+    with mailbox_lock:
+        if mailbox["seen"] == (repo, work, digest):
+            return False
+        mailbox["seen"] = (repo, work, digest)
+    try:
+        code = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    if not code.strip():
+        return False
+    _app_ready(code, name, f"github:{repo}@{work}:{digest[:12]}")
+    return True
+
+
+def _mailbox_loop(repo, work):
+    while True:
+        with mailbox_lock:
+            if time.time() >= mailbox["until"] or mailbox["key"] != (repo, work):
+                mailbox["running"] = False
+                return
+        try:
+            _mailbox_once(repo, work)
+        except Exception as err:  # a bad answer must never end the watch
+            print(f"[{_ts()}] mailbox: {err}", flush=True)
+        time.sleep(MAILBOX_EVERY)
+
+
+def _mailbox_watch(repo, work):
+    """After a message in the "store" or "aiwa" mode on a repository session: for a while, look for the app Claude pushes to its branch
+    when the relay is blocked. Nothing is read unless the repository is public: for a private one nothing comes, and the app is pasted."""
+    if not repo or not work or not github.REPO_RE.fullmatch(repo) or not BRANCH_RE.fullmatch(work) or ".." in work:
+        return
+    with lock:
+        wanted = deploy_mode in ("store", "aiwa")
+    if not wanted:
+        return
+    with mailbox_lock:
+        mailbox.update(key=(repo, work), until=time.time() + MAILBOX_WAIT)
+        if mailbox["running"]:
+            return
+        mailbox["running"] = True
+    threading.Thread(target=_mailbox_loop, args=(repo, work), daemon=True).start()
 
 
 def _sent_app_snapshot():

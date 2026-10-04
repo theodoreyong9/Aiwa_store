@@ -98,6 +98,24 @@ class FakeNtfy(http.server.BaseHTTPRequestHandler):
             self.send_error(404)
 
 
+class FakeRaw(http.server.BaseHTTPRequestHandler):
+    """raw.githubusercontent.com: /<owner>/<repo>/refs/heads/<branch>/<path>, with a cache-busting query the fake ignores."""
+    files = {}
+
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        body = self.files.get(self.path.split("?")[0])
+        if body is None:
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
 def wait_for(condition, seconds=10):
     end = time.time() + seconds
     while time.time() < end:
@@ -264,6 +282,101 @@ class SentAppTests(Base):
             srv.deploy_mode = mode
             joined = " ".join(t for _, t in srv._instruction_lines("o/r", "w", "main", True))
             self.assertNotIn("aiwa-app", joined)
+
+
+class MailboxTests(Base):
+    """The GitHub mailbox: with the relay blocked, Claude pushes aiwa-out/<name> and aiwa-out/LATEST to its own branch of the attached
+    repository, and the phone reads them from raw.githubusercontent.com for a while after a message."""
+    REPO, WORK = "someone/some-repo", "aiwa/20261004-120000"
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.raw = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeRaw)
+        threading.Thread(target=cls.raw.serve_forever, daemon=True).start()
+        srv.RAW_BASE = f"http://127.0.0.1:{cls.raw.server_address[1]}"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.raw.shutdown()
+        super().tearDownClass()
+
+    def setUp(self):
+        super().setUp()
+        FakeRaw.files.clear()
+        srv.mailbox.update(key=None, until=0.0, running=False, seen=None)
+
+    def push(self, name="demo-app.app.html", code=APP, latest=None, work=None):
+        base = f"/{self.REPO}/refs/heads/{work or self.WORK}/aiwa-out"
+        FakeRaw.files[f"{base}/LATEST"] = (latest if latest is not None else name).encode()
+        FakeRaw.files[f"{base}/{name}"] = code.encode()
+
+    def test_an_app_pushed_to_the_branch_is_found_and_kept(self):
+        self.push()
+        self.assertTrue(srv._mailbox_once(self.REPO, self.WORK))
+        self.assertEqual(srv._sent_app_code(), {"ok": True, "name": "demo-app.app.html", "kind": "code", "code": APP})
+        self.assertFalse(srv._sent_app_snapshot()["seen"])
+
+    def test_the_same_app_is_announced_once_and_a_correction_again(self):
+        self.push()
+        self.assertTrue(srv._mailbox_once(self.REPO, self.WORK))
+        srv._sent_app_seen()
+        self.assertFalse(srv._mailbox_once(self.REPO, self.WORK), "nothing new: nothing announced")
+        self.assertTrue(srv._sent_app_snapshot()["seen"], "and the widget is not woken again")
+        self.push(code=APP.replace("Demo App", "Demo App v2"))
+        self.assertTrue(srv._mailbox_once(self.REPO, self.WORK))
+        self.assertIn("Demo App v2", srv._sent_app_code()["code"])
+        self.assertFalse(srv._sent_app_snapshot()["seen"])
+
+    def test_nothing_pushed_yet_is_nothing(self):
+        self.assertFalse(srv._mailbox_once(self.REPO, self.WORK))
+        self.assertIsNone(srv._sent_app_snapshot())
+
+    def test_a_latest_that_is_not_an_app_name_is_never_followed(self):
+        for bad in ("../../etc/passwd", "x/y.app.html", "UPPER.app.html", "notes.txt", "", "a.app.html\nb.app.html", "-x.app.html"):
+            self.push(latest=bad)
+            self.assertFalse(srv._mailbox_once(self.REPO, self.WORK), bad)
+        self.assertIsNone(srv._sent_app_snapshot())
+
+    def test_a_too_big_or_empty_or_binary_file_is_not_kept(self):
+        with unittest.mock.patch.object(srv, "APP_MAX", 50):
+            self.push()
+            self.assertFalse(srv._mailbox_once(self.REPO, self.WORK))
+        self.push(code="   \n")
+        self.assertFalse(srv._mailbox_once(self.REPO, self.WORK))
+        FakeRaw.files[f"/{self.REPO}/refs/heads/{self.WORK}/aiwa-out/demo-app.app.html"] = b"\xff\xfe\x00"
+        self.assertFalse(srv._mailbox_once(self.REPO, self.WORK))
+        self.assertIsNone(srv._sent_app_snapshot())
+
+    def test_the_watch_runs_in_the_background_only_for_the_app_modes_and_a_sane_branch(self):
+        self.push()
+        for mode, repo, work in (("none", self.REPO, self.WORK), ("pages", self.REPO, self.WORK), ("store", None, self.WORK),
+                                 ("store", "not a repo", self.WORK), ("store", self.REPO, "../x"), ("store", self.REPO, "a b"), ("store", self.REPO, None)):
+            srv.deploy_mode = mode
+            srv._mailbox_watch(repo, work)
+            self.assertFalse(srv.mailbox["running"], (mode, repo, work))
+        srv.deploy_mode = "aiwa"
+        self.push(name="demo.aiwa.html")
+        with unittest.mock.patch.object(srv, "MAILBOX_EVERY", 0.05):
+            srv._mailbox_watch(self.REPO, self.WORK)
+            self.assertTrue(wait_for(lambda: srv._sent_app_snapshot() is not None))
+        self.assertEqual(srv._sent_app_snapshot()["name"], "demo.aiwa.html")
+        self.assertEqual(srv._sent_app_snapshot()["kind"], "aiwa")
+        srv.mailbox["until"] = 0.0      # the watch ends by itself at its deadline
+        self.assertTrue(wait_for(lambda: not srv.mailbox["running"]))
+
+    def test_the_instruction_gives_the_fallback_only_when_a_repository_is_attached(self):
+        for mode, example in (("store", "nom.app.html"), ("aiwa", "nom.aiwa.html")):
+            srv.deploy_mode = mode
+            attached = dict(srv._instruction_lines(self.REPO, self.WORK, "main", True))["deploy"]
+            for wanted in (f"aiwa-out/{example}", "aiwa-out/LATEST", f"git push origin {self.WORK}", "sauf le repli", "jamais sur la branche principale",
+                           "colle le code dans ta réponse", f"{srv.NTFY_SERVER}/{srv.waiting_topic}"):
+                self.assertIn(wanted, attached, (mode, wanted))
+            alone = dict(srv._instruction_lines(None, None, None, True))["deploy"]
+            self.assertNotIn("aiwa-out", alone)
+            self.assertNotIn("sauf le repli", alone)
+            self.assertIn("Ne la pousse sur AUCUN dépôt", alone)
+            self.assertIn("colle le code dans ta réponse", alone)
 
 
 class RelayTests(Base):
