@@ -28,6 +28,8 @@ await aiwa.send(recipientId, '1.0');        // also works fully offline, by bund
 
 ## The contract SDK
 
+A guide with a worked example: [docs/CONTRACTS.md](../../docs/CONTRACTS.md).
+
 `defineContract({ initialState, handlers })`, `Contract`, `signedAction`, `verifySignedAction`: rules that anyone replays from the events they hold. An action is proved by a signature placed inside the action itself, never by the outer author field.
 
 ## When two branches contradict each other
