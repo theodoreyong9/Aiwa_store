@@ -94,16 +94,20 @@ The widget's Deploy chip offers two modes, both ending with an app sent to the p
   ([`aiwa-app-example.html`](aiwa-app-example.html)). It imports the SDK as one module, `lib/aiwa.js`, served with the Store's site. The Store publishes it through Aiwa;
   GitHub only holds a pointer to it.
 
-**How the app reaches the phone.** Claude sends it to a public relay (ntfy.sh) with one `curl`. That needs the cloud environment to allow
-`ntfy.sh`, a setting only claude.ai can change (new environments are on the default list, which does not have it). So there is a
-second road that needs no setting, because a cloud session always has GitHub: **when a repository is chosen** (the widget's repository
-chip), the instruction adds *if the command fails, commit the file as `aiwa-out/<name>` with an `aiwa-out/LATEST` that holds its name, on
-your own branch, and push it*. For 20 minutes after each message the backend reads `aiwa-out/LATEST` of that branch from
-`raw.githubusercontent.com` (every 15 s, with a new address each time because the CDN keeps a file for minutes), and the app arrives as
-if it had come by the relay. Conditions: a repository chosen, **public** (nothing is read from a private one, then Claude pastes the
-code), and a push to its branch allowed. The app stays on that branch, never on the main one. Without a repository there is no
-GitHub road, and Claude pastes the code in its reply. Tested against fakes of both servers (`MailboxTests`); not tried with a real
-cloud session.
+**How what Claude says reaches the phone.** An app, the "Claude waits" alert and the relay test all go to a public relay (ntfy.sh) with one
+`curl`. That needs the cloud environment to allow `ntfy.sh`, a setting only claude.ai can change (a new environment is on the default list,
+which does not have it, and the widget then says the cloud alerts are blocked). There is a second road that needs no setting, because a
+cloud session always has GitHub: **when the session was started on a repository** (the widget's repository chip, chosen *before* the session
+starts), the instructions add *if the command fails, write one line in `aiwa-out/SIGNAL`, commit it on your own branch and push it*:
+`app <name> <time>` (with the app file next to it), `attend <time>` (only when Claude waits for an answer or a decision, not after every
+reply, to keep the branch quiet) or `check <time>` (the relay test, which makes the "alerts blocked" notice go away by itself). For 45 minutes
+after each message the backend reads that file from `raw.githubusercontent.com` every 20 s (a new address each time, because the CDN keeps a
+file for minutes) and acts on a signal once, if it answers the last message.
+
+Conditions: a repository chosen when the session starts (a session started without one has no road to GitHub: choose a repository and start a
+new session), **public** (nothing is read from a private one, then the alert does not come and Claude pastes the app), and a push to its branch
+allowed. The files stay on that branch, never on the main one. Tested against fakes of the three servers (`MailboxTests`); not tried with a
+real cloud session.
 
 The ▦ button opens the Store's publish sheet with the app in it; the user reads it, tries it and presses **Publish**: the Store signs it
 with the wallet and opens the pull request on the user's GitHub account. Nothing is signed or published by the widget. Not tied to a

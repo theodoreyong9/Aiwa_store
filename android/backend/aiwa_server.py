@@ -74,12 +74,12 @@ APP_FILE_RE = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?\.(?:app|aiwa)\.h
 # (see _sources_line).
 REFERENCE_REPO = "theodoreyong9/Aiwa_store"
 REFERENCE_RAW = f"https://raw.githubusercontent.com/{REFERENCE_REPO}/main"
-# The mailbox: when the cloud environment blocks the relay, an app can still leave the session through GitHub, the one road a session
-# always has (the GitHub proxy), on a repository attached to it: Claude pushes aiwa-out/<name> and aiwa-out/LATEST to its own branch, and
-# the phone reads them from raw.githubusercontent.com (public repositories) for a while after a message. Overridable for the tests.
+# The mailbox: when the cloud environment blocks the relay, what Claude has to say can still leave the session through GitHub, the one road
+# a session always has (the GitHub proxy), on a repository attached to it: Claude pushes aiwa-out/SIGNAL (and, for an app, the app) to its own
+# branch, and the phone reads it from raw.githubusercontent.com (public repositories) for a while after a message. Overridable for the tests.
 RAW_BASE = os.environ.get("AIWA_RAW_BASE", "https://raw.githubusercontent.com")
-MAILBOX_WAIT = 20 * 60
-MAILBOX_EVERY = 15
+MAILBOX_WAIT = 45 * 60
+MAILBOX_EVERY = 20
 # The Aiwa SDK as one ES module, served with the Store's site: what an app of the "aiwa" mode imports.
 AIWA_SDK_URL = "https://theodoreyong9.github.io/Aiwa_store/lib/aiwa.js"
 HTML_TITLE_RE = re.compile(r"<title[^>]*>([^<]{1,200})</title>", re.I)
@@ -454,9 +454,17 @@ def _mailbox_fallback(repo, work, example):
     if not repo or not work:
         return "si le réseau bloque la commande, dis-le-moi et colle le code dans ta réponse"
     return (
-        f"si la commande échoue (réseau bloqué), repli : écris le fichier sous `aiwa-out/{example}` et un fichier `aiwa-out/LATEST` qui contient seulement ce nom, "
+        f"si la commande échoue (réseau bloqué), repli : écris le fichier sous `aiwa-out/{example}`, puis `echo \"app {example} $(date +%s)\" > aiwa-out/SIGNAL`, "
         f"commite les deux sur ta branche {work} et pousse-la (`git push origin {work}`) : c'est le seul cas où l'app va sur GitHub, sur cette branche seulement, "
         "jamais sur la branche principale ; dis-moi ensuite que c'est fait. Si ce push est refusé, dis-le-moi et colle le code dans ta réponse"
+    )
+
+
+def _mailbox_signal(kind, work):
+    """The words of a fallback signal: one line in aiwa-out/SIGNAL, committed to Claude's own branch."""
+    return (
+        f"`mkdir -p aiwa-out && echo \"{kind} $(date +%s)\" > aiwa-out/SIGNAL`, commite ce fichier sur ta branche {work} et pousse-la "
+        f"(`git push origin {work}`), jamais sur la branche principale"
     )
 
 
@@ -581,7 +589,12 @@ def _instruction_lines(repo, work, base, direct):
         "alert",
         "Alerte (obligatoire) : à la fin de CHAQUE réponse — quand tu as terminé, ou que tu attends une réponse, "
         f"une décision ou une validation de ma part — exécute cette commande shell pour me prévenir : `curl -s -m 5 -d attend {NTFY_SERVER}/{topic}` "
-        "(si le réseau la bloque, ignore l'erreur et continue). Termine ensuite ta réponse par ta question s'il y en a une.",
+        + (
+            f"(si elle échoue parce que le réseau la bloque, repli, SEULEMENT quand tu attends une réponse ou une décision de ma part : {_mailbox_signal('attend', work)} ; "
+            "sinon ignore l'erreur et continue). "
+            if repo and work else "(si le réseau la bloque, ignore l'erreur et continue). "
+        )
+        + "Termine ensuite ta réponse par ta question s'il y en a une.",
     ))
     # No free-text line any more: its only editor was in the app's settings card,
     # removed when the app became a bare text field. A leftover text there would
@@ -790,7 +803,7 @@ def cloud_send(text, command=False):
         extra_text, fingerprint = _compose({}, repo, work, base, direct_now)
         with lock:
             asked_before = relay_cloud["asked"]
-        check_text = _relay_check_text()
+        check_text = _relay_check_text(repo=repo, work=work)
         task = text + extra_text + check_text
         # Claude's own title for the session is made from this first message: the
         # name Aiwa shows is written in it, besides the /rename queued after the
@@ -1203,7 +1216,7 @@ def _login_code(code):
 
 # ---- What comes back through the relay ---------------------------------------
 
-def _relay_check_text(force=False):
+def _relay_check_text(force=False, repo=None, work=None):
     """The test that tells whether Claude's cloud environment can reach the relay
     (its network access must allow ntfy.sh — a setting only claude.ai can change):
     added to the first message of a NEW session while the relay is unconfirmed, and
@@ -1217,7 +1230,10 @@ def _relay_check_text(force=False):
     return (
         "\n\n[Aiwa] Test du relais, à faire tout de suite avant le reste : exécute "
         f"`curl -s -m 8 -H 'Title: aiwa-check' -d ok {NTFY_SERVER}/{topic}` puis continue normalement ; "
-        "si le réseau la bloque, ignore l'erreur et ne t'y attarde pas."
+        + (
+            f"si elle échoue (réseau bloqué), repli : {_mailbox_signal('check', work)}, puis continue sans t'y attarder."
+            if repo and work else "si le réseau la bloque, ignore l'erreur et ne t'y attarde pas."
+        )
     )
 
 
@@ -1328,28 +1344,44 @@ def _raw_get(url, limit):
 
 
 def _mailbox_once(repo, work):
-    """One look: `aiwa-out/LATEST` of the branch names the app Claude pushed; when it is a new one, it is fetched and kept. True if one came."""
+    """One look at `aiwa-out/SIGNAL` of Claude's branch, one line: `app <name> <time>` (the app is then fetched and kept), `attend <time>` (Claude waits
+    for an answer: the alert) or `check <time>` (the relay test). A signal is acted on once, and only if it answers our last message. True if one was."""
     base = f"{RAW_BASE}/{repo}/refs/heads/{work}/aiwa-out"
     stamp = int(time.time() * 1000)          # a new address each time: the raw CDN keeps a file for minutes
-    latest = _raw_get(f"{base}/LATEST?t={stamp}", 200)
-    name = latest.decode("utf-8", "replace").strip() if latest else ""
-    if not APP_FILE_RE.fullmatch(name):
+    raw_signal = _raw_get(f"{base}/SIGNAL?t={stamp}", 300)
+    line = raw_signal.decode("utf-8", "replace").strip() if raw_signal else ""
+    parts = line.split()
+    if len(parts) == 3 and parts[0] == "app" and APP_FILE_RE.fullmatch(parts[1]) and parts[2].isdigit():
+        kind, name, moment = "app", parts[1], int(parts[2])
+    elif len(parts) == 2 and parts[0] in ("attend", "check") and parts[1].isdigit():
+        kind, name, moment = parts[0], "", int(parts[1])
+    else:
         return False
-    raw = _raw_get(f"{base}/{name}?t={stamp}", APP_MAX)
-    if not raw:
-        return False
-    digest = hashlib.sha1(raw).hexdigest()
     with mailbox_lock:
-        if mailbox["seen"] == (repo, work, digest):
+        if mailbox["seen"] == (repo, work, line):
             return False
-        mailbox["seen"] = (repo, work, digest)
-    try:
-        code = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        return False
-    if not code.strip():
-        return False
-    _app_ready(code, name, f"github:{repo}@{work}:{digest[:12]}")
+    with lock:
+        asked = last_message_at
+    if kind != "app" and asked and moment < asked - 120:
+        return False                          # older than our last message: not an answer to it
+    if kind == "app":
+        raw = _raw_get(f"{base}/{name}?t={stamp}", APP_MAX)
+        if not raw:
+            return False                      # not there yet (the CDN is a little behind): looked at again
+        try:
+            code = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            code = ""
+        with mailbox_lock:
+            mailbox["seen"] = (repo, work, line)
+        if code.strip():
+            _app_ready(code, name, f"github:{repo}@{work}:{hashlib.sha1(raw).hexdigest()[:12]}")
+        return bool(code.strip())
+    with mailbox_lock:
+        mailbox["seen"] = (repo, work, line)
+    if kind == "attend":
+        _ping_seen("attend (GitHub)")
+    _cloud_check_seen()                       # a signal that came through proves the cloud can say something to the phone
     return True
 
 
@@ -1367,13 +1399,9 @@ def _mailbox_loop(repo, work):
 
 
 def _mailbox_watch(repo, work):
-    """After a message in the "store" or "aiwa" mode on a repository session: for a while, look for the app Claude pushes to its branch
-    when the relay is blocked. Nothing is read unless the repository is public: for a private one nothing comes, and the app is pasted."""
+    """After a message on a repository session: for a while, look for what Claude pushes to its branch when the relay is blocked (the app, the
+    alert, the relay test). Nothing is read unless the repository is public: for a private one nothing comes, and the app is pasted."""
     if not repo or not work or not github.REPO_RE.fullmatch(repo) or not BRANCH_RE.fullmatch(work) or ".." in work:
-        return
-    with lock:
-        wanted = deploy_mode in ("store", "aiwa")
-    if not wanted:
         return
     with mailbox_lock:
         mailbox.update(key=(repo, work), until=time.time() + MAILBOX_WAIT)
@@ -1609,7 +1637,8 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 self.reply_json({"accepted": False, "reason": "aucune session en cours : le test part avec la première réponse d'une nouvelle session"})
                 return
-            sent = cloud_send(_relay_check_text(force=True).strip(), command=True)
+            entry = _session_entry(session)
+            sent = cloud_send(_relay_check_text(force=True, repo=entry.get("repo"), work=entry.get("work")).strip(), command=True)
             if sent.get("ok") is not True:
                 with lock:
                     relay_cloud.update(before)  # nothing was asked after all

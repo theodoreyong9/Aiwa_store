@@ -285,8 +285,8 @@ class SentAppTests(Base):
 
 
 class MailboxTests(Base):
-    """The GitHub mailbox: with the relay blocked, Claude pushes aiwa-out/<name> and aiwa-out/LATEST to its own branch of the attached
-    repository, and the phone reads them from raw.githubusercontent.com for a while after a message."""
+    """The GitHub mailbox: with the relay blocked, Claude pushes one line, aiwa-out/SIGNAL (and for an app the app), to its own branch of the
+    attached repository, and the phone reads it from raw.githubusercontent.com for a while after a message: an app, the alert, the relay test."""
     REPO, WORK = "someone/some-repo", "aiwa/20261004-120000"
 
     @classmethod
@@ -305,25 +305,35 @@ class MailboxTests(Base):
         super().setUp()
         FakeRaw.files.clear()
         srv.mailbox.update(key=None, until=0.0, running=False, seen=None)
+        srv.last_message_at = int(time.time()) - 30      # a message was sent a moment ago
 
-    def push(self, name="demo-app.app.html", code=APP, latest=None, work=None):
-        base = f"/{self.REPO}/refs/heads/{work or self.WORK}/aiwa-out"
-        FakeRaw.files[f"{base}/LATEST"] = (latest if latest is not None else name).encode()
-        FakeRaw.files[f"{base}/{name}"] = code.encode()
+    def base(self, work=None):
+        return f"/{self.REPO}/refs/heads/{work or self.WORK}/aiwa-out"
 
+    def signal(self, line):
+        FakeRaw.files[f"{self.base()}/SIGNAL"] = line.encode()
+
+    def push_app(self, name="demo-app.app.html", code=APP, moment=None):
+        FakeRaw.files[f"{self.base()}/{name}"] = code.encode()
+        self.signal(f"app {name} {moment or time.time_ns()}")
+
+    def now(self):
+        return int(time.time())
+
+    # ---- an app ----
     def test_an_app_pushed_to_the_branch_is_found_and_kept(self):
-        self.push()
+        self.push_app()
         self.assertTrue(srv._mailbox_once(self.REPO, self.WORK))
         self.assertEqual(srv._sent_app_code(), {"ok": True, "name": "demo-app.app.html", "kind": "code", "code": APP})
         self.assertFalse(srv._sent_app_snapshot()["seen"])
 
     def test_the_same_app_is_announced_once_and_a_correction_again(self):
-        self.push()
+        self.push_app()
         self.assertTrue(srv._mailbox_once(self.REPO, self.WORK))
         srv._sent_app_seen()
         self.assertFalse(srv._mailbox_once(self.REPO, self.WORK), "nothing new: nothing announced")
         self.assertTrue(srv._sent_app_snapshot()["seen"], "and the widget is not woken again")
-        self.push(code=APP.replace("Demo App", "Demo App v2"))
+        self.push_app(code=APP.replace("Demo App", "Demo App v2"))
         self.assertTrue(srv._mailbox_once(self.REPO, self.WORK))
         self.assertIn("Demo App v2", srv._sent_app_code()["code"])
         self.assertFalse(srv._sent_app_snapshot()["seen"])
@@ -331,52 +341,119 @@ class MailboxTests(Base):
     def test_nothing_pushed_yet_is_nothing(self):
         self.assertFalse(srv._mailbox_once(self.REPO, self.WORK))
         self.assertIsNone(srv._sent_app_snapshot())
+        self.assertEqual(srv._relay_cloud_state(), "untested")
 
-    def test_a_latest_that_is_not_an_app_name_is_never_followed(self):
-        for bad in ("../../etc/passwd", "x/y.app.html", "UPPER.app.html", "notes.txt", "", "a.app.html\nb.app.html", "-x.app.html"):
-            self.push(latest=bad)
+    def test_a_signal_that_is_not_well_formed_is_never_followed(self):
+        for bad in ("app ../../etc/passwd 1", "app x/y.app.html 1", "app UPPER.app.html 1", "app notes.txt 1", "app demo-app.app.html", "app demo-app.app.html x",
+                    "attend", "attend soon", "check", "check ok", "wait 5", "", "attend 1\nattend 2", "attend 1 2", "-x 1"):
+            self.signal(bad)
             self.assertFalse(srv._mailbox_once(self.REPO, self.WORK), bad)
         self.assertIsNone(srv._sent_app_snapshot())
+        self.assertEqual(srv._relay_cloud_state(), "untested")
+        self.assertIsNone(srv.waiting["since"])
 
     def test_a_too_big_or_empty_or_binary_file_is_not_kept(self):
         with unittest.mock.patch.object(srv, "APP_MAX", 50):
-            self.push()
+            self.push_app()
             self.assertFalse(srv._mailbox_once(self.REPO, self.WORK))
-        self.push(code="   \n")
+        self.push_app(code="   \n")
         self.assertFalse(srv._mailbox_once(self.REPO, self.WORK))
-        FakeRaw.files[f"/{self.REPO}/refs/heads/{self.WORK}/aiwa-out/demo-app.app.html"] = b"\xff\xfe\x00"
+        FakeRaw.files[f"{self.base()}/demo-app.app.html"] = b"\xff\xfe\x00"
+        self.signal(f"app demo-app.app.html {time.time_ns()}")
         self.assertFalse(srv._mailbox_once(self.REPO, self.WORK))
         self.assertIsNone(srv._sent_app_snapshot())
 
-    def test_the_watch_runs_in_the_background_only_for_the_app_modes_and_a_sane_branch(self):
-        self.push()
-        for mode, repo, work in (("none", self.REPO, self.WORK), ("pages", self.REPO, self.WORK), ("store", None, self.WORK),
-                                 ("store", "not a repo", self.WORK), ("store", self.REPO, "../x"), ("store", self.REPO, "a b"), ("store", self.REPO, None)):
-            srv.deploy_mode = mode
+    def test_an_app_whose_file_is_not_there_yet_is_looked_for_again(self):
+        self.signal(f"app demo-app.app.html {time.time_ns()}")
+        self.assertFalse(srv._mailbox_once(self.REPO, self.WORK))
+        FakeRaw.files[f"{self.base()}/demo-app.app.html"] = APP.encode()
+        self.assertTrue(srv._mailbox_once(self.REPO, self.WORK), "the same signal, now that the file has arrived")
+
+    # ---- the alert and the relay test ----
+    def test_claude_waiting_through_github_wakes_the_alert_and_proves_the_cloud_can_speak(self):
+        self.assertEqual(srv._relay_cloud_state(), "untested")
+        self.signal(f"attend {self.now()}")
+        self.assertTrue(srv._mailbox_once(self.REPO, self.WORK))
+        self.assertIsNotNone(srv.waiting["since"])
+        self.assertEqual(srv._relay_cloud_state(), "ok")
+        self.assertFalse(srv._mailbox_once(self.REPO, self.WORK), "the same signal does not wake it twice")
+
+    def test_a_second_signal_wakes_it_again_after_the_answer(self):
+        self.signal(f"attend {self.now()}")
+        self.assertTrue(srv._mailbox_once(self.REPO, self.WORK))
+        srv._clear_waiting()                                  # the user answered
+        self.assertFalse(srv._mailbox_once(self.REPO, self.WORK), "the old signal is still in the branch: it must not wake the alert")
+        self.assertIsNone(srv.waiting["since"])
+        self.signal(f"attend {self.now() + 1}")
+        self.assertTrue(srv._mailbox_once(self.REPO, self.WORK))
+        self.assertIsNotNone(srv.waiting["since"])
+
+    def test_the_relay_test_through_github_confirms_the_relay_without_waking_the_alert(self):
+        srv.relay_cloud.update(asked=time.time(), ok=None)
+        self.signal(f"check {self.now()}")
+        self.assertTrue(srv._mailbox_once(self.REPO, self.WORK))
+        self.assertEqual(srv._relay_cloud_state(), "ok")
+        self.assertIsNone(srv.waiting["since"])
+
+    def test_a_signal_older_than_our_last_message_is_not_an_answer_to_it(self):
+        self.signal(f"attend {self.now() - 3600}")
+        self.assertFalse(srv._mailbox_once(self.REPO, self.WORK))
+        self.assertIsNone(srv.waiting["since"])
+        self.assertEqual(srv._relay_cloud_state(), "untested")
+
+    # ---- the watch ----
+    def test_the_watch_runs_in_the_background_for_a_sane_repository_and_branch_only(self):
+        for repo, work in ((None, self.WORK), ("not a repo", self.WORK), (self.REPO, "../x"), (self.REPO, "a b"), (self.REPO, None), (self.REPO, "a/../b")):
             srv._mailbox_watch(repo, work)
-            self.assertFalse(srv.mailbox["running"], (mode, repo, work))
-        srv.deploy_mode = "aiwa"
-        self.push(name="demo.aiwa.html")
+            self.assertFalse(srv.mailbox["running"], (repo, work))
+        for mode in ("none", "aiwa"):                         # whatever the mode: the alert is for every one of them
+            srv.mailbox.update(key=None, until=0.0, running=False, seen=None)
+            srv.deploy_mode = mode
+            srv.waiting["since"] = None
+            self.signal(f"attend {self.now()}")
+            with unittest.mock.patch.object(srv, "MAILBOX_EVERY", 0.05):
+                srv._mailbox_watch(self.REPO, self.WORK)
+                self.assertTrue(wait_for(lambda: srv.waiting["since"] is not None), mode)
+            srv.mailbox["until"] = 0.0      # the watch ends by itself at its deadline
+            self.assertTrue(wait_for(lambda: not srv.mailbox["running"]), mode)
+        self.push_app(name="demo.aiwa.html")
         with unittest.mock.patch.object(srv, "MAILBOX_EVERY", 0.05):
             srv._mailbox_watch(self.REPO, self.WORK)
             self.assertTrue(wait_for(lambda: srv._sent_app_snapshot() is not None))
-        self.assertEqual(srv._sent_app_snapshot()["name"], "demo.aiwa.html")
         self.assertEqual(srv._sent_app_snapshot()["kind"], "aiwa")
-        srv.mailbox["until"] = 0.0      # the watch ends by itself at its deadline
+        srv.mailbox["until"] = 0.0
         self.assertTrue(wait_for(lambda: not srv.mailbox["running"]))
 
-    def test_the_instruction_gives_the_fallback_only_when_a_repository_is_attached(self):
+    # ---- what Claude is told ----
+    def test_the_instructions_give_the_fallbacks_only_when_a_repository_is_attached(self):
         for mode, example in (("store", "nom.app.html"), ("aiwa", "nom.aiwa.html")):
             srv.deploy_mode = mode
-            attached = dict(srv._instruction_lines(self.REPO, self.WORK, "main", True))["deploy"]
-            for wanted in (f"aiwa-out/{example}", "aiwa-out/LATEST", f"git push origin {self.WORK}", "sauf le repli", "jamais sur la branche principale",
-                           "colle le code dans ta réponse", f"{srv.NTFY_SERVER}/{srv.waiting_topic}"):
-                self.assertIn(wanted, attached, (mode, wanted))
+            lines = dict(srv._instruction_lines(self.REPO, self.WORK, "main", True))
+            for wanted in (f"aiwa-out/{example}", f'echo "app {example} $(date +%s)" > aiwa-out/SIGNAL', f"git push origin {self.WORK}", "sauf le repli",
+                           "jamais sur la branche principale", "colle le code dans ta réponse", f"{srv.NTFY_SERVER}/{srv.waiting_topic}"):
+                self.assertIn(wanted, lines["deploy"], (mode, wanted))
             alone = dict(srv._instruction_lines(None, None, None, True))["deploy"]
-            self.assertNotIn("aiwa-out", alone)
-            self.assertNotIn("sauf le repli", alone)
+            for unwanted in ("aiwa-out", "sauf le repli"):
+                self.assertNotIn(unwanted, alone)
             self.assertIn("Ne la pousse sur AUCUN dépôt", alone)
             self.assertIn("colle le code dans ta réponse", alone)
+        for mode in ("none", "pages", "store"):
+            srv.deploy_mode = mode
+            alert = dict(srv._instruction_lines(self.REPO, self.WORK, "main", True))["alert"]
+            for wanted in (f"-d attend {srv.NTFY_SERVER}/{srv.waiting_topic}", 'echo "attend $(date +%s)" > aiwa-out/SIGNAL', f"git push origin {self.WORK}",
+                           "SEULEMENT quand tu attends une réponse", "jamais sur la branche principale"):
+                self.assertIn(wanted, alert, (mode, wanted))
+            bare = dict(srv._instruction_lines(None, None, None, True))["alert"]
+            self.assertNotIn("aiwa-out", bare)
+            self.assertIn("ignore l'erreur", bare)
+
+    def test_the_relay_test_gives_its_fallback_only_when_a_repository_is_attached(self):
+        with_repo = srv._relay_check_text(force=True, repo=self.REPO, work=self.WORK)
+        for wanted in ("aiwa-check", 'echo "check $(date +%s)" > aiwa-out/SIGNAL', f"git push origin {self.WORK}"):
+            self.assertIn(wanted, with_repo)
+        without = srv._relay_check_text(force=True)
+        self.assertIn("aiwa-check", without)
+        self.assertNotIn("aiwa-out", without)
 
 
 class RelayTests(Base):
