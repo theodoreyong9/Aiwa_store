@@ -152,6 +152,25 @@ These are settings and accounts. Until they are done, the matching workflow is *
 <details>
 <summary>What is in the repository</summary>
 
+```mermaid
+flowchart BT
+  core["<b>packages/core</b><br/>the protocol: identity, signed events,<br/>verifiable work, conservation"]
+  platform["<b>packages/platform</b><br/>transport, replication, storage, bundles"]
+  lib["<b>packages/lib</b><br/>the wallet API and the contract SDK"]
+  registry["<b>registry</b><br/>validates submissions, ranks the apps"]
+  web["<b>apps/web</b><br/>the Store and the wallet, one web app"]
+  android["<b>android</b><br/>the APK: the web app in a WebView,<br/>and the optional widget"]
+  platform --> core
+  lib --> platform
+  lib --> core
+  registry --> lib
+  web --> lib
+  web --> registry
+  android -. "carries the build of" .-> web
+```
+
+An arrow means "uses". Nothing in `core` knows about anything above it.
+
 | | |
 |---|---|
 | [`packages/core`](packages/core) | the protocol: identity, signed events, verifiable work, accrual, conservation, canonical fold order, creator fee |

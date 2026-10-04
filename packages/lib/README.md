@@ -2,6 +2,26 @@
 
 The public API for apps and wallets, composed from [aiwa-core](../core) and [aiwa-platform](../platform).
 
+Where it sits in the repository (highlighted):
+
+```mermaid
+flowchart BT
+  core["<b>packages/core</b><br/>the protocol: identity, signed events,<br/>verifiable work, conservation"]
+  platform["<b>packages/platform</b><br/>transport, replication, storage, bundles"]
+  lib["<b>packages/lib</b><br/>the wallet API and the contract SDK"]
+  registry["<b>registry</b><br/>validates submissions, ranks the apps"]
+  web["<b>apps/web</b><br/>the Store and the wallet, one web app"]
+  android["<b>android</b><br/>the APK: the web app in a WebView,<br/>and the optional widget"]
+  platform --> core
+  lib --> platform
+  lib --> core
+  registry --> lib
+  web --> lib
+  web --> registry
+  android -. "carries the build of" .-> web
+  style lib fill:#fde68a,stroke:#b45309,stroke-width:2px
+```
+
 ```
 npm test
 ```
