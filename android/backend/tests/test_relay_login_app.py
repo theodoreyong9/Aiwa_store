@@ -797,6 +797,29 @@ class CloudSendTests(Base):
         self.assertIn(f"{srv.NTFY_SERVER}/{srv.waiting_topic}", task)
 
 
+class RepoStubTests(unittest.TestCase):
+    """The repository is only an address: nothing of it is downloaded to the phone."""
+
+    def test_directory_is_an_empty_stub_pointing_at_the_repository(self):
+        import subprocess
+        root = Path(tempfile.mkdtemp(prefix="aiwa-stub-"))
+        with unittest.mock.patch.object(gh, "REPOS_DIR", root), \
+                unittest.mock.patch.object(gh, "GITHUB_BASE", "https://example.invalid"), \
+                unittest.mock.patch.object(gh, "default_branch", lambda repo: "trunk"):
+            directory, work, base = gh.prepare_repo_dir("o/r")
+            first = subprocess.run(["git", "rev-parse", "HEAD"], cwd=directory, capture_output=True, text=True).stdout
+            again, _, _ = gh.prepare_repo_dir("o/r")
+        self.assertEqual(base, "trunk")
+        self.assertTrue(work.startswith("aiwa/"))
+        self.assertEqual(sorted(p.name for p in directory.iterdir()), [".git"])
+        origin = subprocess.run(["git", "remote", "get-url", "origin"], cwd=directory, capture_output=True, text=True).stdout.strip()
+        self.assertEqual(origin, "https://example.invalid/o/r.git")
+        count = subprocess.run(["git", "rev-list", "--count", "HEAD"], cwd=directory, capture_output=True, text=True).stdout.strip()
+        self.assertEqual(count, "1")
+        self.assertEqual(again, directory)
+        self.assertEqual(subprocess.run(["git", "rev-parse", "HEAD"], cwd=directory, capture_output=True, text=True).stdout, first)
+
+
 class FakeGithub(http.server.BaseHTTPRequestHandler):
     runs = []       # the workflow_runs the next request gets, newest first
     status = 200

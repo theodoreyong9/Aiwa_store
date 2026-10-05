@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 21
+BACKEND_VERSION = 22
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -488,7 +488,10 @@ def _instruction_lines(repo, work, base, direct):
         deploy, topic, more = deploy_mode, waiting_topic, list(extra_repos)
     lines = []
     if repo:
-        text = f"Dépôt : {repo}. Ton répertoire de travail doit être ce dépôt GitHub (vérifie `git remote -v`) ; si ce n'est pas le cas, dis-le-moi et arrête-toi."
+        text = (
+            f"Dépôt : {repo}. Ton répertoire de travail doit être ce dépôt GitHub (vérifie `git remote -v`) ; si ce n'est pas le cas, dis-le-moi et arrête-toi. "
+            "Si le répertoire ne contient qu'un commit « stub » (le dépôt n'a pas été cloné), rattache le dépôt avec l'outil `add_repo` ; sans cet outil, ou si l'accès est refusé, dis-le-moi et arrête-toi."
+        )
         if more:
             text += (
                 " Dépôts supplémentaires sur lesquels tu peux aussi intervenir : " + ", ".join(more) + ". "
@@ -820,10 +823,11 @@ def cloud_send(text, command=False):
         if not repo:
             # Every session starts on a repository: there is no free conversation.
             return {"ok": False, "error": "Choisis d'abord un dépôt (le bouton ⎇ du widget) : chaque session démarre sur un dépôt."}
-        # The session starts on the chosen repository: the cloud clones
-        # the GitHub remote of this directory itself, with Claude's own
-        # access (the user grants it at claude.ai/connect-github).
-        cloud_progress = f"copie locale de {repo}…"
+        # The session starts on the chosen repository, which is only an address:
+        # the directory is an empty stub whose origin is that repository, and the
+        # cloud clones it itself, with Claude's own access (the user grants it at
+        # claude.ai/connect-github). Nothing of the repository goes through the phone.
+        cloud_progress = f"préparation de la session sur {repo}…"
         try:
             directory, work, base = github.prepare_repo_dir(repo)
         except github.GithubError as err:
@@ -862,10 +866,10 @@ def cloud_send(text, command=False):
         print(f"[{_ts()}] cloud_send: created={found!r} code={code} {timeline[-1]}", flush=True)
         if repo and found and re.search(r"bundl", output, re.I):
             # Documented: without access to the GitHub remote, Claude Code
-            # uploads the local directory instead of cloning — here an empty
-            # stub or a stale clone. Unverified wording, hence the hedge.
+            # uploads the local directory instead of cloning — here the empty
+            # stub. Unverified wording, hence the hedge.
             github_error = (
-                f"La session semble avoir reçu une copie locale au lieu de cloner {repo} : "
+                f"La session semble avoir reçu un dossier vide au lieu de cloner {repo} : "
                 "Claude n'a peut-être pas accès à ce dépôt (autorise-le sur claude.ai/connect-github)."
             )
         if found is None:

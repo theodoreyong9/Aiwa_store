@@ -21,7 +21,6 @@ import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 // The Intent overload of actionStartActivity lives in the appwidget module.
 import androidx.glance.appwidget.action.actionStartActivity as actionStartIntent
-import androidx.glance.appwidget.CircularProgressIndicator
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -81,29 +80,6 @@ class AiwaWidget : GlanceAppWidget() {
 // in compiles but crashes at real render time on device. Wrapping in
 // Compose's own Color(Int) first is the real fix (confirmed live).
 private fun rgb(colorInt: Int) = ColorProvider(androidx.compose.ui.graphics.Color(colorInt))
-
-// What the dictation button says about the work, in place of the old mint "● Prêt ↗" pill: a spinning circle while a
-// request is under way (being sent, or the repository's GitHub run is going), a green tick when there is something new
-// to look at (a new green run). Tapping the tick opens the result — it is then no longer news. Nothing otherwise.
-private fun micBadgeShown(state: AiwaState) =
-    state.status == AiwaState.Status.WORKING || state.ciState == "running" || state.ciFresh
-
-@Composable
-private fun MicBadge(state: AiwaState, size: Dp = 22.dp) {
-    val tickGreen = rgb(android.graphics.Color.rgb(46, 190, 110))
-    val working = state.status == AiwaState.Status.WORKING || state.ciState == "running"
-    if (working) {
-        CircularProgressIndicator(modifier = GlanceModifier.size(size), color = tickGreen)
-    } else if (state.ciFresh) {
-        Box(
-            modifier = GlanceModifier.size(size).background(tickGreen).cornerRadius((size.value / 2f).dp)
-                .clickable(actionStartActivity<OpenResultActivity>()),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("✓", style = TextStyle(color = rgb(android.graphics.Color.rgb(255, 255, 255)), fontSize = 14.sp, fontWeight = FontWeight.Bold))
-        }
-    }
-}
 
 private const val GAP = 6f
 
@@ -456,10 +432,6 @@ private fun FullContent(state: AiwaState) {
                     )
                     Spacer(GlanceModifier.width(8.dp))
                     Text("Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-                    if (micBadgeShown(state)) {
-                        Spacer(GlanceModifier.width(10.dp))
-                        MicBadge(state)
-                    }
                 }
             }
             if (docsMode) {
@@ -557,15 +529,11 @@ private fun CompactContent(state: AiwaState) {
                     .clickable(lockable(locked, micAction(state.needsRepo))),
                 contentAlignment = Alignment.Center,
             ) {
-                if (micBadgeShown(state)) {
-                    MicBadge(state, 20.dp)
-                } else {
-                    Image(
-                        provider = ImageProvider(R.drawable.rec_dot),
-                        contentDescription = "Dicter un message",
-                        modifier = GlanceModifier.size(16.dp),
-                    )
-                }
+                Image(
+                    provider = ImageProvider(R.drawable.rec_dot),
+                    contentDescription = "Dicter un message",
+                    modifier = GlanceModifier.size(16.dp),
+                )
             }
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(modelText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<ModelPickerActivity>()))

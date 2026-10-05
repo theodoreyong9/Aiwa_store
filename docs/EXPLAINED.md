@@ -599,7 +599,7 @@ cost, hash-locked vouchers, session keys. No prior-art search has been done. Wha
 
 **Verified by tests** (all run in CI): the protocol (421 tests, including a cross-check against an independent Rust implementation of its
 core computations), the distribution layer (88), the wallet API (113), the registry (17), the web app (46, 22 of them in a real Chromium:
-ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds, an app using the wallet, a click duel between two pages, two phones linking by two codes, a QR code read from a fake camera), the dictation backend (104), the Android app's checks of a downloaded page (14, on a plain JVM), and a whole
+ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds, an app using the wallet, a click duel between two pages, two phones linking by two codes, a QR code read from a fake camera), the dictation backend (105), the Android app's checks of a downloaded page (14, on a plain JVM), and a whole
 dry run against a stand-in Solana (`node scripts/devnet-check.mjs --fake`).
 
 **Not verified:** a real burn on Solana (it needs a funded devnet wallet); the Android app on a real phone (it is compiled in CI only),

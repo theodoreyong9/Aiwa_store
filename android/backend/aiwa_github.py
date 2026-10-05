@@ -348,33 +348,29 @@ def default_branch(repo):
 
 
 def prepare_repo_dir(repo):
-    """The local directory `claude --cloud` is started from: the cloud
-    session clones the GitHub remote of this directory at its current
-    branch (Anthropic's documented behaviour), with Claude's own access.
+    """The local directory `claude --cloud` is started from. The repository
+    is only an address: this directory is an empty stub whose `origin` is
+    the repository, which is all the CLI reads to tell the cloud session
+    which repository to clone (with Claude's own GitHub access). Nothing of
+    the repository is downloaded here, so nothing of it is uploaded from the
+    phone either.
     Returns (directory, work branch, default branch): the work branch is
     the session's own branch, a fresh aiwa/<date> that Claude is asked to
-    create from the default branch; the local directory stays on the
-    default branch."""
+    create from the default branch."""
     url = f"{GITHUB_BASE}/{repo}.git"
     branch = default_branch(repo)
     dest = REPOS_DIR / repo.replace("/", "__")
     REPOS_DIR.mkdir(parents=True, exist_ok=True)
+    reusable = False
     if (dest / ".git").exists():
         try:
-            _git(["fetch", "--depth", "1", "origin", branch], cwd=dest)
-            _git(["checkout", "-q", "-f", "-B", branch, f"origin/{branch}"], cwd=dest)
+            reusable = _git(["remote", "get-url", "origin"], cwd=dest).strip() == url and _git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=dest).strip() == branch
         except GithubError:
-            pass  # a stale checkout is harmless: the cloud clones the remote anyway
-    else:
-        try:
-            _git(["clone", "--depth", "1", "--branch", branch, url, str(dest)])
-        except GithubError:
-            # Private, and no `gh` login here: an empty stub whose origin is
-            # the repository is enough — the cloud clones it with Claude's
-            # own access.
-            shutil.rmtree(dest, ignore_errors=True)
-            dest.mkdir(parents=True)
-            _git(["init", "-q", "-b", branch], cwd=dest)
-            _git(["remote", "add", "origin", url], cwd=dest)
-            _git(["-c", "user.name=aiwa", "-c", "user.email=aiwa@example.com", "commit", "-q", "--allow-empty", "-m", "stub"], cwd=dest)
+            reusable = False
+    if not reusable:
+        shutil.rmtree(dest, ignore_errors=True)
+        dest.mkdir(parents=True)
+        _git(["init", "-q", "-b", branch], cwd=dest)
+        _git(["remote", "add", "origin", url], cwd=dest)
+        _git(["-c", "user.name=aiwa", "-c", "user.email=aiwa@example.com", "commit", "-q", "--allow-empty", "-m", "stub"], cwd=dest)
     return dest, "aiwa/" + time.strftime("%Y%m%d-%H%M%S"), branch
