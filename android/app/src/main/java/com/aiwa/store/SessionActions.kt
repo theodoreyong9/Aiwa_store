@@ -272,14 +272,14 @@ private const val CLAUDE_APP_PACKAGE = "com.anthropic.claude"
  * the Claude app (Code tab). Aiwa can't show cloud replies itself, so this
  * is the one way to read them. The app is asked first (it may claim
  * claude.ai/code links); without it, whatever handles the link — the
- * browser — gets it. Returns false when there is no session to open or
- * nothing could open the link.
+ * browser — gets it. With no session at all (the list was emptied, nothing sent yet) it opens
+ * Claude's Code tab, where one can be made or found. Returns false when nothing could open the link.
  */
 fun openClaudeApp(context: Context): Boolean {
     val state = AiwaRepository.state.value
-    val sessionId = state.cloudSessionId ?: state.lastSessionId ?: return false
-    val url = state.cloudSessions.find { it.id == sessionId }?.url
-    val target = Uri.parse(url?.takeIf { it.startsWith("https://claude.ai/") } ?: "https://claude.ai/code/$sessionId")
+    val sessionId = state.cloudSessionId ?: state.lastSessionId
+    val url = sessionId?.let { id -> state.cloudSessions.find { it.id == id }?.url }
+    val target = Uri.parse(url?.takeIf { it.startsWith("https://claude.ai/") } ?: if (sessionId != null) "https://claude.ai/code/$sessionId" else "https://claude.ai/code")
     fun view() = Intent(Intent.ACTION_VIEW, target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     val opened = try {
         context.startActivity(view().setPackage(CLAUDE_APP_PACKAGE))

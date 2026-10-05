@@ -18,22 +18,16 @@ class OpenClaudeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
-        if (openClaudeApp(this)) {
+        val known = AiwaRepository.state.value.let { it.cloudSessionId != null || it.lastSessionId != null }
+        if (known && openClaudeApp(this)) {
             finish()
             return
         }
-        // The process may have restarted since the widget last drew: ask
-        // the backend which session is current before giving up.
+        // No session known: the process may have restarted since the widget last drew, so ask the backend which one is
+        // current before opening (a session if there is one, else Claude's Code tab).
         CoroutineScope(Dispatchers.Main).launch {
             withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) }
-            if (!openClaudeApp(this@OpenClaudeActivity)) {
-                val message = if (AiwaRepository.state.value.cloudSessionId == null && AiwaRepository.state.value.lastSessionId == null) {
-                    "Pas encore de session Claude : envoie d'abord un message."
-                } else {
-                    "Impossible d'ouvrir l'appli Claude."
-                }
-                toastOnMain(this@OpenClaudeActivity, message)
-            }
+            if (!openClaudeApp(this@OpenClaudeActivity)) toastOnMain(this@OpenClaudeActivity, "Impossible d'ouvrir l'appli Claude.")
             finish()
         }
     }

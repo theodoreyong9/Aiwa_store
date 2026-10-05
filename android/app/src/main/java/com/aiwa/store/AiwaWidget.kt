@@ -270,7 +270,7 @@ private fun FullContent(state: AiwaState) {
         state.needsRepo -> { status = "Choisis un dépôt (⎇) pour commencer"; statusColor = warm; statusBold = true }
         else -> { status = "Prêt"; statusColor = subtle }
     }
-    val titleRoom = avail - avatar - 8f - (if (hasSession) avatar + 8f else 0f)
+    val titleRoom = avail - avatar - 8f - (avatar + 8f)
     val title = when {
         needsSetup -> "Autoriser Aiwa ▸"
         state.backend == "missing" -> "Installer le backend ▸"
@@ -338,18 +338,16 @@ private fun FullContent(state: AiwaState) {
                     maxLines = 1,
                 )
             }
-            // Only once a session exists (Aiwa has created or selected one): before
-            // that there is nothing to open.
-            if (hasSession) {
-                Spacer(GlanceModifier.width(8.dp))
-                RoundButton(
-                    icon = R.drawable.ic_claude,
-                    description = if (state.waiting) "Claude attend une réponse : ouvrir la conversation" else "Ouvrir la conversation dans Claude",
-                    background = if (state.waiting) alertRed else claudeOrange,
-                    action = actionStartActivity<OpenClaudeActivity>(),
-                    diameter = avatar.dp,
-                )
-            }
+            // Always there (it vanished with the list of sessions, and only came back with a first message that went): with a
+            // session it opens that conversation in Claude, without one it opens Claude's Code tab, where a session can be made or found.
+            Spacer(GlanceModifier.width(8.dp))
+            RoundButton(
+                icon = R.drawable.ic_claude,
+                description = if (state.waiting) "Claude attend une réponse : ouvrir la conversation" else if (hasSession) "Ouvrir la conversation dans Claude" else "Ouvrir Claude",
+                background = if (state.waiting) alertRed else claudeOrange,
+                action = actionStartActivity<OpenClaudeActivity>(),
+                diameter = avatar.dp,
+            )
         }
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
@@ -500,9 +498,8 @@ private fun CompactContent(state: AiwaState) {
     val fixedLeft = 36f + 40f + chipWidth(modelText, fontScale) + 3 * GAP // A, mic, model and the gaps before them
     // Claude waiting gets its words when there is room for them next to a
     // readable session name; otherwise it stays a round button, still red.
-    val claudePill = hasSession && state.waiting && avail - fixedLeft - (chipWidth(pillText, fontScale) + GAP) >= 96f
+    val claudePill = state.waiting && avail - fixedLeft - (chipWidth(pillText, fontScale) + GAP) >= 96f
     val claudeWidth = when {
-        !hasSession -> 0f
         claudePill -> chipWidth(pillText, fontScale) + GAP
         else -> 36f + GAP
     }
@@ -551,23 +548,20 @@ private fun CompactContent(state: AiwaState) {
             }
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(modelText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<ModelPickerActivity>()))
-            // Only once a session exists (Aiwa has created or selected one):
-            // before that there is nothing to open. Red while Claude waits for
+            // Always there: with a session it opens that conversation, without one Claude's Code tab. Red while Claude waits for
             // an answer (it pinged the relay): the alert is this button and the
             // card's edge, not a notification.
-            if (hasSession) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                if (claudePill) {
-                    Chip(pillText, alertRed, fg, actionStartActivity<OpenClaudeActivity>(), bold = true)
-                } else {
-                    RoundButton(
-                        icon = R.drawable.ic_claude,
-                        description = if (state.waiting) "Claude attend une réponse : ouvrir la conversation" else "Ouvrir la conversation dans Claude",
-                        background = if (state.waiting) alertRed else claudeOrange,
-                        action = actionStartActivity<OpenClaudeActivity>(),
-                        diameter = 36.dp,
-                    )
-                }
+            Spacer(GlanceModifier.width(GAP.dp))
+            if (claudePill) {
+                Chip(pillText, alertRed, fg, actionStartActivity<OpenClaudeActivity>(), bold = true)
+            } else {
+                RoundButton(
+                    icon = R.drawable.ic_claude,
+                    description = if (state.waiting) "Claude attend une réponse : ouvrir la conversation" else if (hasSession) "Ouvrir la conversation dans Claude" else "Ouvrir Claude",
+                    background = if (state.waiting) alertRed else claudeOrange,
+                    action = actionStartActivity<OpenClaudeActivity>(),
+                    diameter = 36.dp,
+                )
             }
         }
         if (tall) {
