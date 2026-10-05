@@ -838,6 +838,22 @@ class RepoStubTests(unittest.TestCase):
         self.assertEqual(self.run_git(directory, "rev-list", "--count", "HEAD"), "1")
         self.assertEqual(self.run_git(directory, "rev-parse", "HEAD"), first)
 
+    def test_the_branch_is_known_on_origin_so_the_cli_names_the_repository_instead_of_uploading_the_folder(self):
+        import subprocess
+        folder = Path(tempfile.mkdtemp(prefix="aiwa-stub-")) / "chat-cloud"
+        with unittest.mock.patch.object(gh, "SESSION_DIR", folder), \
+                unittest.mock.patch.object(gh, "GITHUB_BASE", "https://example.invalid"), \
+                unittest.mock.patch.object(gh, "default_branch", lambda repo: "trunk"):
+            directory, _, _ = gh.prepare_repo_dir("o/r")
+            first = subprocess.run(["git", "show-ref", "--verify", "--quiet", "refs/remotes/origin/trunk"], cwd=directory)
+            with unittest.mock.patch.object(gh, "default_branch", lambda repo: "main"):
+                gh.prepare_repo_dir("p/q")
+            stale = subprocess.run(["git", "show-ref", "--verify", "--quiet", "refs/remotes/origin/trunk"], cwd=directory)
+            now = subprocess.run(["git", "show-ref", "--verify", "--quiet", "refs/remotes/origin/main"], cwd=directory)
+        self.assertEqual(first.returncode, 0, "the CLI's own question: is the current branch on the remote?")
+        self.assertNotEqual(stale.returncode, 0, "nothing is left of the previous repository")
+        self.assertEqual(now.returncode, 0)
+
     def test_a_folder_left_by_the_first_widget_is_reused_as_it_is(self):
         # ~/chat-cloud of the first widget: a repository with one commit on master, no remote, the user's trust answer given there
         folder = Path(tempfile.mkdtemp(prefix="aiwa-old-")) / "chat-cloud"

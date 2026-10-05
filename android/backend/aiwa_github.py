@@ -376,4 +376,11 @@ def prepare_repo_dir(repo):
         _git(["remote", "set-url", "origin", url], cwd=dest)
     except GithubError:
         _git(["remote", "add", "origin", url], cwd=dest)
+    # Read from the CLI's code: before sending the repository's address, `claude --cloud` asks git whether the current branch is known on
+    # the remote (`git show-ref --verify refs/remotes/origin/<branch>`). With no such ref it takes the folder for work that exists only here
+    # and uploads the folder itself instead of naming the repository, and the cloud session gets an empty folder (no remote, one commit).
+    # The ref is made here: it only says the branch exists on origin, which the cloud then clones by name.
+    for ref in _git(["for-each-ref", "--format=%(refname)", "refs/remotes/origin/"], cwd=dest).split():
+        _git(["update-ref", "-d", ref], cwd=dest)
+    _git(["update-ref", f"refs/remotes/origin/{branch}", "HEAD"], cwd=dest)
     return dest, "aiwa/" + time.strftime("%Y%m%d-%H%M%S"), branch
