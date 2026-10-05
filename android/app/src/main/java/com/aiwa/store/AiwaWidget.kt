@@ -134,6 +134,18 @@ private val GREEN_DIM = rgb(android.graphics.Color.rgb(34, 66, 52))
 private val MIC_DIM = rgb(android.graphics.Color.rgb(58, 58, 66))
 private val TEXT_DIM = rgb(android.graphics.Color.rgb(130, 130, 144))
 
+// The globe: the site of the repository, in a browser: except the Store's own site, which is the page this app serves: it opens in the app.
+private fun siteAction(context: Context, state: AiwaState, site: String): Action =
+    if (state.siteKind == "site" && isStoreRepository(context, state.repo)) actionStartActivity<StoreActivity>()
+    else actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(site)))
+
+// The code of the app Claude wrote: on GitHub, once it is there (Claude is asked to put it in the repository); the copy received by the
+// phone is the fallback (a private repository, or Claude did not push).
+private fun codeAction(state: AiwaState): Action {
+    val address = state.sentApp?.github
+    return if (address != null) actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(address))) else actionStartActivity<CodeViewActivity>()
+}
+
 // The mic records; with no repository chosen there is nothing to send to yet, so it opens the repository list instead.
 private fun micAction(needsRepo: Boolean): Action =
     if (needsRepo) actionStartActivity<RepoPickerActivity>() else actionStartActivity<DictateActivity>()
@@ -369,7 +381,7 @@ private fun FullContent(state: AiwaState) {
                         icon = if (state.siteKind == "apk") R.drawable.ic_download else R.drawable.ic_globe,
                         description = if (state.siteKind == "apk") "Télécharger l'APK Android" else "Ouvrir le site",
                         background = if (live) claudeOrange else pill,
-                        action = actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(site))),
+                        action = siteAction(LocalContext.current, state, site),
                         diameter = chipH.dp,
                     )
                 }
@@ -390,9 +402,9 @@ private fun FullContent(state: AiwaState) {
                     // Orange = something was received and not opened yet; grey = nothing (yet). It opens the code, read-only.
                     RoundButton(
                         icon = R.drawable.ic_code,
-                        description = "Voir le code reçu de Claude",
+                        description = if (state.sentApp?.github != null) "Voir le code sur GitHub" else "Voir le code reçu de Claude",
                         background = if (storeReady) claudeOrange else pill,
-                        action = actionStartActivity<CodeViewActivity>(),
+                        action = codeAction(state),
                         diameter = chipH.dp,
                     )
                 }
@@ -612,7 +624,7 @@ private fun CompactContent(state: AiwaState) {
                             icon = if (state.siteKind == "apk") R.drawable.ic_download else R.drawable.ic_globe,
                             description = if (state.siteKind == "apk") "Télécharger l'APK Android" else "Ouvrir le site",
                             background = if (live) claudeOrange else pill,
-                            action = actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(site))),
+                            action = siteAction(LocalContext.current, state, site),
                         )
                     }
                     if (showStore) {
@@ -628,9 +640,9 @@ private fun CompactContent(state: AiwaState) {
                         Spacer(GlanceModifier.width(GAP.dp))
                         RoundButton(
                             icon = R.drawable.ic_code,
-                            description = "Voir le code reçu de Claude",
+                            description = if (state.sentApp?.github != null) "Voir le code sur GitHub" else "Voir le code reçu de Claude",
                             background = if (storeReady) claudeOrange else pill,
-                            action = actionStartActivity<CodeViewActivity>(),
+                            action = codeAction(state),
                         )
                     }
                     if (showActions) {

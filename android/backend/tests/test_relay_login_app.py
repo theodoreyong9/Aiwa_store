@@ -429,16 +429,54 @@ class MailboxTests(Base):
         srv.mailbox["until"] = 0.0
         self.assertTrue(wait_for(lambda: not srv.mailbox["running"]))
 
+    # ---- where the code of the app is on GitHub ----
+    def session_on(self, direct, work=None, base="main"):
+        srv._save_cloud_session("session_TEST123abc", "t", None, repo=self.REPO, work=work or self.WORK, base=base, direct=direct)
+        srv.current_cloud = "session_TEST123abc"
+        srv.app_github.update(key=None, url=None, at=0.0, busy=False)
+        self.addCleanup(lambda: (Path(srv.CLOUD_STORE).unlink(missing_ok=True), setattr(srv, "current_cloud", None)))
+
+    def apps_path(self, branch, name="demo-app.app.html"):
+        return f"/{self.REPO}/refs/heads/{branch}/aiwa-apps/{name}"
+
+    def github_url(self):
+        srv._sent_app_snapshot()           # starts the look-up
+        wait_for(lambda: not srv.app_github["busy"])
+        return srv._sent_app_snapshot()["github"]
+
+    def test_the_code_of_the_app_is_found_on_github_once_claude_has_put_it_there(self):
+        self.session_on(direct=False)
+        srv._app_ready(APP, "demo-app.app.html", "relay:2")
+        self.assertIsNone(self.github_url(), "not there yet: nothing is promised")
+        FakeRaw.files[self.apps_path(self.WORK)] = APP.encode()
+        srv.app_github["at"] = 0.0         # the next look-up may start at once
+        self.assertEqual(self.github_url(), f"https://github.com/{self.REPO}/blob/{self.WORK}/aiwa-apps/demo-app.app.html")
+
+    def test_with_a_direct_integration_the_base_branch_comes_first(self):
+        self.session_on(direct=True)
+        srv._app_ready(APP, "demo-app.app.html", "relay:3")
+        FakeRaw.files[self.apps_path("main")] = APP.encode()
+        FakeRaw.files[self.apps_path(self.WORK)] = APP.encode()
+        self.assertEqual(self.github_url(), f"https://github.com/{self.REPO}/blob/main/aiwa-apps/demo-app.app.html")
+
+    def test_a_session_with_no_repository_has_no_github_address(self):
+        srv.current_cloud = None
+        srv.last_cloud = None
+        Path(srv.CLOUD_STORE).unlink(missing_ok=True)
+        srv._app_ready(APP, "demo-app.app.html", "relay:4")
+        self.assertIsNone(srv._sent_app_snapshot()["github"])
+
     # ---- what Claude is told ----
     def test_the_instructions_give_the_fallbacks_only_when_a_repository_is_attached(self):
         for mode, example in (("store", "nom.app.html"), ("aiwa", "nom.aiwa.html")):
             srv.deploy_mode = mode
             lines = dict(srv._instruction_lines(self.REPO, self.WORK, "main", True))
-            for wanted in (f"aiwa-out/{example}", f'echo "app {example} $(date +%s)" > aiwa-out/SIGNAL', f"git push origin {self.WORK}", "sauf le repli",
+            for wanted in (f"aiwa-out/{example}", f'echo "app {example} $(date +%s)" > aiwa-out/SIGNAL', f"git push origin {self.WORK}", f"aiwa-apps/{example}",
                            "jamais sur la branche principale", "colle le code dans ta réponse", f"{srv.NTFY_SERVER}/{srv.waiting_topic}"):
                 self.assertIn(wanted, lines["deploy"], (mode, wanted))
+            self.assertNotIn("Ne la pousse sur AUCUN dépôt", lines["deploy"], "with a repository, the code goes there")
             alone = dict(srv._instruction_lines(None, None, None, True))["deploy"]
-            for unwanted in ("aiwa-out", "sauf le repli"):
+            for unwanted in ("aiwa-out", "aiwa-apps"):
                 self.assertNotIn(unwanted, alone)
             self.assertIn("Ne la pousse sur AUCUN dépôt", alone)
             self.assertIn("colle le code dans ta réponse", alone)

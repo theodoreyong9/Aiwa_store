@@ -86,7 +86,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             sending = json.optBoolean("sending", false),
             sendingSince = if (json.isNull("sending_since")) null else (json.optDouble("sending_since") * 1000).toLong(),
             sentApp = json.optJSONObject("sent_app")?.let {
-                SentApp(it.optString("name"), it.optInt("size", 0), it.optLong("ts", 0L), it.optBoolean("seen", false), it.str("kind") ?: "code")
+                SentApp(it.optString("name"), it.optInt("size", 0), it.optLong("ts", 0L), it.optBoolean("seen", false), it.str("kind") ?: "code", it.str("github"))
             },
         )
     }

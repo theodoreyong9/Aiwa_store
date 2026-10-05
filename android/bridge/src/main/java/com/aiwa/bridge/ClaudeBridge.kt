@@ -9,7 +9,8 @@ data class SiteInfo(val url: String?, val state: String, val kind: String = "sit
 // What Claude sent to the phone (its source: ClaudeBridge.sentAppCode): an app for the Store, one self-contained index.html.
 // kind: "code" (name.app.html, its code travels in the package on GitHub) or "aiwa" (name.aiwa.html, published through Aiwa).
 // seen: it was opened in the Store's publish sheet already.
-data class SentApp(val name: String, val size: Int, val ts: Long, val seen: Boolean, val kind: String = "code")
+// github: the address of its code in the repository (aiwa-apps/<name> on Claude's branch), once it is known to be there.
+data class SentApp(val name: String, val size: Int, val ts: Long, val seen: Boolean, val kind: String = "code", val github: String? = null)
 data class SentAppCode(val name: String, val code: String, val kind: String = "code")
 
 // The `claude auth login` the backend runs for the app. phase: idle / starting / url (the

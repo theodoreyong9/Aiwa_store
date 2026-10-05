@@ -447,9 +447,9 @@ def _mailbox_fallback(repo, work, example):
     if not repo or not work:
         return "si le réseau bloque la commande, dis-le-moi et colle le code dans ta réponse"
     return (
-        f"si la commande échoue (réseau bloqué), repli : écris le fichier sous `aiwa-out/{example}`, puis `echo \"app {example} $(date +%s)\" > aiwa-out/SIGNAL`, "
-        f"commite les deux sur ta branche {work} et pousse-la (`git push origin {work}`) : c'est le seul cas où l'app va sur GitHub, sur cette branche seulement, "
-        "jamais sur la branche principale ; dis-moi ensuite que c'est fait. Si ce push est refusé, dis-le-moi et colle le code dans ta réponse"
+        f"si la commande échoue (réseau bloqué), repli : copie le fichier sous `aiwa-out/{example}`, puis `echo \"app {example} $(date +%s)\" > aiwa-out/SIGNAL`, "
+        f"commite les deux sur ta branche {work} et pousse-la (`git push origin {work}`), jamais sur la branche principale ; "
+        "dis-moi ensuite que c'est fait. Si ce push est refusé, dis-le-moi et colle le code dans ta réponse"
     )
 
 
@@ -542,7 +542,12 @@ def _instruction_lines(repo, work, base, direct):
             "(4) un `<title>` (il devient le nom) et un `<meta name=\"description\">` de 280 caractères au plus ; "
             "(5) pensée d'abord pour un téléphone (~390 px de large), sans débordement horizontal. "
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/store-app-example.html. "
-            "Ne la pousse sur AUCUN dépôt" + (" (sauf le repli décrit plus bas)" if repo else "") + " : je la relis, l'essaie et la publie moi-même depuis le Store (bouton ▦ du widget), avec mon identité. "
+            + (
+                "Place-la aussi dans le dépôt, sous `aiwa-apps/nom.app.html` (crée le dossier), avec la consigne Push ci-dessus : c'est là que je relis son code (bouton </> du widget). "
+                "La publier sur le Store, c'est moi qui le fais depuis le Store (bouton ▦ du widget), avec mon identité. "
+                if repo else
+                "Ne la pousse sur AUCUN dépôt : je la relis, l'essaie et la publie moi-même depuis le Store (bouton ▦ du widget), avec mon identité. "
+            ) +
             "Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile), puis envoie-la sur mon téléphone "
             f"avec cette commande, telle quelle : `curl -s -m 60 -T nom.app.html -H 'Filename: nom.app.html' -H 'Title: aiwa-app' {NTFY_SERVER}/{topic}` "
             "(un seul fichier par envoi ; si je te demande une correction, renvoie le fichier complet de la même façon ; "
@@ -568,7 +573,11 @@ def _instruction_lines(repo, work, base, direct):
             "(7) pensée d'abord pour un téléphone (~390 px de large), sans débordement horizontal. "
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/aiwa-app-example.html. "
             f"Lis aussi le yellow paper ({REFERENCE_RAW}/docs/YELLOWPAPER.md : identité, journal d'événements, contrats) : ce que l'app fait avec le SDK doit correspondre à ce document, pas à ce que tu supposes. "
-            "Ne la pousse sur AUCUN dépôt" + (" (sauf le repli décrit plus bas)" if repo else "") + ". Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile ; "
+            + (
+                "Place-la aussi dans le dépôt, sous `aiwa-apps/nom.aiwa.html` (crée le dossier), avec la consigne Push ci-dessus : c'est là que je relis son code (bouton </> du widget). "
+                if repo else
+                "Ne la pousse sur AUCUN dépôt. "
+            ) + "Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile ; "
             "github.io peut être inaccessible depuis ta session : dis-le-moi alors, et dis ce que tu as pu vérifier quand même), puis envoie-la sur mon téléphone "
             f"avec cette commande, telle quelle : `curl -s -m 60 -T nom.aiwa.html -H 'Filename: nom.aiwa.html' -H 'Title: aiwa-app' {NTFY_SERVER}/{topic}` "
             "(un seul fichier par envoi ; si je te demande une correction, renvoie le fichier complet de la même façon ; "
@@ -1416,9 +1425,58 @@ def _mailbox_watch(repo, work):
     threading.Thread(target=_mailbox_loop, args=(repo, work), daemon=True).start()
 
 
+# Where the app Claude was asked to put in the repository is, once it is there: aiwa-apps/<name> on the session's branch (and on the base
+# branch when the integration is direct). Looked for on raw.githubusercontent.com, so only a public repository can say it is there.
+app_github = {"key": None, "url": None, "at": 0.0, "busy": False}
+APP_GITHUB_DIR = "aiwa-apps"
+
+
+def _app_github_probe(repo, branches, name, key):
+    found = None
+    for branch in branches:
+        stamp = int(time.time() * 1000)
+        if _raw_get(f"{RAW_BASE}/{repo}/refs/heads/{branch}/{APP_GITHUB_DIR}/{name}?t={stamp}", APP_MAX):
+            found = f"https://github.com/{repo}/blob/{branch}/{APP_GITHUB_DIR}/{name}"
+            break
+    with lock:
+        if app_github["key"] == key:
+            app_github.update(url=found, at=time.time(), busy=False)
+
+
+def _app_github_url(app):
+    """The address of the app's code on GitHub, once it is known to be there (None until then, and always for a private repository: the
+    phone cannot read one). Looked up in the background, again every 30 s for an hour after the app came."""
+    if not app:
+        return None
+    with lock:
+        session = current_cloud or last_cloud
+    entry = _session_entry(session) if session else {}
+    repo, work, base = entry.get("repo"), entry.get("work"), entry.get("base")
+    if not repo or not work or not github.REPO_RE.fullmatch(repo):
+        return None
+    branches = [b for b in ([base, work] if entry.get("direct", True) else [work]) if b and BRANCH_RE.fullmatch(b) and ".." not in b]
+    if not branches:
+        return None
+    key = (repo, tuple(branches), app["name"], app["ts"])
+    now = time.time()
+    with lock:
+        if app_github["key"] != key:
+            app_github.update(key=key, url=None, at=0.0, busy=False)
+        if app_github["url"]:
+            return app_github["url"]
+        if now - app["ts"] > 3600 or app_github["busy"] or now - app_github["at"] < 30:
+            return None
+        app_github.update(busy=True, at=now)
+    threading.Thread(target=_app_github_probe, args=(repo, branches, app["name"], key), daemon=True).start()
+    return None
+
+
 def _sent_app_snapshot():
     with lock:
-        return {**{k: sent_app[k] for k in ("name", "size", "ts", "seen")}, "kind": _app_kind(sent_app["name"])} if sent_app else None
+        app = {**{k: sent_app[k] for k in ("name", "size", "ts", "seen")}, "kind": _app_kind(sent_app["name"])} if sent_app else None
+    if app is not None:
+        app["github"] = _app_github_url(app)
+    return app
 
 
 def _sent_app_code():

@@ -89,13 +89,18 @@ by itself. (`BackendHealth.kt`, tested on a JVM; the widget and the activity are
 The widget's Deploy chip offers two modes, both ending with an app sent to the phone through a public relay (ntfy.sh):
 
 - `store`: ONE app for the Store, a self-contained `nom.app.html` (the constraints are in the instruction and in
-  [`store-app-example.html`](store-app-example.html)). Its code travels in the package on GitHub.
+  [`store-app-example.html`](store-app-example.html)). Its code travels in the package on GitHub when it is published.
 - `aiwa`: the same kind of file, `nom.aiwa.html`, whose logic is an Aiwa **contract**: rules that anyone replays from the signed events they hold
   ([`aiwa-app-example.html`](aiwa-app-example.html)). It imports the SDK as one module, `lib/aiwa.js`, served with the Store's site. The Store publishes it through Aiwa;
   GitHub only holds a pointer to it.
 
-Both put the same two buttons next to the Deploy chip: ▦ opens the Store on the publish sheet with the app in it, `</>` shows the code Claude sent
-(what came through the relay, or the file read from its branch when the relay is blocked: not the repository's own code). Only the `aiwa` mode
+Both put the same two buttons next to the Deploy chip: ▦ opens the Store on the publish sheet with the app in it, and `</>` opens the app's code
+**on GitHub**: Claude is asked to put the file in the chosen repository, as `aiwa-apps/nom.app.html` (or `.aiwa.html`), with the Push instruction (its
+own branch, and the base branch when the integration is direct), so that the code is somewhere besides a copy on the phone. The phone checks that the file
+is there (every 30 s for an hour after the app came, on `raw.githubusercontent.com`: a public repository only) and only then does `</>` go to GitHub;
+until then, and always for a private repository, it shows the copy the phone received (through the relay, or from the branch when the relay is blocked).
+The globe of the Store's own repository opens the app, not a browser: the site is the page the app serves, and a browser would be a second copy of it with a
+wallet of its own. Only the `aiwa` mode
 adds the documents button next to the mic (the yellow paper, the plain-words explanation, the ontology of the sustainable residue and the 16-slide
 carousel as PDFs in `docs/`, the plan, the business model): a contract has to follow the protocol, a plain app does not.
 
@@ -118,12 +123,12 @@ file for minutes) and acts on a signal once, if it answers the last message.
 Conditions: a repository chosen when the session starts (every new session starts on one: the widget asks for it before anything can be
 sent, and a session begun earlier without one keeps working but has no road to GitHub; a session made elsewhere is added by the name of its
 branch, `claude/…`, which gives the repository and the branch, and a link alone is refused), **public** (nothing is read from a private one, then the alert does not come and Claude pastes the app), and a push to its branch
-allowed. The files stay on that branch, never on the main one. Tested against fakes of the three servers (`MailboxTests`); not tried with a
+allowed. The fallback files (`aiwa-out/`) stay on that branch, never on the main one. Tested against fakes of the three servers (`MailboxTests`); not tried with a
 real cloud session.
 
 The ▦ button opens the Store's publish sheet with the app in it; the user reads it, tries it and presses **Publish**: the Store signs it
-with the wallet and opens the pull request on the user's GitHub account. Nothing is signed or published by the widget. Not tied to a
-GitHub repository, nothing is pushed by Claude.
+with the wallet and opens the pull request on the user's GitHub account. Nothing is signed or published by the widget. What Claude pushes to
+the chosen repository is the app's source, for reading; publishing in the Store is the user's act, from the sheet.
 
 ## Build
 
