@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 25
+BACKEND_VERSION = 26
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -729,7 +729,7 @@ def cloud_add(text):
     session_id = given.group(0) if given else found_id
     if session_id is None:
         return None, (
-            f"Branche trouvée dans {repo}, mais aucun de ses derniers commits ne mentionne la session. "
+            f"Aiwa cherche la branche dans tes dépôts : elle existe dans {repo}, mais aucun de ses derniers commits ne porte le lien de la session. "
             "Copie aussi le lien de la session (claude.ai/code/session_…) avec le nom de la branche."
         )
     title = branch

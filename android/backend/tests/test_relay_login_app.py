@@ -871,6 +871,53 @@ class RepoStubTests(unittest.TestCase):
         self.assertEqual(self.run_git(folder, "remote", "get-url", "origin"), "https://example.invalid/o/r.git")
 
 
+class BranchSessionTests(unittest.TestCase):
+    """Reading a session back from its branch, against real git repositories on disk."""
+
+    def setUp(self):
+        import subprocess
+        self.base = Path(tempfile.mkdtemp(prefix="aiwa-branches-"))
+        self.repo = self.base / "o" / "r.git"
+        self.repo.parent.mkdir(parents=True)
+        self.work = self.base / "work"
+
+        def git(cwd, *args):
+            return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@e", *args], cwd=cwd, capture_output=True, text=True, check=True).stdout
+
+        self.git = git
+        git(self.base, "init", "-q", "--bare", "-b", "main", str(self.repo))
+        git(self.base, "clone", "-q", str(self.repo), str(self.work))
+        git(self.work, "checkout", "-q", "-b", "main")
+        (self.work / "a.txt").write_text("a")
+        git(self.work, "add", "a.txt")
+        git(self.work, "commit", "-q", "-m", "first\n\nClaude-Session: https://claude.ai/code/session_OTHER111")
+        git(self.work, "push", "-q", "origin", "main")
+        patch = unittest.mock.patch.object(gh, "GITHUB_BASE", "file://" + str(self.base))
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def commit_on(self, branch, message, push_main=False):
+        self.git(self.work, "checkout", "-q", "-B", branch, "main")
+        (self.work / f"{branch.replace('/', '_')}.txt").write_text(message)
+        self.git(self.work, "add", "-A")
+        self.git(self.work, "commit", "-q", "-m", message)
+        self.git(self.work, "push", "-q", "origin", branch)
+        if push_main:
+            self.git(self.work, "push", "-q", "origin", f"{branch}:main")
+
+    def test_the_session_is_read_from_a_commit_of_the_branch(self):
+        self.commit_on("claude/own-1", "work\n\nClaude-Session: https://claude.ai/code/session_OWN222")
+        self.assertEqual(gh._branch_session("o/r", "claude/own-1"), ("o/r", "found", "session_OWN222"))
+
+    def test_a_branch_already_pushed_to_main_is_still_read(self):
+        # the session pushed its work straight to the default branch: the branch has no commit of its own any more
+        self.commit_on("claude/merged-1", "work\n\nClaude-Session: https://claude.ai/code/session_MERGED333", push_main=True)
+        self.assertEqual(gh._branch_session("o/r", "claude/merged-1"), ("o/r", "found", "session_MERGED333"))
+
+    def test_a_missing_branch_is_missing(self):
+        self.assertEqual(gh._branch_session("o/r", "claude/nope"), ("o/r", "missing", None))
+
+
 class FakeGithub(http.server.BaseHTTPRequestHandler):
     runs = []       # the workflow_runs the next request gets, newest first
     status = 200

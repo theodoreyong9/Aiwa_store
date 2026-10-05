@@ -292,6 +292,11 @@ def _branch_session(repo, branch):
             except GithubError:
                 _git(["fetch", "-q", "--depth", "50", url] + refs, cwd=tmp, timeout=45)
             log = _git(["log", "-30", "--format=%B", "refs/aiwa/branch", "^refs/aiwa/default"], cwd=tmp)
+            # Nothing of its own: the work of this branch may already be in the default branch (pushed there straight from the session,
+            # or merged), and then every commit of it is excluded above. The remote branch only exists because the session pushed to it
+            # (a cloud session creates its branch locally), so its latest commits are the session's own.
+            if not SESSION_IN_TEXT.search(log):
+                log = _git(["log", "-5", "--first-parent", "--format=%B", "refs/aiwa/branch"], cwd=tmp)
         except GithubError:
             return (repo, "found", None)
     match = SESSION_IN_TEXT.search(log)
