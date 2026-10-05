@@ -41,6 +41,13 @@ object BackendSync {
                 val sessions = fetched ?: current.cloudSessions
                 val title = sessions.find { it.id == cloudId }?.title?.take(30)
                 current.copy(
+                    // The backend is the one that knows whether a message is on its way: the app that sent it may have been left, or restarted.
+                    // A send this process is running itself stays WORKING (the backend may not have taken it yet).
+                    status = when {
+                        status.sending || SendTracker.inFlight.get() -> AiwaState.Status.WORKING
+                        current.status == AiwaState.Status.WORKING -> AiwaState.Status.READY
+                        else -> current.status
+                    },
                     backend = "up",
                     backendStarts = 0,
                     backendMissing = null,

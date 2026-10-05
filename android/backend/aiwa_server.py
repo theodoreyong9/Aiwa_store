@@ -1521,8 +1521,10 @@ class Handler(BaseHTTPRequestHandler):
                 more = list(extra_repos)
             with waiting_lock:
                 is_waiting, last_ping = waiting["since"] is not None, waiting["last_ping"]
+            with lock:
+                sending = cloud_busy
             self.reply_json({
-                "version": BACKEND_VERSION, "model": model, "effort": effort, "cloud_session": cloud_session,
+                "version": BACKEND_VERSION, "sending": sending, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "extra": own, "extra_repos": more,
                 "waiting": is_waiting, "alert_last": last_ping,

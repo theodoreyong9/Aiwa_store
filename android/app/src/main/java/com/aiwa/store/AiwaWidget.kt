@@ -224,8 +224,6 @@ private fun FullContent(state: AiwaState) {
     // The "Store" and "Aiwa" modes end with an app Claude sends to the phone: when it has come and was not opened yet, it is waiting.
     val storeMode = deliversApp(state.deploy)
     val storeReady = storeMode && state.sentApp?.seen == false
-    // Claude's cloud environment does not reach the relay: the alert "Claude attend" can't come.
-    val relayHint = state.relayCloud == "missing" && hasSession && !relayHintDismissed(LocalContext.current)
     val status: String
     val statusColor: ColorProvider
     var statusBold = false
@@ -246,7 +244,6 @@ private fun FullContent(state: AiwaState) {
             statusColor = fg
             statusBold = true
         }
-        relayHint -> { status = "Prêt · alertes cloud bloquées — touche ici"; statusColor = warm }
         // The last send did not go: its reason was only a toast, and "Prêt" made it look as if nothing was wrong.
         state.status == AiwaState.Status.ERROR && state.notice != null -> { status = "⚠ Dernier envoi échoué — touche ici"; statusColor = alertText; statusBold = true }
         else -> { status = "Prêt"; statusColor = subtle }
@@ -264,7 +261,6 @@ private fun FullContent(state: AiwaState) {
         needsSetup -> actionStartActivity<SetupActivity>()
         state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
-        relayHint -> actionStartActivity<HealthActivity>()
         state.status == AiwaState.Status.ERROR && state.notice != null -> actionStartActivity<MainActivity>()
         else -> actionStartActivity<SessionPickerActivity>()
     }

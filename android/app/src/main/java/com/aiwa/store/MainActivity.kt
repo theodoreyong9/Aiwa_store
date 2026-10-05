@@ -113,7 +113,9 @@ LaunchedEffect(Unit){
 // the whole app PROCESS dies, which is the only thing that actually
 // resets it. A fresh screen appearing is never mid-user-action, so
 // any leftover WORKING here is stale by definition — safe to clear.
-if(AiwaRepository.state.value.status==AiwaState.Status.WORKING){
+// Not while this process is itself sending (a widget send goes on after its screen is gone): the backend then
+// says what is going on (BackendSync), so the widget's "Envoi en cours…" is not wiped by opening the app.
+if(AiwaRepository.state.value.status==AiwaState.Status.WORKING&&!SendTracker.inFlight.get()){
 AiwaRepository.update{it.copy(status=AiwaState.Status.READY)}
 }
 startTermuxBackend()
@@ -179,9 +181,6 @@ if(note!=null)Text(note,style=MaterialTheme.typography.bodySmall,color=if(proble
 // Two things that need a person, each with the way to do it (see ClaudeLoginActivity / HealthActivity).
 if(state.claudeLogin=="needed"){
 Button(onClick={context.startActivity(Intent(context,ClaudeLoginActivity::class.java))},modifier=Modifier.fillMaxWidth()){Text("Claude n'est pas connecté : connecter")}
-}
-if(state.relayCloud=="missing"&&!relayHintDismissed(context)){
-OutlinedButton(onClick={context.startActivity(Intent(context,HealthActivity::class.java))},modifier=Modifier.fillMaxWidth()){Text("Alertes du cloud bloquées : autoriser ntfy.sh")}
 }
 TextButton(onClick={context.startActivity(Intent(context,HealthActivity::class.java))}){Text("État d'Aiwa (Claude, alertes, permissions)")}
 OutlinedTextField(

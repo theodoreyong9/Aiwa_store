@@ -5,8 +5,16 @@ import com.aiwa.bridge.BackendOutdatedException
 import com.aiwa.bridge.BusyException
 import com.aiwa.bridge.ClaudeBridge
 import kotlinx.coroutines.CoroutineScope
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/** Whether this process is itself waiting for the backend's answer to a message. */
+object SendTracker {
+    val inFlight = AtomicBoolean(false)
+}
 
 /**
  * The one real send path — shared by MainActivity's "Envoyer"/mic and
@@ -18,23 +26,43 @@ import kotlinx.coroutines.launch
  * reply can't be read back — so Aiwa shows no conversation at all: the
  * exchange lives in the Claude app, one tap away ("Claude ↗"). Refused up
  * front while another send is running. Returns whether the message went.
+ *
+ * The send is not cancelled with the screen that started it (leaving the app must not turn a message that
+ * went into an error), and the widget's "Envoi en cours…" does not depend on this process alone: the backend
+ * says whether it is still working on a message (BackendSync), so opening or leaving the app does not wipe it.
  */
 suspend fun sendAndTrack(context: Context, bridge: ClaudeBridge, text: String, toastErrors: Boolean = false): Boolean {
     if (text.isBlank()) return false
-    if (AiwaRepository.state.value.status == AiwaState.Status.WORKING) {
+    if (!SendTracker.inFlight.compareAndSet(false, true)) {
         if (toastErrors) toastOnMain(context, "Un envoi est déjà en cours.")
         return false
     }
+    return try {
+        // Working because the backend says so (a send begun before the app was reopened): not a second one.
+        if (AiwaRepository.state.value.status == AiwaState.Status.WORKING) {
+            if (toastErrors) toastOnMain(context, "Un envoi est déjà en cours.")
+            false
+        } else {
+            withContext(NonCancellable) { deliver(context, bridge, text, toastErrors) }
+        }
+    } finally {
+        SendTracker.inFlight.set(false)
+    }
+}
+
+private suspend fun deliver(context: Context, bridge: ClaudeBridge, text: String, toastErrors: Boolean): Boolean {
     AiwaRepository.update { it.copy(status = AiwaState.Status.WORKING, notice = null) }
     // Fire-and-forget: makes sure a widget composition is alive to show
     // the WORKING state and the result.
     CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(context) }
     var failure: String? = null
+    var busy = false
     try {
         val result = bridge.sendCloud(text)
         if (!result.ok) failure = "Envoi cloud impossible : ${result.error}"
     } catch (err: BusyException) {
-        failure = "Un envoi cloud est déjà en cours."
+        // The backend is working on an earlier message: that one is the real send, and the widget goes on saying so. This one did not go.
+        busy = true
     } catch (err: Exception) {
         // A widget-only user never opens the app, so the backend's
         // auto-start there never runs — trigger it from here too.
@@ -43,6 +71,11 @@ suspend fun sendAndTrack(context: Context, bridge: ClaudeBridge, text: String, t
             err is BackendOutdatedException -> err.message ?: "Backend obsolète"
             else -> "[erreur: ${err.message}]"
         }
+    }
+    if (busy) {
+        if (toastErrors) toastOnMain(context, "Un envoi précédent est encore en cours : celui-ci n'est pas parti, renvoie-le quand « Envoi en cours… » disparaît.")
+        BackendSync.refresh(bridge)
+        return false
     }
     AiwaRepository.update {
         it.copy(status = if (failure == null) AiwaState.Status.DONE else AiwaState.Status.ERROR, notice = failure)

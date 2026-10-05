@@ -83,6 +83,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             githubError = json.str("github_error"),
             claudeLogin = json.str("claude_login") ?: "unknown",
             relayCloud = json.str("relay_cloud") ?: "untested",
+            sending = json.optBoolean("sending", false),
             sentApp = json.optJSONObject("sent_app")?.let {
                 SentApp(it.optString("name"), it.optInt("size", 0), it.optLong("ts", 0L), it.optBoolean("seen", false), it.str("kind") ?: "code")
             },

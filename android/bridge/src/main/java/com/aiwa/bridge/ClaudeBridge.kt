@@ -51,6 +51,8 @@ data class BackendStatus(
     // allow ntfy.sh): ok / untested / pending / missing.
     val relayCloud: String = "untested",
     val sentApp: SentApp? = null,
+    // The backend is working on a message right now (creating a session takes a while). It knows, whatever became of the app that sent it.
+    val sending: Boolean = false,
 )
 
 data class CloudSessionInfo(val id: String, val title: String, val url: String, val repo: String? = null)

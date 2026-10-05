@@ -344,7 +344,6 @@ class HealthActivity : ComponentActivity() {
                             ) { },
                         )
                         add(PickerEntry("Retester maintenant (demandé à la session en cours)", false) { retest() })
-                        add(PickerEntry("Ne plus le rappeler dans le widget", false) { dismissHint() })
                     }
                     else -> {
                         add(PickerEntry("…  Alertes du cloud : pas encore testées (le test part avec le premier message d'une nouvelle session)", false, lines = 3) { })
@@ -402,13 +401,6 @@ class HealthActivity : ComponentActivity() {
             BackendSync.refresh(bridge)
             AiwaWidget().updateAll(app)
         }
-    }
-
-    private fun dismissHint() {
-        val app = applicationContext
-        dismissRelayHint(app)
-        finish()
-        CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(app) }
     }
 }
 

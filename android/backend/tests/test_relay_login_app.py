@@ -880,6 +880,33 @@ class HttpTests(Base):
             self.assertIn(key, status)
         self.assertEqual(status["relay_cloud"], "untested")
 
+    def test_status_says_a_send_is_running_so_the_widget_can_keep_saying_so(self):
+        # The app that sent may be gone (closed, restarted) while the backend still works on the message: the widget reads this, not its own memory.
+        started, release = threading.Event(), threading.Event()
+        original, session = srv._queue_followup, srv.current_cloud
+
+        def slow_followup(session_id, text):
+            started.set()
+            release.wait(30)
+            return {"ok": True, "url": None, "error": None}
+
+        srv._queue_followup, srv.current_cloud = slow_followup, "session_TEST123abc"
+        try:
+            self.assertFalse(self.call("/api/status")["sending"])
+            results = []
+            sender = threading.Thread(target=lambda: results.append(srv.cloud_send("un message")), daemon=True)
+            sender.start()
+            self.assertTrue(started.wait(10))
+            self.assertTrue(self.call("/api/status")["sending"])
+            self.assertEqual(srv.cloud_send("un deuxième")["error"], "busy", "a second message is refused while the first is on its way")
+            release.set()
+            sender.join(10)
+            self.assertTrue(results and results[0]["ok"], results)
+            self.assertFalse(self.call("/api/status")["sending"])
+        finally:
+            release.set()
+            srv._queue_followup, srv.current_cloud = original, session
+
     def test_the_app_reaches_the_widget_app_and_is_marked_seen(self):
         self.assertIsNone(self.call("/api/sent-app")["sent_app"])
         self.assertFalse(self.call("/api/sent-app/code")["ok"])

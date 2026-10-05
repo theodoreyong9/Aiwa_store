@@ -46,6 +46,8 @@ private val START_SCRIPT = listOf(
     "pid=\$(cat \"\$pidfile\" 2>/dev/null)",
     "running() { [ -n \"\$1\" ] && grep -q start.sh \"/proc/\$1/cmdline\" 2>/dev/null; }",
     "answers() { curl -sf http://127.0.0.1:8787/api/status >/dev/null 2>&1; }",
+    // A server that is working on a message (creating a cloud session takes up to a few minutes) is not killed under it.
+    "busy() { curl -sf -m 3 http://127.0.0.1:8787/api/status 2>/dev/null | grep -q '\"sending\": *true'; }",
     "if running \"\$pid\" && ! answers; then echo \"a start is already in progress (pid \$pid): nothing to do\"; exit 0; fi",
     "old=\$(git rev-parse HEAD 2>/dev/null)",
     // Bounded: a slow network must not hold the start back for long.
@@ -54,6 +56,8 @@ private val START_SCRIPT = listOf(
     "new=\$(git rev-parse HEAD 2>/dev/null)",
     "echo \"checkout \$old -> \$new (pull took \$(( \$(date +%s) - t0 )) s)\"",
     "if [ \"\$old\" != \"\$new\" ] || [ \"\$1\" = \"restart\" ]; then",
+    "  busy && echo \"a message is being sent: restart waits for it (at most 3 min)\"",
+    "  for i in \$(seq 1 90); do busy || break; sleep 2; done",
     "  pkill -f \"[a]iwa_server.py\" >/dev/null 2>&1",
     // Wait for the old server (and the start.sh that supervised it) to be really
     // gone — usually well under a second — instead of a fixed pause.
