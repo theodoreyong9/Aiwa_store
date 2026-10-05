@@ -92,6 +92,10 @@ LOGIN_NEEDED_RE = re.compile(
 )
 # How long Claude gets to answer the relay test before the widget says it is missing.
 CLOUD_CHECK_WAIT = 240
+# Creating a cloud session may legitimately take minutes (a repository the Claude GitHub App is not installed on is bundled and uploaded
+# from the phone): it is given up when the CLI says nothing for CLOUD_IDLE seconds, or after CLOUD_HARD in all, not at a fixed 3 minutes.
+CLOUD_HARD = 600
+CLOUD_IDLE = 150
 # A CLI that has said nothing for this long while its last words are a question (trust this folder? press Enter…) is waiting for
 # someone who is not there: better to say so than to wait out the whole timeout.
 PROMPT_STALL = 30
@@ -116,6 +120,7 @@ current_cloud = None
 last_cloud = None
 cloud_busy = False
 cloud_busy_since = None      # when the running send began (epoch seconds): the widget says how long it has lasted
+cloud_progress = ""          # what the running send is doing right now (a step of ours, then the last line the CLI printed)
 # Instructions integrated into the conversation (see _compose). Claude
 # Code does the work itself; these only tell it what the user wants:
 # current_repo: the repository new sessions start on ("owner/name"; None =
@@ -263,7 +268,17 @@ def _signal_group(proc, sig):
         pass
 
 
-def _run_with_pty(command, cwd, timeout, stop_after_session_id=False):
+def _note_progress(text):
+    """The widget shows what a send is doing: the last line the CLI printed (its progress display redraws one line)."""
+    global cloud_progress
+    for line in reversed(text.splitlines()):
+        line = " ".join(line.split())
+        if len(line) >= 3:
+            cloud_progress = line[:90]
+            return
+
+
+def _run_with_pty(command, cwd, timeout, stop_after_session_id=False, idle_timeout=None):
     """Runs a command as if in a real terminal (creating a cloud session
     shows a live progress display, and that is how the manual test that
     worked ran it). Returns (exit code, cleaned output, reason it ended,
@@ -301,6 +316,9 @@ def _run_with_pty(command, cwd, timeout, stop_after_session_id=False):
             if left <= 0:
                 reason = "timeout"
                 break
+            if idle_timeout and now - last_data >= idle_timeout:
+                reason = "idle"
+                break
             if stop_after_session_id and found_at is not None and (now - last_data >= 4 or now - found_at >= 25):
                 reason = "stopped after the session id appeared"
                 break
@@ -320,6 +338,8 @@ def _run_with_pty(command, cwd, timeout, stop_after_session_id=False):
                     mark("first output")
                 chunks.append(data)
                 last_data = time.time()
+                if stop_after_session_id:
+                    _note_progress(_clean(data.decode("utf-8", "replace")))
                 if stop_after_session_id and found_at is None:
                     if CLOUD_ID_RE.search(_clean(b"".join(chunks).decode("utf-8", "replace"))):
                         found_at = last_data
@@ -761,7 +781,7 @@ def cloud_send(text, command=False):
     command=True: `text` is a slash command for the CURRENT session (e.g.
     `/model opus`); it never creates a session and leaves the session's
     name and rank in the list alone."""
-    global current_cloud, cloud_busy, cloud_busy_since, github_error, last_cloud
+    global current_cloud, cloud_busy, cloud_busy_since, cloud_progress, github_error, last_cloud
     with lock:
         if cloud_busy:
             return {"ok": False, "error": "busy"}
@@ -772,6 +792,7 @@ def cloud_send(text, command=False):
             return {"ok": False, "error": "aucune session en cours"}
         cloud_busy = True
         cloud_busy_since = time.time()
+        cloud_progress = ""
     title = " ".join(text.split())[:50]
     if not command:
         _clear_waiting()  # the user answered: whatever Claude was waiting for is over
@@ -802,6 +823,7 @@ def cloud_send(text, command=False):
         # The session starts on the chosen repository: the cloud clones
         # the GitHub remote of this directory itself, with Claude's own
         # access (the user grants it at claude.ai/connect-github).
+        cloud_progress = f"copie locale de {repo}…"
         try:
             directory, work, base = github.prepare_repo_dir(repo)
         except github.GithubError as err:
@@ -826,8 +848,9 @@ def cloud_send(text, command=False):
         # controlling one (a bare pty has none, and a program that opens
         # /dev/tty then fails); without `script` it just gets the pty.
         run = ["script", "-q", "-e", "-c", shlex.join(command_line), "/dev/null"] if shutil.which("script") else command_line
-        code, output, reason, timeline = _run_with_pty(run, directory, 180, stop_after_session_id=True)
-        timed_out = reason == "timeout"
+        cloud_progress = "création de la session (le CLI de Claude démarre)…"
+        code, output, reason, timeline = _run_with_pty(run, directory, CLOUD_HARD, stop_after_session_id=True, idle_timeout=CLOUD_IDLE)
+        timed_out = reason in ("timeout", "idle")
         _log_cloud("create", run, code, output, timeline)
         ids = CLOUD_ID_RE.findall(output)
         found = next((i for i in ids if i.startswith("session_")), ids[0] if ids else None)
@@ -855,7 +878,7 @@ def cloud_send(text, command=False):
                     "réponds une fois (par exemple faire confiance au dossier), quitte, puis renvoie le message"
                 )
             elif timed_out:
-                reason = "délai dépassé (" + " ; ".join(timeline) + ")"
+                reason = ("délai dépassé : le CLI n'a rien affiché depuis " + str(CLOUD_IDLE) if reason == "idle" else "délai dépassé : plus de " + str(CLOUD_HARD)) + " s (" + " ; ".join(timeline) + ")"
             else:
                 reason = f"aucun identifiant de session trouvé (code {code})"
             _note_login_problem(output)
@@ -881,6 +904,7 @@ def cloud_send(text, command=False):
         with lock:
             cloud_busy = False
             cloud_busy_since = None
+            cloud_progress = ""
 
 
 def _site_probe(url, ranged=False):
@@ -1632,9 +1656,9 @@ class Handler(BaseHTTPRequestHandler):
             with waiting_lock:
                 is_waiting, last_ping = waiting["since"] is not None, waiting["last_ping"]
             with lock:
-                sending, sending_since = cloud_busy, cloud_busy_since
+                sending, sending_since, sending_note = cloud_busy, cloud_busy_since, cloud_progress
             self.reply_json({
-                "version": BACKEND_VERSION, "sending": sending, "sending_since": sending_since, "model": model, "effort": effort, "cloud_session": cloud_session,
+                "version": BACKEND_VERSION, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "extra": own, "extra_repos": more,
                 "waiting": is_waiting, "alert_last": last_ping,

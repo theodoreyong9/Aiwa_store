@@ -59,6 +59,17 @@ elif "--cloud" in sys.argv:
     if os.environ.get("FAKE_CLAUDE_MODE") == "fail":
         print("Error: Not logged in · Please run /login")
         sys.exit(1)
+    if os.environ.get("FAKE_CLAUDE_MODE") == "slow":
+        import time
+        for pct in (10, 40, 80):
+            print("Uploading repository bundle %d%%" % pct)
+            sys.stdout.flush()
+            time.sleep(0.8)
+    if os.environ.get("FAKE_CLAUDE_MODE") == "silent":
+        import time
+        print("Uploading repository bundle 10%")
+        sys.stdout.flush()
+        time.sleep(120)
     if os.environ.get("FAKE_CLAUDE_MODE") == "prompt":
         sys.stdout.write("Quick safety check: do you trust the files in this folder? (1. Yes, 2. No)")
         sys.stdout.flush()
@@ -699,6 +710,34 @@ class CloudSendTests(Base):
         self.assertFalse(srv.cloud_busy)
         self.assertEqual(srv._relay_cloud_state(), "untested", "no session: the relay test was not asked")
 
+    def test_the_widget_can_say_what_a_creation_is_doing_and_a_slow_one_is_not_cut_at_3_minutes(self):
+        os.environ["FAKE_CLAUDE_MODE"] = "slow"
+        seen = []
+        result = []
+        sender = threading.Thread(target=lambda: result.append(srv.cloud_send("bonjour")), daemon=True)
+        sender.start()
+        end = time.time() + 20
+        while sender.is_alive() and time.time() < end:
+            if "Uploading repository bundle" in srv.cloud_progress:
+                seen.append(srv.cloud_progress)
+            time.sleep(0.05)
+        sender.join(10)
+        self.assertTrue(result and result[0]["ok"], result)
+        self.assertTrue(seen, "the line the CLI printed was there while it ran")
+        self.assertEqual(srv.cloud_progress, "", "and gone when the send ended")
+
+    def test_a_cli_that_goes_silent_is_given_up_after_the_idle_time_and_says_what_it_last_printed(self):
+        os.environ["FAKE_CLAUDE_MODE"] = "silent"
+        original, srv.CLOUD_IDLE = srv.CLOUD_IDLE, 2
+        self.addCleanup(setattr, srv, "CLOUD_IDLE", original)
+        started = time.time()
+        answer = srv.cloud_send("bonjour")
+        self.assertFalse(answer["ok"])
+        self.assertLess(time.time() - started, 30)
+        self.assertIn("n'a rien affiché depuis 2 s", answer["error"])
+        self.assertIn("Uploading repository bundle 10%", answer["error"])
+        self.assertFalse(srv.cloud_busy)
+
     def test_there_is_no_free_conversation_a_new_session_needs_a_repository(self):
         srv.current_repo = None
         answer = srv.cloud_send("bonjour")
@@ -1001,6 +1040,7 @@ class HttpTests(Base):
         try:
             self.assertFalse(self.call("/api/status")["sending"])
             self.assertIsNone(self.call("/api/status")["sending_since"])
+            self.assertIsNone(self.call("/api/status")["sending_note"])
             results = []
             sender = threading.Thread(target=lambda: results.append(srv.cloud_send("un message")), daemon=True)
             sender.start()

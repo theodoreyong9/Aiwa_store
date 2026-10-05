@@ -104,9 +104,9 @@ wallet of its own. Only the `aiwa` mode
 adds the documents button next to the mic (the yellow paper, the plain-words explanation, the ontology of the sustainable residue and the 16-slide
 carousel as PDFs in `docs/`, the plan, the business model): a contract has to follow the protocol, a plain app does not.
 
-While a message is on its way (creating a session takes a while) the widget says how long it has lasted, and the settings (repository, model,
+While a message is on its way (creating a session takes a while) the widget says how long it has lasted and what it is doing (a step of the backend's, then the last line the CLI printed, such as the progress of an upload), and the settings (repository, model,
 Push, Deploy, the session name) and the mic are dimmed and say why when tapped; what only looks (the site, the app, the code, Actions, Claude)
-stays alive. A creation whose CLI stops to ask something (such as trusting a folder it has never seen) is reported after 30 seconds with what it
+stays alive. A creation is given up when the CLI has printed nothing for 150 seconds or after 10 minutes in all, not at a fixed 3 minutes: a repository the Claude GitHub App is not installed on is bundled and uploaded from the phone (Anthropic's documentation), which can take minutes for a repository of this size. A creation whose CLI stops to ask something (such as trusting a folder it has never seen) is reported after 30 seconds with what it
 asks and what to do, instead of after the 3 minutes of the timeout; a timeout says at which second the CLI began and what it printed. The whole run
 is in `~/aiwa_cloud_last.log`.
 

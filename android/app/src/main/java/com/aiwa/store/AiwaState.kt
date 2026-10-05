@@ -151,6 +151,8 @@ data class AiwaState(
     val busyNoticeAt: Long = 0L,
     // When the message being sent began (epoch ms; 0 = none): the widget says how long it has been going.
     val sendingSince: Long = 0L,
+    // What the send is doing now (from the backend): shown after the seconds.
+    val sendingNote: String? = null,
 ) {
     /** Nothing can be sent yet: a new session needs a repository (there is no free conversation), and none is chosen or running. */
     val needsRepo: Boolean get() = repo == null && cloudSessionId == null

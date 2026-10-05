@@ -57,6 +57,8 @@ data class BackendStatus(
     val sending: Boolean = false,
     // When it began (epoch milliseconds), so that the widget can say how long it has lasted.
     val sendingSince: Long? = null,
+    // What it is doing right now: a step of the backend's, then the last line the CLI printed (e.g. an upload's progress).
+    val sendingNote: String? = null,
 )
 
 data class CloudSessionInfo(val id: String, val title: String, val url: String, val repo: String? = null)

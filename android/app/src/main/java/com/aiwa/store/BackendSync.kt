@@ -48,6 +48,7 @@ object BackendSync {
                         current.status == AiwaState.Status.WORKING -> AiwaState.Status.READY
                         else -> current.status
                     },
+                    sendingNote = if (status.sending) status.sendingNote else null,
                     sendingSince = when {
                         status.sending -> status.sendingSince ?: current.sendingSince.takeIf { it > 0 } ?: System.currentTimeMillis()
                         SendTracker.inFlight.get() -> current.sendingSince

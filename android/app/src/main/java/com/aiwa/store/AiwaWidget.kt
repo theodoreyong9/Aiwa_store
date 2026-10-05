@@ -269,7 +269,13 @@ private fun FullContent(state: AiwaState) {
         state.status == AiwaState.Status.WORKING -> {
             val refused = System.currentTimeMillis() - state.busyNoticeAt < BUSY_NOTICE_MS
             val seconds = if (state.sendingSince > 0) (System.currentTimeMillis() - state.sendingSince) / 1000 else 0L
-            status = if (refused) "⏳ Envoi en cours : attends" else "Envoi en cours…" + (if (seconds >= 5) " $seconds s" else "")
+            val note = state.sendingNote
+            // What it is doing, when the backend says (the CLI's own line: an upload's progress, for instance), after the seconds.
+            status = when {
+                refused -> "⏳ Envoi en cours : attends"
+                note != null -> (if (seconds >= 5) "$seconds s · " else "") + note
+                else -> "Envoi en cours…" + (if (seconds >= 5) " $seconds s" else "")
+            }
             statusColor = if (refused) warm else fg
             statusBold = refused
         }
