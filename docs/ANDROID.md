@@ -131,9 +131,10 @@ real cloud session.
 Claude builds the repository's APK with GitHub Actions and publishes it to the rolling release; the widget's download button opens that address. An APK
 whose app needs Termux (a backend to start there, like this one) cannot be told apart from another one by looking at it, and the line to paste is
 the app's own: so Claude is asked to write `aiwa-android.json` at the root of the repository when the app needs Termux, `{"termux": "<the line>"}` (one line,
-600 characters at most). The phone reads it from `raw.githubusercontent.com` (a public repository only, every 2 minutes), and the download button then also
-copies the line and shows it in a toast: nothing is run, the person pastes it in Termux once the app is installed. No declaration, no line; a private
-repository never shows one.
+600 characters at most), and that line does everything, the APK's download included, as this project's own does (`bootstrap.sh`, `install-apk.sh`). The phone
+reads it from `raw.githubusercontent.com` (a public repository only, every 2 minutes), and the download button then copies the line, shows it in a toast and opens
+Termux (or the page it is downloaded from): nothing is run, the person pastes it and validates. No declaration, no line, and the button downloads the APK as before;
+a private repository never shows one.
 
 The ▦ button opens the Store's publish sheet with the app in it; the user reads it, tries it and presses **Publish**: the Store signs it
 with the wallet and opens the pull request on the user's GitHub account. Nothing is signed or published by the widget. What Claude pushes to

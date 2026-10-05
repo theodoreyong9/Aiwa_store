@@ -382,7 +382,7 @@ private fun FullContent(state: AiwaState) {
                     // Orange = the address answers; grey = not (yet) — it still opens.
                     RoundButton(
                         icon = if (state.siteKind == "apk") R.drawable.ic_download else R.drawable.ic_globe,
-                        description = if (state.siteKind == "apk") (if (state.siteTermux != null) "Télécharger l'APK (la ligne Termux est copiée)" else "Télécharger l'APK Android") else "Ouvrir le site",
+                        description = if (state.siteKind == "apk") (if (state.siteTermux != null) "Installer : copie la ligne Termux et ouvre Termux" else "Télécharger l'APK Android") else "Ouvrir le site",
                         background = if (live) claudeOrange else pill,
                         action = siteAction(LocalContext.current, state, site),
                         diameter = chipH.dp,
@@ -625,7 +625,7 @@ private fun CompactContent(state: AiwaState) {
                         // Orange = the address answers; grey = not (yet) — it still opens.
                         RoundButton(
                             icon = if (state.siteKind == "apk") R.drawable.ic_download else R.drawable.ic_globe,
-                            description = if (state.siteKind == "apk") (if (state.siteTermux != null) "Télécharger l'APK (la ligne Termux est copiée)" else "Télécharger l'APK Android") else "Ouvrir le site",
+                            description = if (state.siteKind == "apk") (if (state.siteTermux != null) "Installer : copie la ligne Termux et ouvre Termux" else "Télécharger l'APK Android") else "Ouvrir le site",
                             background = if (live) claudeOrange else pill,
                             action = siteAction(LocalContext.current, state, site),
                         )

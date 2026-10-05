@@ -517,8 +517,11 @@ def _instruction_lines(repo, work, base, direct):
                 f"Il doit être téléchargeable à l'adresse {github.apk_url(repo)}. "
                 f"Le déploiement ne se déclenche que par un push sur {base} : tant que ton travail n'y est pas intégré, rien n'est publié. "
                 "Si l'app a besoin de Termux (un serveur ou un script à lancer dans Termux sur le téléphone, comme un backend), ajoute à la racine du dépôt un fichier "
-                "`aiwa-android.json` contenant `{\"termux\": \"<la ligne exacte à coller dans Termux pour installer et lancer ce qu'il faut>\"}` (une seule ligne, sans retour à la ligne, "
-                "l'adresse du script en `https://raw.githubusercontent.com/...`) : mon téléphone la copie quand je télécharge l'APK. Sinon n'ajoute rien. "
+                "`aiwa-android.json` contenant `{\"termux\": \"<la ligne exacte à coller dans Termux>\"}` (une seule ligne, sans retour à la ligne, "
+                "l'adresse du script en `https://raw.githubusercontent.com/...`). Cette ligne doit TOUT faire : installer ou mettre à jour ce qu'il faut dans Termux ET télécharger "
+                f"l'APK (adresse ci-dessus) dans le dossier Téléchargements du téléphone, comme le fait la ligne de ce projet (exemples : {REFERENCE_RAW}/android/backend/bootstrap.sh et "
+                "install-apk.sh : vérifier que le fichier téléchargé est bien un APK, demander `termux-setup-storage`, remplacer l'ancien fichier). "
+                "Mon téléphone copie cette ligne et ouvre Termux quand je touche le bouton de l'APK. Sinon n'ajoute rien. "
                 "Si ce dépôt n'est pas un projet Android, dis-le-moi et ne fais rien. Après un changement, vérifie que le build a réussi et lis ses logs.",
             ))
         lines.append((
