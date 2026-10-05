@@ -100,7 +100,7 @@ par mois, part brûlée à T > 0.
 
 ## Ce qu'on peut montrer aujourd'hui
 
-- Un dépôt unique, 657 tests JavaScript (protocole, registre, application web dans un vrai navigateur) et 105 tests Python (backend de la dictée) qui passent, CI verte sur le JavaScript.
+- Un dépôt unique, 657 tests JavaScript (protocole, registre, application web dans un vrai navigateur) et 106 tests Python (backend de la dictée) qui passent, CI verte sur le JavaScript.
 - Le portefeuille qui affiche, avant de signer, ce que fait un brûlage et ce que reçoit le créateur ; la redevance appliquée par le
   protocole lui-même, pas par une convention.
 - Un Store où chaque app est signée par son auteur, vérifiée avant ouverture, isolée du portefeuille ; un classement `score / laps` repris

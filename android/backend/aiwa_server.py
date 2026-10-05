@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 22
+BACKEND_VERSION = 23
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -99,7 +99,7 @@ CLOUD_IDLE = 150
 # A CLI that has said nothing for this long while its last words are a question (trust this folder? press Enter…) is waiting for
 # someone who is not there: better to say so than to wait out the whole timeout.
 PROMPT_STALL = 30
-PROMPT_RE = re.compile(r"(?i)(do you trust|trust (this|the) (folder|files|directory|project)|safety check|\(y/n\)|\[y/n\]|press enter|\?\s*$)")
+PROMPT_RE = re.compile(r"(?i)(do you trust|trust (this|the) (folder|files|directory|project)|safety check|\(y/n\)|\[y/n\]|press enter|enter to confirm|esc to cancel|\?\s*$)")
 
 CLOUD_STORE = Path.home() / ".aiwa_cloud_sessions.json"
 STATE_FILE = Path.home() / ".aiwa_state.json"
@@ -878,8 +878,8 @@ def cloud_send(text, command=False):
                 where = str(directory).replace(str(Path.home()), "~")
                 asked = " ".join(output.strip().split())[-240:]
                 reason = (
-                    f"le CLI de Claude attend une réponse dans {where} : « {asked} ». Dans Termux : cd {where} && claude, "
-                    "réponds une fois (par exemple faire confiance au dossier), quitte, puis renvoie le message"
+                    f"le CLI de Claude attend une réponse dans {where} : « {asked} ». Dans Termux : "
+                    f"proot-distro login ubuntu -- bash -c 'cd {where} && claude' — réponds une fois (par exemple faire confiance au dossier), quitte, puis renvoie le message"
                 )
             elif timed_out:
                 reason = ("délai dépassé : le CLI n'a rien affiché depuis " + str(CLOUD_IDLE) if reason == "idle" else "délai dépassé : plus de " + str(CLOUD_HARD)) + " s (" + " ; ".join(timeline) + ")"

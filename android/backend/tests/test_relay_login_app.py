@@ -75,6 +75,11 @@ elif "--cloud" in sys.argv:
         sys.stdout.flush()
         import time
         time.sleep(120)
+    if os.environ.get("FAKE_CLAUDE_MODE") == "footer":
+        sys.stdout.write("Enter to confirm \u00b7 Esc to cancel")
+        sys.stdout.flush()
+        import time
+        time.sleep(120)
     if "-p" in sys.argv:
         print('{"ok": true, "session_id": "session_TEST123abc", "url": "https://claude.ai/code/session_TEST123abc"}')
     else:
@@ -700,6 +705,18 @@ class CloudSendTests(Base):
 
     def sent(self):
         return json.loads(Path(HOME, "last_create_args.json").read_text())
+
+    def test_a_dialog_footer_alone_is_also_taken_for_a_question(self):
+        # what the phone showed: only "Enter to confirm · Esc to cancel", the question above it already scrolled away
+        os.environ["FAKE_CLAUDE_MODE"] = "footer"
+        original, srv.PROMPT_STALL = srv.PROMPT_STALL, 1
+        self.addCleanup(setattr, srv, "PROMPT_STALL", original)
+        started = time.time()
+        answer = srv.cloud_send("bonjour")
+        self.assertFalse(answer["ok"])
+        self.assertLess(time.time() - started, 30)
+        self.assertIn("attend une réponse", answer["error"])
+        self.assertIn("proot-distro login ubuntu", answer["error"])
 
     def test_a_cli_that_waits_for_an_answer_is_reported_at_once_with_what_it_asks(self):
         # e.g. "do you trust this folder?" in a folder the CLI has never seen: nobody is there to answer, so waiting 3 minutes tells nothing
