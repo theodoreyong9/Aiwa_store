@@ -73,6 +73,7 @@ object BackendSync {
                     siteUrl = status.site.url,
                     siteState = status.site.state,
                     siteKind = status.site.kind,
+                    siteTermux = status.site.termux,
                     ciState = status.ci?.state,
                     ciUrl = status.ci?.url,
                     ciFresh = status.ci?.fresh ?: false,

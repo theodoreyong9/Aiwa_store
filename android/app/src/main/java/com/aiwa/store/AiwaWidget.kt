@@ -135,9 +135,12 @@ private val MIC_DIM = rgb(android.graphics.Color.rgb(58, 58, 66))
 private val TEXT_DIM = rgb(android.graphics.Color.rgb(130, 130, 144))
 
 // The globe: the site of the repository, in a browser: except the Store's own site, which is the page this app serves: it opens in the app.
-private fun siteAction(context: Context, state: AiwaState, site: String): Action =
-    if (state.siteKind == "site" && isStoreRepository(context, state.repo)) actionStartActivity<StoreActivity>()
-    else actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(site)))
+// The APK's download button, for an app that declared it needs Termux: the line to paste there is copied as the download starts.
+private fun siteAction(context: Context, state: AiwaState, site: String): Action = when {
+    state.siteKind == "apk" && state.siteTermux != null -> actionStartActivity<ApkDownloadActivity>()
+    state.siteKind == "site" && isStoreRepository(context, state.repo) -> actionStartActivity<StoreActivity>()
+    else -> actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(site)))
+}
 
 // The code of the app Claude wrote: on GitHub, once it is there (Claude is asked to put it in the repository); the copy received by the
 // phone is the fallback (a private repository, or Claude did not push).
@@ -379,7 +382,7 @@ private fun FullContent(state: AiwaState) {
                     // Orange = the address answers; grey = not (yet) — it still opens.
                     RoundButton(
                         icon = if (state.siteKind == "apk") R.drawable.ic_download else R.drawable.ic_globe,
-                        description = if (state.siteKind == "apk") "Télécharger l'APK Android" else "Ouvrir le site",
+                        description = if (state.siteKind == "apk") (if (state.siteTermux != null) "Télécharger l'APK (la ligne Termux est copiée)" else "Télécharger l'APK Android") else "Ouvrir le site",
                         background = if (live) claudeOrange else pill,
                         action = siteAction(LocalContext.current, state, site),
                         diameter = chipH.dp,
@@ -622,7 +625,7 @@ private fun CompactContent(state: AiwaState) {
                         // Orange = the address answers; grey = not (yet) — it still opens.
                         RoundButton(
                             icon = if (state.siteKind == "apk") R.drawable.ic_download else R.drawable.ic_globe,
-                            description = if (state.siteKind == "apk") "Télécharger l'APK Android" else "Ouvrir le site",
+                            description = if (state.siteKind == "apk") (if (state.siteTermux != null) "Télécharger l'APK (la ligne Termux est copiée)" else "Télécharger l'APK Android") else "Ouvrir le site",
                             background = if (live) claudeOrange else pill,
                             action = siteAction(LocalContext.current, state, site),
                         )

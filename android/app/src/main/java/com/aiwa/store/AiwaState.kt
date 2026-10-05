@@ -115,6 +115,8 @@ data class AiwaState(
     val siteState: String = "off",
     // "site", "apk" or "store": what siteUrl is (see SiteInfo).
     val siteKind: String = "site",
+    // With the Android mode: the line the app declared for Termux (copied when the APK is downloaded), or null.
+    val siteTermux: String? = null,
     // Whether the CLI is logged in to a Claude account (ok / needed / unknown), whether Claude's
     // cloud environment reaches the relay (ok / untested / pending / missing), and the last
     // app Claude sent (null = none yet).

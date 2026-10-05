@@ -516,6 +516,9 @@ def _instruction_lines(repo, work, base, direct):
                 "(le fichier est remplacé, le tag déplacé sur le commit construit ; permissions `contents: write`). Ne commite pas l'APK dans le dépôt. "
                 f"Il doit être téléchargeable à l'adresse {github.apk_url(repo)}. "
                 f"Le déploiement ne se déclenche que par un push sur {base} : tant que ton travail n'y est pas intégré, rien n'est publié. "
+                "Si l'app a besoin de Termux (un serveur ou un script à lancer dans Termux sur le téléphone, comme un backend), ajoute à la racine du dépôt un fichier "
+                "`aiwa-android.json` contenant `{\"termux\": \"<la ligne exacte à coller dans Termux pour installer et lancer ce qu'il faut>\"}` (une seule ligne, sans retour à la ligne, "
+                "l'adresse du script en `https://raw.githubusercontent.com/...`) : mon téléphone la copie quand je télécharge l'APK. Sinon n'ajoute rien. "
                 "Si ce dépôt n'est pas un projet Android, dis-le-moi et ne fais rien. Après un changement, vérifie que le build a réussi et lis ses logs.",
             ))
         lines.append((
@@ -883,6 +886,47 @@ def _site_probe(url, ranged=False):
         site_cache.update(url=url, state="live" if answers else "waiting", at=time.time(), busy=False)
 
 
+# What the Android mode's APK needs besides itself: `aiwa-android.json` at the root of the repository, written by Claude when the app needs Termux,
+# with the one line to paste there. Read from raw.githubusercontent.com (a public repository only), again every 2 minutes.
+apk_termux = {"repo": None, "command": None, "at": 0.0, "busy": False}
+apk_lock = threading.Lock()
+TERMUX_LINE_RE = re.compile(r"[^\x00-\x1f\x7f]{1,600}")
+
+
+def _apk_termux_probe(repo, branches):
+    command = None
+    for branch in branches:
+        raw = _raw_get(f"{RAW_BASE}/{repo}/refs/heads/{branch}/aiwa-android.json?t={int(time.time() * 1000)}", 4096)
+        if not raw:
+            continue
+        try:
+            wanted = json.loads(raw.decode("utf-8")).get("termux")
+        except (ValueError, UnicodeDecodeError, AttributeError):
+            continue
+        if isinstance(wanted, str) and TERMUX_LINE_RE.fullmatch(wanted.strip()):
+            command = wanted.strip()
+            break
+    with apk_lock:
+        if apk_termux["repo"] == repo:
+            apk_termux.update(command=command, at=time.time(), busy=False)
+
+
+def _apk_termux_command(repo):
+    """The line to paste in Termux for the app this repository builds, or None (none declared, or a private repository)."""
+    if not repo or not github.REPO_RE.fullmatch(repo):
+        return None
+    entry = next((e for e in _load_cloud_sessions() if e.get("repo") == repo and e.get("base")), {})
+    branches = [b for b in dict.fromkeys([entry.get("base"), "main", "master"]) if b and BRANCH_RE.fullmatch(b) and ".." not in b]
+    with apk_lock:
+        if apk_termux["repo"] != repo:
+            apk_termux.update(repo=repo, command=None, at=0.0, busy=False)
+        known = apk_termux["command"]
+        if not apk_termux["busy"] and time.time() - apk_termux["at"] > 120:
+            apk_termux.update(busy=True, at=time.time())
+            threading.Thread(target=_apk_termux_probe, args=(repo, branches), daemon=True).start()
+    return known
+
+
 def _site_snapshot():
     """The address the user can open once a repository is chosen — known in
     advance, and whether it answers: off (no repository), waiting or live.
@@ -906,7 +950,7 @@ def _site_snapshot():
         if (not fresh or time.time() - site_cache["at"] > ttl) and not site_cache["busy"]:
             site_cache["busy"] = True
             threading.Thread(target=_site_probe, args=(url, kind == "apk"), daemon=True).start()
-    return {"url": url, "state": state, "kind": kind}
+    return {"url": url, "state": state, "kind": kind, "termux": _apk_termux_command(repo) if kind == "apk" else None}
 
 
 def _ci_probe(repo):

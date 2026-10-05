@@ -466,6 +466,33 @@ class MailboxTests(Base):
         srv._app_ready(APP, "demo-app.app.html", "relay:4")
         self.assertIsNone(srv._sent_app_snapshot()["github"])
 
+    # ---- what an APK needs besides itself ----
+    def termux_line(self, repo="someone/some-repo", branch="main"):
+        srv.apk_termux.update(repo=None, command=None, at=0.0, busy=False)
+        srv._apk_termux_command(repo)        # starts the look-up
+        wait_for(lambda: not srv.apk_termux["busy"])
+        return srv._apk_termux_command(repo)
+
+    def test_an_app_that_needs_termux_says_so_in_the_repository_and_the_line_comes_to_the_phone(self):
+        FakeRaw.files["/someone/some-repo/refs/heads/main/aiwa-android.json"] = json.dumps({"termux": "curl -fsSL https://raw.githubusercontent.com/someone/some-repo/main/setup.sh | bash"}).encode()
+        self.assertEqual(self.termux_line(), "curl -fsSL https://raw.githubusercontent.com/someone/some-repo/main/setup.sh | bash")
+
+    def test_no_declaration_no_line_and_a_bad_one_is_not_taken(self):
+        self.assertIsNone(self.termux_line())
+        for bad in ({"termux": "line one\nline two"}, {"termux": ""}, {"termux": 7}, {"termux": "x" * 601}, ["not", "an", "object"]):
+            FakeRaw.files["/someone/some-repo/refs/heads/main/aiwa-android.json"] = json.dumps(bad).encode()
+            self.assertIsNone(self.termux_line(), bad)
+        FakeRaw.files["/someone/some-repo/refs/heads/main/aiwa-android.json"] = b"not json"
+        self.assertIsNone(self.termux_line())
+
+    def test_the_android_instruction_asks_for_the_declaration_only_when_termux_is_needed(self):
+        srv.deploy_mode = "android"
+        text = dict(srv._instruction_lines("someone/some-repo", self.WORK, "main", True))["deploy"]
+        self.assertIn("aiwa-android.json", text)
+        self.assertIn("a besoin de Termux", text)
+        self.assertIn("Sinon n'ajoute rien", text)
+        srv.deploy_mode = "none"
+
     # ---- what Claude is told ----
     def test_the_instructions_give_the_fallbacks_only_when_a_repository_is_attached(self):
         for mode, example in (("store", "nom.app.html"), ("aiwa", "nom.aiwa.html")):

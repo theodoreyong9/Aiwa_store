@@ -4,7 +4,8 @@ package com.aiwa.bridge
 // kind: "site" (the GitHub Pages address), "apk" (the download address of the
 // Android APK, in the Android deploy mode) or "store" (no address: live means an app
 // sent by Claude has not been opened in the Store yet; the "store" and "aiwa" modes both).
-data class SiteInfo(val url: String?, val state: String, val kind: String = "site")
+// termux: with the Android mode, the line to paste in Termux that the app declared (aiwa-android.json in its repository), or null.
+data class SiteInfo(val url: String?, val state: String, val kind: String = "site", val termux: String? = null)
 
 // What Claude sent to the phone (its source: ClaudeBridge.sentAppCode): an app for the Store, one self-contained index.html.
 // kind: "code" (name.app.html, its code travels in the package on GitHub) or "aiwa" (name.aiwa.html, published through Aiwa).
