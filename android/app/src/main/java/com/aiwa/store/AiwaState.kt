@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.StateFlow
 // the app starts relying on a new backend feature.
 const val EXPECTED_BACKEND_VERSION = 20
 
+/** How long the widget keeps saying that a message was refused because another is on its way. */
+const val BUSY_NOTICE_MS = 20_000L
+
 data class ModelChoice(val id: String?, val label: String)
 
 // The models Claude Code documents (code.claude.com, model-config), with
@@ -138,6 +141,8 @@ data class AiwaState(
     // program (see aiwa_server.py), so they are read in the Claude app.
     val notice: String? = null,
     val question: String? = null,
+    // When a second message was last refused because one is already on its way (epoch ms): the widget says "attends" for BUSY_NOTICE_MS.
+    val busyNoticeAt: Long = 0L,
 ) {
     enum class Status { READY, WORKING, WAITING, DONE, ERROR }
 }

@@ -237,7 +237,13 @@ private fun FullContent(state: AiwaState) {
         state.backend == "starting" -> { status = "⏳ Démarrage du backend…"; statusColor = warm }
         state.backend == "down" -> { status = "⚠ Backend arrêté — relance en cours"; statusColor = alertText; statusBold = true }
         needsLogin -> { status = "⚠ Claude n'est pas connecté — touche ici"; statusColor = alertText; statusBold = true }
-        state.status == AiwaState.Status.WORKING -> { status = "Envoi en cours…"; statusColor = fg }
+        // A second message was just refused because this one is still on its way: said here, not only in a toast.
+        state.status == AiwaState.Status.WORKING -> {
+            val refused = System.currentTimeMillis() - state.busyNoticeAt < BUSY_NOTICE_MS
+            status = if (refused) "⏳ Envoi en cours : attends" else "Envoi en cours…"
+            statusColor = if (refused) warm else fg
+            statusBold = refused
+        }
         state.waiting -> { status = "● Claude attend ta réponse"; statusColor = alertText; statusBold = true }
         storeReady -> {
             status = "App prête : touche ▦ pour l'ouvrir dans le Store, </> montre son code"

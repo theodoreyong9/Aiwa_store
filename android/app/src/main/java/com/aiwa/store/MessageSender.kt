@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -34,13 +35,13 @@ object SendTracker {
 suspend fun sendAndTrack(context: Context, bridge: ClaudeBridge, text: String, toastErrors: Boolean = false): Boolean {
     if (text.isBlank()) return false
     if (!SendTracker.inFlight.compareAndSet(false, true)) {
-        if (toastErrors) toastOnMain(context, "Un envoi est déjà en cours.")
+        refusedBusy(context, toastErrors)
         return false
     }
     return try {
         // Working because the backend says so (a send begun before the app was reopened): not a second one.
         if (AiwaRepository.state.value.status == AiwaState.Status.WORKING) {
-            if (toastErrors) toastOnMain(context, "Un envoi est déjà en cours.")
+            refusedBusy(context, toastErrors)
             false
         } else {
             withContext(NonCancellable) { deliver(context, bridge, text, toastErrors) }
@@ -48,6 +49,20 @@ suspend fun sendAndTrack(context: Context, bridge: ClaudeBridge, text: String, t
     } finally {
         SendTracker.inFlight.set(false)
     }
+}
+
+/**
+ * A message was refused because another is on its way: it did not go. The widget says so for a moment (a toast
+ * alone is gone in a second, and a widget-only user may not see it), then goes back to its usual line.
+ */
+private fun refusedBusy(context: Context, toast: Boolean) {
+    AiwaRepository.update { it.copy(busyNoticeAt = System.currentTimeMillis()) }
+    CoroutineScope(Dispatchers.Default).launch {
+        AiwaWidget().updateAll(context)
+        delay(BUSY_NOTICE_MS + 500)
+        AiwaWidget().updateAll(context)
+    }
+    if (toast) toastOnMain(context, "Un envoi est déjà en cours : celui-ci n'est pas parti, renvoie-le quand « Envoi en cours… » disparaît.")
 }
 
 private suspend fun deliver(context: Context, bridge: ClaudeBridge, text: String, toastErrors: Boolean): Boolean {
@@ -73,7 +88,7 @@ private suspend fun deliver(context: Context, bridge: ClaudeBridge, text: String
         }
     }
     if (busy) {
-        if (toastErrors) toastOnMain(context, "Un envoi précédent est encore en cours : celui-ci n'est pas parti, renvoie-le quand « Envoi en cours… » disparaît.")
+        refusedBusy(context, toastErrors)
         BackendSync.refresh(bridge)
         return false
     }
