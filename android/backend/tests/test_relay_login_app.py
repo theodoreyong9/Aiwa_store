@@ -886,6 +886,8 @@ class HttpTests(Base):
         original, session = srv._queue_followup, srv.current_cloud
 
         def slow_followup(session_id, text):
+            if not text.startswith("un message"):      # a background /rename of an earlier test is not the send under test
+                return {"ok": True, "url": None, "error": None}
             started.set()
             release.wait(30)
             return {"ok": True, "url": None, "error": None}
