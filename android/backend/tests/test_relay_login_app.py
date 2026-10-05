@@ -815,26 +815,44 @@ class CloudSendTests(Base):
 
 
 class RepoStubTests(unittest.TestCase):
-    """The repository is only an address: nothing of it is downloaded to the phone."""
+    """The repository is only an address: nothing of it is downloaded to the phone, and one folder serves every repository."""
 
-    def test_directory_is_an_empty_stub_pointing_at_the_repository(self):
+    def run_git(self, directory, *args):
         import subprocess
-        root = Path(tempfile.mkdtemp(prefix="aiwa-stub-"))
-        with unittest.mock.patch.object(gh, "REPOS_DIR", root), \
+        return subprocess.run(["git", *args], cwd=directory, capture_output=True, text=True).stdout.strip()
+
+    def test_one_folder_is_an_empty_stub_pointing_at_the_chosen_repository(self):
+        folder = Path(tempfile.mkdtemp(prefix="aiwa-stub-")) / "chat-cloud"
+        with unittest.mock.patch.object(gh, "SESSION_DIR", folder), \
                 unittest.mock.patch.object(gh, "GITHUB_BASE", "https://example.invalid"), \
                 unittest.mock.patch.object(gh, "default_branch", lambda repo: "trunk"):
             directory, work, base = gh.prepare_repo_dir("o/r")
-            first = subprocess.run(["git", "rev-parse", "HEAD"], cwd=directory, capture_output=True, text=True).stdout
-            again, _, _ = gh.prepare_repo_dir("o/r")
+            first = self.run_git(directory, "rev-parse", "HEAD")
+            self.assertEqual(self.run_git(directory, "remote", "get-url", "origin"), "https://example.invalid/o/r.git")
+            other, _, _ = gh.prepare_repo_dir("p/q")
         self.assertEqual(base, "trunk")
         self.assertTrue(work.startswith("aiwa/"))
         self.assertEqual(sorted(p.name for p in directory.iterdir()), [".git"])
-        origin = subprocess.run(["git", "remote", "get-url", "origin"], cwd=directory, capture_output=True, text=True).stdout.strip()
-        self.assertEqual(origin, "https://example.invalid/o/r.git")
-        count = subprocess.run(["git", "rev-list", "--count", "HEAD"], cwd=directory, capture_output=True, text=True).stdout.strip()
-        self.assertEqual(count, "1")
-        self.assertEqual(again, directory)
-        self.assertEqual(subprocess.run(["git", "rev-parse", "HEAD"], cwd=directory, capture_output=True, text=True).stdout, first)
+        self.assertEqual(other, directory, "the same folder, so the CLI's trust answer holds for every repository")
+        self.assertEqual(self.run_git(directory, "remote", "get-url", "origin"), "https://example.invalid/p/q.git")
+        self.assertEqual(self.run_git(directory, "rev-list", "--count", "HEAD"), "1")
+        self.assertEqual(self.run_git(directory, "rev-parse", "HEAD"), first)
+
+    def test_a_folder_left_by_the_first_widget_is_reused_as_it_is(self):
+        # ~/chat-cloud of the first widget: a repository with one commit on master, no remote, the user's trust answer given there
+        folder = Path(tempfile.mkdtemp(prefix="aiwa-old-")) / "chat-cloud"
+        folder.mkdir()
+        self.run_git(folder, "init", "-q", "-b", "master")
+        self.run_git(folder, "-c", "user.name=a", "-c", "user.email=a@b", "commit", "-q", "--allow-empty", "-m", "old")
+        old = self.run_git(folder, "rev-parse", "HEAD")
+        with unittest.mock.patch.object(gh, "SESSION_DIR", folder), \
+                unittest.mock.patch.object(gh, "GITHUB_BASE", "https://example.invalid"), \
+                unittest.mock.patch.object(gh, "default_branch", lambda repo: "main"):
+            directory, _, base = gh.prepare_repo_dir("o/r")
+        self.assertEqual(directory, folder)
+        self.assertEqual(self.run_git(folder, "rev-parse", "--abbrev-ref", "HEAD"), "main")
+        self.assertEqual(self.run_git(folder, "rev-parse", "HEAD"), old, "no new commit, nothing deleted")
+        self.assertEqual(self.run_git(folder, "remote", "get-url", "origin"), "https://example.invalid/o/r.git")
 
 
 class FakeGithub(http.server.BaseHTTPRequestHandler):

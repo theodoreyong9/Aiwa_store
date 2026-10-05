@@ -34,7 +34,9 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-REPOS_DIR = Path.home() / "repos"
+# The one folder every session starts from, the same one the first widget used: the CLI asks "do you trust the files in
+# this folder?" once per folder, and a single folder is a single answer (a folder per repository was one answer each).
+SESSION_DIR = Path.home() / "chat-cloud"
 # Overridable so the Actions lookup can be tested without the network.
 GITHUB_API = os.environ.get("AIWA_GITHUB_API", "https://api.github.com")
 # Runs nobody asked for, which say nothing about the user's work: the ones a workflow
@@ -353,24 +355,25 @@ def prepare_repo_dir(repo):
     the repository, which is all the CLI reads to tell the cloud session
     which repository to clone (with Claude's own GitHub access). Nothing of
     the repository is downloaded here, so nothing of it is uploaded from the
-    phone either.
+    phone either. It is always the same folder, kept as it is (only `origin`
+    and the branch are set), so the CLI's one-time "trust this folder" answer
+    stays valid from one repository to the next.
     Returns (directory, work branch, default branch): the work branch is
     the session's own branch, a fresh aiwa/<date> that Claude is asked to
     create from the default branch."""
     url = f"{GITHUB_BASE}/{repo}.git"
     branch = default_branch(repo)
-    dest = REPOS_DIR / repo.replace("/", "__")
-    REPOS_DIR.mkdir(parents=True, exist_ok=True)
-    reusable = False
-    if (dest / ".git").exists():
-        try:
-            reusable = _git(["remote", "get-url", "origin"], cwd=dest).strip() == url and _git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=dest).strip() == branch
-        except GithubError:
-            reusable = False
-    if not reusable:
-        shutil.rmtree(dest, ignore_errors=True)
-        dest.mkdir(parents=True)
+    dest = SESSION_DIR
+    dest.mkdir(parents=True, exist_ok=True)
+    if not (dest / ".git").exists():
         _git(["init", "-q", "-b", branch], cwd=dest)
-        _git(["remote", "add", "origin", url], cwd=dest)
+    try:
+        _git(["rev-parse", "--verify", "-q", "HEAD"], cwd=dest)
+    except GithubError:
         _git(["-c", "user.name=aiwa", "-c", "user.email=aiwa@example.com", "commit", "-q", "--allow-empty", "-m", "stub"], cwd=dest)
+    _git(["checkout", "-q", "-B", branch], cwd=dest)
+    try:
+        _git(["remote", "set-url", "origin", url], cwd=dest)
+    except GithubError:
+        _git(["remote", "add", "origin", url], cwd=dest)
     return dest, "aiwa/" + time.strftime("%Y%m%d-%H%M%S"), branch
