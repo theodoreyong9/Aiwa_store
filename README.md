@@ -90,7 +90,7 @@ The widget talks to Claude Code, which runs in **Termux** on the same phone. You
 4. Tap **Connecter Claude** on the widget and log in with your Claude account (a page opens, the code goes back into the same window).
 5. Tap **Dicter un message** and say what the app should do. When Claude has written it, press **▦** on the widget: the Store opens its publish sheet.
 
-The widget's logo opens the app. Inside the app, the **Dictate** tab opens the dictation screen (the same one the widget uses).
+The widget's logo opens the app. The Store has no Dictate tab: dictating is what the widget is for.
 
 If Termux or the backend is missing, the widget says so ("Termux manquant" or "Installation manquante") and a tap copies the line above and opens Termux (or the page to download it). It does not keep saying "starting".
 

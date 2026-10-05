@@ -145,6 +145,8 @@ textarea {
   line-height: 1.4;
   resize: vertical;
 }
+select { flex: 1; min-width: 0; height: 38px; padding: 0 8px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; }
+#sheet-paste { display: grid; gap: 8px; }
 input:focus, textarea:focus, button:focus-visible, summary:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
   outline-offset: 1px;

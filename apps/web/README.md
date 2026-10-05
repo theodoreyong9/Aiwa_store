@@ -7,7 +7,7 @@ The store and the wallet, as one web app. It runs in a browser and, unchanged, i
 | **Store** | Lists the registry's apps, ranked by `score / laps`; search; **Open** runs an app in a sandbox. Works offline on the last list and on apps already opened. |
 | **Wallet** | An Aiwa wallet (`aiwa-lib`) that starts by itself: balances, **burn** (T chosen at the burn; the wallet shows what goes to the creator before signing), claim, send and receive (signed codes, QR), the author's apps (refresh a ranking), history, the 12 words (shown once, and on request). Its history comes back by itself on a new phone (`src/wallet.js`). |
 
-There is no Publish tab. The **publish sheet** (`src/publish-ui.js`) opens when the Android app hands over an app (the widget's ▦ button), and does one thing: sign
+There is no Publish tab. The **publish sheet** (`src/publish-ui.js`) opens from the **＋** button of the Store (paste the app's HTML file; a file that imports `lib/aiwa.js` is taken for a contract) or when the Android app hands over an app (the widget's ▦ button), and does one thing: sign
 what the author is looking at and open a pull request on their GitHub account (`src/github.js`: fork, branch, file, pull request;
 the login is GitHub's device flow, run by the Android app).
 

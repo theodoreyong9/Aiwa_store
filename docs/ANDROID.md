@@ -62,8 +62,7 @@ the wallet asks the registry for the last state it validated of this author. Nei
 
 A widget for the home screen to dictate to Claude Code (Claude's cloud sessions, `claude --cloud`), not specific to Aiwa. It needs
 **Termux** (the local backend, `android/backend/aiwa_server.py`, runs there) and the user's own Claude login; nothing about it is
-needed for the Store or the wallet. It runs only once it has been turned on — by adding the widget, or by opening its screen from
-the Store's **Dictate** tab. Until then there is no service, no permission request and no notification.
+needed for the Store or the wallet. It runs only once it has been turned on — by adding the widget. Until then there is no service, no permission request and no notification.
 
 Install the backend in Termux (one command, also for updates):
 

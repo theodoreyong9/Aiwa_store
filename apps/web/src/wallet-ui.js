@@ -11,6 +11,7 @@ import { $, short, setId, showError, flash } from './ui.js';
 import { openRefresh } from './publish-ui.js';
 import { drawQr, scanQr } from './qr.js';
 import { startLink, joinLink, watchLinks } from './link.js';
+import { showCode } from './app-door.js';
 
 let displayRefreshTimer = null;
 let lastOfflineBlob = null;
@@ -421,6 +422,16 @@ export async function initWallet() {
     catch { $('send-result').textContent = 'The browser refused the clipboard.'; }
   });
   $('btn-receive').addEventListener('click', receive);
+  // To pay someone in front of you: they show their identity as a QR code, this phone reads it.
+  $('btn-identity-qr').addEventListener('click', () => {
+    if (connected()) showCode({ text: session.aiwa.identity.id, title: 'My identity: the sender scans this to pay me' });
+  });
+  $('btn-scan-to').addEventListener('click', async () => {
+    const text = await scanQr($('scan-to-video'));
+    if (text === null) { $('send-result').textContent = 'No camera scanning in this browser: paste the identity.'; return; }
+    if (/^[0-9a-f]{64}$/.test(text.trim())) { $('send-to').value = text.trim(); $('send-result').textContent = ''; }
+    else $('send-result').textContent = 'This QR code is not an identity.';
+  });
   $('btn-scan').addEventListener('click', async () => {
     const text = await scanQr($('scan-video'));
     if (text === null) $('receive-result').textContent = 'No camera scanning in this browser: paste the code.';

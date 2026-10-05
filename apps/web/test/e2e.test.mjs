@@ -438,6 +438,71 @@ test('publishing from the widget\'s hand-off: one sheet, a GitHub login once, a 
   await context.close();
 });
 
+test('an app is published from the Store itself: + opens a sheet to paste its file, and the same sheet follows', async () => {
+  const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  const github = await fakeGitHub(context);
+  await mineInPage(page);
+
+  await page.click('#app-nav [data-view="store"]');
+  await page.click('#store-publish');
+  await page.waitForSelector('#sheet:not([hidden])');
+  assert.equal(await page.locator('#paste-html').isVisible(), true);
+  assert.equal(await page.locator('#sheet-go').isHidden(), true, 'nothing to publish until a file is pasted');
+  await page.click('#paste-next');
+  assert.match(await page.locator('#sheet-warning').textContent(), /Paste the file first/);
+
+  await page.fill('#paste-html', SAMPLE_APP);
+  assert.equal(await page.inputValue('#paste-kind'), 'code');
+  await page.click('#paste-next');
+  assert.equal(await page.locator('#paste-html').isHidden(), true);
+  assert.equal(await page.inputValue('#app-name'), 'Taps', 'the name comes from the file\'s own title');
+  assert.equal(await page.inputValue('#app-description'), 'counts taps');
+  await page.waitForFunction(() => !document.getElementById('sheet-go').disabled);
+  await page.click('#sheet-go');
+  await page.waitForSelector('#sheet-result:not([hidden])', { timeout: 10000 });
+  assert.deepEqual(Object.keys(github.files), ['submissions/taps-1.0.0.json']);
+  const { submission, result } = await registryVerdict(page, github, 'submissions/taps-1.0.0.json');
+  assert.equal(submission.package.kind, 'code');
+  assert.equal(result.ok, true, result.reason);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('a pasted file that imports the SDK is taken for a contract and published through Aiwa', async () => {
+  const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  await mineInPage(page);
+  const contract = SAMPLE_APP.replace('<h1>Taps</h1></body>', "<script type=\"module\">import { defineContract } from 'https://theodoreyong9.github.io/Aiwa_store/lib/aiwa.js';</script></body>");
+  await page.click('#app-nav [data-view="store"]');
+  await page.click('#store-publish');
+  await page.fill('#paste-html', contract);
+  assert.equal(await page.inputValue('#paste-kind'), 'aiwa');
+  await page.click('#paste-next');
+  await page.waitForSelector('#app-name');
+  assert.match(await page.locator('#sheet-summary').textContent(), /published through Aiwa/);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('to be paid in person: my identity is shown as a QR code, and the Send field can scan one', async () => {
+  const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  await mineInPage(page);
+  await page.click('#app-nav [data-view="wallet"]');
+  const id = await page.locator('#out-identity-id').getAttribute('data-full');
+  assert.match(id, /^[0-9a-f]{64}$/);
+  await page.click('#btn-identity-qr');
+  await page.waitForSelector('#door-sheet:not([hidden]) #door-qr canvas');
+  assert.equal(await page.inputValue('#door-text'), id);
+  await page.click('#door-close');
+
+  // the fake camera shows a code that is not an identity: it is refused, and the field stays empty
+  await page.click('#btn-scan-to');
+  await page.waitForFunction(() => document.getElementById('send-result').textContent !== '', null, { timeout: 20000 });
+  assert.match(await page.locator('#send-result').textContent(), /not an identity/);
+  assert.equal(await page.inputValue('#send-to'), '');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('an app published through Aiwa: the pull request carries a pointer and the signed bundle, never the code', async () => {
   const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
   const github = await fakeGitHub(context);
@@ -563,12 +628,9 @@ test('refreshing a ranking, from the wallet\'s list of the author\'s apps, is th
 
 // ---------- inside the Android app ----------
 
-test('inside the Android app: the Dictate tab appears, back closes the sheet or the app on top, then leaves the tab', async () => {
+test('inside the Android app: there is no Dictate tab, back closes the sheet or the app on top, then leaves the tab', async () => {
   const { page, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
-  assert.equal(await page.locator('#tab-dictate').isVisible(), true);
-  await page.click('#tab-dictate');
-  assert.equal(await page.locator('#view-store').isVisible(), true, 'the Dictate tab opens the screen, the page stays where it was');
-  assert.deepEqual(await page.evaluate(() => window.__posted.filter((m) => m.cmd === 'dictation').map((m) => m.cmd)), ['dictation']);
+  assert.equal(await page.locator('#tab-dictate').count(), 0, 'dictating is the widget\'s job, not a tab of the Store');
 
   await page.waitForSelector('#store-list .app');
   await page.locator('#store-list .app[data-id="beta"] button').click();

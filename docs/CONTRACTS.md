@@ -69,6 +69,10 @@ In the widget, the **Deploy** chip's *Aiwa* mode makes Claude write exactly this
 publish sheet (▦) then publishes it through Aiwa: the pull request carries only a pointer, and the signed bundle pins every file by its
 hash ([docs/ANDROID.md](ANDROID.md#the-store-and-aiwa-modes)).
 
+A file written by hand, such as the example above, is published from the Store itself: press **＋**, paste the file, and the same sheet follows
+(a file that imports `lib/aiwa.js` is taken for a contract). Publishing needs a wallet that has mined: the app is ranked by what its author has
+mined (score and laps), and the sheet says so when there is nothing to publish with yet.
+
 ## What it cannot do
 
 - **Count people.** Identities in a contract are free (`generateIdentity()` costs nothing), so "one vote per identity" is not "one vote

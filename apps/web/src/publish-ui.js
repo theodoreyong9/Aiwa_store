@@ -86,6 +86,7 @@ async function ready() {
 function openSheet({ title, summary, fields, go }) {
   $('sheet-title').textContent = title;
   $('sheet-summary').textContent = summary;
+  $('sheet-paste').hidden = true;
   $('sheet-fields').hidden = !fields;
   $('sheet-try').hidden = job.mode !== 'publish';
   $('sheet-go').textContent = go;
@@ -114,6 +115,41 @@ function openPublish(app) {
       + 'Anyone can open it from the Store, in a sandbox; it is ranked by what you have mined.',
     fields: true, go: 'Publish',
   });
+}
+
+/** The sheet to paste an app into: the other way in, for a file the author has (an example, a contract written by hand). */
+function openPaste() {
+  job = null;
+  manual = null;
+  stopRechecking();
+  $('sheet-title').textContent = 'Publish an app';
+  $('sheet-summary').textContent = "Paste the app's one HTML file. It is then signed with your wallet and sent to the Store's registry, where it is ranked by what you have mined.";
+  $('sheet-paste').hidden = false;
+  $('sheet-fields').hidden = true;
+  $('sheet-try').hidden = true;
+  $('sheet-go').hidden = true;
+  $('sheet-code').hidden = true;
+  $('sheet-manual').hidden = true;
+  $('sheet-result').hidden = true;
+  warn('');
+  say('');
+  $('sheet').hidden = false;
+}
+
+/** The pasted file's own title for a name (the author can change it on the next screen). */
+const nameOf = (html) => /<title>([^<]{1,60})<\/title>/i.exec(html)?.[1].trim() || 'My app';
+
+function pasted() {
+  const text = $('paste-html').value.trim();
+  warn('');
+  if (!text) { warn('Paste the file first.'); return; }
+  if (text.length > MAX_CHARS) { warn('It is too big.'); return; }
+  try {
+    openPublish(appFrom($('paste-kind').value, nameOf(text), text));
+    $('paste-html').value = '';
+  } catch (err) {
+    warn(String(err.message ?? err));
+  }
 }
 
 /** From the author's own list: a signed request to re-read the ranking figure of one app. */
@@ -206,6 +242,10 @@ export function initPublish() {
   $('sheet-try').addEventListener('click', () => {
     if (job?.mode === 'publish') openViewer({ name: $('app-name').value.trim() || 'Preview', meta: 'preview, not published', html: htmlOf(job.app) });
   });
+  $('store-publish').addEventListener('click', openPaste);
+  $('paste-next').addEventListener('click', pasted);
+  // A file that imports the SDK is a contract: say so without making the author choose.
+  $('paste-html').addEventListener('input', () => { $('paste-kind').value = /lib\/aiwa\.js/.test($('paste-html').value) ? 'aiwa' : 'code'; });
   $('sheet-go').addEventListener('click', go);
   $('sheet-close').addEventListener('click', close);
   $('sheet-copy-code').addEventListener('click', async () => {

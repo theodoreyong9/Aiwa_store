@@ -19,7 +19,6 @@
   <nav class="tabs" id="app-nav">
     <button type="button" class="active" data-view="store">Store</button>
     <button type="button" data-view="wallet">Wallet</button>
-    <button type="button" id="tab-dictate" hidden>Dictate</button>   <!-- opens the dictation screen: only inside the Android app -->
   </nav>
 </header>
 
@@ -28,10 +27,11 @@
   <div class="line">
     <input id="store-search" type="search" placeholder="Search apps" autocomplete="off" aria-label="Search apps">
     <button id="store-refresh" class="icon" title="Refresh the list" aria-label="Refresh the list">↻</button>
+    <button id="store-publish" class="icon" title="Publish an app" aria-label="Publish an app">＋</button>
   </div>
   <p class="muted" id="store-status"></p>
   <div id="store-list"></div>
-  <p class="hint" id="store-empty" hidden>No app here yet. Dictate one with the widget, then press ▦ to publish it.</p>
+  <p class="hint" id="store-empty" hidden>No app here yet. Press ＋ to publish one (paste its HTML file), or dictate one with the widget and press ▦.</p>
   <p class="hint">Apps run in a sandbox: they cannot see your wallet unless they say they use it, and then a banner tells you. They are not reviewed; the list is ordered by what their authors have mined (<code>score / laps</code>).</p>
 </main>
 
@@ -75,7 +75,7 @@
     </section>
 
     <section class="card ids">
-      <div class="idrow"><span>Identity</span><code id="out-identity-id"></code><button type="button" class="icon" data-copy="out-identity-id">Copy</button></div>
+      <div class="idrow"><span>Identity</span><code id="out-identity-id"></code><button type="button" class="icon" data-copy="out-identity-id">Copy</button><button type="button" class="icon" id="btn-identity-qr" title="Show my identity as a QR code, to be paid" aria-label="Show my identity as a QR code">QR</button></div>
       <div class="idrow"><span>Solana</span><code id="out-address"></code><button type="button" class="icon" data-copy="out-address">Copy</button></div>
     </section>
 
@@ -93,7 +93,11 @@
     <div class="grid2">
       <section class="card">
         <h2>Send</h2>
-        <input id="send-to" type="text" placeholder="Recipient identity id" autocomplete="off" aria-label="Recipient identity id">
+        <div class="line">
+          <input id="send-to" type="text" placeholder="Recipient identity id" autocomplete="off" aria-label="Recipient identity id">
+          <button id="btn-scan-to" type="button" class="icon" title="Scan the recipient's identity QR code" aria-label="Scan the recipient's identity QR code">Scan</button>
+        </div>
+        <video id="scan-to-video" hidden playsinline muted></video>
         <div class="line">
           <input id="send-amount" type="text" inputmode="decimal" placeholder="Amount" aria-label="Amount">
           <button id="btn-send" class="primary">Send</button>
@@ -161,6 +165,16 @@
 <div id="sheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
   <div class="sheet-card">
     <h2 id="sheet-title">Publish this app</h2>
+    <div id="sheet-paste" hidden>
+      <textarea id="paste-html" rows="8" placeholder="Paste the app's whole HTML file" aria-label="The app's HTML file" spellcheck="false"></textarea>
+      <div class="line">
+        <select id="paste-kind" aria-label="What it is">
+          <option value="code">A plain app</option>
+          <option value="aiwa">An Aiwa contract (name.aiwa.html)</option>
+        </select>
+        <button id="paste-next" type="button" class="primary">Continue</button>
+      </div>
+    </div>
     <div id="sheet-fields">
       <input id="app-name" type="text" placeholder="Name" aria-label="Name">
       <div class="line">

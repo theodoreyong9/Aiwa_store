@@ -4,7 +4,7 @@ import { initStore } from './store-ui.js';
 import { initWallet } from './wallet-ui.js';
 import { initPublish, sheetIsOpen, closeSheet } from './publish-ui.js';
 import { closeViewer } from './viewer.js';
-import { hostAvailable, hostPost, setBackHandler } from './host.js';
+import { setBackHandler } from './host.js';
 
 // An error nobody caught (a handler without its own try/catch, a timer tick) is shown, never silent.
 window.addEventListener('unhandledrejection', (event) => {
@@ -21,12 +21,7 @@ initPublish();
 initStore();
 initWallet();
 
-// Inside the Android app: the Dictate tab (the dictation module's screen, where the widget is used from), and a back button that
-// closes what is open first. The tab opens that screen and leaves the page where it was.
-if (hostAvailable()) {
-  $('tab-dictate').hidden = false;
-  $('tab-dictate').addEventListener('click', () => hostPost({ cmd: 'dictation' }));
-}
+// Inside the Android app: a back button that closes what is open first, then leaves the tab.
 setBackHandler(() => {
   if (!$('viewer').hidden) { closeViewer(); return true; }
   if (sheetIsOpen()) { closeSheet(); return true; }
