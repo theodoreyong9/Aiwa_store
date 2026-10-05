@@ -134,7 +134,7 @@ the app's own: so Claude is asked to write `aiwa-android.json` at the root of th
 600 characters at most), and that line does everything, the APK's download included, as this project's own does (`bootstrap.sh`, `install-apk.sh`). The phone
 reads it from `raw.githubusercontent.com` (a public repository only, every 2 minutes), and the download button then copies the line, shows it in a toast and opens
 Termux (or the page it is downloaded from): nothing is run, the person pastes it and validates. No declaration, no line, and the button downloads the APK as before;
-a private repository never shows one.
+a private repository never shows one. This repository declares its own (`aiwa-android.json`: the line of `bootstrap.sh`), so the button does it on `Aiwa_store` too.
 
 The ▦ button opens the Store's publish sheet with the app in it; the user reads it, tries it and presses **Publish**: the Store signs it
 with the wallet and opens the pull request on the user's GitHub account. Nothing is signed or published by the widget. What Claude pushes to

@@ -1,0 +1,1 @@
+{"termux": "curl -fsSL https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh | bash"}

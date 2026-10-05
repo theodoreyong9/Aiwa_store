@@ -496,6 +496,12 @@ class MailboxTests(Base):
         FakeRaw.files["/someone/some-repo/refs/heads/main/aiwa-android.json"] = b"not json"
         self.assertIsNone(self.termux_line())
 
+    def test_this_repository_declares_its_own_termux_line(self):
+        # The Aiwa app needs Termux: the widget's download button, on this very repository, copies this line and opens Termux.
+        declared = json.loads((Path(__file__).resolve().parents[3] / "aiwa-android.json").read_text(encoding="utf-8"))
+        self.assertTrue(srv.TERMUX_LINE_RE.fullmatch(declared["termux"]))
+        self.assertIn("raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh", declared["termux"])
+
     def test_the_android_instruction_asks_for_the_declaration_only_when_termux_is_needed(self):
         srv.deploy_mode = "android"
         text = dict(srv._instruction_lines("someone/some-repo", self.WORK, "main", True))["deploy"]
