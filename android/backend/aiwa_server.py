@@ -92,6 +92,10 @@ LOGIN_NEEDED_RE = re.compile(
 )
 # How long Claude gets to answer the relay test before the widget says it is missing.
 CLOUD_CHECK_WAIT = 240
+# A CLI that has said nothing for this long while its last words are a question (trust this folder? press Enter…) is waiting for
+# someone who is not there: better to say so than to wait out the whole timeout.
+PROMPT_STALL = 30
+PROMPT_RE = re.compile(r"(?i)(do you trust|trust (this|the) (folder|files|directory|project)|safety check|\(y/n\)|\[y/n\]|press enter|\?\s*$)")
 
 CLOUD_STORE = Path.home() / ".aiwa_cloud_sessions.json"
 STATE_FILE = Path.home() / ".aiwa_state.json"
@@ -111,6 +115,7 @@ current_cloud = None
 # open the conversation you were in.
 last_cloud = None
 cloud_busy = False
+cloud_busy_since = None      # when the running send began (epoch seconds): the widget says how long it has lasted
 # Instructions integrated into the conversation (see _compose). Claude
 # Code does the work itself; these only tell it what the user wants:
 # current_repo: the repository new sessions start on ("owner/name"; None =
@@ -299,6 +304,10 @@ def _run_with_pty(command, cwd, timeout, stop_after_session_id=False):
             if stop_after_session_id and found_at is not None and (now - last_data >= 4 or now - found_at >= 25):
                 reason = "stopped after the session id appeared"
                 break
+            if stop_after_session_id and found_at is None and chunks and now - last_data >= PROMPT_STALL:
+                if PROMPT_RE.search(_clean(b"".join(chunks).decode("utf-8", "replace")).strip()[-400:]):
+                    reason = "waiting for an answer"
+                    break
             ready, _, _ = select.select([master], [], [], min(left, 1.0))
             if ready:
                 try:
@@ -737,7 +746,7 @@ def cloud_send(text, command=False):
     command=True: `text` is a slash command for the CURRENT session (e.g.
     `/model opus`); it never creates a session and leaves the session's
     name and rank in the list alone."""
-    global current_cloud, cloud_busy, github_error, last_cloud
+    global current_cloud, cloud_busy, cloud_busy_since, github_error, last_cloud
     with lock:
         if cloud_busy:
             return {"ok": False, "error": "busy"}
@@ -747,6 +756,7 @@ def cloud_send(text, command=False):
         if command and not session_id:
             return {"ok": False, "error": "aucune session en cours"}
         cloud_busy = True
+        cloud_busy_since = time.time()
     title = " ".join(text.split())[:50]
     if not command:
         _clear_waiting()  # the user answered: whatever Claude was waiting for is over
@@ -821,13 +831,24 @@ def cloud_send(text, command=False):
                 "Claude n'a peut-être pas accès à ce dépôt (autorise-le sur claude.ai/connect-github)."
             )
         if found is None:
-            reason = "délai dépassé" if timed_out else f"aucun identifiant de session trouvé (code {code})"
+            prompted = reason == "waiting for an answer"
+            if prompted:
+                where = str(directory).replace(str(Path.home()), "~")
+                asked = " ".join(output.strip().split())[-240:]
+                reason = (
+                    f"le CLI de Claude attend une réponse dans {where} : « {asked} ». Dans Termux : cd {where} && claude, "
+                    "réponds une fois (par exemple faire confiance au dossier), quitte, puis renvoie le message"
+                )
+            elif timed_out:
+                reason = "délai dépassé (" + " ; ".join(timeline) + ")"
+            else:
+                reason = f"aucun identifiant de session trouvé (code {code})"
             _note_login_problem(output)
             if check_text:
                 with lock:  # no session was created: the relay test was not asked after all
                     relay_cloud["asked"] = asked_before
                     _save_state()
-            return {"ok": False, "error": reason + " — sortie : " + output.strip()[-600:]}
+            return {"ok": False, "error": reason if prompted else reason + " — sortie : " + output.strip()[-600:]}
         _set_login_state("ok")
         _note_message_sent()
         with lock:
@@ -844,6 +865,7 @@ def cloud_send(text, command=False):
     finally:
         with lock:
             cloud_busy = False
+            cloud_busy_since = None
 
 
 def _site_probe(url, ranged=False):
@@ -1505,9 +1527,9 @@ class Handler(BaseHTTPRequestHandler):
             with waiting_lock:
                 is_waiting, last_ping = waiting["since"] is not None, waiting["last_ping"]
             with lock:
-                sending = cloud_busy
+                sending, sending_since = cloud_busy, cloud_busy_since
             self.reply_json({
-                "version": BACKEND_VERSION, "sending": sending, "model": model, "effort": effort, "cloud_session": cloud_session,
+                "version": BACKEND_VERSION, "sending": sending, "sending_since": sending_since, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "extra": own, "extra_repos": more,
                 "waiting": is_waiting, "alert_last": last_ping,

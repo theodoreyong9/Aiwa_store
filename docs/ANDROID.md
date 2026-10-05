@@ -94,6 +94,17 @@ The widget's Deploy chip offers two modes, both ending with an app sent to the p
   ([`aiwa-app-example.html`](aiwa-app-example.html)). It imports the SDK as one module, `lib/aiwa.js`, served with the Store's site. The Store publishes it through Aiwa;
   GitHub only holds a pointer to it.
 
+Both put the same two buttons next to the Deploy chip: ▦ opens the Store on the publish sheet with the app in it, `</>` shows the code Claude sent
+(what came through the relay, or the file read from its branch when the relay is blocked: not the repository's own code). Only the `aiwa` mode
+adds the documents button next to the mic (the yellow paper, the plain-words explanation, the plan, the business model): a contract has to follow
+the protocol, a plain app does not.
+
+While a message is on its way (creating a session takes a while) the widget says how long it has lasted, and the settings (repository, model,
+Push, Deploy, the session name) and the mic are dimmed and say why when tapped; what only looks (the site, the app, the code, Actions, Claude)
+stays alive. A creation whose CLI stops to ask something (such as trusting a folder it has never seen) is reported after 30 seconds with what it
+asks and what to do, instead of after the 3 minutes of the timeout; a timeout says at which second the CLI began and what it printed. The whole run
+is in `~/aiwa_cloud_last.log`.
+
 **How what Claude says reaches the phone.** An app, the "Claude waits" alert and the relay test all go to a public relay (ntfy.sh) with one
 `curl`. That needs the cloud environment to allow `ntfy.sh`, a setting only claude.ai can change (a new environment is on the default list,
 which does not have it; *État d'Aiwa* then says the cloud alerts are blocked). There is a second road that needs no setting, because a

@@ -34,6 +34,7 @@ import com.aiwa.bridge.RepoInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // Reported live: the model list in the widget showed only "Auto". A
 // widget cannot draw an overlay dropdown, so the list had to fit in
@@ -91,6 +92,9 @@ class SessionPickerActivity : ComponentActivity() {
         setContent {
             val state by AiwaRepository.state.collectAsState()
             var confirmClear by remember { mutableStateOf(false) }
+            val adding by addingSession
+            val problem by addProblem
+            val branchRead by pendingBranch
             // Fresh list from the backend every time the picker opens (which
             // is started first if it isn't running).
             LaunchedEffect(Unit) {
@@ -106,7 +110,12 @@ class SessionPickerActivity : ComponentActivity() {
                 // The CLI has no command to list the account's cloud
                 // sessions, so one made elsewhere is added by pasting the
                 // name of its branch (the rarely used entries come last).
-                add(PickerEntry("⎘  Ajouter une session existante (nom de branche copié)", false) { addFromClipboard() })
+                if (adding) add(PickerEntry("⏳  Recherche de la session à partir de la branche… (quelques secondes)", false, lines = 2) { })
+                else add(PickerEntry("⎘  Ajouter une session existante (nom de branche copié)", false) { addFromClipboard() })
+                // Why it did not work, in full: a toast is gone before it can be read.
+                problem?.let { add(PickerEntry("⚠  $it", false, lines = 10) { }) }
+                // The branch was found but no commit names the session (it has not committed yet): the link of the session completes it.
+                branchRead?.let { add(PickerEntry("⎘  Coller maintenant le lien de la session (la branche $it est déjà lue)", false, lines = 3) { addFromClipboard(withBranch = it) }) }
                 // Emptied in two taps: the list is only Aiwa's, nothing is deleted in Claude.
                 if (state.cloudSessions.isNotEmpty()) {
                     if (!confirmClear) add(PickerEntry("🗑  Vider cette liste…", false) { confirmClear = true })
@@ -130,18 +139,31 @@ class SessionPickerActivity : ComponentActivity() {
         CoroutineScope(Dispatchers.Default).launch { clearSessionList(appContext, LocalClaudeBridge()) }
     }
 
+    private val addingSession = mutableStateOf(false)
+    private val addProblem = mutableStateOf<String?>(null)
+    private val pendingBranch = mutableStateOf<String?>(null)
+
     // Read here, on the main thread of the focused activity: that is the
-    // only place Android hands the clipboard over.
-    private fun addFromClipboard() {
+    // only place Android hands the clipboard over. The picker stays open until the answer is known, so that the reason
+    // of a failure can be read.
+    private fun addFromClipboard(withBranch: String? = null) {
         val text = clipboardText(this)
         if (text.isNullOrBlank()) {
-            toastOnMain(this, EMPTY_CLIPBOARD_FOR_SESSION)
-            finish()
+            addProblem.value = EMPTY_CLIPBOARD_FOR_SESSION
             return
         }
         val appContext = applicationContext
-        finish()
-        CoroutineScope(Dispatchers.Default).launch { addCloudSession(appContext, LocalClaudeBridge(), text) }
+        val whole = if (withBranch != null) "$withBranch $text" else text
+        addingSession.value = true
+        addProblem.value = null
+        CoroutineScope(Dispatchers.Main).launch {
+            val problem = withContext(Dispatchers.IO) { tryAddCloudSession(appContext, LocalClaudeBridge(), whole) }
+            addingSession.value = false
+            if (problem == null) { finish(); return@launch }
+            addProblem.value = problem
+            // "no commit names the session": keep the branch, ask for the link
+            pendingBranch.value = if (problem.contains("ne mentionne la session")) BRANCH_IN_TEXT.find(whole)?.value else null
+        }
     }
 }
 

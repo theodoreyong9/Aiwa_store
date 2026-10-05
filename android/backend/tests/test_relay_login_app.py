@@ -59,6 +59,11 @@ elif "--cloud" in sys.argv:
     if os.environ.get("FAKE_CLAUDE_MODE") == "fail":
         print("Error: Not logged in · Please run /login")
         sys.exit(1)
+    if os.environ.get("FAKE_CLAUDE_MODE") == "prompt":
+        sys.stdout.write("Quick safety check: do you trust the files in this folder? (1. Yes, 2. No)")
+        sys.stdout.flush()
+        import time
+        time.sleep(120)
     if "-p" in sys.argv:
         print('{"ok": true, "session_id": "session_TEST123abc", "url": "https://claude.ai/code/session_TEST123abc"}')
     else:
@@ -614,6 +619,21 @@ class CloudSendTests(Base):
     def sent(self):
         return json.loads(Path(HOME, "last_create_args.json").read_text())
 
+    def test_a_cli_that_waits_for_an_answer_is_reported_at_once_with_what_it_asks(self):
+        # e.g. "do you trust this folder?" in a folder the CLI has never seen: nobody is there to answer, so waiting 3 minutes tells nothing
+        os.environ["FAKE_CLAUDE_MODE"] = "prompt"
+        original, srv.PROMPT_STALL = srv.PROMPT_STALL, 1
+        self.addCleanup(setattr, srv, "PROMPT_STALL", original)
+        started = time.time()
+        answer = srv.cloud_send("bonjour")
+        self.assertFalse(answer["ok"])
+        self.assertLess(time.time() - started, 30, "not the 180 s of the timeout")
+        self.assertIn("attend une réponse", answer["error"])
+        self.assertIn("do you trust the files in this folder", answer["error"])
+        self.assertIn("&& claude", answer["error"], "and what to do about it")
+        self.assertFalse(srv.cloud_busy)
+        self.assertEqual(srv._relay_cloud_state(), "untested", "no session: the relay test was not asked")
+
     def test_there_is_no_free_conversation_a_new_session_needs_a_repository(self):
         srv.current_repo = None
         answer = srv.cloud_send("bonjour")
@@ -915,16 +935,19 @@ class HttpTests(Base):
         srv._queue_followup, srv.current_cloud = slow_followup, "session_TEST123abc"
         try:
             self.assertFalse(self.call("/api/status")["sending"])
+            self.assertIsNone(self.call("/api/status")["sending_since"])
             results = []
             sender = threading.Thread(target=lambda: results.append(srv.cloud_send("un message")), daemon=True)
             sender.start()
             self.assertTrue(started.wait(10))
             self.assertTrue(self.call("/api/status")["sending"])
+            self.assertAlmostEqual(self.call("/api/status")["sending_since"], time.time(), delta=30)
             self.assertEqual(srv.cloud_send("un deuxième")["error"], "busy", "a second message is refused while the first is on its way")
             release.set()
             sender.join(10)
             self.assertTrue(results and results[0]["ok"], results)
             self.assertFalse(self.call("/api/status")["sending"])
+            self.assertIsNone(self.call("/api/status")["sending_since"])
         finally:
             release.set()
             srv._queue_followup, srv.current_cloud = original, session

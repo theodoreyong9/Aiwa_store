@@ -56,7 +56,7 @@ val DEPLOY_CHOICES = listOf(
 // The two modes that end with an app Claude sends to the phone, to be opened in the Store.
 fun deliversApp(deploy: String) = deploy == "store" || deploy == "aiwa"
 
-// The documents in the list the button next to the mic opens while the "Store" mode is on (id = address): the yellow
+// The documents in the list the button next to the mic opens while the "Aiwa" mode is on (id = address): the yellow
 // paper (the protocol's specification), its plain-words version, the plan of the version, the business model.
 val DOC_CHOICES = listOf(
     ModelChoice("https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/YELLOWPAPER.md", "Yellow paper — la spécification du protocole Aiwa"),
@@ -143,6 +143,8 @@ data class AiwaState(
     val question: String? = null,
     // When a second message was last refused because one is already on its way (epoch ms): the widget says "attends" for BUSY_NOTICE_MS.
     val busyNoticeAt: Long = 0L,
+    // When the message being sent began (epoch ms; 0 = none): the widget says how long it has been going.
+    val sendingSince: Long = 0L,
 ) {
     /** Nothing can be sent yet: a new session needs a repository (there is no free conversation), and none is chosen or running. */
     val needsRepo: Boolean get() = repo == null && cloudSessionId == null

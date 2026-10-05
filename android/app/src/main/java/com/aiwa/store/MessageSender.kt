@@ -39,13 +39,13 @@ suspend fun sendAndTrack(context: Context, bridge: ClaudeBridge, text: String, t
         return false
     }
     if (!SendTracker.inFlight.compareAndSet(false, true)) {
-        refusedBusy(context, toastErrors)
+        tellBusy(context, toastErrors)
         return false
     }
     return try {
         // Working because the backend says so (a send begun before the app was reopened): not a second one.
         if (AiwaRepository.state.value.status == AiwaState.Status.WORKING) {
-            refusedBusy(context, toastErrors)
+            tellBusy(context, toastErrors)
             false
         } else {
             withContext(NonCancellable) { deliver(context, bridge, text, toastErrors) }
@@ -59,7 +59,7 @@ suspend fun sendAndTrack(context: Context, bridge: ClaudeBridge, text: String, t
  * A message was refused because another is on its way: it did not go. The widget says so for a moment (a toast
  * alone is gone in a second, and a widget-only user may not see it), then goes back to its usual line.
  */
-private fun refusedBusy(context: Context, toast: Boolean) {
+fun tellBusy(context: Context, toast: Boolean) {
     AiwaRepository.update { it.copy(busyNoticeAt = System.currentTimeMillis()) }
     CoroutineScope(Dispatchers.Default).launch {
         AiwaWidget().updateAll(context)
@@ -70,7 +70,7 @@ private fun refusedBusy(context: Context, toast: Boolean) {
 }
 
 private suspend fun deliver(context: Context, bridge: ClaudeBridge, text: String, toastErrors: Boolean): Boolean {
-    AiwaRepository.update { it.copy(status = AiwaState.Status.WORKING, notice = null) }
+    AiwaRepository.update { it.copy(status = AiwaState.Status.WORKING, notice = null, sendingSince = System.currentTimeMillis()) }
     // Fire-and-forget: makes sure a widget composition is alive to show
     // the WORKING state and the result.
     CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(context) }
@@ -92,7 +92,7 @@ private suspend fun deliver(context: Context, bridge: ClaudeBridge, text: String
         }
     }
     if (busy) {
-        refusedBusy(context, toastErrors)
+        tellBusy(context, toastErrors)
         BackendSync.refresh(bridge)
         return false
     }

@@ -126,6 +126,14 @@ private fun fitLabel(text: String, room: Float, fontScale: Float): String {
     return if (out.isEmpty()) "…" else "$out…"
 }
 
+// While a message is on its way the settings and the mic are locked and dimmed (they were still tappable, which was pointless and
+// confusing): a tap says why. What only looks (the site, the app, the code, Actions, Claude) stays alive.
+private fun lockable(locked: Boolean, action: Action): Action = if (locked) actionRunCallback<BusyTapCallback>() else action
+private val PILL_DIM = rgb(android.graphics.Color.rgb(34, 34, 42))
+private val GREEN_DIM = rgb(android.graphics.Color.rgb(34, 66, 52))
+private val MIC_DIM = rgb(android.graphics.Color.rgb(58, 58, 66))
+private val TEXT_DIM = rgb(android.graphics.Color.rgb(130, 130, 144))
+
 // The mic records; with no repository chosen there is nothing to send to yet, so it opens the repository list instead.
 private fun micAction(needsRepo: Boolean): Action =
     if (needsRepo) actionStartActivity<RepoPickerActivity>() else actionStartActivity<DictateActivity>()
@@ -198,6 +206,7 @@ private fun FullContent(state: AiwaState) {
     val claudeOrange = rgb(android.graphics.Color.rgb(204, 120, 92))
     val alertRed = rgb(android.graphics.Color.rgb(214, 69, 65))
     val green = rgb(android.graphics.Color.rgb(46, 125, 90))
+    val locked = state.status == AiwaState.Status.WORKING
     val size = LocalSize.current
     val fontScale = LocalContext.current.resources.configuration.fontScale
     // The card's own padding takes 10 dp on each side and 8 dp above and below.
@@ -244,7 +253,8 @@ private fun FullContent(state: AiwaState) {
         // A second message was just refused because this one is still on its way: said here, not only in a toast.
         state.status == AiwaState.Status.WORKING -> {
             val refused = System.currentTimeMillis() - state.busyNoticeAt < BUSY_NOTICE_MS
-            status = if (refused) "⏳ Envoi en cours : attends" else "Envoi en cours…"
+            val seconds = if (state.sendingSince > 0) (System.currentTimeMillis() - state.sendingSince) / 1000 else 0L
+            status = if (refused) "⏳ Envoi en cours : attends" else "Envoi en cours…" + (if (seconds >= 5) " $seconds s" else "")
             statusColor = if (refused) warm else fg
             statusBold = refused
         }
@@ -275,7 +285,7 @@ private fun FullContent(state: AiwaState) {
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
         state.status == AiwaState.Status.ERROR && state.notice != null -> actionStartActivity<MainActivity>()
         state.needsRepo -> actionStartActivity<RepoPickerActivity>()
-        else -> actionStartActivity<SessionPickerActivity>()
+        else -> lockable(locked, actionStartActivity<SessionPickerActivity>())
     }
 
     // ---- band 2: repository and model, half the width each -----------------
@@ -342,18 +352,18 @@ private fun FullContent(state: AiwaState) {
             }
         }
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            Chip(repoText, pill, fg, actionStartActivity<RepoPickerActivity>(), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
+            Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
             Spacer(GlanceModifier.width(GAP.dp))
-            Chip(modelText, pill, fg, actionStartActivity<ModelPickerActivity>(), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
+            Chip(modelText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<ModelPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
         }
         // The buttons of this band appear once a repository is chosen. They are
         // instructions integrated into the conversation — Claude Code does the
         // work itself.
         if (hasRepo) {
             Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-                Chip(pushText, if (state.pushMain) green else pill, fg, actionRunCallback<TogglePushMainCallback>(), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
+                Chip(pushText, if (locked) (if (state.pushMain) GREEN_DIM else PILL_DIM) else if (state.pushMain) green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionRunCallback<TogglePushMainCallback>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
                 Spacer(GlanceModifier.width(GAP.dp))
-                Chip(deployText, if (state.deploy != "none") green else pill, fg, actionStartActivity<DeployPickerActivity>(), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
+                Chip(deployText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else if (state.deploy != "none") green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
                 if (showSite && site != null) {
                     Spacer(GlanceModifier.width(GAP.dp))
                     // Orange = the address answers; grey = not (yet) — it still opens.
@@ -408,13 +418,15 @@ private fun FullContent(state: AiwaState) {
         }
         // The main action, big: dictate. The grey button with its red recording dot.
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            // In the "Store" mode the mic makes room, on its right, for ONE button that opens the list of the
-            // documents (DocsPickerActivity): the yellow paper, the plain-words explanation, the plan, the business model.
+            // In the "Aiwa" mode (an app that is a contract: it has to follow the protocol) the mic makes room, on its right, for ONE
+            // button that opens the list of the documents (DocsPickerActivity): the yellow paper, the plain-words explanation, the
+            // plan, the business model. The "Store" mode (a plain app) has no use for them.
+            val docsMode = state.deploy == "aiwa"
             Box(
-                modifier = (if (storeMode) GlanceModifier.defaultWeight() else GlanceModifier.fillMaxWidth()).height(micH.dp)
-                    .background(micGrey)
+                modifier = (if (docsMode) GlanceModifier.defaultWeight() else GlanceModifier.fillMaxWidth()).height(micH.dp)
+                    .background(if (locked) MIC_DIM else micGrey)
                     .cornerRadius((micH / 2).dp)
-                    .clickable(micAction(state.needsRepo)),
+                    .clickable(lockable(locked, micAction(state.needsRepo))),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -431,11 +443,11 @@ private fun FullContent(state: AiwaState) {
                     }
                 }
             }
-            if (storeMode) {
+            if (docsMode) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(
                     icon = R.drawable.ic_paper,
-                    description = "Documents du Store : yellow paper, explication, plan, modèle économique",
+                    description = "Documents : yellow paper, explication, plan, modèle économique",
                     background = pill,
                     action = actionStartActivity<DocsPickerActivity>(),
                     diameter = micH.dp,
@@ -455,6 +467,7 @@ private fun CompactContent(state: AiwaState) {
     val claudeOrange = rgb(android.graphics.Color.rgb(204, 120, 92))
     val alertRed = rgb(android.graphics.Color.rgb(214, 69, 65))
     val green = rgb(android.graphics.Color.rgb(46, 125, 90))
+    val locked = state.status == AiwaState.Status.WORKING
     val size = LocalSize.current
     val fontScale = LocalContext.current.resources.configuration.fontScale
     // Room for the second row (two rows of buttons plus the padding).
@@ -509,21 +522,21 @@ private fun CompactContent(state: AiwaState) {
             )
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(
-                sessionText, pill, fg,
+                sessionText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
                 when {
                     needsSetup -> actionStartActivity<SetupActivity>()
                     state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
                     needsLogin -> actionStartActivity<ClaudeLoginActivity>()
-                    else -> actionStartActivity<SessionPickerActivity>()
+                    else -> lockable(locked, actionStartActivity<SessionPickerActivity>())
                 },
                 GlanceModifier.defaultWeight(), bold = true, alignStart = true,
             )
             Spacer(GlanceModifier.width(GAP.dp))
             Box(
                 modifier = GlanceModifier.size(40.dp)
-                    .background(micGrey)
+                    .background(if (locked) MIC_DIM else micGrey)
                     .cornerRadius(20.dp)
-                    .clickable(micAction(state.needsRepo)),
+                    .clickable(lockable(locked, micAction(state.needsRepo))),
                 contentAlignment = Alignment.Center,
             ) {
                 if (micBadgeShown(state)) {
@@ -537,7 +550,7 @@ private fun CompactContent(state: AiwaState) {
                 }
             }
             Spacer(GlanceModifier.width(GAP.dp))
-            Chip(modelText, pill, fg, actionStartActivity<ModelPickerActivity>())
+            Chip(modelText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<ModelPickerActivity>()))
             // Only once a session exists (Aiwa has created or selected one):
             // before that there is nothing to open. Red while Claude waits for
             // an answer (it pinged the relay): the alert is this button and the
@@ -592,12 +605,12 @@ private fun CompactContent(state: AiwaState) {
                 "⎇ " + fitLabel(repoName, avail - others - 20f - textWidth("⎇  ▾", fontScale) - textWidth(more, fontScale), fontScale) + more + " ▾"
             }
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Chip(repoText, pill, fg, actionStartActivity<RepoPickerActivity>(), GlanceModifier.defaultWeight(), alignStart = true)
+                Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true)
                 if (hasRepo) {
                     Spacer(GlanceModifier.width(GAP.dp))
-                    Chip(pushText, if (state.pushMain) green else pill, fg, actionRunCallback<TogglePushMainCallback>())
+                    Chip(pushText, if (locked) (if (state.pushMain) GREEN_DIM else PILL_DIM) else if (state.pushMain) green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionRunCallback<TogglePushMainCallback>()))
                     Spacer(GlanceModifier.width(GAP.dp))
-                    Chip(deployText, if (state.deploy != "none") green else pill, fg, actionStartActivity<DeployPickerActivity>())
+                    Chip(deployText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else if (state.deploy != "none") green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()))
                     if (showSite && site != null) {
                         Spacer(GlanceModifier.width(GAP.dp))
                         // Orange = the address answers; grey = not (yet) — it still opens.
@@ -644,6 +657,13 @@ private fun CompactContent(state: AiwaState) {
                 }
             }
         }
+    }
+}
+
+// A tap on something locked while a message is on its way: says why, in the widget's own line and in a toast.
+class BusyTapCallback : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        tellBusy(context, toast = true)
     }
 }
 

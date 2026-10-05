@@ -65,20 +65,25 @@ suspend fun switchCloud(context: Context, bridge: ClaudeBridge, target: String) 
     AiwaWidget().updateAll(context)
 }
 
-/** Adds an existing cloud session from the name of its branch (claude/…, copied from Claude Code) and selects it. */
-suspend fun addCloudSession(context: Context, bridge: ClaudeBridge, text: String) {
-    // The branch is looked up in the repositories: that can take a few seconds.
-    toastOnMain(context, "Recherche de la session à partir de la branche…")
-    try {
+// The name of a branch of a Claude Code session, wherever it sits in what was copied (the shape the backend accepts).
+val BRANCH_IN_TEXT = Regex("claude/[A-Za-z0-9._/-]+")
+
+/**
+ * Adds an existing cloud session from the name of its branch (claude/…, copied from Claude Code), with the session's link too if the
+ * branch alone does not name it, and selects it. Null when it was added; otherwise why not, in the backend's own words (a toast is too
+ * short to read them: the picker shows them).
+ */
+suspend fun tryAddCloudSession(context: Context, bridge: ClaudeBridge, text: String): String? {
+    val problem = try {
         bridge.addCloud(text)
         AiwaRepository.update { it.copy(notice = null) }
+        null
     } catch (err: Exception) {
-        val message = describeFailure(context, err, "Impossible d'ajouter la session")
-        toastOnMain(context, message)
-        AiwaRepository.update { it.copy(notice = message) }
+        describeFailure(context, err, "Impossible d'ajouter la session")
     }
     BackendSync.refresh(bridge)
     AiwaWidget().updateAll(context)
+    return problem
 }
 
 /** Empties the list of sessions Aiwa keeps. The sessions themselves stay in Claude. */
