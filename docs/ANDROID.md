@@ -96,8 +96,8 @@ The widget's Deploy chip offers two modes, both ending with an app sent to the p
 
 Both put the same two buttons next to the Deploy chip: ▦ opens the Store on the publish sheet with the app in it, `</>` shows the code Claude sent
 (what came through the relay, or the file read from its branch when the relay is blocked: not the repository's own code). Only the `aiwa` mode
-adds the documents button next to the mic (the yellow paper, the plain-words explanation, the plan, the business model): a contract has to follow
-the protocol, a plain app does not.
+adds the documents button next to the mic (the yellow paper, the plain-words explanation, the ontology of the sustainable residue and the 16-slide
+carousel as PDFs in `docs/`, the plan, the business model): a contract has to follow the protocol, a plain app does not.
 
 While a message is on its way (creating a session takes a while) the widget says how long it has lasted, and the settings (repository, model,
 Push, Deploy, the session name) and the mic are dimmed and say why when tapped; what only looks (the site, the app, the code, Actions, Claude)
