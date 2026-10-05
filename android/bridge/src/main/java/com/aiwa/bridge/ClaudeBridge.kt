@@ -66,6 +66,7 @@ interface ClaudeBridge {
     suspend fun listCloudSessions(): List<CloudSessionInfo>
     suspend fun selectCloud(target: String)
     suspend fun addCloud(link: String)
+    suspend fun clearCloudSessions()
     suspend fun sendCloud(text: String): CloudSendResult
     suspend fun sendCloudCommand(text: String): CloudSendResult
     suspend fun githubRepos(): List<RepoInfo>

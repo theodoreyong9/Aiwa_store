@@ -929,6 +929,63 @@ class HttpTests(Base):
             release.set()
             srv._queue_followup, srv.current_cloud = original, session
 
+    def forget_sessions(self):
+        Path(srv.CLOUD_STORE).unlink(missing_ok=True)
+        srv.current_cloud = srv.last_cloud = None
+
+    def add_by_branch(self, text, found_id="session_TEST123abc"):
+        with unittest.mock.patch.object(gh, "find_branch_session", lambda candidates, branch: (("o/r", found_id), [("o/r", "ok")])), \
+             unittest.mock.patch.object(gh, "default_branch", lambda repo: "main"):
+            return self.call("/api/cloud/add", text)
+
+    def test_a_session_is_added_by_its_branch_and_not_by_its_link(self):
+        self.addCleanup(self.forget_sessions)
+        self.forget_sessions()
+        refused = self.call("/api/cloud/add", "https://claude.ai/code/session_01ABCDEFGHIJKLMNOPQR")
+        self.assertFalse(refused["accepted"])
+        self.assertIn("branche", refused["reason"])
+        self.assertEqual(self.call("/api/cloud/sessions"), [], "a link alone adds nothing")
+
+        answer = self.add_by_branch("claude/fix-widget-AbC12")
+        self.assertTrue(answer["accepted"], answer)
+        entry = srv._session_entry("session_TEST123abc")
+        self.assertEqual((entry["repo"], entry["work"], entry["base"]), ("o/r", "claude/fix-widget-AbC12", "main"))
+        status = self.call("/api/status")
+        self.assertEqual((status["cloud_session"], status["repo"]), ("session_TEST123abc", "o/r"))
+
+    def test_a_branch_with_the_link_of_the_session_uses_that_session(self):
+        self.addCleanup(self.forget_sessions)
+        self.forget_sessions()
+        answer = self.add_by_branch("claude/x-1 https://claude.ai/code/session_OWN999zzz", found_id=None)
+        self.assertTrue(answer["accepted"], answer)
+        self.assertEqual(answer["cloud_session"], "session_OWN999zzz")
+        self.assertEqual(srv._session_entry("session_OWN999zzz")["work"], "claude/x-1")
+
+    def test_a_branch_whose_commits_do_not_name_the_session_is_not_added_alone(self):
+        self.addCleanup(self.forget_sessions)
+        self.forget_sessions()
+        refused = self.add_by_branch("claude/x-1", found_id=None)
+        self.assertFalse(refused["accepted"])
+        self.assertIn("lien de la session", refused["reason"])
+        self.assertEqual(self.call("/api/cloud/sessions"), [])
+
+    def test_the_list_of_sessions_can_be_emptied_and_nothing_else_is(self):
+        self.addCleanup(self.forget_sessions)
+        self.assertTrue(self.add_by_branch("claude/fix-widget-AbC12")["accepted"])
+        self.assertEqual(len(self.call("/api/cloud/sessions")), 1)
+        srv.cloud_busy = True
+        try:
+            self.assertFalse(self.call("/api/cloud/clear", "")["accepted"], "not while a message is on its way")
+        finally:
+            srv.cloud_busy = False
+        self.assertEqual(len(self.call("/api/cloud/sessions")), 1)
+        self.assertTrue(self.call("/api/cloud/clear", "")["accepted"])
+        self.assertEqual(self.call("/api/cloud/sessions"), [])
+        status = self.call("/api/status")
+        self.assertIsNone(status["cloud_session"])
+        self.assertIsNone(status["last_session"])
+        self.assertEqual(status["repo"], "o/r", "the repository chosen stays")
+
     def test_the_repository_cannot_be_unchosen(self):
         self.assertTrue(self.call("/api/repo", "o/r")["accepted"])
         refused = self.call("/api/repo", "")

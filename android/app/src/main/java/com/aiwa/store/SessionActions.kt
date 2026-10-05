@@ -29,9 +29,6 @@ private fun describeFailure(context: Context, err: Exception, what: String): Str
     else -> "$what : ${err.message}"
 }
 
-// Same shape the backend accepts (session_… / cse_… ids).
-val CLOUD_ID_IN_TEXT = Regex("(?:session|cse)_[A-Za-z0-9]+")
-
 // A GitHub repository in a link or a git remote, or a plain owner/name —
 // the shapes the backend accepts.
 val GITHUB_REPO_IN_TEXT = Regex("github\\.com[/:][A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+|^\\s*[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\s*$")
@@ -68,17 +65,30 @@ suspend fun switchCloud(context: Context, bridge: ClaudeBridge, target: String) 
     AiwaWidget().updateAll(context)
 }
 
-/** Adds an existing cloud session from its link/id (copied from the Claude app) and selects it. */
-suspend fun addCloudSession(context: Context, bridge: ClaudeBridge, link: String) {
-    // A branch name is looked up in the repositories: that can take a few seconds.
-    if (!CLOUD_ID_IN_TEXT.containsMatchIn(link)) toastOnMain(context, "Recherche de la session à partir de la branche…")
+/** Adds an existing cloud session from the name of its branch (claude/…, copied from Claude Code) and selects it. */
+suspend fun addCloudSession(context: Context, bridge: ClaudeBridge, text: String) {
+    // The branch is looked up in the repositories: that can take a few seconds.
+    toastOnMain(context, "Recherche de la session à partir de la branche…")
     try {
-        bridge.addCloud(link)
+        bridge.addCloud(text)
         AiwaRepository.update { it.copy(notice = null) }
     } catch (err: Exception) {
         val message = describeFailure(context, err, "Impossible d'ajouter la session")
         toastOnMain(context, message)
         AiwaRepository.update { it.copy(notice = message) }
+    }
+    BackendSync.refresh(bridge)
+    AiwaWidget().updateAll(context)
+}
+
+/** Empties the list of sessions Aiwa keeps. The sessions themselves stay in Claude. */
+suspend fun clearSessionList(context: Context, bridge: ClaudeBridge) {
+    try {
+        bridge.clearCloudSessions()
+        AiwaRepository.update { it.copy(notice = null) }
+        toastOnMain(context, "Liste vidée : les sessions restent dans Claude.")
+    } catch (err: Exception) {
+        toastOnMain(context, describeFailure(context, err, "Impossible de vider la liste"))
     }
     BackendSync.refresh(bridge)
     AiwaWidget().updateAll(context)
@@ -199,7 +209,7 @@ suspend fun switchEffort(context: Context, bridge: ClaudeBridge, level: String?)
 
 /** The clipboard is empty: say what to copy. Anything else is judged by the backend, which explains itself. */
 const val EMPTY_CLIPBOARD_FOR_SESSION =
-    "Le presse-papiers est vide. Dans Claude Code, copie le lien de la session (claude.ai/code/session_…) ou le nom de sa branche (claude/…)."
+    "Le presse-papiers est vide. Dans Claude Code, copie le nom de la branche de la session (claude/…)."
 
 /** A repository given as a GitHub link or owner/name (e.g. copied from the browser): remembered and selected. */
 suspend fun addRepoFromText(context: Context, bridge: ClaudeBridge, text: String) {

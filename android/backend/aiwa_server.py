@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 20
+BACKEND_VERSION = 21
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -652,45 +652,45 @@ def _branch_candidates():
 
 
 def cloud_add(text):
-    """Adds an EXISTING cloud session and selects it. `text` is its link or
-    id (copied from the Claude app / claude.ai/code) — or the name of its
-    branch (claude/…), which is looked up in the repositories Aiwa knows:
-    a session's commits carry its link. Returns (session id, None), or
-    (None, why not)."""
+    """Adds an EXISTING cloud session and selects it, from the name of its
+    branch (claude/…): the repository is looked up among the ones Aiwa knows
+    (a session's commits carry its link), and the branch is the one Claude
+    pushes to. A link alone is refused: it names neither the repository nor
+    the branch, so nothing could be read back from GitHub. If the text also holds the
+    link or id of the session, that is the one used. Returns (session id,
+    None), or (None, why not)."""
     global current_cloud, current_repo, last_cloud
-    match = CLOUD_ID_RE.search(text)
-    repo = branch = None
-    if match:
-        session_id = match.group(0)
-        title = "Session " + session_id[:16]
-    else:
-        branch_match = re.search(r"claude/[A-Za-z0-9._/-]+", text)
-        if branch_match is None:
-            return None, "Ce n'est ni le lien d'une session (claude.ai/code/session_…) ni le nom d'une branche claude/…"
-        branch = branch_match.group(0).rstrip("/.")
-        found, tried = github.find_branch_session(_branch_candidates(), branch)
-        print(f"[{_ts()}] import by branch {branch}: tried {tried}", flush=True)
-        if found is None:
-            wording = {"missing": "branche absente", "unreachable": "privé ou inaccessible", "trop lent": "trop lent"}
-            detail = ", ".join(f"{name} ({wording.get(state, state)})" for name, state in tried) or "aucun dépôt candidat"
-            return None, (
-                f"Branche {branch} introuvable. Dépôts essayés : {detail}. "
-                "Un dépôt privé ne peut pas être lu par Aiwa : copie plutôt le lien de la session "
-                "(claude.ai/code/session_…) — ou la commande « claude --teleport session_… » si le menu de la session la propose."
-            )
-        repo, session_id = found
-        if session_id is None:
-            return None, (
-                f"Branche trouvée dans {repo}, mais aucun de ses derniers commits ne mentionne la session. "
-                "Copie plutôt le lien de la session (claude.ai/code/session_…)."
-            )
-        title = branch
+    branch_match = re.search(r"claude/[A-Za-z0-9._/-]+", text)
+    if branch_match is None:
+        return None, (
+            "Une session s'ajoute par le nom de sa branche (claude/…), pas par son lien : sans la branche, Aiwa ne connaît ni le dépôt "
+            "ni l'endroit où Claude pousse, et ne pourrait pas recevoir l'alerte par GitHub. Copie le nom de la branche dans Claude Code."
+        )
+    branch = branch_match.group(0).rstrip("/.")
+    found, tried = github.find_branch_session(_branch_candidates(), branch)
+    print(f"[{_ts()}] import by branch {branch}: tried {tried}", flush=True)
+    if found is None:
+        wording = {"missing": "branche absente", "unreachable": "privé ou inaccessible", "trop lent": "trop lent"}
+        detail = ", ".join(f"{name} ({wording.get(state, state)})" for name, state in tried) or "aucun dépôt candidat"
+        return None, (
+            f"Branche {branch} introuvable. Dépôts essayés : {detail}. "
+            "Un dépôt privé ne peut pas être lu par Aiwa : le dépôt de la session doit être public, "
+            "ou déjà choisi une fois dans le widget (il est alors essayé en premier)."
+        )
+    repo, found_id = found
+    given = CLOUD_ID_RE.search(text)
+    session_id = given.group(0) if given else found_id
+    if session_id is None:
+        return None, (
+            f"Branche trouvée dans {repo}, mais aucun de ses derniers commits ne mentionne la session. "
+            "Copie aussi le lien de la session (claude.ai/code/session_…) avec le nom de la branche."
+        )
+    title = branch
     url_match = CLOUD_URL_RE.search(text)
     # An imported session works on its own branch: that is the only one Claude can push to.
-    # An imported session keeps its own branch as its work branch.
     _save_cloud_session(
         session_id, title, url_match.group(0) if url_match else None,
-        repo=repo, work=branch, base=github.default_branch(repo) if branch else None, direct=True if branch else None,
+        repo=repo, work=branch, base=github.default_branch(repo), direct=True,
     )
     with lock:
         current_cloud = last_cloud = session_id
@@ -1563,6 +1563,24 @@ class Handler(BaseHTTPRequestHandler):
                         current_effort = entry["effort"] or None
                 _save_state()
             self.reply_json({"accepted": True, "cloud_session": current_cloud})
+        elif self.path == "/api/cloud/clear":
+            # The list Aiwa keeps of its sessions, emptied: nothing is touched in Claude, the sessions stay there.
+            if cloud_busy:
+                self.reply_json({"accepted": False, "reason": "un envoi est en cours"})
+                return
+            _clear_waiting()
+            with store_lock:
+                try:
+                    CLOUD_STORE.write_text("[]", encoding="utf-8")
+                except OSError as err:
+                    self.reply_json({"accepted": False, "reason": str(err)})
+                    return
+            with lock:
+                current_cloud = last_cloud = None
+                _save_state()
+            with mailbox_lock:
+                mailbox["until"] = 0.0
+            self.reply_json({"accepted": True})
         elif self.path == "/api/cloud/add":
             added, why_not = cloud_add(body)
             if added is None:

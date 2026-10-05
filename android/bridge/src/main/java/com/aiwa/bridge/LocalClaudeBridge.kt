@@ -121,10 +121,9 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         requireAccepted(postText("/api/cloud/select", target))
     }
 
-    // An EXISTING cloud session, given its link or id — or the name of its
-    // branch (claude/…), which the backend looks up in the repositories it
-    // knows (the CLI can't list sessions); it becomes the current one.
-    // Throws with the reason when it can't be found.
+    // An EXISTING cloud session, given the name of its branch (claude/…), which the backend
+    // looks up in the repositories it knows (the CLI can't list sessions); it becomes the
+    // current one. A link alone is refused. Throws with the reason when it can't be found.
     override suspend fun addCloud(link: String) = withContext(Dispatchers.IO) {
         val json = JSONObject(postText("/api/cloud/add", link))
         if (!json.optBoolean("accepted", false)) throw IllegalStateException(json.optString("reason", "session introuvable"))
@@ -154,6 +153,11 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             if (error == "busy") throw BusyException("a cloud message is already being sent")
             CloudSendResult(ok = false, sessionId = null, url = null, error = error)
         }
+    }
+
+    // The list Aiwa keeps of its sessions, emptied. Nothing is touched in Claude.
+    override suspend fun clearCloudSessions() = withContext(Dispatchers.IO) {
+        requireAccepted(postText("/api/cloud/clear", ""))
     }
 
     // The repositories the connected GitHub account can push to.

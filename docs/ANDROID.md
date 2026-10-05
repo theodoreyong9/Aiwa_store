@@ -105,7 +105,8 @@ after each message the backend reads that file from `raw.githubusercontent.com` 
 file for minutes) and acts on a signal once, if it answers the last message.
 
 Conditions: a repository chosen when the session starts (every new session starts on one: the widget asks for it before anything can be
-sent, and a session begun earlier without one keeps working but has no road to GitHub), **public** (nothing is read from a private one, then the alert does not come and Claude pastes the app), and a push to its branch
+sent, and a session begun earlier without one keeps working but has no road to GitHub; a session made elsewhere is added by the name of its
+branch, `claude/…`, which gives the repository and the branch, and a link alone is refused), **public** (nothing is read from a private one, then the alert does not come and Claude pastes the app), and a push to its branch
 allowed. The files stay on that branch, never on the main one. Tested against fakes of the three servers (`MailboxTests`); not tried with a
 real cloud session.
 

@@ -90,6 +90,7 @@ class SessionPickerActivity : ComponentActivity() {
         wakeAiwa(applicationContext)
         setContent {
             val state by AiwaRepository.state.collectAsState()
+            var confirmClear by remember { mutableStateOf(false) }
             // Fresh list from the backend every time the picker opens (which
             // is started first if it isn't running).
             LaunchedEffect(Unit) {
@@ -103,9 +104,14 @@ class SessionPickerActivity : ComponentActivity() {
                     add(PickerEntry(c.title.take(60), c.id == state.cloudSessionId) { pickCloud(c.id) })
                 }
                 // The CLI has no command to list the account's cloud
-                // sessions, so one made elsewhere is added by pasting its
-                // link (last entry: the rarely used one).
-                add(PickerEntry("⎘  Ajouter une session existante (lien copié)", false) { addFromClipboard() })
+                // sessions, so one made elsewhere is added by pasting the
+                // name of its branch (the rarely used entries come last).
+                add(PickerEntry("⎘  Ajouter une session existante (nom de branche copié)", false) { addFromClipboard() })
+                // Emptied in two taps: the list is only Aiwa's, nothing is deleted in Claude.
+                if (state.cloudSessions.isNotEmpty()) {
+                    if (!confirmClear) add(PickerEntry("🗑  Vider cette liste…", false) { confirmClear = true })
+                    else add(PickerEntry("⚠  Confirmer : vider la liste (les sessions restent dans Claude)", false, lines = 2) { clearList() })
+                }
             }
             PickerSheet(entries) { finish() }
         }
@@ -116,6 +122,12 @@ class SessionPickerActivity : ComponentActivity() {
         val appContext = applicationContext
         finish()
         CoroutineScope(Dispatchers.Default).launch { switchCloud(appContext, LocalClaudeBridge(), target) }
+    }
+
+    private fun clearList() {
+        val appContext = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch { clearSessionList(appContext, LocalClaudeBridge()) }
     }
 
     // Read here, on the main thread of the focused activity: that is the
