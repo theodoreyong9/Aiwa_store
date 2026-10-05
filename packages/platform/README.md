@@ -32,7 +32,7 @@ flowchart BT
 <!-- /diagram -->
 
 ```
-npm test        # 85 tests
+npm test        # 88 tests
 ```
 
 ## What is in it

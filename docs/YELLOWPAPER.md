@@ -2082,10 +2082,10 @@ without a Rust toolchain. It cross-checks the fundamentals; it is not a second i
 
 ## Appendix D. Verification status
 
-**What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 85 in `aiwa-platform`,
-107 in `aiwa-lib`, 17 in `aiwa-registry`, 45 in `aiwa-store-web` (21 of them drive the app in Chromium: ranking, the sandbox refusing
+**What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 88 in `aiwa-platform`,
+113 in `aiwa-lib`, 17 in `aiwa-registry`, 46 in `aiwa-store-web` (22 of them drive the app in Chromium: ranking, the sandbox refusing
 `parent.document`, a tampering host, offline use, the wallet starting and restoring by itself, the burn with its fee, publishing both
-kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK, an app using the wallet through the door, a click duel between two pages that pays the winner, and a QR code read by the page from a fake camera),
+kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK, an app using the wallet through the door, a click duel between two pages that pays the winner, two pages linking by two codes and each showing where the other stands, and a QR code read by the page from a fake camera),
 94 for the dictation backend. `node scripts/devnet-check.mjs --fake` plays the whole path (burn, record, mine, evidence, registry) against
 a stand-in Solana that decodes the real transaction the wallet builds, 11 checks; it also runs in CI. Every part is testable on its own,
 none needs a hosted server.
@@ -2101,5 +2101,5 @@ none needs a hosted server.
   side; the download, the swap and the serving from app storage have never run on a device). The Kotlin that is not plain JVM is compiled in CI only.
 - No pull request opened by the Store's sheet on GitHub, end to end; the registry workflow has not run on GitHub with a real pull request;
   the site needs GitHub Pages enabled to be served.
-- The click duel (§18.8) between two real phones: the camera in the Android WebView (written, compiled in CI, never run; in Chromium the scan is tested against a fake camera) and the WebRTC link between two phones. It is tested between two pages of one Chromium.
+- The click duel (§18.8) and the wallet's *Link with another phone* (§13.6) between two real phones: the camera in the Android WebView (written, compiled in CI, never run; in Chromium the scan is tested against a fake camera) and the WebRTC link between two phones, which a phone behind a restrictive network may not get (STUN only, no relay). Both are tested between two pages of one Chromium, where linking found two real bugs (a message over 256 KiB closes the channel; the answering side never saw its channel open).
 - Economic parameters are not validated in the field; no prior-art search; the creator fee and the store have not had a legal review.
