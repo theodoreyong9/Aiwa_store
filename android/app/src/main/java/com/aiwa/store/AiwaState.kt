@@ -144,6 +144,9 @@ data class AiwaState(
     // When a second message was last refused because one is already on its way (epoch ms): the widget says "attends" for BUSY_NOTICE_MS.
     val busyNoticeAt: Long = 0L,
 ) {
+    /** Nothing can be sent yet: a new session needs a repository (there is no free conversation), and none is chosen or running. */
+    val needsRepo: Boolean get() = repo == null && cloudSessionId == null
+
     enum class Status { READY, WORKING, WAITING, DONE, ERROR }
 }
 

@@ -167,10 +167,10 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         }
     }
 
-    // null = the plain chat. Changing repository means the next message
-    // starts a NEW session: a session's repository is fixed when it starts.
-    override suspend fun selectRepo(repo: String?) = withContext(Dispatchers.IO) {
-        requireAccepted(postText("/api/repo", repo ?: ""))
+    // Changing repository means the next message starts a NEW session: a session's
+    // repository is fixed when it starts. There is no "no repository": every session has one.
+    override suspend fun selectRepo(repo: String) = withContext(Dispatchers.IO) {
+        requireAccepted(postText("/api/repo", repo))
     }
 
     // A repository given as a GitHub link or owner/name: remembered and selected.

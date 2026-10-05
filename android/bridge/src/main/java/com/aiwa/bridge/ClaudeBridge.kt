@@ -69,7 +69,7 @@ interface ClaudeBridge {
     suspend fun sendCloud(text: String): CloudSendResult
     suspend fun sendCloudCommand(text: String): CloudSendResult
     suspend fun githubRepos(): List<RepoInfo>
-    suspend fun selectRepo(repo: String?)
+    suspend fun selectRepo(repo: String)
     suspend fun addRepo(text: String)
 
     // Checks or unchecks a repository Claude may ALSO work on; null = none.

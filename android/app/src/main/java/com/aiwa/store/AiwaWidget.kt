@@ -126,6 +126,10 @@ private fun fitLabel(text: String, room: Float, fontScale: Float): String {
     return if (out.isEmpty()) "…" else "$out…"
 }
 
+// The mic records; with no repository chosen there is nothing to send to yet, so it opens the repository list instead.
+private fun micAction(needsRepo: Boolean): Action =
+    if (needsRepo) actionStartActivity<RepoPickerActivity>() else actionStartActivity<DictateActivity>()
+
 // The Deploy chip opens a list of what Claude is asked to produce (DeployPickerActivity).
 private fun deployLabel(mode: String) = when (mode) {
     "pages" -> "Pages ▾"
@@ -252,6 +256,8 @@ private fun FullContent(state: AiwaState) {
         }
         // The last send did not go: its reason was only a toast, and "Prêt" made it look as if nothing was wrong.
         state.status == AiwaState.Status.ERROR && state.notice != null -> { status = "⚠ Dernier envoi échoué — touche ici"; statusColor = alertText; statusBold = true }
+        // Every session starts on a repository: none chosen, nothing to send yet.
+        state.needsRepo -> { status = "Choisis un dépôt (⎇) pour commencer"; statusColor = warm; statusBold = true }
         else -> { status = "Prêt"; statusColor = subtle }
     }
     val titleRoom = avail - avatar - 8f - (if (hasSession) avatar + 8f else 0f)
@@ -268,6 +274,7 @@ private fun FullContent(state: AiwaState) {
         state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
         state.status == AiwaState.Status.ERROR && state.notice != null -> actionStartActivity<MainActivity>()
+        state.needsRepo -> actionStartActivity<RepoPickerActivity>()
         else -> actionStartActivity<SessionPickerActivity>()
     }
 
@@ -407,7 +414,7 @@ private fun FullContent(state: AiwaState) {
                 modifier = (if (storeMode) GlanceModifier.defaultWeight() else GlanceModifier.fillMaxWidth()).height(micH.dp)
                     .background(micGrey)
                     .cornerRadius((micH / 2).dp)
-                    .clickable(actionStartActivity<DictateActivity>()),
+                    .clickable(micAction(state.needsRepo)),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -516,7 +523,7 @@ private fun CompactContent(state: AiwaState) {
                 modifier = GlanceModifier.size(40.dp)
                     .background(micGrey)
                     .cornerRadius(20.dp)
-                    .clickable(actionStartActivity<DictateActivity>()),
+                    .clickable(micAction(state.needsRepo)),
                 contentAlignment = Alignment.Center,
             ) {
                 if (micBadgeShown(state)) {

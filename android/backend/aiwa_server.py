@@ -93,11 +93,6 @@ LOGIN_NEEDED_RE = re.compile(
 # How long Claude gets to answer the relay test before the widget says it is missing.
 CLOUD_CHECK_WAIT = 240
 
-# A cloud session needs a git repository to start from. Documented: a
-# local repo with at least one commit is uploaded as a bundle, no GitHub
-# needed. Same directory the manual test used, so a one-time "trust this
-# folder" answer given there still applies.
-CLOUD_DIR = Path.home() / "chat-cloud"
 CLOUD_STORE = Path.home() / ".aiwa_cloud_sessions.json"
 STATE_FILE = Path.home() / ".aiwa_state.json"
 # The full output of the last `claude --cloud` run, for diagnosing a
@@ -119,7 +114,7 @@ cloud_busy = False
 # Instructions integrated into the conversation (see _compose). Claude
 # Code does the work itself; these only tell it what the user wants:
 # current_repo: the repository new sessions start on ("owner/name"; None =
-# the plain chat); push_main: push straight to the main branch (otherwise
+# none chosen yet: nothing can be sent before one is); push_main: push straight to the main branch (otherwise
 # to a work branch); deploy_mode: none, pages (publish with GitHub Pages
 # through GitHub Actions), android (build the APK with GitHub Actions and
 # publish it as a GitHub release), store (write an app for the Aiwa Store — one
@@ -254,17 +249,6 @@ def _save_state():
 
 
 _clean = github.clean
-
-
-def _ensure_cloud_repo():
-    CLOUD_DIR.mkdir(parents=True, exist_ok=True)
-    if not (CLOUD_DIR / ".git").exists():
-        subprocess.run(["git", "init", "-q"], cwd=CLOUD_DIR, check=True)
-    has_commit = subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD"], cwd=CLOUD_DIR, capture_output=True).returncode == 0
-    if not has_commit:
-        (CLOUD_DIR / "README.md").write_text("chat\n", encoding="utf-8")
-        subprocess.run(["git", "add", "."], cwd=CLOUD_DIR, check=True)
-        subprocess.run(["git", "-c", "user.name=aiwa", "-c", "user.email=aiwa@example.com", "commit", "-qm", "init"], cwd=CLOUD_DIR, check=True)
 
 
 def _signal_group(proc, sig):
@@ -787,19 +771,18 @@ def cloud_send(text, command=False):
                 _save_cloud_session(session_id, title, result["url"], instr=fingerprint)
                 _mailbox_watch(entry.get("repo"), work)
             return {"ok": True, "session_id": session_id, "url": result["url"]}
-        directory, work, base = CLOUD_DIR, None, None
-        if repo:
-            # The session starts on the chosen repository: the cloud clones
-            # the GitHub remote of this directory itself, with Claude's own
-            # access (the user grants it at claude.ai/connect-github).
-            try:
-                directory, work, base = github.prepare_repo_dir(repo)
-            except github.GithubError as err:
-                github_error = f"dépôt {repo} : {err}"
-                return {"ok": False, "error": github_error}
-            github_error = None
-        else:
-            _ensure_cloud_repo()
+        if not repo:
+            # Every session starts on a repository: there is no free conversation.
+            return {"ok": False, "error": "Choisis d'abord un dépôt (le bouton ⎇ du widget) : chaque session démarre sur un dépôt."}
+        # The session starts on the chosen repository: the cloud clones
+        # the GitHub remote of this directory itself, with Claude's own
+        # access (the user grants it at claude.ai/connect-github).
+        try:
+            directory, work, base = github.prepare_repo_dir(repo)
+        except github.GithubError as err:
+            github_error = f"dépôt {repo} : {err}"
+            return {"ok": False, "error": github_error}
+        github_error = None
         extra_text, fingerprint = _compose({}, repo, work, base, direct_now)
         with lock:
             asked_before = relay_cloud["asked"]
@@ -1656,12 +1639,12 @@ class Handler(BaseHTTPRequestHandler):
             except OSError as err:
                 self.reply_json({"accepted": False, "reason": f"relais injoignable : {err}"})
         elif self.path == "/api/repo":
-            # "" = the plain chat. Changing repository means the next
-            # message starts a NEW session: a session's repository is fixed
-            # when it starts.
+            # Changing repository means the next message starts a NEW
+            # session: a session's repository is fixed when it starts. There
+            # is no "no repository": every session starts on one.
             requested = body.strip()
-            if requested and not github.REPO_RE.fullmatch(requested):
-                self.reply_json({"accepted": False, "reason": "invalid repository"})
+            if not requested or not github.REPO_RE.fullmatch(requested):
+                self.reply_json({"accepted": False, "reason": "un dépôt est obligatoire" if not requested else "invalid repository"})
                 return
             with lock:
                 current_repo = requested or None
@@ -1669,8 +1652,7 @@ class Handler(BaseHTTPRequestHandler):
                 if current_repo in extra_repos:
                     extra_repos.remove(current_repo)
                 _save_state()
-            if requested:
-                _remember_repo(requested)
+            _remember_repo(requested)
             self.reply_json({"accepted": True, "repo": current_repo})
         elif self.path == "/api/github/extra":
             # Checks or unchecks a repository Claude may ALSO work on ("" = none). Told

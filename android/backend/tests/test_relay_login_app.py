@@ -600,6 +600,11 @@ class CloudSendTests(Base):
         srv.cloud_busy = False
         srv.current_model = srv.current_effort = None
         srv.last_cloud = None
+        # Every session starts on a repository: the one chosen here, prepared without the network.
+        srv.current_repo = "o/r"
+        prepare = unittest.mock.patch.object(gh, "prepare_repo_dir", lambda repo: (Path(HOME), "aiwa/20260101-000000", "main"))
+        prepare.start()
+        self.addCleanup(prepare.stop)
         os.environ.pop("FAKE_CLAUDE_MODE", None)
         Path(HOME, "last_create_args.json").unlink(missing_ok=True)
 
@@ -608,6 +613,21 @@ class CloudSendTests(Base):
 
     def sent(self):
         return json.loads(Path(HOME, "last_create_args.json").read_text())
+
+    def test_there_is_no_free_conversation_a_new_session_needs_a_repository(self):
+        srv.current_repo = None
+        answer = srv.cloud_send("bonjour")
+        self.assertFalse(answer["ok"])
+        self.assertIn("dépôt", answer["error"])
+        self.assertFalse(Path(HOME, "last_create_args.json").exists(), "no session was created")
+        self.assertFalse(srv.cloud_busy)
+        self.assertEqual(srv._relay_cloud_state(), "untested", "the relay test was not asked either")
+
+    def test_a_follow_up_in_a_session_that_has_none_still_goes(self):
+        # A session begun before this rule keeps working: its repository was fixed when it started.
+        srv.current_repo = None
+        srv.current_cloud = "session_TEST123abc"
+        self.assertTrue(srv.cloud_send("encore")["ok"])
 
     def test_a_new_sessions_first_message_carries_the_relay_test_once(self):
         answer = srv.cloud_send("bonjour")
@@ -908,6 +928,12 @@ class HttpTests(Base):
         finally:
             release.set()
             srv._queue_followup, srv.current_cloud = original, session
+
+    def test_the_repository_cannot_be_unchosen(self):
+        self.assertTrue(self.call("/api/repo", "o/r")["accepted"])
+        refused = self.call("/api/repo", "")
+        self.assertFalse(refused["accepted"])
+        self.assertEqual(self.call("/api/status")["repo"], "o/r")
 
     def test_the_app_reaches_the_widget_app_and_is_marked_seen(self):
         self.assertIsNone(self.call("/api/sent-app")["sent_app"])

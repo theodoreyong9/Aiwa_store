@@ -96,7 +96,7 @@ The widget's Deploy chip offers two modes, both ending with an app sent to the p
 
 **How what Claude says reaches the phone.** An app, the "Claude waits" alert and the relay test all go to a public relay (ntfy.sh) with one
 `curl`. That needs the cloud environment to allow `ntfy.sh`, a setting only claude.ai can change (a new environment is on the default list,
-which does not have it, and the widget then says the cloud alerts are blocked). There is a second road that needs no setting, because a
+which does not have it; *État d'Aiwa* then says the cloud alerts are blocked). There is a second road that needs no setting, because a
 cloud session always has GitHub: **when the session was started on a repository** (the widget's repository chip, chosen *before* the session
 starts), the instructions add *if the command fails, write one line in `aiwa-out/SIGNAL`, commit it on your own branch and push it*:
 `app <name> <time>` (with the app file next to it), `attend <time>` (only when Claude waits for an answer or a decision, not after every
@@ -104,8 +104,8 @@ reply, to keep the branch quiet) or `check <time>` (the relay test, which makes 
 after each message the backend reads that file from `raw.githubusercontent.com` every 20 s (a new address each time, because the CDN keeps a
 file for minutes) and acts on a signal once, if it answers the last message.
 
-Conditions: a repository chosen when the session starts (a session started without one has no road to GitHub: choose a repository and start a
-new session), **public** (nothing is read from a private one, then the alert does not come and Claude pastes the app), and a push to its branch
+Conditions: a repository chosen when the session starts (every new session starts on one: the widget asks for it before anything can be
+sent, and a session begun earlier without one keeps working but has no road to GitHub), **public** (nothing is read from a private one, then the alert does not come and Claude pastes the app), and a push to its branch
 allowed. The files stay on that branch, never on the main one. Tested against fakes of the three servers (`MailboxTests`); not tried with a
 real cloud session.
 

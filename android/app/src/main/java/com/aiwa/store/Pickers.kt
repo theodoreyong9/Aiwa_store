@@ -200,7 +200,8 @@ class RepoPickerActivity : ComponentActivity() {
                 repos = try { bridge.githubRepos() } catch (err: Exception) { emptyList() }
             }
             val entries = buildList {
-                add(PickerEntry("Aucun dépôt (chat libre)", state.repo == null) { pickRepo(null) })
+                // Every session starts on a repository: there is no free conversation.
+                if (state.repo == null) add(PickerEntry("Choisis le dépôt sur lequel Claude travaille :", false) { })
                 // Right under the first line, not after a list that can run to a hundred names. The new repository shows up in
                 // the list when this window is opened again (the backend re-reads the owner's list when it is older than 30 s).
                 add(PickerEntry("＋  Créer un dépôt GitHub ↗  (coche « Add a README » pour qu'il ne soit pas vide)", false) { openNewRepoPage() })
@@ -228,7 +229,7 @@ class RepoPickerActivity : ComponentActivity() {
         }
     }
 
-    private fun pickRepo(repo: String?) {
+    private fun pickRepo(repo: String) {
         val appContext = applicationContext
         finish()
         CoroutineScope(Dispatchers.Default).launch { switchRepo(appContext, LocalClaudeBridge(), repo) }
