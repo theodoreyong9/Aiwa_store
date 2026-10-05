@@ -731,6 +731,53 @@ test('an app that says it uses the wallet gets a banner and a door; one that doe
   await context.close();
 });
 
+test('two phones link by two codes, exchange what each holds, and each shows where the other stands', { timeout: 300000 }, async () => {
+  const chain = new Map();                                // one Solana for both phones
+  // no camera here (the fake one films a code that is not ours): the codes are pasted, which is what a phone without a camera does
+  const noCamera = (p) => p.addInitScript(() => { navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('no camera', 'NotAllowedError')); });
+  const A = await openPage(async (p) => { await injectSolana(p, chain); await injectHost(p); await noCamera(p); });
+  const B = await openPage(async (p) => { await injectSolana(p, chain); await injectHost(p); await noCamera(p); });
+  await mineInPage(A.page, { epoch: 3, timeout: 120000 });
+  await mineInPage(B.page, { epoch: 3, timeout: 120000 });
+  const idOf = (page) => page.locator('#out-identity-id').getAttribute('data-full');
+  const [idA, idB] = [await idOf(A.page), await idOf(B.page)];
+  const shortOf = (id) => `${id.slice(0, 8)}…${id.slice(-6)}`;
+  assert.match(await A.page.locator('#standing-list').textContent(), /Nobody yet/);
+
+  // A starts: a code on A's screen; B reads it (here: pastes it) and shows an answer; A reads that
+  await A.page.click('#btn-link-start');
+  await A.page.waitForFunction(() => !document.getElementById('door-show').hidden && document.getElementById('door-text').value.startsWith('link1.'));
+  const offer = await A.page.inputValue('#door-text');
+  await B.page.click('#btn-link-join');
+  await B.page.waitForSelector('#door-scan:not([hidden])').catch(async (error) => { throw new Error(`B's link line says: ${await B.page.locator('#link-status').textContent()} | page errors: ${JSON.stringify([A.errors, B.errors])}`, { cause: error }); });
+  await B.page.fill('#door-paste', offer);
+  await B.page.click('#door-use');
+  await B.page.waitForFunction(() => !document.getElementById('door-show').hidden && document.getElementById('door-text').value.startsWith('link1.'));
+  const answer = await B.page.inputValue('#door-text');
+  await A.page.click('#door-next');
+  await A.page.waitForSelector('#door-scan:not([hidden])');
+  await A.page.fill('#door-paste', answer);
+  await A.page.click('#door-use');
+  await B.page.click('#door-next');
+
+  // linked, and each phone holds the other's events and has signed for them
+  for (const [name, P] of [['A', A], ['B', B]]) {
+    await P.page.waitForFunction(() => /Linked with 1 phone · \d+ events received/.test(document.getElementById('link-status').textContent), null, { timeout: 60000 })
+      .catch(async (error) => { throw new Error(`${name} never linked; its link line says: ${await P.page.locator('#link-status').textContent()} | page errors: ${JSON.stringify([A.errors, B.errors])}`, { cause: error }); });
+    await P.page.locator('#standing-section summary').click();
+  }
+  const row = async (P, id) => until(async () => {
+    const text = await P.page.locator('#standing-list .idrow').first().innerText();
+    return text.includes(shortOf(id)) && /epoch \d+/.test(text) && text;
+  }, { ms: 60000, what: 'the other phone to show in the list' });
+  const seenByA = await row(A, idB);
+  const seenByB = await row(B, idA);
+  assert.match(seenByA, /proven ≥ [1-9]/, 'what A proves of B comes from B\'s own signed events');
+  assert.match(seenByB, /proven ≥ [1-9]/);
+  assert.doesNotMatch(seenByA + seenByB, /signed two different histories/, 'two honest phones');
+  assert.deepEqual([A.errors, B.errors], [[], []]);
+});
+
 test('click duel: two phones link by two codes, click for 20 seconds, and the one who clicked less pays what they clicked', { timeout: 300000 }, async () => {
   const duel = readFileSync(join(root, 'docs/demo-apps/click-duel.html'), 'utf8');
   const chain = new Map();                                // one Solana for both phones

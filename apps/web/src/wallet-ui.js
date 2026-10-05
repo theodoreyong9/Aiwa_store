@@ -10,6 +10,7 @@ import { secretsAreSafe } from './keys.js';
 import { $, short, setId, showError, flash } from './ui.js';
 import { openRefresh } from './publish-ui.js';
 import { drawQr, scanQr } from './qr.js';
+import { startLink, joinLink, watchLinks } from './link.js';
 
 let displayRefreshTimer = null;
 let lastOfflineBlob = null;
@@ -189,11 +190,81 @@ async function receive() {
 async function warnIfAccused(aiwa, bundle) {
   try {
     await aiwa.settled();                      // the reception it signs for what just arrived is part of the evidence
+    renderStandings();
     const inBundle = new Set(bundle.events.flatMap((event) => [event.author, event.payload?.domain]));
     const accused = (await aiwa.accusations()).filter((a) => inBundle.has(a.domain));
     if (accused.length === 0 || session.aiwa !== aiwa) return;
     $('receive-result').textContent = `Received and verified. Warning: ${accused.map((a) => short(a.domain)).join(', ')} signed two different histories (a fork). Be careful with what it sends.`;
   } catch { /* nothing proven */ }
+}
+
+// ---------- who this phone has seen ----------
+
+// What the wallet can say of another identity: where it stands (never below what is proven), what is proven, the vote of the
+// observers it knows, and how fast it progresses compared with this wallet. Reported, never applied: it changes nobody's earnings.
+function standingRow(s) {
+  const row = document.createElement('div');
+  row.className = 'idrow';
+  const who = document.createElement('code');
+  who.textContent = short(s.domain);
+  const text = document.createElement('span');
+  const parts = [s.epoch === null ? 'no progress seen' : `epoch ${s.epoch}`];
+  if (s.provenAtLeast !== null) parts.push(`proven ≥ ${s.provenAtLeast}`);
+  if (s.median !== null && s.median !== s.epoch) parts.push(`vote ${s.median}`);
+  if (s.witnesses > 0) parts.push(`${s.witnesses} witness${s.witnesses === 1 ? '' : 'es'}`);
+  if (s.pace) parts.push(`pace ×${Number(s.pace.ratio.toFixed(2))} yours`);
+  if (s.forked) parts.push('⚠ signed two different histories');
+  text.textContent = parts.join(' · ');
+  row.append(who, text);
+  return row;
+}
+
+async function renderStandings() {
+  const aiwa = session.aiwa;
+  if (!aiwa || !aiwa.identity || !$('standing-section').open) return;
+  const list = $('standing-list');
+  let all;
+  try { all = await aiwa.standings(); } catch { return; }
+  if (session.aiwa !== aiwa) return;
+  list.replaceChildren();
+  if (all.length === 0) {
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = 'Nobody yet. Receive a payment or link another phone.';
+    list.append(hint);
+    return;
+  }
+  for (const s of all) list.append(standingRow(s));
+}
+
+// ---------- link with another phone ----------
+
+const linkMessage = (err) => err.message === 'cancelled' ? 'Cancelled.' : `error: ${err.message}`;
+let watching = new WeakSet();
+
+async function link(how) {
+  const aiwa = session.aiwa;
+  if (!aiwa || !aiwa.identity) return;
+  try {
+    if (!watching.has(aiwa)) {
+      watching.add(aiwa);
+      await watchLinks(aiwa, async ({ phones, received }) => {
+        if (session.aiwa !== aiwa) return;
+        $('link-status').textContent = phones === 0 ? 'No phone linked.' : `Linked with ${phones} phone${phones === 1 ? '' : 's'}${received > 0 ? ` · ${received} events received` : ''}.`;
+        if (received > 0) {
+          await aiwa.settled();                     // what it signs for what just arrived is part of the evidence
+          await refreshLocalState();
+          renderHistory();
+          renderStandings();
+        }
+      });
+    }
+    $('link-status').textContent = how === 'start' ? 'Waiting for the other phone…' : 'Reading the other phone…';
+    await (how === 'start' ? startLink(aiwa) : joinLink(aiwa));
+    if (!/^Linked/.test($('link-status').textContent)) $('link-status').textContent = 'Connecting…';    // the link may already be up
+  } catch (err) {
+    $('link-status').textContent = linkMessage(err);
+  }
 }
 
 // ---------- the author's apps ----------
@@ -319,6 +390,9 @@ export async function initWallet() {
     switchWallet(mnemonic, $('connect-error'));
   });
   $('history-section').addEventListener('toggle', renderHistory);
+  $('standing-section').addEventListener('toggle', renderStandings);
+  $('btn-link-start').addEventListener('click', () => link('start'));
+  $('btn-link-join').addEventListener('click', () => link('join'));
   $('burn-amount').addEventListener('input', previewBurn);
   $('burn-t').addEventListener('input', previewBurn);
   $('btn-burn').addEventListener('click', burn);

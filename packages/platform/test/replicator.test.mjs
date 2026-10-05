@@ -44,13 +44,13 @@ async function waitUntilAllPresent(log, events) {
 // identity id (never a hardcoded 'a'/'b') and stops both replicators
 // before returning, exactly the same discipline aiwa-lib's own
 // LoopbackTransport tests already established.
-async function connectedPair({ chunkSizeA, chunkSizeB, logA, logB } = {}) {
+async function connectedPair({ chunkSizeA, chunkSizeB, maxChunkBytes, logA, logB } = {}) {
   const idA = await generateIdentity();
   const idB = await generateIdentity();
   const transportA = new LoopbackTransport(idA.id);
   const transportB = new LoopbackTransport(idB.id);
-  const replicatorA = new Replicator({ transport: transportA, log: logA ?? new EventLog(), domain: 'aiwa', chunkSize: chunkSizeA });
-  const replicatorB = new Replicator({ transport: transportB, log: logB ?? new EventLog(), domain: 'aiwa', chunkSize: chunkSizeB });
+  const replicatorA = new Replicator({ transport: transportA, log: logA ?? new EventLog(), domain: 'aiwa', chunkSize: chunkSizeA, maxChunkBytes });
+  const replicatorB = new Replicator({ transport: transportB, log: logB ?? new EventLog(), domain: 'aiwa', chunkSize: chunkSizeB, maxChunkBytes });
   return { transportA, transportB, replicatorA, replicatorB };
 }
 
@@ -177,6 +177,53 @@ test('an empty-to-empty connection sends no EVENTS message at all', async () => 
   try {
     await sleep(50);
     assert.deepEqual(sizesToB, [], 'nothing real to send — no EVENTS message should ever fire');
+  } finally {
+    await replicatorA.stop();
+    await replicatorB.stop();
+  }
+});
+
+test('a message is bounded in bytes as well as in events: a data channel closes the link on a message over 256 KiB', async () => {
+  const identity = await generateIdentity();
+  // 30 events of about 10 KB each: 300 KB, well under the count bound of 100, well over what one message may carry
+  const events = [];
+  let parents = [];
+  for (let i = 0; i < 30; i++) {
+    const event = await createEvent(identity, { domain: 'aiwa', parents, type: 'note', payload: { i, filler: 'x'.repeat(10_000) } });
+    events.push(event);
+    parents = [event.id];
+  }
+  const logA = new EventLog();
+  await logA.appendMany(events);
+  const logB = new EventLog();
+  const { transportA, replicatorA, replicatorB } = await connectedPair({ logA, logB });
+  const bytesToB = [];
+  const send = transportA.send.bind(transportA);
+  transportA.send = async (peer, bytes) => { if (JSON.parse(new TextDecoder().decode(bytes)).type === 'EVENTS') bytesToB.push(bytes.length); return send(peer, bytes); };
+
+  await replicatorB.start();
+  await replicatorA.start();
+  try {
+    await waitUntilAllPresent(logB, events);
+    assert.ok(bytesToB.length >= 5, `300 KB at 64 KiB a message is at least 5 messages, got ${bytesToB.length}`);
+    for (const size of bytesToB) assert.ok(size <= 64 * 1024 + 10_500, `every message stays near the bound (one event may overshoot it), got ${size}`);
+  } finally {
+    await replicatorA.stop();
+    await replicatorB.stop();
+  }
+});
+
+test('an event larger than the byte bound is sent alone, not dropped', async () => {
+  const identity = await generateIdentity();
+  const big = await createEvent(identity, { domain: 'aiwa', parents: [], type: 'note', payload: { filler: 'y'.repeat(5_000) } });
+  const logA = new EventLog();
+  await logA.appendMany([big]);
+  const logB = new EventLog();
+  const { replicatorA, replicatorB } = await connectedPair({ maxChunkBytes: 1_000, logA, logB });
+  await replicatorB.start();
+  await replicatorA.start();
+  try {
+    await waitUntilAllPresent(logB, [big]);
   } finally {
     await replicatorA.stop();
     await replicatorB.stop();

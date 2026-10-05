@@ -49,7 +49,7 @@ export function closeSheet() {
   $('door-sheet').hidden = true;
 }
 
-async function showCode({ text, title = 'Show this code', action = null }) {
+export async function showCode({ text, title = 'Show this code', action = null }) {
   if (typeof text !== 'string' || text.length === 0 || text.length > 8000) throw new Error('a code is some text, up to 8000 characters');
   closeSheet();
   openSheet(title, 'show');
@@ -63,7 +63,7 @@ async function showCode({ text, title = 'Show this code', action = null }) {
   });
 }
 
-function scanCode({ title = 'Scan the code' } = {}) {
+export function scanCode({ title = 'Scan the code' } = {}) {
   closeSheet();
   return new Promise((resolve, reject) => {
     const abort = new AbortController();

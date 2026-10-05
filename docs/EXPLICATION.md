@@ -396,6 +396,13 @@ meilleur. Cela se ferme avec les **témoins** : quiconque a reçu un événement
 ta prochaine soumission le contienne. Sans aucun témoin, la seule protection est le travail que cela coûte. Une soumission est aussi un
 instantané : une action après la dernière époque montrée, suivie de rien, peut être omise.
 
+**Le voir soi-même.** La page du portefeuille a *Link with another phone* : les deux téléphones s'échangent deux codes (l'un est montré et
+lu par l'autre, puis la réponse revient), puis ils s'échangent directement ce qui manque à chacun, sans serveur. Chacun signe un reçu pour
+ce qu'il a reçu : chacun détient donc la preuve de là où se trouve l'autre. *Who this phone has seen* liste toutes les identités dont ce
+téléphone détient quelque chose : où elle en est (jamais en dessous de ce qui est prouvé), ce qui est prouvé, le vote des observateurs qu'il
+connaît, si elle a signé deux historiques, et à quelle vitesse elle progresse par rapport à toi (deux de tes propres reçus et ta propre
+époque à chacun ; aucune horloge). C'est de l'information : cela ne change les gains de personne.
+
 ---
 
 ## 5. Perdre son téléphone

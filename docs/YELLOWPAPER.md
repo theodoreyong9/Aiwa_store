@@ -1127,12 +1127,12 @@ reader, because each event verifies on its own (§4.2):
 | a file, pasted text, a QR code, NFC | `encodeOfflineBundle` / `decodeOfflineBundle` (`aiwa-lib`) |
 | a GitHub pull request | the store's registry (§18) |
 | an archive node | `aiwa-platform`, `archive-server.js` (§15) |
-| a direct connection (WebRTC) | `aiwa-platform`'s replicator; **not used by the store app**, which does not have one |
+| a direct connection (WebRTC) | `aiwa-platform`'s replicator, which the wallet page starts with *Link with another phone*: two codes are swapped (shown and read, as in the click duel), then the phones exchange what each lacks |
 
-The replicator (used by anything that has a direct link) is deliberately simple:
+The replicator is deliberately simple:
 
-<!-- diagram: yellowpaper-18-d91833b3.png -->
-![Diagram: 13.6 How events travel](img/diagrams/yellowpaper-18-d91833b3.png)
+<!-- diagram: yellowpaper-18-d9c45fba.png -->
+![Diagram: 13.6 How events travel](img/diagrams/yellowpaper-18-d9c45fba.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -1144,7 +1144,7 @@ sequenceDiagram
   P->>Q: HELLO { heads }
   Q->>P: HELLO_ACK { heads }
   Note over P,Q: each computes what the other lacks (topologically sorted)
-  loop chunks of 100
+  loop chunks of at most 100 events and 64 KiB
     P->>Q: EVENTS { chunk }
     Q->>Q: append each (verified, idempotent)
     Q->>P: ACK
@@ -1222,7 +1222,8 @@ No trade beyond the cache being in memory per instance, not persisted across a r
 ### 14.3 Synchronisation payload: chunks gated by acknowledgements
 
 The replicator (§13.6) does not send every missing event in one message: it sorts them topologically and releases bounded chunks
-(default 100), the next only when the previous one's ACK arrives.
+(at most 100 events and 64 KiB, default), the next only when the previous one's ACK arrives. The byte bound is not a refinement: a data
+channel closes the link on a message over 256 KiB, which two real browser pages did to each other with chunks of 100 events of 3 KB.
 
 ---
 
@@ -1797,12 +1798,16 @@ $X$'s key can sign. So an observation is also a *proof*. From proofs alone:
   be chained, so the check falls back to the signature alone and the result says so. A fork is the one exception, on purpose: a second
   lineage is rejected by the linear chain and is exactly the evidence of one, so forks are read from the signed events.
 
-**What the reference wallet does with it.** Only the fork. After a bundle is received, `accusations()` lists the identities in it for
-which the log holds two unrelated histories, both signed by them, and the wallet warns under *Receive*. A rewind is not used: it is
-judged against what a domain reports *now*, and a payment that travelled slowly reports an old state, so it would accuse honest
-senders. The registry needs none of this for its own protection: it asks an author's next submission to contain the witnesses other
-wallets hold (§12.4), so a fork cannot be hidden from it. The weighted median, hardware roots and relative rate are not used by the
-wallet, the registry or the app.
+**What the reference wallet does with it.** It reports, it never applies. `standing()` says, for each other identity the log holds, where it
+stands (the higher of the weighted median and what is proven), the proven lower bound, the vote and how many observers made it, whether
+it signed two histories (a fork), and its **pace** against this wallet (§19.4). The page shows it under *Who this phone has seen*, and
+a fork also as a warning under *Receive* once a bundle has been received. The pace is read from the wallet's own log: two of its own
+reception commitments about that identity, and its own epoch when it signed each; it exists only when the wallet progressed between the
+two, and it is not signed or sent to anyone. A rewind is not used: it is judged against what a domain reports *now*, and a payment that
+travelled slowly reports an old state, so it would accuse honest senders. The registry needs none of this for its own protection: it asks
+an author's next submission to contain the witnesses other wallets hold (§12.4), so a fork cannot be hidden from it. The one part that is
+not used anywhere is the hardware roots (§19.2): they are a chain of signatures from an origin that issues roots, and nothing in this
+repository issues any, so there is nothing to attest; `aiwa-core` takes them as an optional input (`hardwareAttestations`).
 
 **"$X$ signs a fake itself".** A domain may write whatever it likes in its own log. That is not an attack on the protocol: it is an
 invalid history, refused by whoever verifies its sequential proof, and left in the DAG as a dead branch nobody counts. It matters
@@ -2017,7 +2022,7 @@ Files of the registry: `store/index.json`, `store/apps/<id>/<version>.json`, `st
 | Quantities | AIWA: integers of $10^{-18}$; SOL: lamports | `units.js` | — |
 | Progress loop | one epoch per 30 s while the wallet is open | `deployment.json` → `progress.intervalMs` | a wallet setting |
 | Auto checkpoint | every 5 minutes | `startAutoCheckpoint` | a wallet setting |
-| Replicator chunk | 100 events | `Replicator` | an implementation setting |
+| Replicator chunk | 100 events and 64 KiB | `Replicator` | an implementation setting |
 | Submission limits | 200 000 events · 200 burns · 50 witnesses · 16 384 bytes per witness · 32 witnesses kept per domain | `SUBMISSION_LIMITS` | a registry setting |
 | Store policy | signature ≤ 24 h · one new app per 5 min · ≤ 20 apps per author · submission ≤ 40 MB | `POLICY` | a registry setting |
 | App limits | HTML ≤ 512 KB · name ≤ 60 · description ≤ 280 · id `[a-z0-9-]` ≤ 40 · version `x.y.z` | `APP_LIMITS` | a registry setting |

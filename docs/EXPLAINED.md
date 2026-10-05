@@ -382,6 +382,12 @@ Your own mining history is protected differently: each step names the previous o
 it. Without any witness, the only protection is the work it costs. A submission is also a snapshot: an action after the last epoch shown,
 followed by nothing, can be left out.
 
+**Seeing it yourself.** The wallet page has *Link with another phone*: the two phones swap two codes (one shown and read by the other, then
+the answer back), and from then on they exchange what each lacks, directly, with no server. Each signs a receipt for what it received, so each
+now holds proof of where the other is. *Who this phone has seen* lists every identity this phone holds anything of: where it stands (never
+below what is proven), what is proven, the vote of the observers it knows, whether it signed two histories, and how fast it progresses compared
+with you (two of your own receipts and your own epoch at each; no clock). It is information: it changes nobody's earnings.
+
 ---
 
 ## 5. Losing your phone

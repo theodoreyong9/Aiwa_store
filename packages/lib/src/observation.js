@@ -18,7 +18,7 @@
 // commitment after it would then "go backwards" and be rejected by Mirror's monotonicity rule.
 
 import {
-  toReducerEvents, deriveSourceEpochLookup, materializeMirror,
+  toReducerEvents, deriveSourceEpochLookup, materializeMirror, canonicalReceptionMessage,
   replayProgression, signatureAuthentic,
 } from 'aiwa-core';
 import { collectAncestors } from './ancestors.js';
@@ -76,4 +76,45 @@ export async function observations(world, me, options = {}) {
 /** This domain's next reception-commitment sequence number (its own counter, never the observed domain's epoch). */
 export function nextReceptionEpoch(mirror, me) {
   return (mirror.commitments[me] ?? []).reduce((max, c) => Math.max(max, c.epoch), 0) + 1;
+}
+
+/** The other domains this log holds progression events of. */
+export function foreignDomains(world, me) {
+  const foreign = new Set();
+  for (const event of world.events) {
+    const p = event.payload;
+    if (p?.type === 'progression' && typeof p.domain === 'string' && p.domain !== me) foreign.add(p.domain);
+  }
+  return [...foreign];
+}
+
+/**
+ * How fast `target` progresses compared with `me`, from what `me` itself witnessed (yellow paper §19.4): two of its own
+ * reception commitments about the target, and its own progression epoch when it signed each. The ratio is how many epochs
+ * the target gained for each epoch `me` gained between the two, with no clock anywhere. Purely informational: it gates nothing.
+ * Only commitments Mirror accepted count. `null` when there is nothing to compare: fewer than two observations, or `me` did
+ * not progress between them.
+ * @returns {{ ratio: number, mine: [number, number], theirs: [number, number] } | null}
+ */
+export function paceOf(world, me, target) {
+  if (!me) return null;
+  const accepted = new Set((world.mirror.commitments[me] ?? []).map((c) => canonicalReceptionMessage(c)));
+  const lookup = deriveSourceEpochLookup(world.events);
+  const seen = [];
+  let myEpoch = 0;
+  for (const event of world.events) {
+    const p = event.payload;
+    if (p?.type === 'progression' && p.domain === me && Number.isInteger(p.epoch)) myEpoch = Math.max(myEpoch, p.epoch);
+    if (p?.type !== 'reception' || p.domain !== me || !accepted.has(canonicalReceptionMessage(p))) continue;
+    for (const ref of p.receivedFrom) {
+      if (ref.sourceDomain !== target) continue;
+      const theirs = lookup(target, ref.eventId);
+      if (Number.isInteger(theirs)) seen.push({ mine: myEpoch, theirs });
+    }
+  }
+  if (seen.length < 2) return null;
+  const first = seen[0];
+  const last = seen[seen.length - 1];
+  if (!(last.mine > first.mine) || last.theirs < first.theirs) return null;
+  return { ratio: (last.theirs - first.theirs) / (last.mine - first.mine), mine: [first.mine, last.mine], theirs: [first.theirs, last.theirs] };
 }

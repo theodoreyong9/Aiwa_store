@@ -5,7 +5,7 @@
 // itself after a sync unless `autoObserve` was turned off.
 
 import { buildReceptionCommitment, assessPosition, identityCostFromCommitments, identityCostFromBurns } from 'aiwa-core';
-import { readWorld, observations, nextReceptionEpoch } from './observation.js';
+import { readWorld, observations, nextReceptionEpoch, foreignDomains, paceOf } from './observation.js';
 
 export class Observer {
   constructor(wallet) {
@@ -97,16 +97,47 @@ export class Observer {
     const me = wallet.identity?.id ?? null;
     const world = await readWorld(wallet.ledger.log);
     const { accrual } = await wallet.ledger.state();
-    const foreign = new Set();
-    for (const event of world.events) {
-      const p = event.payload;
-      if (p?.type === 'progression' && typeof p.domain === 'string' && p.domain !== me) foreign.add(p.domain);
-    }
     const accused = [];
-    for (const domain of foreign) {
+    for (const domain of foreignDomains(world, me)) {
       const where = await this._assess(world, accrual, domain);
       if (where.forks.length > 0) accused.push({ domain, reason: 'fork', forks: where.forks });
     }
     return accused;
+  }
+
+  /**
+   * Where another domain stands, in what a person can read: its position (the proven lower bound or the weighted median, whichever is
+   * higher), what is PROVEN of it, the median that is only a vote, whether it signed two histories, and how fast it progresses
+   * compared with this wallet (`pace`, §19.4). Reported, never applied: nothing here changes what anyone earns. Read-only.
+   * @returns {Promise<{ domain: string, epoch: number|null, provenAtLeast: number|null, median: number|null, witnesses: number,
+   *   forked: boolean, verification: 'chain'|'signature', pace: { ratio: number, mine: number[], theirs: number[] }|null }>}
+   */
+  async standing(domain) {
+    const world = await readWorld(this.wallet.ledger.log);
+    const { accrual } = await this.wallet.ledger.state();
+    return this._standing(world, accrual, domain);
+  }
+
+  /** `standing()` of every other domain this log holds progression of, the furthest first. */
+  async standings() {
+    const world = await readWorld(this.wallet.ledger.log);
+    const { accrual } = await this.wallet.ledger.state();
+    const all = [];
+    for (const domain of foreignDomains(world, this.wallet.identity?.id ?? null)) all.push(await this._standing(world, accrual, domain));
+    return all.sort((a, b) => (b.epoch ?? 0) - (a.epoch ?? 0));
+  }
+
+  async _standing(world, accrual, domain) {
+    const where = await this._assess(world, accrual, domain);
+    return {
+      domain,
+      epoch: where.position,
+      provenAtLeast: where.proof ? where.proof.lowerBound : null,
+      median: where.estimate ? where.estimate.tick : null,
+      witnesses: where.estimate ? where.estimate.observationCount : 0,
+      forked: where.forks.length > 0,
+      verification: where.verification,
+      pace: paceOf(world, this.wallet.identity?.id ?? null, domain),
+    };
   }
 }

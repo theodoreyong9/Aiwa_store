@@ -246,3 +246,18 @@ test('acceptOffer resolves via its timeout when ICE gathering never reaches comp
   assert.ok(Date.now() - start < 2000, 'must resolve via the bounded timeout, not hang');
   assert.equal(decodeSignal(answerBlob).kind, 'answer');
 });
+
+test('a channel that reaches the answering side already open counts as a link at once (its open event is not coming)', async () => {
+  const { transport, pcs } = makeTransport('answerer');
+  const joined = [];
+  transport.onPeerJoin((peer) => joined.push(peer));
+  await transport.acceptOffer(encodeSignal('offer', 'asker', 'fake-offer-sdp'));
+  const channel = new FakeChannel('aiwa-platform');
+  channel.readyState = 'open';
+  pcs[0].ondatachannel({ channel });
+  await Promise.resolve();
+  assert.deepEqual(transport.peers(), ['asker']);
+  assert.deepEqual(joined, ['asker']);
+  channel.open();                         // and an open event that does come after is not a second join
+  assert.deepEqual(joined, ['asker']);
+});

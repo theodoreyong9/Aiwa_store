@@ -104,16 +104,24 @@ export class WebrtcTransport {
 
   _wireChannel(peerId, pc, channel) {
     this._links.set(peerId, { pc, channel });
-    channel.onopen = () => {
+    const opened = () => {
+      if (this._openPeers.has(peerId)) return;
       this._openPeers.add(peerId);
       for (const h of this._onJoinHandlers) h(peerId);
     };
+    channel.onopen = opened;
+    // A channel the other side opened (ondatachannel) may already be open when it reaches us: its 'open' event is not coming.
+    // Found by linking two real browser pages: the answering phone never knew the link was up.
+    if (channel.readyState === 'open') queueMicrotask(opened);
     channel.onmessage = (e) => {
       const bytes = e.data instanceof Uint8Array ? e.data : new Uint8Array(e.data);
       for (const h of this._onMessageHandlers) h(peerId, bytes);
     };
     channel.onclose = () => this._closeLink(peerId);
   }
+
+  /** Gives up the link to `peerId`, open or not (a link started and never completed would otherwise wait for ever). */
+  closePeer(peerId) { this._closeLink(peerId); }
 
   _closeLink(peerId) {
     const link = this._links.get(peerId);

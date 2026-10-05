@@ -50,11 +50,14 @@ function topologicalOrder(events) {
 }
 
 export class Replicator {
-  constructor({ transport, log, domain, chunkSize = 100 }) {
+  // chunkSize: the most events in one message. maxChunkBytes: the most bytes in one message (a data channel carries a message of 256 KiB at
+  // most, and a bigger one closes the link: found linking two real browser pages, whose chunks of 100 events came to 300 KB).
+  constructor({ transport, log, domain, chunkSize = 100, maxChunkBytes = 64 * 1024 }) {
     this.transport = transport;
     this.log = log;
     this.domain = domain;
     this.chunkSize = chunkSize;
+    this.maxChunkBytes = maxChunkBytes;
     this._onEventHandlers = new Set();
     this._onSyncHandlers = new Set();
     // per-peer outbound backpressure for a full sync: see
@@ -124,7 +127,19 @@ export class Replicator {
     if (this._syncInFlight.has(peer)) return;
     const ordered = topologicalOrder(events);
     const chunks = [];
-    for (let i = 0; i < ordered.length; i += this.chunkSize) chunks.push(ordered.slice(i, i + this.chunkSize));
+    let current = [];
+    let bytes = 0;
+    for (const event of ordered) {
+      const size = new TextEncoder().encode(JSON.stringify(event)).length;
+      if (current.length > 0 && (current.length >= this.chunkSize || bytes + size > this.maxChunkBytes)) {
+        chunks.push(current);
+        current = [];
+        bytes = 0;
+      }
+      current.push(event);        // an event larger than the bound goes alone: it cannot be split
+      bytes += size;
+    }
+    if (current.length > 0) chunks.push(current);
     this._syncInFlight.add(peer);
     this._pendingChunks.set(peer, chunks.slice(1));
     await this._sendChunk(peer, chunks[0]);

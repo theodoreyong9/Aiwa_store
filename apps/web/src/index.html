@@ -118,6 +118,21 @@
       </section>
     </div>
 
+    <section class="card" id="link-section">
+      <h2>Link with another phone</h2>
+      <p class="muted">The two phones swap two codes, then exchange what each holds, directly: no server. Each signs what it received, which is how a phone can prove where another one stands. It shares your wallet's history (signed events), never your 12 words.</p>
+      <div class="line">
+        <button id="btn-link-start">Start a link</button>
+        <button id="btn-link-join">Join a link</button>
+      </div>
+      <div id="link-status" class="muted"></div>
+    </section>
+
+    <details class="card" id="standing-section">
+      <summary>Who this phone has seen</summary>
+      <div id="standing-list"><p class="hint">Nobody yet. Receive a payment or link another phone.</p></div>
+    </details>
+
     <section class="card" id="my-apps-section" hidden>
       <h2>My apps</h2>
       <div id="my-apps-list"></div>
@@ -193,23 +208,24 @@
   </div>
   <div id="viewer-flag" class="flag" hidden>⚠ This app uses your wallet: it can move your AIWA.</div>
   <div id="viewer-frame-host"></div>
-  <!-- what an app that uses the wallet asks the Store to show: a code, or a code to read -->
-  <div id="door-sheet" class="sheet door" hidden role="dialog" aria-modal="true" aria-labelledby="door-title">
-    <div class="sheet-card">
-      <h2 id="door-title"></h2>
-      <div id="door-show" hidden>
-        <div id="door-qr" class="qr"></div>
-        <textarea id="door-text" rows="3" readonly aria-label="The code, as text"></textarea>
-        <button id="door-copy" type="button" class="sm">Copy</button>
-        <button id="door-next" type="button" class="primary" hidden></button>
-      </div>
-      <div id="door-scan" hidden>
-        <video id="door-video" hidden playsinline muted></video>
-        <textarea id="door-paste" rows="3" placeholder="Point the camera at the code, or paste it here" aria-label="The code, pasted"></textarea>
-        <button id="door-use" type="button" class="primary">Use this code</button>
-      </div>
-      <button id="door-close" type="button" class="sm">Close</button>
+</div>
+
+<!-- a code to show, or a code to read: what an app that uses the wallet asks for, and what linking two phones needs. Above the viewer. -->
+<div id="door-sheet" class="sheet door" hidden role="dialog" aria-modal="true" aria-labelledby="door-title">
+  <div class="sheet-card">
+    <h2 id="door-title"></h2>
+    <div id="door-show" hidden>
+      <div id="door-qr" class="qr"></div>
+      <textarea id="door-text" rows="3" readonly aria-label="The code, as text"></textarea>
+      <button id="door-copy" type="button" class="sm">Copy</button>
+      <button id="door-next" type="button" class="primary" hidden></button>
     </div>
+    <div id="door-scan" hidden>
+      <video id="door-video" hidden playsinline muted></video>
+      <textarea id="door-paste" rows="3" placeholder="Point the camera at the code, or paste it here" aria-label="The code, pasted"></textarea>
+      <button id="door-use" type="button" class="primary">Use this code</button>
+    </div>
+    <button id="door-close" type="button" class="sm">Close</button>
   </div>
 </div>
 
