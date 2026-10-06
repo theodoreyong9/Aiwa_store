@@ -260,6 +260,8 @@ async function watchNetworkOf(aiwa) {
     const tell = await watchNetwork(aiwa, async (state) => {
       if (session.aiwa !== aiwa) return;
       $('net-status').textContent = networkText(state);
+      $('net-status').dataset.direct = String(state.direct);       // what the end-to-end test reads
+      $('net-status').dataset.room = state.room ? 'in' : 'out';
       $('btn-net-toggle').textContent = wantsNetwork() ? 'Disconnect' : 'Connect';
       if (state.received > 0) {
         await aiwa.settled();                       // what it signs for what just arrived is part of the evidence

@@ -2,13 +2,18 @@
 //   by itself: the wallets that are open join a room (Trystero, through a public relay that sees only that someone looks for
 //              peers) and a direct connection opens to each of them: nobody swaps a code, there is no server of ours;
 //   by hand:   two phones side by side swap two codes (link.js), for when no relay can be reached.
+// Once it has some peers a wallet no longer needs the room: it asks them to introduce it to theirs (Introducer), which opens direct
+// connections of its own, and with enough of those it leaves the room (PeerManager). A machine that is always on stays in the room, so
+// that a newcomer always finds someone.
 // Persistence is another matter (a wallet that nobody holds is gone with its phone): it is for machines that stay connected.
-import { WebrtcTransport, TrysteroTransport, CompositeTransport } from 'aiwa-lib';
+import { WebrtcTransport, TrysteroTransport, CompositeTransport, Introducer, PeerManager } from 'aiwa-lib';
 import { joinRoom, selfId } from '@trystero-p2p/nostr';
 import { config } from './config.js';
 
 const PREFERENCE = 'aiwa-network';      // 'off' once the person turned it off
-const RELAYS = 'aiwa-relays';           // a JSON list of relay addresses, instead of the built-in public ones (a relay of one's own, a test)
+const RELAYS = 'aiwa-relays';
+const PEERS = 'aiwa-peers';             // '{"target":6,"low":3}': how many direct connections are enough, and how few send the wallet back to the room
+const LOBBY = 'aiwa-lobby';             // 'stay': this machine stays in the room whatever it has (an always-on terminal)           // a JSON list of relay addresses, instead of the built-in public ones (a relay of one's own, a test)
 
 const read = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
 
@@ -21,7 +26,14 @@ function relays() {
   } catch { return null; }
 }
 
-const networks = new WeakMap();      // wallet -> { manual, lobby, all }
+function peerLimits() {
+  try {
+    const { target, low } = JSON.parse(read(PEERS));
+    return Number.isInteger(target) && Number.isInteger(low) && target >= 1 && low >= 1 && low <= target ? { target, low } : {};
+  } catch { return {}; }
+}
+
+const networks = new WeakMap();      // wallet -> { manual, lobby, all, manager }
 
 /** The wallet's transports, made and joined to its replicator the first time. */
 export async function networkOf(aiwa) {
@@ -33,9 +45,15 @@ export async function networkOf(aiwa) {
       joinRoom, selfId, appId: 'aiwa-store-v1', roomId: `lobby:${config.cluster ?? 'devnet'}`,
       relayUrls: relays(), rtcConfig: { iceServers }, enabled: wantsNetwork(),
     });
-    net = { manual, lobby, all: new CompositeTransport([manual, lobby]) };
+    const all = new CompositeTransport([manual, lobby]);
+    net = { manual, lobby, all };
     networks.set(aiwa, net);
-    await aiwa.joinNetwork(net.all);
+    await aiwa.joinNetwork(all);
+    const introducer = new Introducer({ transport: all });
+    introducer.start();
+    net.manager = new PeerManager({ transport: all, direct: manual, lobby, introducer, stay: read(LOBBY) === 'stay', ...peerLimits() });
+    net.manager.enabled = wantsNetwork();
+    net.manager.start();
   }
   return net;
 }
@@ -43,19 +61,21 @@ export async function networkOf(aiwa) {
 /** Turns the lobby on or off, and remembers it. */
 export async function setNetwork(aiwa, on) {
   try { if (on) localStorage.removeItem(PREFERENCE); else localStorage.setItem(PREFERENCE, 'off'); } catch { /* it lasts until the page closes */ }
-  const { lobby } = await networkOf(aiwa);
+  const { lobby, manager } = await networkOf(aiwa);
   lobby.enabled = on;
-  if (on) await lobby.connect(); else await lobby.disconnect();
+  manager.enabled = on;
+  if (on) { await lobby.connect(); manager.evaluate().catch(() => {}); } else await lobby.disconnect();
 }
 
 /**
- * Tells `onChange({ peers, received })` when a wallet joins or leaves, and when events arrive from one. `peers` is how many are
- * connected now (found by itself or by hand), `received` how many events came in over those links so far.
+ * Tells `onChange({ peers, direct, room, received })` when a wallet joins or leaves, and when events arrive from one. `peers` is how
+ * many are connected now (whichever way), `direct` how many of them by a connection that does not depend on the room, `room` whether
+ * the wallet is in the room, `received` how many events came in over those links so far.
  */
 export async function watchNetwork(aiwa, onChange) {
-  const { all } = await networkOf(aiwa);
+  const { all, manual, lobby } = await networkOf(aiwa);
   let received = 0;
-  const tell = () => onChange({ peers: all.peers().length, received, wanted: wantsNetwork() });
+  const tell = () => onChange({ peers: all.peers().length, direct: manual.peers().length, room: lobby.connected, received, wanted: wantsNetwork() });
   all.onPeerJoin(tell);
   all.onPeerLeave(tell);
   aiwa.replicator.onSync(({ receivedCount }) => { if (receivedCount > 0) { received += receivedCount; tell(); } });

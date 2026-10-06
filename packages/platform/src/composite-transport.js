@@ -23,6 +23,21 @@ export class CompositeTransport {
 
   async broadcast(bytes) { await Promise.all(this._transports.map((t) => t.broadcast(bytes))); }
 
+  // The signaling of a direct connection (an offer, an answer) goes to the transport that makes them: with these, an Introducer can
+  // work over the composite, relaying through whichever peer is nearest and opening the new link where it can be opened.
+  _signaling() { return this._transports.find((t) => typeof t.createOfferFor === 'function'); }
+  createOfferFor(peer) { return this._need().createOfferFor(peer); }
+  acceptOffer(blob, options) { return this._need().acceptOffer(blob, options); }
+  completeConnection(peer, blob) { return this._need().completeConnection(peer, blob); }
+  closePeer(peer) { this._signaling()?.closePeer?.(peer); }
+  closePending(peer) { this._signaling()?.closePending?.(peer); }
+  linked() { return this._signaling()?.linked?.() ?? []; }
+  _need() {
+    const transport = this._signaling();
+    if (!transport) throw new Error('none of these transports makes direct connections');
+    return transport;
+  }
+
   onMessage(handler) { return this._all((t) => t.onMessage(handler)); }
   onPeerJoin(handler) { return this._all((t) => t.onPeerJoin(handler)); }
   onPeerLeave(handler) { return this._all((t) => t.onPeerLeave(handler)); }

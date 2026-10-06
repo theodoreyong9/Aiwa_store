@@ -847,6 +847,8 @@ test('two phones link by two codes, exchange what each holds, and each shows whe
   assert.deepEqual([A.errors, B.errors], [[], []]);
 });
 
+const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // A Nostr relay of the simplest kind (what Trystero needs of one): it keeps the events, hands a subscriber the ones that match its
 // filter, and passes new ones on to those who subscribed. Wallets meet through it on the loopback address, as through a public one.
 function startRelay() {
@@ -916,6 +918,44 @@ test('two wallets that are open find each other by themselves, through a relay, 
     relay.close();
     await A.context.close();
     await B.context.close();
+  }
+});
+
+test('three wallets: they introduce each other, and with enough direct links each leaves the room and stays connected', { timeout: 420000 }, async () => {
+  const relay = await startRelay();
+  const chain = new Map();
+  const online = async (p) => {
+    await injectSolana(p, chain); await injectHost(p);
+    await p.addInitScript((url) => {
+      localStorage.setItem('aiwa-network', 'on');
+      localStorage.setItem('aiwa-relays', JSON.stringify([url]));
+      localStorage.setItem('aiwa-peers', JSON.stringify({ target: 2, low: 1 }));      // three wallets: two direct links are enough
+    }, relay.url);
+  };
+  const pages = [await openPage(online), await openPage(online), await openPage(online)];
+  const logs = pages.map(() => []);
+  pages.forEach((P, i) => P.page.on('console', (m) => logs[i].push(m.text())));
+  try {
+    for (const P of pages) await mineInPage(P.page, { epoch: 2, timeout: 120000 });
+    for (const [i, P] of pages.entries()) {
+      await P.page.waitForFunction(() => {
+        const el = document.getElementById('net-status');
+        return el.dataset.direct === '2' && el.dataset.room === 'out' && /Connected to 2 wallets/.test(el.textContent);
+      }, null, { timeout: 120000 })
+        .catch(async (error) => { throw new Error(`wallet ${i} never had two direct links and left the room; it shows: ${await P.page.locator('#net-status').textContent()} (direct ${await P.page.locator('#net-status').getAttribute('data-direct')}, room ${await P.page.locator('#net-status').getAttribute('data-room')}) | errors ${JSON.stringify(pages.map((p) => p.errors))} | console ${JSON.stringify(logs.map((l) => l.filter((t) => /introduc|peer manager|WebRTC|link/i.test(t)).slice(-6)))}`, { cause: error }); });
+    }
+    // out of the room, they are still connected to each other
+    // out of the room they stay connected: a link that drops is made again (under three direct links the wallet goes back to the room), so
+    // what is asked is that all three are connected to the two others again within a while, not that no link ever blinked
+    await sleepMs(3000);
+    for (const [i, P] of pages.entries()) {
+      await P.page.waitForFunction(() => /Connected to 2 wallets/.test(document.getElementById('net-status').textContent), null, { timeout: 60000 })
+        .catch(async (error) => { throw new Error(`wallet ${i} did not stay connected: ${await P.page.locator('#net-status').textContent()} | console ${JSON.stringify(logs[i].slice(-5))}`, { cause: error }); });
+    }
+    assert.deepEqual(pages.map((p) => p.errors), [[], [], []]);
+  } finally {
+    relay.close();
+    for (const P of pages) await P.context.close();
   }
 });
 

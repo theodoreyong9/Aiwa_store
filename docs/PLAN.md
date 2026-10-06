@@ -26,7 +26,7 @@ A fixed share of the burn is sent to a creator address that is a constant of the
 
 | Step | State |
 |---|---|
-| Protocol, distribution and wallet packages in one workspace, one lock file | done — core 421 tests, platform 94, lib 113. The protocol was rewritten for clarity without changing a byte it signs (one signing module; the wallet class split into focused modules); the signed messages' bytes are pinned by a test |
+| Protocol, distribution and wallet packages in one workspace, one lock file | done — core 421 tests, platform 101, lib 113. The protocol was rewritten for clarity without changing a byte it signs (one signing module; the wallet class split into focused modules); the signed messages' bytes are pinned by a test |
 | The creator fee in the burn: rule, verification, wallet transaction | done, with tests (core 8 + lib 5); the creator address is set in `deployment.json` |
 | The yellow paper, standalone, with the fee (§11) and the order of conflicting branches (§13.4) | done |
 | The documents: the README, the plain-words explanation (EN and FR) and the yellow paper (seven parts and four appendices, in the order the system works: foundations, the three pillars, creating value, agreement without a clock, applications, observation, assessment), each with diagrams of how it **functions**; `scripts/check-diagrams.mjs` renders every diagram and checks every `§` reference in CI | done |

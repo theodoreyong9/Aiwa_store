@@ -90,6 +90,16 @@ export class WebrtcTransport {
     return [...this._openPeers];
   }
 
+  /** Every peer there is a link to, open or still being made: what a new introduction must not offer again. */
+  linked() {
+    return [...this._links.keys()];
+  }
+
+  /** Gives up the link to `peerId` only if it never opened (an introduction that failed leaves one behind, and it blocks the next try). */
+  closePending(peerId) {
+    if (this._links.has(peerId) && !this._openPeers.has(peerId)) this._closeLink(peerId);
+  }
+
   async send(peerId, bytes) {
     const link = this._links.get(peerId);
     if (link?.channel?.readyState === 'open') link.channel.send(bytes);

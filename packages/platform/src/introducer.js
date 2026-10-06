@@ -89,6 +89,12 @@ export class Introducer {
     }
 
     if (msg.type === 'INTRO_ASSIGN') {
+      if (this.transport.linked?.().includes(msg.peerId)) {
+        await this.transport.send(peerId, encode({ type: 'INTRO_FAILED', sessionId: msg.sessionId, reason: `Already connected (or connecting) to '${msg.peerId}'.` }));
+        this._requests.get(msg.sessionId)?.reject(new Error(`Already connected (or connecting) to '${msg.peerId}'.`));
+        this._requests.delete(msg.sessionId);
+        return;
+      }
       this._roles.set(msg.sessionId, { role: msg.role, peerId: msg.peerId, mediator: peerId });
       if (msg.role === 'offerer') {
         try {
@@ -137,6 +143,8 @@ export class Introducer {
         this._mediating.delete(msg.sessionId);
         return;
       }
+      const role = this._roles.get(msg.sessionId);
+      if (role) this.transport.closePending?.(role.peerId);       // the link started for it will never open, and would block the next try
       this._requests.get(msg.sessionId)?.reject(new Error(msg.reason));
       this._requests.delete(msg.sessionId);
       this._roles.delete(msg.sessionId);
@@ -156,6 +164,7 @@ export class Introducer {
         this._requests.delete(sessionId);
       }
     } catch (err) {
+      this.transport.closePending?.(role.peerId);
       await this._fail(sessionId, role.mediator, err.message);
     } finally {
       this._roles.delete(sessionId);

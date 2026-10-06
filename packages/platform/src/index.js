@@ -14,6 +14,7 @@ export { CompositeTransport } from './composite-transport.js';
 export { encodeSignal, decodeSignal } from './signaling-codec.js';
 export { Replicator } from './replicator.js';
 export { Introducer } from './introducer.js';
+export { PeerManager } from './peer-manager.js';
 export { issueCapability, verifyCapability, capabilityAllows, CapabilitySet } from './capability.js';
 
 export { GuardedDataStore } from './guarded-data-store.js';
