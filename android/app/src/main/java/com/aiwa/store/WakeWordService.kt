@@ -40,7 +40,7 @@ object ListenSettings {
 /**
  * Listens for "mon agent" and "instruction" all the time (a foreground service of the microphone type: the phone shows its green microphone dot for as
  * long as it runs), and when one is heard opens a dictation as if the mic of the widget had been touched, with the words that follow read as
- * instructions to Aiwa from the start ("mon agent, t'en es où … modèle Opus, push main … c'est bon vas-y"). "Mon agent" is also the question: where
+ * instructions to Aiwa from the start ("mon agent, t'es sur quoi … modèle Opus, push main … c'est bon vas-y"). "Mon agent" is also the question ("t'es sur quoi ?", or "t'en es où ?"): where
  * things stand is read aloud first. Whatever is said is read back and has to be confirmed, every time (VoiceDictation.confirmAll). Works with the screen locked as long as
  * Android keeps the service alive.
  *
@@ -129,7 +129,7 @@ class WakeWordService : Service() {
     private fun listen() {
         val current = model ?: return
         if (paused || dictation != null) return
-        say("À l'écoute : dis « mon agent » (t'en es où ?) ou « instruction »")
+        say("À l'écoute : dis « mon agent » (t'es sur quoi ?) ou « instruction »")
         holdCpu(true)
         detector = WakeWordDetector(
             model = current,
