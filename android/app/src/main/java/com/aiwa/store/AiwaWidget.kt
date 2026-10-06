@@ -128,8 +128,12 @@ private fun codeAction(state: AiwaState): Action {
 }
 
 // The mic records; with no repository chosen there is nothing to send to yet, so it opens the repository list instead.
-private fun micAction(needsRepo: Boolean): Action =
-    if (needsRepo) actionStartActivity<RepoPickerActivity>() else actionStartActivity<DictateActivity>()
+// The backend is not installed (in Termux): the voice cannot be sent anywhere. The writing screen opens instead, with the steps to install it.
+private fun micAction(needsRepo: Boolean, backendMissing: Boolean): Action = when {
+    backendMissing -> actionStartActivity<MainActivity>()
+    needsRepo -> actionStartActivity<RepoPickerActivity>()
+    else -> actionStartActivity<DictateActivity>()
+}
 
 // The Deploy chip opens a list of what Claude is asked to produce (DeployPickerActivity).
 private fun deployLabel(mode: String) = when (mode) {
@@ -271,7 +275,8 @@ private fun FullContent(state: AiwaState) {
         state.needsRepo -> { status = "Choisis un dépôt (⎇) pour commencer"; statusColor = warm; statusBold = true }
         else -> { status = "Prêt"; statusColor = subtle }
     }
-    val titleRoom = avail - avatar - 8f - (avatar + 8f)
+    val updateRoom = if (state.storeUpdateReady) avatar + 8f else 0f
+    val titleRoom = avail - avatar - 8f - (avatar + 8f) - updateRoom
     val title = when {
         needsSetup -> "Autoriser Aiwa ▸"
         state.backend == "missing" -> "Installer le backend ▸"
@@ -338,6 +343,17 @@ private fun FullContent(state: AiwaState) {
                     statusText,
                     style = TextStyle(color = statusColor, fontSize = 11.sp, fontWeight = if (statusBold) FontWeight.Bold else FontWeight.Normal),
                     maxLines = 1,
+                )
+            }
+            // A newer release of the Store's page is downloaded: this button applies it (it replaces a toast that was gone before it was read).
+            if (state.storeUpdateReady) {
+                Spacer(GlanceModifier.width(8.dp))
+                RoundButton(
+                    icon = R.drawable.ic_update,
+                    description = "Mise à jour du Store prête : touche pour l'appliquer",
+                    background = green,
+                    action = actionStartActivity<UpdateStoreActivity>(),
+                    diameter = avatar.dp,
                 )
             }
             // Always there (it vanished with the list of sessions, and only came back with a first message that went): with a
@@ -426,7 +442,7 @@ private fun FullContent(state: AiwaState) {
                 modifier = (if (docsMode) GlanceModifier.defaultWeight() else GlanceModifier.fillMaxWidth()).height(micH.dp)
                     .background(if (locked) MIC_DIM else micGrey)
                     .cornerRadius((micH / 2).dp)
-                    .clickable(lockable(locked, micAction(state.needsRepo))),
+                    .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing"))),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -493,7 +509,8 @@ private fun CompactContent(state: AiwaState) {
     }
     val modelText = modelLabel(state.model).replace(" · ", "·").take(12) + " ▾"
     val pillText = "● Claude ↗"
-    val fixedLeft = 36f + 40f + chipWidth(modelText, fontScale) + 3 * GAP // A, mic, model and the gaps before them
+    val updateRoom = if (state.storeUpdateReady) 36f + GAP else 0f
+    val fixedLeft = 36f + 40f + chipWidth(modelText, fontScale) + 3 * GAP + updateRoom // A, mic, model, the update button when there is one, and the gaps before them
     // Claude waiting gets its words when there is room for them next to a
     // readable session name; otherwise it stays a round button, still red.
     val claudePill = state.waiting && avail - fixedLeft - (chipWidth(pillText, fontScale) + GAP) >= 96f
@@ -531,7 +548,7 @@ private fun CompactContent(state: AiwaState) {
                 modifier = GlanceModifier.size(40.dp)
                     .background(if (locked) MIC_DIM else micGrey)
                     .cornerRadius(20.dp)
-                    .clickable(lockable(locked, micAction(state.needsRepo))),
+                    .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing"))),
                 contentAlignment = Alignment.Center,
             ) {
                 Image(
@@ -542,6 +559,16 @@ private fun CompactContent(state: AiwaState) {
             }
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(modelText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<ModelPickerActivity>()))
+            if (state.storeUpdateReady) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(
+                    icon = R.drawable.ic_update,
+                    description = "Mise à jour du Store prête : touche pour l'appliquer",
+                    background = green,
+                    action = actionStartActivity<UpdateStoreActivity>(),
+                    diameter = 36.dp,
+                )
+            }
             // Always there: with a session it opens that conversation, without one Claude's Code tab. Red while Claude waits for
             // an answer (it pinged the relay): the alert is this button and the
             // card's edge, not a notification.

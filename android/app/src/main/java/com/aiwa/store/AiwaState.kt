@@ -132,6 +132,8 @@ data class AiwaState(
     // Which workflow / commit / event / author the GitHub verdict is about (the "État d'Aiwa" list says it).
     val ciDetail: String? = null,
     val githubError: String? = null,
+    // A newer release of the Store's page has been downloaded and waits for the next start of the Store (a button of the widget applies it).
+    val storeUpdateReady: Boolean = false,
     val repoAccessMissing: String? = null,
     val githubAppUrl: String? = null,
     // Whether the local backend answers: "unknown" (not asked yet), "up", "down",

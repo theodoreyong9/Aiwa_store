@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -16,10 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.glance.appwidget.updateAll
+import com.aiwa.bridge.BOOTSTRAP_COMMAND
 import com.aiwa.bridge.BackendVerdict
 import com.aiwa.bridge.LocalClaudeBridge
 import com.aiwa.bridge.backendProblemMessage
@@ -178,6 +181,20 @@ color=MaterialTheme.colorScheme.onSecondaryContainer,
 )
 }
 if(note!=null)Text(note,style=MaterialTheme.typography.bodySmall,color=if(problem)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+// The backend is not installed in Termux (the micro of the widget sends here): the whole installation, once.
+if(state.backend=="missing"){
+Surface(shape=MaterialTheme.shapes.medium,color=MaterialTheme.colorScheme.errorContainer,modifier=Modifier.fillMaxWidth()){
+Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+Text("Installer Aiwa en entier, une seule fois",style=MaterialTheme.typography.titleSmall,color=MaterialTheme.colorScheme.onErrorContainer)
+Text(
+"1. Termux doit être sur le téléphone (depuis F-Droid : la version du Play Store n'est plus à jour).\n2. Ouvre Termux, colle cette ligne et valide : elle installe le backend, règle l'autorisation entre Aiwa et Termux, et télécharge la dernière application dans Téléchargements.\n3. Quand elle a fini, reviens ici : le micro du widget marche.",
+style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onErrorContainer,
+)
+SelectionContainer{Text(BOOTSTRAP_COMMAND,style=MaterialTheme.typography.bodySmall,fontFamily=FontFamily.Monospace,color=MaterialTheme.colorScheme.onErrorContainer)}
+Button(onClick={context.startActivity(Intent(context,InstallHelpActivity::class.java))},modifier=Modifier.fillMaxWidth()){Text("Copier la ligne et ouvrir Termux")}
+}
+}
+}
 // Two things that need a person, each with the way to do it (see ClaudeLoginActivity / HealthActivity).
 if(state.claudeLogin=="needed"){
 Button(onClick={context.startActivity(Intent(context,ClaudeLoginActivity::class.java))},modifier=Modifier.fillMaxWidth()){Text("Claude n'est pas connecté : connecter")}

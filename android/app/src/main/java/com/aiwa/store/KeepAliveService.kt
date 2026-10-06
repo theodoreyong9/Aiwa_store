@@ -216,6 +216,7 @@ class KeepAliveService : Service() {
         var shown = widgetKey()
         var lastLaunch = 0L
         var versionKicked = false
+        var lastSiteCheck = 0L
         while (true) {
             try {
                 BackendSync.refresh(bridge)
@@ -234,6 +235,14 @@ class KeepAliveService : Service() {
                     lastLaunch = System.currentTimeMillis()
                     startAiwaBackendViaTermux(applicationContext)
                 }
+                // The Store's page: a newer release is looked for each hour, here, so that the widget can say it is ready without the Store being opened.
+                val clock = android.os.SystemClock.elapsedRealtime()
+                if (lastSiteCheck == 0L || clock - lastSiteCheck > 60 * 60 * 1000L) {
+                    lastSiteCheck = clock
+                    downloadSiteRelease(applicationContext)
+                }
+                val waiting = storeUpdateWaiting(applicationContext)
+                if (waiting != AiwaRepository.state.value.storeUpdateReady) AiwaRepository.update { it.copy(storeUpdateReady = waiting) }
                 val now = widgetKey()
                 if (now != shown) {
                     shown = now
@@ -248,7 +257,7 @@ class KeepAliveService : Service() {
 
     private fun widgetKey(): List<Any?> {
         val state = AiwaRepository.state.value
-        return listOf(state.backend, state.status, state.sendingNote, if (state.status == AiwaState.Status.WORKING && state.sendingSince > 0) (System.currentTimeMillis() - state.sendingSince) / 10_000 else null, state.waiting, state.ciFresh, state.ciState, state.siteState, state.cloudSessionId, state.repo, state.extraRepos, state.model, state.repoAccessMissing, state.pushMain, state.deploy, state.siteKind, state.claudeLogin, state.relayCloud, state.sentApp)
+        return listOf(state.backend, state.status, state.sendingNote, if (state.status == AiwaState.Status.WORKING && state.sendingSince > 0) (System.currentTimeMillis() - state.sendingSince) / 10_000 else null, state.waiting, state.ciFresh, state.ciState, state.siteState, state.cloudSessionId, state.repo, state.extraRepos, state.model, state.repoAccessMissing, state.storeUpdateReady, state.pushMain, state.deploy, state.siteKind, state.claudeLogin, state.relayCloud, state.sentApp)
     }
 
     override fun onDestroy() {

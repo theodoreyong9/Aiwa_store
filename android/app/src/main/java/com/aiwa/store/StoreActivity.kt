@@ -27,6 +27,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
+import androidx.glance.appwidget.updateAll
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import androidx.webkit.WebViewCompat
@@ -117,6 +118,7 @@ class StoreActivity : ComponentActivity() {
 
         bundled = try { assets.open("web/release.json").use { parseRelease(it.readBytes()) } } catch (err: Exception) { null }
         pageIsDownloaded = try { siteStore.choose(bundled).cached } catch (err: Exception) { false }
+        AiwaRepository.update { it.copy(storeUpdateReady = false) }       // a waiting release has just been put in place
         val loaderBuilder = WebViewAssetLoader.Builder().addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
         try {
             loaderBuilder.addPathHandler("/site/", WebViewAssetLoader.InternalStoragePathHandler(this, siteStore.currentDir))
@@ -194,6 +196,8 @@ class StoreActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.getStringExtra(EXTRA_URL)?.let { openPage(it) }
+        // Asked for by the widget's update button: the downloaded release becomes the page now.
+        if (intent.getBooleanExtra(EXTRA_APPLY_UPDATE, false) && !applyUpdateNow()) openPage(loadedAddress)
     }
 
     override fun onStart() {
@@ -217,7 +221,9 @@ class StoreActivity : ComponentActivity() {
                         // Still in the first seconds of this start: nothing has been done on the page yet, so the new release becomes
                         // the page now, and the person never sees the old one. Later, it waits for the next start.
                         if (SystemClock.elapsedRealtime() - loadedAt < FRESH_START_MS && applyUpdateNow()) return@runOnUiThread
-                        Toast.makeText(this@StoreActivity, "Mise à jour du Store prête : ferme l'appli et rouvre-la.", Toast.LENGTH_LONG).show()
+                        // Not a toast that is gone before it is read: a button of the widget, next to Claude's.
+                        AiwaRepository.update { it.copy(storeUpdateReady = true) }
+                        CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
                     }
                 }
             } catch (err: Exception) {
@@ -232,6 +238,7 @@ class StoreActivity : ComponentActivity() {
         val choice = siteStore.choose(bundled)
         if (choice.cached) {
             pageIsDownloaded = true
+            AiwaRepository.update { it.copy(storeUpdateReady = false) }
             openPage(loadedAddress)
         }
         choice.cached
@@ -321,6 +328,7 @@ class StoreActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_URL = "url"
+        const val EXTRA_APPLY_UPDATE = "apply_update"
         private const val FRESH_START_MS = 10_000L      // a release that arrives this soon after the page opened replaces it at once
     }
 }
