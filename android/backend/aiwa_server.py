@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 27
+BACKEND_VERSION = 28
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -145,7 +145,9 @@ deploy_mode = "none"
 # Other repositories Claude may ALSO work on (checked in the widget's picker):
 # told to it in the instructions; the platform decides whether it can reach them.
 extra_repos = []
+source_repos = []   # other people's repositories (any owner) Claude may read for inspiration, never write
 EXTRA_REPOS_MAX = 8
+SOURCE_REPOS_MAX = 10
 extra = ""
 # None = the CLI's own default effort.
 current_effort = None
@@ -219,6 +221,8 @@ def _load_state():
     mode = data.get("deploy")
     # Older state files only knew a yes/no: yes was GitHub Pages.
     deploy_mode = mode if mode in DEPLOY_MODES else ("pages" if data.get("autodeploy") is True else "none")
+    sources = data.get("source_repos")
+    source_repos[:] = [r for r in sources if isinstance(r, str) and github.REPO_RE.fullmatch(r)][:SOURCE_REPOS_MAX] if isinstance(sources, list) else []
     listed = data.get("extra_repos")
     extra_repos[:] = [r for r in listed if isinstance(r, str) and github.REPO_RE.fullmatch(r) and r != current_repo][:EXTRA_REPOS_MAX] if isinstance(listed, list) else []
     text = data.get("extra")
@@ -259,7 +263,7 @@ def _save_state():
     try:
         STATE_FILE.write_text(json.dumps({
             "model": current_model, "cloud": current_cloud, "repo": current_repo,
-            "push_main": push_main, "deploy": deploy_mode, "extra": extra, "extra_repos": extra_repos,
+            "push_main": push_main, "deploy": deploy_mode, "extra": extra, "extra_repos": extra_repos, "source_repos": source_repos,
             "effort": current_effort, "topic": waiting_topic, "last_cloud": last_cloud, "ci_seen": ci_seen,
             "relay_cloud": relay_cloud, "sent_app": sent_app, "relay_seen": relay_seen, "last_message": last_message_at,
             "repo_access_missing": repo_access_missing,
@@ -456,7 +460,7 @@ def _known_repos():
     return [r for r in known if isinstance(r, str) and github.REPO_RE.fullmatch(r)]
 
 
-_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso"}
+_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration"}
 
 
 def _sources_line():
@@ -495,7 +499,7 @@ def _instruction_lines(repo, work, base, direct):
     """What the user's switches ask of Claude Code, in words, as (key, text)
     pairs. Claude Code does all of it itself, with its own GitHub access."""
     with lock:
-        deploy, topic, more = deploy_mode, waiting_topic, list(extra_repos)
+        deploy, topic, more, sources = deploy_mode, waiting_topic, list(extra_repos), list(source_repos)
     lines = []
     if repo:
         text = (
@@ -511,6 +515,13 @@ def _instruction_lines(repo, work, base, direct):
                 "Les consignes de push et de vérification ci-dessous valent pour chacun d'eux (sur chacun, ta propre branche, jamais de force-push)."
             )
         lines.append(("repo", text))
+        if sources:
+            lines.append((
+                "inspiration",
+                "Dépôts d'inspiration (à moi ou à d'autres, en LECTURE SEULE) : " + ", ".join(sources) + ". Quand ma demande s'y prête, inspire-toi de leur structure, de leur code et de leurs idées ; "
+                "ne les modifie jamais, n'y pousse rien, et ne recopie pas leur code tel quel (leur licence). Pour les lire, rattache-les avec l'outil `add_repo` (lecture) ; sans cet outil, lis les fichiers par "
+                "https://raw.githubusercontent.com/<dépôt>/HEAD/<chemin>. Si tu n'y arrives pas, dis-le-moi et n'insiste pas.",
+            ))
         if direct:
             lines.append((
                 "push",
@@ -1698,6 +1709,7 @@ class Handler(BaseHTTPRequestHandler):
                 missing_access = repo_access_missing if repo_access_missing == current_repo else None
                 deploy, own, effort = deploy_mode, extra, current_effort
                 more = list(extra_repos)
+                inspiration = list(source_repos)
             with waiting_lock:
                 is_waiting, last_ping = waiting["since"] is not None, waiting["last_ping"]
             with lock:
@@ -1705,7 +1717,7 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json({
                 "version": BACKEND_VERSION, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
-                "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "extra": own, "extra_repos": more,
+                "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "extra": own, "extra_repos": more, "source_repos": inspiration,
                 "waiting": is_waiting, "alert_last": last_ping,
                 "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
                 "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(),
@@ -1896,6 +1908,33 @@ class Handler(BaseHTTPRequestHandler):
                 if requested:
                     _remember_repo(requested)
                 self.reply_json({"accepted": True, "extra_repos": now})
+        elif self.path == "/api/github/sources":
+            # Adds (or, when it is already one, removes) a repository to read for inspiration: given as owner/name or a GitHub
+            # link, any owner. "" empties the list. Told to Claude with the next message; it is never written to.
+            text = body.strip()
+            refusal = None
+            added = None
+            with lock:
+                if not text:
+                    source_repos.clear()
+                else:
+                    ref = github.parse_repo(text)
+                    if ref is None:
+                        refusal = "aucun dépôt GitHub dans ce texte"
+                    elif ref in source_repos:
+                        source_repos.remove(ref)
+                        added = False
+                    elif len(source_repos) >= SOURCE_REPOS_MAX:
+                        refusal = f"{SOURCE_REPOS_MAX} dépôts d'inspiration au plus"
+                    else:
+                        source_repos.append(ref)
+                        added = True
+                _save_state()
+                now = list(source_repos)
+            if refusal:
+                self.reply_json({"accepted": False, "reason": refusal})
+            else:
+                self.reply_json({"accepted": True, "source_repos": now, "added": added})
         elif self.path == "/api/github/add":
             # A repository given as a GitHub link or owner/name (copied from
             # the browser or the Claude app): remembered, and selected.

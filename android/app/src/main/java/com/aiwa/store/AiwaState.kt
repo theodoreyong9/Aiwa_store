@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 27
+const val EXPECTED_BACKEND_VERSION = 28
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -135,6 +135,7 @@ data class AiwaState(
     // A newer release of the Store's page has been downloaded and waits for the next start of the Store (a button of the widget applies it).
     val storeUpdateReady: Boolean = false,
     val repoAccessMissing: String? = null,
+    val sourceRepos: List<String> = emptyList(),
     val githubAppUrl: String? = null,
     // Whether the local backend answers: "unknown" (not asked yet), "up", "down",
     // or "starting" (Termux was asked to start it, since backendStartedAt).

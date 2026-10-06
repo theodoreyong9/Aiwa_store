@@ -71,6 +71,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             cloudSession = json.str("cloud_session"),
             lastSession = json.str("last_session"),
             repo = json.str("repo"),
+            sourceRepos = json.optJSONArray("source_repos")?.let { list -> (0 until list.length()).map { list.getString(it) } } ?: emptyList(),
             extraRepos = json.optJSONArray("extra_repos")?.let { list -> (0 until list.length()).map { list.getString(it) } } ?: emptyList(),
             pushMain = json.optBoolean("push_main", true),
             // An older backend only says yes/no: yes was GitHub Pages.
@@ -188,6 +189,10 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
 
     override suspend fun toggleExtraRepo(repo: String?) = withContext(Dispatchers.IO) {
         requireAccepted(postText("/api/github/extra", repo ?: ""))
+    }
+
+    override suspend fun toggleSourceRepo(text: String?) = withContext(Dispatchers.IO) {
+        requireAccepted(postText("/api/github/sources", text ?: ""))
     }
 
     // Only the options that are not null are changed.

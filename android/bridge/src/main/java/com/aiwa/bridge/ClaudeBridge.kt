@@ -36,6 +36,8 @@ data class BackendStatus(
     val repo: String? = null,
     // Other repositories Claude may ALSO work on (told to it with the next message).
     val extraRepos: List<String> = emptyList(),
+    // Other people's repositories Claude reads for inspiration and never writes.
+    val sourceRepos: List<String> = emptyList(),
     val pushMain: Boolean = true,
     // none / pages (GitHub Pages) / android (the APK as a GitHub release) / store (an app for the Store).
     val deploy: String = "none",
@@ -84,6 +86,9 @@ interface ClaudeBridge {
 
     // Checks or unchecks a repository Claude may ALSO work on; null = none.
     suspend fun toggleExtraRepo(repo: String?)
+
+    /** Adds the repository (an address or owner/name) to the ones read for inspiration, or removes it when it is one; null empties the list. */
+    suspend fun toggleSourceRepo(text: String?)
 
     // The instructions integrated into the conversation. Only the ones that
     // are not null are changed.

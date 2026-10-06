@@ -110,15 +110,9 @@ private val GREEN_DIM = rgb(android.graphics.Color.rgb(34, 66, 52))
 private val MIC_DIM = rgb(android.graphics.Color.rgb(58, 58, 66))
 private val TEXT_DIM = rgb(android.graphics.Color.rgb(130, 130, 144))
 
-// The globe: the site of the repository, in a browser: except the Store's own site, which is the page this app serves: it opens in the app.
-// The APK's download button, for an app that declared it needs Termux: the line to paste there is copied as the download starts.
-private fun siteAction(context: Context, state: AiwaState, site: String): Action = when {
-    state.siteKind == "apk" && state.siteTermux != null -> actionStartActivity<ApkDownloadActivity>()
-    // The site does not answer (a 404): GitHub Pages is not turned on, or has not published yet. Its settings page is where that is fixed.
-    state.siteKind == "site" && state.siteState != "live" && state.repo != null && !isStoreRepository(context, state.repo) -> actionStartActivity<OpenPagesSettingsActivity>()
-    state.siteKind == "site" && isStoreRepository(context, state.repo) -> actionStartActivity<StoreActivity>()
-    else -> actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(site)))
-}
+// The globe / the download: the site of the repository. What it opens depends on the state at the moment of the tap (SiteButtonActivity), and a tap
+// is also looking at the news the red dot was about.
+private val siteAction: Action get() = actionStartActivity<SiteButtonActivity>()
 
 // The code of the app Claude wrote: on GitHub, once it is there (Claude is asked to put it in the repository); the copy received by the
 // phone is the fallback (a private repository, or Claude did not push).
@@ -173,13 +167,19 @@ private fun Chip(
     }
 }
 
+// badge: a small red dot on the corner: something new happened that this button leads to (a deployment, a build).
 @Composable
-private fun RoundButton(icon: Int, description: String, background: ColorProvider, action: Action, diameter: Dp = 34.dp) {
-    Box(
-        modifier = GlanceModifier.size(diameter).background(background).cornerRadius(diameter / 2).clickable(action),
-        contentAlignment = Alignment.Center,
-    ) {
-        Image(provider = ImageProvider(icon), contentDescription = description, modifier = GlanceModifier.size(18.dp))
+private fun RoundButton(icon: Int, description: String, background: ColorProvider, action: Action, diameter: Dp = 34.dp, badge: Boolean = false) {
+    Box(modifier = GlanceModifier.size(diameter), contentAlignment = Alignment.TopEnd) {
+        Box(
+            modifier = GlanceModifier.size(diameter).background(background).cornerRadius(diameter / 2).clickable(action),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(provider = ImageProvider(icon), contentDescription = description, modifier = GlanceModifier.size(18.dp))
+        }
+        if (badge) {
+            Box(modifier = GlanceModifier.size(11.dp).background(rgb(android.graphics.Color.rgb(255, 59, 48))).cornerRadius(6.dp).clickable(action)) { }
+        }
     }
 }
 
@@ -387,7 +387,8 @@ private fun FullContent(state: AiwaState) {
                         icon = if (state.siteKind == "apk") R.drawable.ic_download else R.drawable.ic_globe,
                         description = if (state.siteKind == "apk") (if (state.siteTermux != null) "Installer : copie la ligne Termux et ouvre Termux" else "Télécharger l'APK Android") else "Ouvrir le site",
                         background = if (live) claudeOrange else pill,
-                        action = siteAction(LocalContext.current, state, site),
+                        action = siteAction,
+                        badge = state.ciFresh,
                         diameter = chipH.dp,
                     )
                 }
@@ -426,7 +427,8 @@ private fun FullContent(state: AiwaState) {
                             else -> "état inconnu"
                         },
                         background = when (state.ciState) { "success" -> green; "failure" -> alertRed; else -> pill },
-                        action = actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(state.ciUrl ?: "https://github.com/${state.repo}/actions"))),
+                        action = actionStartActivity<OpenActionsActivity>(),
+                        badge = state.ciFresh && !(showSite && site != null),
                         diameter = chipH.dp,
                     )
                 }
@@ -633,7 +635,8 @@ private fun CompactContent(state: AiwaState) {
                             icon = if (state.siteKind == "apk") R.drawable.ic_download else R.drawable.ic_globe,
                             description = if (state.siteKind == "apk") (if (state.siteTermux != null) "Installer : copie la ligne Termux et ouvre Termux" else "Télécharger l'APK Android") else "Ouvrir le site",
                             background = if (live) claudeOrange else pill,
-                            action = siteAction(LocalContext.current, state, site),
+                            action = siteAction,
+                            badge = state.ciFresh,
                         )
                     }
                     if (showStore) {
@@ -666,7 +669,8 @@ private fun CompactContent(state: AiwaState) {
                                 else -> "état inconnu"
                             },
                             background = when (state.ciState) { "success" -> green; "failure" -> alertRed; else -> pill },
-                            action = actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(state.ciUrl ?: "https://github.com/${state.repo}/actions"))),
+                            action = actionStartActivity<OpenActionsActivity>(),
+                            badge = state.ciFresh && !(showSite && site != null),
                         )
                     }
                 }

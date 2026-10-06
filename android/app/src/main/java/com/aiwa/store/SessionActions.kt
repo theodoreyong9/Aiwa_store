@@ -145,6 +145,42 @@ suspend fun switchRepo(context: Context, bridge: ClaudeBridge, repo: String) {
     AiwaWidget().updateAll(context)
 }
 
+/** owner/name out of an address copied from GitHub (a link, a git remote) or typed as owner/name, or null. */
+fun parseRepoRef(text: String?): String? {
+    val t = text?.trim() ?: return null
+    val link = Regex("github\\.com[:/]([A-Za-z0-9_.-]{1,100})/([A-Za-z0-9_.-]{1,100}?)(?:\\.git)?(?:[/#?\\s].*)?$", RegexOption.DOT_MATCHES_ALL).find(t)
+    if (link != null) return link.groupValues[1] + "/" + link.groupValues[2]
+    return Regex("^([A-Za-z0-9_.-]{1,100})/([A-Za-z0-9_.-]{1,100})$").find(t)?.value
+}
+
+/** Adds a repository to read for inspiration (or removes it when it already is one); null empties the list. Returns what went wrong, or null. */
+suspend fun switchSourceRepo(context: Context, bridge: ClaudeBridge, text: String?): String? {
+    var problem: String? = null
+    try {
+        bridge.toggleSourceRepo(text)
+    } catch (err: IllegalStateException) {
+        problem = if (err.message?.contains("au plus") == true) "Trop de dépôts d'inspiration : retires-en un d'abord." else "Ce n'est pas l'adresse d'un dépôt GitHub."
+    } catch (err: Exception) {
+        problem = describeFailure(context, err, "Impossible de changer les dépôts d'inspiration")
+    }
+    BackendSync.refresh(bridge)
+    AiwaWidget().updateAll(context)
+    return problem
+}
+
+/** The news the red dot of a button was about is looked at: the dot goes. */
+fun acknowledgeNews(context: Context) {
+    if (!AiwaRepository.state.value.ciFresh) return
+    AiwaRepository.update { it.copy(ciFresh = false) }
+    val appContext = context.applicationContext
+    CoroutineScope(Dispatchers.IO).launch {
+        val bridge = LocalClaudeBridge()
+        try { bridge.ciSeen() } catch (err: Exception) { }
+        BackendSync.refresh(bridge)
+        AiwaWidget().updateAll(appContext)
+    }
+}
+
 /**
  * Changes the instructions integrated into the conversation; only the
  * arguments that are not null. They apply to the next message (and, for

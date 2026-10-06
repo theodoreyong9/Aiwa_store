@@ -114,6 +114,8 @@ stays alive. A creation is given up when the CLI has printed nothing for 150 sec
 asks and what to do, instead of after the 3 minutes of the timeout; a timeout says at which second the CLI began and what it printed. The whole run
 is in `~/aiwa_cloud_last.log`.
 
+**Red dot, and repositories of inspiration.** A small red dot sits on the widget's site button (or on the Actions button when there is no site) when the repository has a new green run that finished after the last message sent; opening the site or Actions takes it away (those two buttons open a no-UI page of the app, `SiteButtonActivity` and `OpenActionsActivity`, which decide what to open at the moment of the tap). The repository list also keeps, apart from the repository Claude works on and the ones it may also act on, up to ten *repositories of inspiration*: addresses copied from GitHub that every message names to Claude as read-only (it is told never to change them nor push to them, and how to read a file of one without attaching it). A copy of a repository into the person's account is GitHub's own fork page, opened for the copied address: Aiwa holds no GitHub token, so it cannot clone for the person. What is tested is the backend (the list, the refusal at 11, the sentence in the instructions); the widget is compiled in CI, not tried on a phone.
+
 **How what Claude says reaches the phone.** An app, the "Claude waits" alert and the relay test all go to a public relay (ntfy.sh) with one
 `curl`. That needs the cloud environment to allow `ntfy.sh`, a setting only claude.ai can change (a new environment is on the default list,
 which does not have it; *État d'Aiwa* then says the cloud alerts are blocked). There is a second road that needs no setting, because a

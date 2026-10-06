@@ -1222,6 +1222,26 @@ class HttpTests(Base):
         srv.current_repo = "p/q"                                   # another repository is chosen: it is not about that one
         self.assertIsNone(self.call("/api/status")["repo_access_missing"])
 
+    def test_repositories_of_inspiration_are_added_removed_and_told_to_claude_as_read_only(self):
+        original = list(srv.source_repos)
+        self.addCleanup(lambda: srv.source_repos.__setitem__(slice(None), original))
+        srv.source_repos.clear()
+        added = self.call("/api/github/sources", "https://github.com/someone-else/cool-app/tree/main/src")
+        self.assertEqual((added["accepted"], added["added"], added["source_repos"]), (True, True, ["someone-else/cool-app"]))
+        self.assertEqual(self.call("/api/status")["source_repos"], ["someone-else/cool-app"])
+        text = srv._compose({}, "o/r", "aiwa/x", "main", True)[0]
+        self.assertIn("someone-else/cool-app", text)
+        self.assertIn("LECTURE SEULE", text)
+        self.assertIn("ne les modifie jamais", text)
+        refused = self.call("/api/github/sources", "pas un dépôt du tout !")
+        self.assertFalse(refused["accepted"])
+        removed = self.call("/api/github/sources", "someone-else/cool-app")
+        self.assertEqual((removed["added"], removed["source_repos"]), (False, []))
+        self.assertNotIn("inspiration", srv._compose({}, "o/r", "aiwa/x", "main", True)[0])
+        self.call("/api/github/sources", "a/b")
+        self.call("/api/github/sources", "")
+        self.assertEqual(srv.source_repos, [], "an empty text empties the list")
+
     def forget_sessions(self):
         Path(srv.CLOUD_STORE).unlink(missing_ok=True)
         srv.current_cloud = srv.last_cloud = None

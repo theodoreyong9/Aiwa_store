@@ -81,6 +81,7 @@ object BackendSync {
                     ciDetail = status.ci?.detail,
                     githubError = status.githubError,
                     repoAccessMissing = status.repoAccessMissing,
+                    sourceRepos = status.sourceRepos,
                     githubAppUrl = status.githubAppUrl,
                     claudeLogin = status.claudeLogin,
                     relayCloud = status.relayCloud,

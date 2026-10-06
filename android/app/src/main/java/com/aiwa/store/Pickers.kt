@@ -263,6 +263,8 @@ class RepoPickerActivity : ComponentActivity() {
                 if (state.repo != null) {
                     val n = state.extraRepos.size
                     add(PickerEntry("＋  Autres dépôts où Claude peut intervenir" + (if (n > 0) " ($n)" else "") + "…", n > 0) { openExtraRepos() })
+                    val sources = state.sourceRepos.size
+                    add(PickerEntry("＋  Dépôts d'inspiration, en lecture seule" + (if (sources > 0) " ($sources)" else "") + "…", sources > 0) { openSourceRepos() })
                 }
                 // Claude Code reaches GitHub with ITS OWN connection, made in Claude's
                 // settings: Aiwa never logs in to GitHub and cannot tell whether it is
@@ -282,6 +284,11 @@ class RepoPickerActivity : ComponentActivity() {
 
     private fun openExtraRepos() {
         startActivity(Intent(this, ExtraReposPickerActivity::class.java))
+        finish()
+    }
+
+    private fun openSourceRepos() {
+        startActivity(Intent(this, SourceReposPickerActivity::class.java))
         finish()
     }
 
@@ -344,6 +351,74 @@ class ExtraReposPickerActivity : ComponentActivity() {
     private fun toggle(repo: String?) {
         val appContext = applicationContext
         CoroutineScope(Dispatchers.Default).launch { switchExtraRepo(appContext, LocalClaudeBridge(), repo) }
+    }
+}
+
+/**
+ * The repositories Claude READS for inspiration — the user's own or anybody's, public ones: Claude is told to look at them
+ * (the platform attaches them for reading when it asks) and never to change them or push to them. Added from an address copied
+ * in the browser (a link or owner/name), removed with the ✕. The picker stays open.
+ *
+ * Copying a repository into the user's account (a fork) is GitHub's own page: Aiwa never logs in to GitHub and holds no token, so it
+ * cannot do it itself. The entry opens that page for the copied address; once forked, the copy is an ordinary repository of the list.
+ */
+class SourceReposPickerActivity : ComponentActivity() {
+    private val problem = mutableStateOf<String?>(null)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        wakeAiwa(applicationContext)
+        setContent {
+            val state by AiwaRepository.state.collectAsState()
+            val note by problem
+            LaunchedEffect(Unit) { BackendSync.refresh(LocalClaudeBridge()) }
+            val entries = buildList {
+                add(PickerEntry("Dépôts d'inspiration : Claude les lit, il ne les modifie jamais", false, header = true) { })
+                state.sourceRepos.forEach { r ->
+                    add(PickerEntry(r, true, side = "✕", onSide = { switchSource(r) }) { openRepoOnGithub(r) })
+                }
+                if (state.sourceRepos.isEmpty()) add(PickerEntry("Aucun pour l'instant", false) { })
+                note?.let { add(PickerEntry("⚠  $it", false, lines = 4) { problem.value = null }) }
+                add(PickerEntry("＋  Ajouter le dépôt copié (lien GitHub ou owner/nom)", false) { addFromClipboard() })
+                add(PickerEntry("⑂  Faire une copie dans mon compte (le lien copié) ↗", false) { forkFromClipboard() })
+                if (state.sourceRepos.isNotEmpty()) add(PickerEntry("Tout retirer", false) { switchSource(null) })
+            }
+            PickerSheet(entries) { finish() }
+        }
+    }
+
+    // Read here, on the main thread of the focused activity: the only place Android hands the clipboard over.
+    private fun addFromClipboard() {
+        val text = clipboardText(this)
+        if (parseRepoRef(text) == null) {
+            problem.value = "Copie d'abord le lien du dépôt (dans GitHub : le lien de la page du dépôt), puis reviens ici."
+            return
+        }
+        problem.value = null
+        switchSource(text)
+    }
+
+    private fun forkFromClipboard() {
+        val ref = parseRepoRef(clipboardText(this))
+        if (ref == null) {
+            problem.value = "Copie d'abord le lien du dépôt à copier, puis reviens ici."
+            return
+        }
+        problem.value = null
+        toastOnMain(applicationContext, "Sur GitHub, touche « Create fork ». Ta copie apparaîtra dans la liste des dépôts.")
+        if (!openUrl(applicationContext, "https://github.com/$ref/fork")) toastOnMain(applicationContext, "Impossible d'ouvrir le navigateur.")
+    }
+
+    private fun switchSource(text: String?) {
+        val appContext = applicationContext
+        CoroutineScope(Dispatchers.Main).launch {
+            val failed = withContext(Dispatchers.IO) { switchSourceRepo(appContext, LocalClaudeBridge(), text) }
+            problem.value = failed
+        }
+    }
+
+    private fun openRepoOnGithub(repo: String) {
+        if (!openUrl(applicationContext, "https://github.com/$repo")) toastOnMain(applicationContext, "Impossible d'ouvrir le navigateur.")
     }
 }
 
