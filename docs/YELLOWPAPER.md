@@ -1424,8 +1424,9 @@ depend on its author behaving.
 
 **The one exception: the door.** An application that says it uses the wallet (`<meta name="aiwa-wallet" content="pay">`) is given a
 narrow way out: it posts requests to the page, which answers them (§18.8). The frame is otherwise the same: no storage, no DOM
-access, no secret. The Store signals the declaration with a banner and does nothing more. The door has no cap and no expiry, so a
-hostile application that declares the wallet can spend it. That is a known gap, kept apart from the isolation, which is unchanged.
+access, no secret. The Store signals the declaration with a banner, and the door pays only once the player has allowed it, in a sheet of the Store (not of the
+application): refuse, allow that payment, or allow a budget until the application is closed. A hostile application that declares the wallet can
+still spend what the player allows. That is kept apart from the isolation, which is unchanged.
 
 *Does not guarantee.* That the application cannot use the network (it can), or that it is not malicious towards its own user (it
 is not reviewed). Storage inside a fully opaque origin is unreliable: an application cannot count on `IndexedDB` persisting
@@ -1665,15 +1666,15 @@ carries the WebView's storage (the wallet's journal) to a new phone; the secrets
 
 ### 18.7 What the store does not solve
 
-Nothing is reviewed. An app can use the network. It reaches the wallet only through the door and only if it declares it (§18.8), with a banner as the only protection. The ranking favours capital and time, not quality. The
+Nothing is reviewed. An app can use the network. It reaches the wallet only through the door and only if it declares it (§18.8), with a banner and the player's consent as the protection. The ranking favours capital and time, not quality. The
 figure is a snapshot the author chooses to refresh, so a submission can leave out a burn made after the last epoch shown (§12.4).
 Nothing says two authors are two people: the cost of publishing is the mining an author has to show, not an identity.
 
 
 ### 18.8 An app that uses the wallet: the door, and the click duel
 
-**The door.** An app that declares `<meta name="aiwa-wallet" content="pay">` gets a banner ("This app uses your wallet: it can move
-your AIWA") and a channel to the page: it posts `{aiwa: 1, id, cmd, args}`, the page answers `{aiwa: 1, id, result | error}` to that
+**The door.** An app that declares `<meta name="aiwa-wallet" content="pay">` gets a banner ("This app uses your wallet: it asks you
+before it pays") and a channel to the page: it posts `{aiwa: 1, id, cmd, args}`, the page answers `{aiwa: 1, id, result | error}` to that
 frame only. An app that does not declare it is not answered.
 
 | Command | Answer |
@@ -1685,7 +1686,7 @@ frame only. An app that does not declare it is not answered.
 | `scanCode { title }` | a code read by the camera, or pasted |
 | `config` | how to reach a phone nearby (the deployment's STUN servers) |
 
-The door asks nothing of the player and has no cap or expiry: that is the gap named in §17.2.
+The first `pay` of an app opens a sheet of the Store: who asks, how much, to whom. The player refuses, allows that payment, or allows a budget until the app is closed (kept in memory, ended with the viewer). Inside the budget payments go through; the first one beyond it asks again; a refusal makes the app's next requests fail for 30 seconds without asking. The sheet is the Store's, but the name in it is the author's, and what the player allows is spent as the app wishes (§17.2).
 
 **The click duel** (`docs/demo-apps/click-duel.html`) is an app that uses it. Two phones side by side, a price per click, 20 seconds.
 Nobody signs anything per click: clicks are counted, and at the end the one who clicked **less** pays what they clicked, once.
@@ -1718,13 +1719,13 @@ sequenceDiagram
 </details>
 <!-- /diagram -->
 
-*What it shows.* "Sign once, click many": the player is asked for no signature at all. The wallet signs one delegation the first
+*What it shows.* "Sign once, click many": the loser is asked once, at the end, in the Store's sheet (that payment, or a budget). The wallet then signs one delegation the first
 time, and the session key signs the payment. The receiver checks the origin of the claim itself (§9.2), so the winner needs no trust
 in the loser's phone about the money, only about the **count**.
 
 *What it does not do.* Each phone reports its own count: a modified app can lie, and the live view only lets the other side notice.
 The game itself never touches Solana; the wallet does, once per origin, for any AIWA it receives (§9.2): with no connection the payment is received and counts once the phone has been online. There is no escrow: the loser can spend the claim elsewhere before the payment is applied (§13.5). The amount a player can lose
-is not capped by anything but their balance. Both are left for later, on purpose: the first demonstrations are between people in
+is what they allowed in the sheet. Both are left for later, on purpose: the first demonstrations are between people in
 the same room. Finding players nearby (geolocation) is not built. Not tried on real phones: the link between two phones, and the camera in the WebView (a code can always be pasted).
 
 ---
@@ -1897,7 +1898,7 @@ else only while a copy of its events is reachable, such as a hosted export.
 | An action is left out of a history | the mining events are one signed chain (§6.5) | an action after the last epoch shown and followed by none |
 | A second history is shown | the chain makes it cost the work again; witnesses force it to contain what others hold (§12.4) | no witness, no protection beyond the work |
 | A host swaps an app's file | the package hash and the author's signature are checked before it opens (§18.5) | — |
-| An app is hostile | sandbox with an opaque origin: no page storage, no secret; no wallet unless it declares it (§17.2) | it can use the network; it is not reviewed; **an app that declares the wallet can spend it**, and only a banner says so (§18.8) |
+| An app is hostile | sandbox with an opaque origin: no page storage, no secret; no wallet unless it declares it (§17.2) | it can use the network; it is not reviewed; **an app that declares the wallet can spend what the player allows in the sheet** (§18.8); the app's name in it is its author's |
 | A pull request runs attacker code in the registry | the workflow runs `main`'s code and reads the file as data, never executes it (§18.2) | — |
 | An old signed package is replayed to the registry | signatures older than 24 h are refused (§18.3) | — |
 | A device is lost | a backup signed by the key, a registry baseline, Android's backup, peers (§15) | no backup, no node, no peer: the journal is lost |

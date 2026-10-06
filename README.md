@@ -57,7 +57,7 @@ flowchart LR
 4. **Rank.** The registry is a GitHub workflow: it checks the signature, the proof and the burn on Solana itself, then ranks you by
    `score / laps` (what you can claim, over the epochs since your last action).
 5. **Use.** Each Store checks every app against its author's signature before it opens it. An app that says it uses your wallet gets a banner,
-   and can ask it to pay.
+   and can ask it to pay: a sheet of the Store asks you first (that payment, or a budget until you close the app), and nothing leaves the wallet without it.
 
 GitHub keeps the list, Solana keeps the burns, each phone keeps its own signed history. All of it, with pictures, in
 [docs/EXPLAINED.md](docs/EXPLAINED.md) ([en français](docs/EXPLICATION.md)).

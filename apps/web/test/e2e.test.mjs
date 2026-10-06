@@ -820,6 +820,13 @@ test('an app that says it uses the wallet gets a banner and a door; one that doe
     out({ who, paid: !!(paid.result && paid.result.blob), paidError: paid.error, again: !!(again.result && again.result.blob), againError: again.error, bad: bad.error, unknown: unknown.error });`));
   assert.equal(await page.locator('#viewer-flag').isVisible(), true);
   assert.match(await page.locator('#viewer-flag').textContent(), /uses your wallet/);
+  // the first payment asks the player, in the Store's own sheet; the default budget (ten such payments) then covers the second
+  await page.waitForSelector('#pay-sheet:not([hidden])');
+  assert.match(await page.locator('#pay-title').textContent(), /Loud/);
+  assert.equal(await page.locator('#pay-amount').textContent(), '0.0001');
+  assert.equal(await page.locator('#pay-to').getAttribute('title'), stranger);
+  await page.click('#pay-budget-go');
+  await page.waitForSelector('#pay-sheet', { state: 'hidden' });
   const seen = JSON.parse(await until(() => frame.locator('#r').textContent().then((t) => t.startsWith('{') && t), { what: 'the door to answer' }));
   assert.equal(seen.who.result.id, identity);
   assert.equal(seen.paid, true, `a payment came back as a code (${seen.paidError}; spendable ${before})`);
@@ -833,6 +840,61 @@ test('an app that says it uses the wallet gets a banner and a door; one that doe
   await context.close();
 });
 
+
+test('the wallet door asks before it pays: a refusal pays nothing and silences the app, a budget covers what the player allows, beyond it the sheet comes back', async () => {
+  const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  await fundInPage(page);
+  const spendable = async () => Number(await page.locator('#out-spendable').textContent());
+  const before = await spendable();
+  const stranger = 'cd'.repeat(32);
+  const amountShown = (text) => page.waitForFunction((x) => !document.getElementById('pay-sheet').hidden && document.getElementById('pay-amount').textContent === x, text);
+
+  // a refusal: the app is told, nothing leaves the wallet, and its next request is refused without asking again
+  let frame = await tryApp(page, 'Pushy', doorProbe(true, `
+    const a = await door('pay', { to: '${stranger}', amount: '0.0001' });
+    const b = await door('pay', { to: '${stranger}', amount: '0.0001' });
+    out({ a: a.error, aBlob: !!(a.result && a.result.blob), b: b.error });`));
+  await page.waitForSelector('#pay-sheet:not([hidden])');
+  await page.click('#pay-deny');
+  const refused = JSON.parse(await until(() => frame.locator('#r').textContent().then((t) => t.startsWith('{') && t), { what: 'the refusal to come back' }));
+  assert.match(refused.a, /refused this payment/);
+  assert.equal(refused.aBlob, false);
+  assert.match(refused.b, /refused a payment a moment ago/);
+  assert.equal(await page.locator('#pay-sheet').isHidden(), true, 'the second request did not ask again');
+  assert.equal(await spendable(), before, 'nothing left the wallet');
+  await page.click('#viewer-close');
+
+  // a budget below the payment is not accepted by the sheet; a budget of one payment covers it, and a bigger one asks again
+  frame = await tryApp(page, 'Careful', doorProbe(true, `
+    const a = await door('pay', { to: '${stranger}', amount: '0.0001' });
+    const b = await door('pay', { to: '${stranger}', amount: '0.0002' });
+    out({ a: !!(a.result && a.result.blob), aError: a.error, b: !!(b.result && b.result.blob), bError: b.error });`));
+  await amountShown('0.0001');
+  await page.fill('#pay-budget', '0.00001');
+  await page.click('#pay-budget-go');
+  assert.notEqual(await page.locator('#pay-budget').getAttribute('aria-invalid'), null, 'a budget below the payment is refused by the sheet');
+  assert.equal(await page.locator('#pay-sheet').isVisible(), true, 'and the sheet stays');
+  await page.fill('#pay-budget', '0.0001');
+  await page.click('#pay-budget-go');
+  await amountShown('0.0002');                         // the budget was spent by the first payment: the second one asks
+  await page.click('#pay-once');
+  const paid = JSON.parse(await until(() => frame.locator('#r').textContent().then((t) => t.startsWith('{') && t), { what: 'both payments to come back' }));
+  assert.equal(paid.a, true, paid.aError);
+  assert.equal(paid.b, true, paid.bError);
+  await until(async () => Math.abs((await spendable()) - (before - 0.0003)) < 1e-9, { what: 'the wallet to show exactly what the player allowed (0.0001 + 0.0002)' });
+  await page.click('#viewer-close');
+
+  // closing the app while the sheet is open refuses the payment: the sheet goes, nothing leaves the wallet
+  await tryApp(page, 'Leaving', doorProbe(true, `await door('pay', { to: '${stranger}', amount: '0.0001' });`));
+  await page.waitForSelector('#pay-sheet:not([hidden])');
+  await page.keyboard.press('Escape');                 // the sheet covers the Close button: Escape closes the app, and the question with it
+  await page.waitForSelector('#viewer', { state: 'hidden' });
+  assert.equal(await page.locator('#pay-sheet').isHidden(), true);
+  await page.waitForTimeout(300);
+  assert.ok(Math.abs((await spendable()) - (before - 0.0003)) < 1e-9, 'nothing more left the wallet');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
 test('two phones link by two codes, exchange what each holds, and each shows where the other stands', { timeout: 300000 }, async () => {
   const chain = new Map();                                // one Solana for both phones
   // no camera here (the fake one films a code that is not ours): the codes are pasted, which is what a phone without a camera does
@@ -1071,6 +1133,13 @@ test('click duel: two phones link by two codes, click for 20 seconds, and the on
   for (let i = 0; i < 12; i++) { await a.locator('#disc').click(); if (i < 5) await b.locator('#disc').click(); }
   assert.equal(await a.locator('#mine').textContent(), '12');
   await until(async () => (await b.locator('#theirs').textContent()) === '12', { ms: 5000, what: 'B to see A\'s clicks' });   // B sees A's clicks live
+
+  // the loser's phone asks its player before it pays what the loser clicked
+  await B.page.waitForSelector('#pay-sheet:not([hidden])', { timeout: 60000 });
+  assert.match(await B.page.locator('#pay-title').textContent(), /Duel/);
+  assert.equal(await B.page.locator('#pay-amount').textContent(), '0.0001');
+  assert.equal(await A.page.locator('#pay-sheet').isHidden(), true, 'the winner is not asked anything');
+  await B.page.click('#pay-once');
 
   const shows = async (frame) => (await frame.locator('body').innerText()).replace(/\s+/g, ' ');
   for (const [name, frame] of [['A', a], ['B', b]]) {

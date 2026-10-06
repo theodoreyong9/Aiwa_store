@@ -542,7 +542,7 @@ The dictation widget is optional: it needs Termux and your own Claude login, and
 
 ### 6.7 An app that uses the wallet: the click duel
 
-An app can say it uses your wallet. The Store then shows a banner, and the app can ask a few things of it: who you are, to pay someone, to
+An app can say it uses your wallet. The Store then shows a banner, and the app can ask a few things of it: who you are, to pay someone (the Store asks you first), to
 receive a payment, to show or read a code. **Click duel** is such an app: two phones side by side, a price per click, 20 seconds of
 clicking. Whoever clicked less pays what they clicked.
 
@@ -592,7 +592,7 @@ cost, hash-locked vouchers, session keys. No prior-art search has been done. Wha
 - Nobody is paid to keep other people's data; a lost notebook with no copy is lost.
 - A double spend between people who never exchange events cannot be prevented, only detected and resolved identically for everyone.
 - There is no automatic way for strangers to find each other.
-- Apps are not reviewed, and can use the network. An app that says it uses your wallet can spend it: the Store only shows a banner.
+- Apps are not reviewed, and can use the network. An app that says it uses your wallet can pay from it only once you allow it: a sheet of the Store asks (that payment, or a budget until you close the app), and what you allow is spent as the app wishes.
 - A faster machine earns epochs faster.
 - Solana is the only outside dependency of the protocol (GitHub hosts this deployment's registry and site).
 

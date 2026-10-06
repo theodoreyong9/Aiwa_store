@@ -262,7 +262,11 @@ a.button { display: inline-flex; align-items: center; height: 38px; padding: 0 1
 .viewer-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #viewer-frame-host { order: 1; flex: 1; min-height: 0; }
 #viewer .flag { order: 2; padding: 6px 14px; font-size: 13px; background: var(--danger); color: #fff; }
-.sheet.door { z-index: 30; }          /* above the viewer an app opens in (20) */
+.sheet.door { z-index: 30; }
+.pay-amount { font-size: 28px; margin: 4px 0; }
+.pay-budget { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pay-budget input { width: 7em; }
+.pay-budget input[aria-invalid] { outline: 2px solid #d64541; }          /* above the viewer an app opens in (20) */
 .door .qr canvas { display: block; margin: 0 auto; border-radius: 8px; background: #fff; }
 .door textarea { width: 100%; font: 12px ui-monospace, monospace; }
 .door video { width: 100%; max-height: 40vh; border-radius: 10px; background: #000; }

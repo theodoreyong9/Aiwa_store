@@ -249,7 +249,7 @@
     <div class="viewer-title"><b id="viewer-name"></b> <span class="muted" id="viewer-meta"></span></div>
     <button id="viewer-close" class="sm">Close</button>
   </div>
-  <div id="viewer-flag" class="flag" hidden>⚠ This app uses your wallet: it can move your AIWA.</div>
+  <div id="viewer-flag" class="flag" hidden>⚠ This app uses your wallet: it asks you before it pays.</div>
   <div id="viewer-frame-host"></div>
 </div>
 
@@ -269,6 +269,24 @@
       <button id="door-use" type="button" class="primary">Use this code</button>
     </div>
     <button id="door-close" type="button" class="sm">Close</button>
+  </div>
+</div>
+
+<!-- the player's say before an app that uses the wallet pays: who asks, how much, to whom. Above the viewer. -->
+<div id="pay-sheet" class="sheet door" hidden role="alertdialog" aria-modal="true" aria-labelledby="pay-title">
+  <div class="sheet-card">
+    <h2 id="pay-title"></h2>
+    <p class="pay-amount"><b id="pay-amount"></b> AIWA</p>
+    <p class="muted">to <code id="pay-to"></code></p>
+    <p class="muted">This app is not reviewed. Nothing leaves your wallet unless you allow it.</p>
+    <button id="pay-once" type="button" class="primary">Allow this payment</button>
+    <div class="pay-budget">
+      <label for="pay-budget">Or let it pay up to</label>
+      <input id="pay-budget" inputmode="decimal" autocomplete="off" aria-label="Budget in AIWA">
+      <span>AIWA, until you close it</span>
+    </div>
+    <button id="pay-budget-go" type="button">Allow this budget</button>
+    <button id="pay-deny" type="button" class="sm">Deny</button>
   </div>
 </div>
 
