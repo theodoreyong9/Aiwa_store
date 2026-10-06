@@ -56,7 +56,8 @@ import java.io.File
  *   /assets/web/  the copy inside the APK: the first run, and always there offline;
  *   /site/        the copy this phone downloaded from the site (deployment.json: siteUrl) and checked (SiteRelease.kt): every
  *                 file must be the one the site's release.json lists, so that the page is one whole release. It is used from the
- *                 next start after the download, and only if it is newer than the copy inside the APK.
+ *                 next start after the download (at once, when it comes in during the first seconds of a start), and only if it
+ *                 is newer than the copy inside the APK.
  * Updating the Store needs no new APK. What the site publishes is what the phones run: the site's owner is the GitHub account that
  * publishes it (the page is read over HTTPS, and there is no signature of its own).
  *
@@ -81,6 +82,8 @@ class StoreActivity : ComponentActivity() {
     private var bundled: SiteRelease? = null          // the copy inside the APK, as its release.json describes it
     private var pageIsDownloaded = false              // the page being served is the downloaded copy
     private var lastUpdateCheck = 0L
+    private var loadedAddress: String = STORE_APP_URL        // what the page was last asked to open (the hand-off lives in it)
+    private var loadedAt = 0L                                // when, in SystemClock.elapsedRealtime()
 
     // The site this app follows: deployment.json's siteUrl, which is part of the APK.
     private val siteUrl: String? by lazy {
@@ -178,12 +181,19 @@ class StoreActivity : ComponentActivity() {
                 }
             }
         })
-        web.loadUrl(servedAddress(intent.getStringExtra(EXTRA_URL) ?: STORE_APP_URL, pageIsDownloaded))
+        openPage(intent.getStringExtra(EXTRA_URL) ?: STORE_APP_URL)
+    }
+
+    // Opens the page from the copy in use, and remembers the address and the moment (see applyUpdateNow).
+    private fun openPage(address: String) {
+        loadedAddress = address
+        loadedAt = SystemClock.elapsedRealtime()
+        web.loadUrl(servedAddress(address, pageIsDownloaded))
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent.getStringExtra(EXTRA_URL)?.let { web.loadUrl(servedAddress(it, pageIsDownloaded)) }
+        intent.getStringExtra(EXTRA_URL)?.let { openPage(it) }
     }
 
     override fun onStart() {
@@ -203,13 +213,30 @@ class StoreActivity : ComponentActivity() {
             try {
                 val result = SiteUpdater(url, HttpSiteFetcher(), siteStore).update(have)
                 if (result is SiteUpdate.Updated) {
-                    runOnUiThread { Toast.makeText(this@StoreActivity, "Mise à jour du Store prête : ferme l'appli et rouvre-la.", Toast.LENGTH_LONG).show() }
+                    runOnUiThread {
+                        // Still in the first seconds of this start: nothing has been done on the page yet, so the new release becomes
+                        // the page now, and the person never sees the old one. Later, it waits for the next start.
+                        if (SystemClock.elapsedRealtime() - loadedAt < FRESH_START_MS && applyUpdateNow()) return@runOnUiThread
+                        Toast.makeText(this@StoreActivity, "Mise à jour du Store prête : ferme l'appli et rouvre-la.", Toast.LENGTH_LONG).show()
+                    }
                 }
             } catch (err: Exception) {
                 // No network, no release yet, or a release that does not check out: the page in use stays.
                 Log.w("AiwaSite", "no update: ${err.message}")
             }
         }
+    }
+
+    // The downloaded release that has just come in replaces the page being shown, by the same steps as a start (SiteStore.choose).
+    private fun applyUpdateNow(): Boolean = try {
+        val choice = siteStore.choose(bundled)
+        if (choice.cached) {
+            pageIsDownloaded = true
+            openPage(loadedAddress)
+        }
+        choice.cached
+    } catch (err: Exception) {
+        false
     }
 
     override fun onDestroy() {
@@ -294,5 +321,6 @@ class StoreActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_URL = "url"
+        private const val FRESH_START_MS = 10_000L      // a release that arrives this soon after the page opened replaces it at once
     }
 }

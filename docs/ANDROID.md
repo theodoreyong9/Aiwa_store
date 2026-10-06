@@ -21,11 +21,15 @@ The download is checked entirely before it is kept (`SiteRelease.kt`, the same c
 2. Each file is read and compared with its hash, so the page is one whole release and never a mix of two deployments or a file cut short.
    A name that climbs out of the folder, a missing `index.html`, more than 400 files, 5 MB for a file or 24 MB in all are refused.
 3. All of it goes to `pending/` as a whole, or nothing does. It replaces the page at the **next start**, never while the page runs
-   (the Store loads some of its code late, and must find the files of its own release).
+   (the Store loads some of its code late, and must find the files of its own release), with one exception: a release that comes in during the
+   first 10 seconds after the page opened replaces it at once (the page is reloaded, nothing has been done on it yet).
 4. A release older than the one held, or listing the very same files, is not an update. After the APK itself is updated, a downloaded
    copy older than the page inside it is dropped.
 
-The app looks once an hour, in the background, and says "ferme l'appli et rouvre-la" when a release is ready.
+The app looks each time the Store opens (at most once an hour while it stays open), in the background; when the release arrives after those first
+10 seconds it says "ferme l'appli et rouvre-la". The page is the same web app (`apps/web`) as on Pages: the app only keeps its own checked copy, so
+that it opens offline and never runs a half-downloaded page. What differs is how soon a new deployment shows: the Pages workflow takes a minute or two,
+then the phone has to fetch it.
 
 **Whose word it is.** There is no signature: what the site publishes is what the phones run, and the site is published by the repository's
 GitHub account, so that account is the key. The page travels over HTTPS and the hashes only keep it whole. If one day the Store holds
