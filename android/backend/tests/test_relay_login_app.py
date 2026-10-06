@@ -1299,6 +1299,49 @@ class HttpTests(Base):
         self.assertIsNone(status["last_session"])
         self.assertEqual(status["repo"], "o/r", "the repository chosen stays")
 
+    def test_changing_repository_keeps_the_session_and_tells_it_with_the_next_message(self):
+        # "In the same session I only want to change the instruction": like a new push mode or a new model, a new repository does not
+        # throw the conversation away. The session is told, once, that it now works there; going back is told too.
+        self.addCleanup(self.forget_sessions)
+        self.addCleanup(setattr, srv, "current_repo", srv.current_repo)
+        self.forget_sessions()
+        srv._save_cloud_session("session_MOVE12345", "titre", None, repo="o/r", work="aiwa/1", base="main", direct=True)
+        srv.current_cloud, srv.current_repo = "session_MOVE12345", "o/r"
+        sent = []
+        original = srv._queue_followup
+        srv._queue_followup = lambda session_id, text: (sent.append(text), {"ok": True, "url": None, "error": None})[1]
+        self.addCleanup(setattr, srv, "_queue_followup", original)
+        with unittest.mock.patch.object(gh, "default_branch", lambda repo: "trunk"):
+            self.assertTrue(srv.cloud_send("premier")["ok"])
+            self.assertIn("Ton répertoire de travail doit être ce dépôt GitHub", sent[-1], "the first message tells the session where it is")
+            self.assertTrue(self.call("/api/repo", "p/q")["accepted"])
+            status = self.call("/api/status")
+            self.assertEqual(status["repo"], "p/q")
+            self.assertEqual(status["cloud_session"], "session_MOVE12345", "the session is still the one in progress")
+            self.assertTrue(srv.cloud_send("deuxième")["ok"])
+        self.assertIn("consignes mises à jour", sent[-1])
+        self.assertIn("Ta session a démarré sur o/r", sent[-1])
+        self.assertIn("c'est sur p/q que tu travailles", sent[-1])
+        entry = srv._session_entry("session_MOVE12345")
+        self.assertEqual((entry["repo"], entry["origin"], entry["base"], entry["work"]), ("p/q", "o/r", "trunk", "aiwa/1"))
+        # nothing changed since: nothing is repeated
+        self.assertTrue(srv.cloud_send("troisième")["ok"])
+        self.assertNotIn("consignes", sent[-1])
+        # back on the repository it started on: told again, and it is no longer "moved"
+        with unittest.mock.patch.object(gh, "default_branch", lambda repo: "main"):
+            self.assertTrue(self.call("/api/repo", "o/r")["accepted"])
+        self.assertTrue(srv.cloud_send("quatrième")["ok"])
+        self.assertIn("Ton répertoire de travail doit être ce dépôt GitHub", sent[-1])
+        self.assertNotIn("Ta session a démarré sur", sent[-1])
+        self.assertIsNone(srv._session_entry("session_MOVE12345")["origin"])
+
+    def test_with_no_session_in_progress_changing_repository_only_sets_where_the_next_one_starts(self):
+        self.addCleanup(setattr, srv, "current_repo", srv.current_repo)
+        self.forget_sessions()
+        self.assertTrue(self.call("/api/repo", "p/q")["accepted"])
+        status = self.call("/api/status")
+        self.assertEqual((status["repo"], status["cloud_session"]), ("p/q", None))
+
     def test_the_repository_cannot_be_unchosen(self):
         self.assertTrue(self.call("/api/repo", "o/r")["accepted"])
         refused = self.call("/api/repo", "")

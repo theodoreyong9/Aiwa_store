@@ -134,7 +134,7 @@ suspend fun switchModel(context: Context, bridge: ClaudeBridge, modelId: String?
     }
 }
 
-/** The next message starts a NEW session on that repository. */
+/** The repository Claude works on: the session in progress is told with its next message (it stays); with none, the next session starts there. */
 suspend fun switchRepo(context: Context, bridge: ClaudeBridge, repo: String) {
     try {
         bridge.selectRepo(repo)

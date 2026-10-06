@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 28
+BACKEND_VERSION = 29
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -129,7 +129,7 @@ cloud_busy_since = None      # when the running send began (epoch seconds): the 
 cloud_progress = ""          # what the running send is doing right now (a step of ours, then the last line the CLI printed)
 # Instructions integrated into the conversation (see _compose). Claude
 # Code does the work itself; these only tell it what the user wants:
-# current_repo: the repository new sessions start on ("owner/name"; None =
+# current_repo: the repository the session works on, and new sessions start on ("owner/name"; None =
 # none chosen yet: nothing can be sent before one is); push_main: push straight to the main branch (otherwise
 # to a work branch); deploy_mode: none, pages (publish with GitHub Pages
 # through GitHub Actions), android (build the APK with GitHub Actions and
@@ -438,6 +438,19 @@ def _session_entry(session_id):
     return next((e for e in _load_cloud_sessions() if e.get("id") == session_id), {})
 
 
+def _follow_repo(session_id, repo):
+    """The user changed repository while a session was running: the session stays (a conversation is not thrown away for that),
+    and from its next message it is told to work on that repository, like it is told a new push mode or a new model. Its
+    default branch is looked up now; `origin` remembers where the session started (None once it is back there)."""
+    entry = _session_entry(session_id)
+    if not entry or entry.get("repo") == repo:
+        return
+    started = entry.get("origin") if entry.get("origin") is not None else (entry.get("repo") or "")
+    base = github.default_branch(repo)
+    work = entry.get("work") or "aiwa/" + time.strftime("%Y%m%d-%H%M%S")
+    _update_session(session_id, repo=repo, base=base, work=work, origin=None if started == repo else started)
+
+
 def _remember_repo(repo):
     """The repositories offered in the picker: the ones used or added."""
     with store_lock:
@@ -495,23 +508,35 @@ def _mailbox_signal(kind, work):
     )
 
 
-def _instruction_lines(repo, work, base, direct):
+def _instruction_lines(repo, work, base, direct, origin=None):
     """What the user's switches ask of Claude Code, in words, as (key, text)
-    pairs. Claude Code does all of it itself, with its own GitHub access."""
+    pairs. Claude Code does all of it itself, with its own GitHub access.
+    origin: the repository the session was started on, when it now works on another one (the user changed repository in the middle of
+    the session: a session's instructions change like its model does, the session stays); "" = it was started on none."""
     with lock:
         deploy, topic, more, sources = deploy_mode, waiting_topic, list(extra_repos), list(source_repos)
     lines = []
+    moved = repo and origin is not None and origin != repo
     if repo:
-        text = (
-            f"Dépôt : {repo}. Ton répertoire de travail doit être ce dépôt GitHub (vérifie `git remote -v`) ; si ce n'est pas le cas, dis-le-moi et arrête-toi. "
-            "Si le répertoire ne contient qu'un commit « stub » (le dépôt n'a pas été cloné), rattache le dépôt avec l'outil `add_repo` ; sans cet outil, ou si l'accès est refusé, dis-le-moi et arrête-toi."
-        )
+        if moved:
+            began = f"Ta session a démarré sur {origin}" if origin else "Ta session n'a pas été démarrée sur un dépôt"
+            text = (
+                f"Dépôt : {repo}. {began}, mais à partir de ce message c'est sur {repo} que tu travailles (la conversation continue, seul le dépôt change). "
+                f"Rattache-le avec l'outil `add_repo` (accès `push`) s'il n'est pas déjà attaché à ta session, et fais-y tout ce que les consignes ci-dessous disent d'un dépôt : "
+                f"branche, push, déploiement, vérification, signaux. Ne modifie plus {origin or 'les autres dépôts'} sauf si je te le demande. "
+                "Sans cet outil, ou si l'accès est refusé, dis-le-moi et arrête-toi."
+            )
+        else:
+            text = (
+                f"Dépôt : {repo}. Ton répertoire de travail doit être ce dépôt GitHub (vérifie `git remote -v`) ; si ce n'est pas le cas, dis-le-moi et arrête-toi. "
+                "Si le répertoire ne contient qu'un commit « stub » (le dépôt n'a pas été cloné), rattache le dépôt avec l'outil `add_repo` ; sans cet outil, ou si l'accès est refusé, dis-le-moi et arrête-toi."
+            )
         if more:
             text += (
                 " Dépôts supplémentaires sur lesquels tu peux aussi intervenir : " + ", ".join(more) + ". "
                 "Ils ne sont pas forcément attachés à ta session : quand tu dois en lire ou en modifier un, rattache-le avec l'outil `add_repo` "
                 "(accès `push` si tu dois y pousser) ; sans cet outil, ou si l'accès est refusé, dis-le-moi et n'insiste pas. "
-                "N'interviens sur aucun autre dépôt que ceux-là et celui de ta session. "
+                "N'interviens sur aucun autre dépôt que ceux-là et " + (repo if moved else "celui de ta session") + ". "
                 "Les consignes de push et de vérification ci-dessous valent pour chacun d'eux (sur chacun, ta propre branche, jamais de force-push)."
             )
         lines.append(("repo", text))
@@ -655,13 +680,13 @@ def _instruction_lines(repo, work, base, direct):
     return lines
 
 
-def _compose(entry, repo, work, base, direct):
+def _compose(entry, repo, work, base, direct, origin=None):
     """The instructions added to a message, and what was told (a hash per
     instruction, kept with the session). Everything goes with a session's
     FIRST message; after that only what changed since — a new or altered
     instruction, or a note that one was withdrawn — and nothing at all when
     nothing changed, so the conversation isn't buried in repeats."""
-    lines = _instruction_lines(repo, work, base, direct)
+    lines = _instruction_lines(repo, work, base, direct, origin)
     told = {key: hashlib.sha1(text.encode()).hexdigest()[:8] for key, text in lines}
     previous = (entry or {}).get("instr")
     if not isinstance(previous, dict) or not previous:
@@ -678,7 +703,7 @@ def _preview():
     with lock:
         repo, direct, session = current_repo, push_main, current_cloud
     entry = _session_entry(session) if session else {}
-    text, _ = _compose({}, repo, entry.get("work") or "aiwa/<date>", entry.get("base") or "main", direct)
+    text, _ = _compose({}, repo, entry.get("work") or "aiwa/<date>", entry.get("base") or "main", direct, entry.get("origin"))
     return text.strip()
 
 
@@ -847,7 +872,7 @@ def cloud_send(text, command=False):
                 if entry.get("repo"):
                     work, base = _session_targets(session_id, entry)
                     entry = _session_entry(session_id)
-                extra_text, fingerprint = _compose(entry, entry.get("repo"), work, base, entry.get("direct", True))
+                extra_text, fingerprint = _compose(entry, entry.get("repo"), work, base, entry.get("direct", True), entry.get("origin"))
                 sent += extra_text
             result = _queue_followup(session_id, sent)
             if not result["ok"]:
@@ -1865,20 +1890,24 @@ class Handler(BaseHTTPRequestHandler):
             except OSError as err:
                 self.reply_json({"accepted": False, "reason": f"relais injoignable : {err}"})
         elif self.path == "/api/repo":
-            # Changing repository means the next message starts a NEW
-            # session: a session's repository is fixed when it starts. There
-            # is no "no repository": every session starts on one.
+            # Changing repository does not change session: the session in
+            # progress is told, with its next message, to work on that one
+            # (_follow_repo). With no session in progress, it is the one the
+            # next session starts on. There is no "no repository": every
+            # session starts on one.
             requested = body.strip()
             if not requested or not github.REPO_RE.fullmatch(requested):
                 self.reply_json({"accepted": False, "reason": "un dépôt est obligatoire" if not requested else "invalid repository"})
                 return
             with lock:
                 current_repo = requested or None
-                current_cloud = None
+                running = current_cloud
                 if current_repo in extra_repos:
                     extra_repos.remove(current_repo)
                 _save_state()
             _remember_repo(requested)
+            if running:
+                _follow_repo(running, requested)
             self.reply_json({"accepted": True, "repo": current_repo})
         elif self.path == "/api/github/extra":
             # Checks or unchecks a repository Claude may ALSO work on ("" = none). Told
@@ -1945,10 +1974,12 @@ class Handler(BaseHTTPRequestHandler):
             _remember_repo(added)
             with lock:
                 current_repo = added
-                current_cloud = None
+                running = current_cloud
                 if added in extra_repos:
                     extra_repos.remove(added)
                 _save_state()
+            if running:
+                _follow_repo(running, added)
             self.reply_json({"accepted": True, "repo": added})
         elif self.path == "/api/options":
             try:

@@ -219,8 +219,7 @@ class ModelPickerActivity : ComponentActivity() {
     }
 }
 
-// The repository the next NEW session starts on (Claude works there and
-// pushes to it). The list is discovered on its own by the backend: the
+// The repository Claude works on and pushes to: the session in progress is told with its next message, and the next new session starts there. The list is discovered on its own by the backend: the
 // public repositories of the owner of the Aiwa checkout and of the owners
 // of repositories already used, plus the ones of an existing `gh` login.
 class RepoPickerActivity : ComponentActivity() {
