@@ -223,6 +223,20 @@ class ModelPickerActivity : ComponentActivity() {
 // public repositories of the owner of the Aiwa checkout and of the owners
 // of repositories already used, plus the ones of an existing `gh` login.
 class RepoPickerActivity : ComponentActivity() {
+    private val problem = mutableStateOf<String?>(null)
+
+    // Read here, on the main thread of the focused activity: the only place Android hands the clipboard over.
+    private fun forkFromClipboard() {
+        val ref = parseRepoRef(clipboardText(this))
+        if (ref == null) {
+            problem.value = "Copie d'abord le lien du dépôt à copier (sur GitHub : l'adresse de sa page), puis reviens ici."
+            return
+        }
+        toastOnMain(applicationContext, "Sur GitHub, touche « Create fork ». Ta copie apparaîtra dans cette liste.")
+        if (!openUrl(applicationContext, "https://github.com/$ref/fork")) toastOnMain(applicationContext, "Impossible d'ouvrir le navigateur.")
+        finish()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
@@ -230,6 +244,7 @@ class RepoPickerActivity : ComponentActivity() {
             val state by AiwaRepository.state.collectAsState()
             var repos by remember { mutableStateOf<List<RepoInfo>?>(null) }
             var starting by remember { mutableStateOf(false) }
+            val note by problem
             LaunchedEffect(Unit) {
                 val bridge = LocalClaudeBridge()
                 // The backend may not be running (a widget tap never went
@@ -249,6 +264,10 @@ class RepoPickerActivity : ComponentActivity() {
                 // Right under the first line, not after a list that can run to a hundred names. The new repository shows up in
                 // the list when this window is opened again (the backend re-reads the owner's list when it is older than 30 s).
                 add(PickerEntry("＋  Créer un dépôt GitHub ↗", false) { openNewRepoPage() })
+                // A copy of someone's repository in the person's account: GitHub's own fork page, for the address copied. Right there under
+                // the line above, and whether or not a repository is chosen (it used to sit two screens deep, and only once one was).
+                add(PickerEntry("⑂  Copier un dépôt dans mon compte (fork) ↗ — copie d'abord son lien", false) { forkFromClipboard() })
+                note?.let { add(PickerEntry("⚠  $it", false, lines = 3) { problem.value = null }) }
                 val list = repos
                 if (list == null) {
                     add(PickerEntry(if (starting) "Démarrage du backend (Termux)… quelques secondes" else "Chargement des dépôts…", false) { })
@@ -262,9 +281,9 @@ class RepoPickerActivity : ComponentActivity() {
                 if (state.repo != null) {
                     val n = state.extraRepos.size
                     add(PickerEntry("＋  Autres dépôts où Claude peut intervenir" + (if (n > 0) " ($n)" else "") + "…", n > 0) { openExtraRepos() })
-                    val sources = state.sourceRepos.size
-                    add(PickerEntry("＋  Dépôts d'inspiration, en lecture seule" + (if (sources > 0) " ($sources)" else "") + "…", sources > 0) { openSourceRepos() })
                 }
+                val sources = state.sourceRepos.size
+                add(PickerEntry("＋  Dépôts d'inspiration, en lecture seule" + (if (sources > 0) " ($sources)" else "") + "…", sources > 0) { openSourceRepos() })
                 // Claude Code reaches GitHub with ITS OWN connection, made in Claude's
                 // settings: Aiwa never logs in to GitHub and cannot tell whether it is
                 // connected. So ONE entry, which opens the page of Claude's connectors —

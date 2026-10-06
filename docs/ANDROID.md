@@ -118,6 +118,8 @@ is in `~/aiwa_cloud_last.log`.
 
 **Changing repository in the middle of a session.** The session stays: like a new push mode or a new model, the new repository is an instruction. From the next message the session is told once that it works there now (it attaches it with `add_repo`, and the branch, push, deploy and verification instructions apply to it), and told again if the person goes back to the repository it started on. Whether Claude's platform lets a session attach a repository it was not started on is not something Aiwa can check; when it is refused, Claude says so. Tested on the backend (what is sent, once, and what is kept); not tried with a real session.
 
+A session added by its branch gets a repository only when the branch is found in exactly one of the candidate repositories; found in several (a session can work on several with the same branch name), it gets none, and the widget asks (a red dot on the repository chip, a line in the status band) rather than guess where Claude pushes.
+
 **How what Claude says reaches the phone.** An app, the "Claude waits" alert and the relay test all go to a public relay (ntfy.sh) with one
 `curl`. That needs the cloud environment to allow `ntfy.sh`, a setting only claude.ai can change (a new environment is on the default list,
 which does not have it; *État d'Aiwa* then says the cloud alerts are blocked). There is a second road that needs no setting, because a

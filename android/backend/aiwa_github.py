@@ -305,27 +305,27 @@ def _branch_session(repo, branch):
 
 def find_branch_session(repos, branch):
     """Looks for a branch in these repositories, in parallel, for at most
-    ~35 s. Returns (result, tried): result is (repo, session id or None) —
-    a repository where the session could be read is preferred — or None when
-    no repository has that branch; tried lists (repo, state) for every
-    repository, so a refusal can say what was looked at."""
+    ~35 s, and waits for all of them: one repository is not enough to say
+    where a session works, a session can work on several with the same
+    branch name. Returns (found, tried): found lists (repo, session id or
+    None) for every repository that has the branch (empty when none does);
+    tried lists (repo, state) for every repository, so a refusal can say
+    what was looked at."""
     states = {repo: "trop lent" for repo in repos}
     pool = ThreadPoolExecutor(max_workers=6)
     futures = [pool.submit(_branch_session, repo, branch) for repo in repos]
-    best = None
+    found = []
     try:
         for future in as_completed(futures, timeout=35):
             repo, state, session = future.result()
             states[repo] = state
             if state == "found":
-                if session:
-                    best = (repo, session)
-                    break
-                best = best or (repo, None)
+                found.append((repo, session))
     except Exception:
         pass  # timed out: what has not answered stays "trop lent"
     pool.shutdown(wait=False, cancel_futures=True)
-    return best, list(states.items())
+    found.sort(key=lambda item: repos.index(item[0]))
+    return found, list(states.items())
 
 
 def _git(args, cwd=None, timeout=300):

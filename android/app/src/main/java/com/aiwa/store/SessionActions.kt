@@ -82,6 +82,10 @@ suspend fun tryAddCloudSession(context: Context, bridge: ClaudeBridge, text: Str
         describeFailure(context, err, "Impossible d'ajouter la session")
     }
     BackendSync.refresh(bridge)
+    // The branch is in several repositories: Aiwa does not pick one (it would be a guess about where Claude pushes).
+    if (problem == null && AiwaRepository.state.value.repo == null) {
+        toastOnMain(context, "Session ajoutée. Sa branche existe dans plusieurs dépôts : choisis celui sur lequel elle travaille (⎇, point rouge).")
+    }
     AiwaWidget().updateAll(context)
     return problem
 }

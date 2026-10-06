@@ -1246,8 +1246,9 @@ class HttpTests(Base):
         Path(srv.CLOUD_STORE).unlink(missing_ok=True)
         srv.current_cloud = srv.last_cloud = None
 
-    def add_by_branch(self, text, found_id="session_TEST123abc"):
-        with unittest.mock.patch.object(gh, "find_branch_session", lambda candidates, branch: (("o/r", found_id), [("o/r", "ok")])), \
+    def add_by_branch(self, text, found_id="session_TEST123abc", repos=("o/r",)):
+        found = [(name, found_id) for name in repos]
+        with unittest.mock.patch.object(gh, "find_branch_session", lambda candidates, branch: (found, [(name, "found") for name in repos])), \
              unittest.mock.patch.object(gh, "default_branch", lambda repo: "main"):
             return self.call("/api/cloud/add", text)
 
@@ -1265,6 +1266,33 @@ class HttpTests(Base):
         self.assertEqual((entry["repo"], entry["work"], entry["base"]), ("o/r", "claude/fix-widget-AbC12", "main"))
         status = self.call("/api/status")
         self.assertEqual((status["cloud_session"], status["repo"]), ("session_TEST123abc", "o/r"))
+
+    def test_a_branch_found_in_several_repositories_gets_none_of_them_until_the_person_chooses(self):
+        # A session can work on several repositories with the same branch name: taking the first that answers was a guess about where
+        # Claude pushes. No repository then: the widget asks for one (the red dot), and the session is told which when it is chosen.
+        self.addCleanup(self.forget_sessions)
+        self.addCleanup(setattr, srv, "current_repo", srv.current_repo)
+        self.forget_sessions()
+        answer = self.add_by_branch("claude/github-repos-audit-scc738", repos=("a/one", "b/two", "c/three"))
+        self.assertTrue(answer["accepted"], answer)
+        entry = srv._session_entry("session_TEST123abc")
+        self.assertIsNone(entry.get("repo"))
+        self.assertEqual(entry["work"], "claude/github-repos-audit-scc738")
+        status = self.call("/api/status")
+        self.assertEqual((status["cloud_session"], status["repo"]), ("session_TEST123abc", None))
+        with unittest.mock.patch.object(gh, "default_branch", lambda repo: "main"):
+            self.assertTrue(self.call("/api/repo", "b/two")["accepted"])
+        entry = srv._session_entry("session_TEST123abc")
+        self.assertEqual((entry["repo"], entry["work"]), ("b/two", "claude/github-repos-audit-scc738"), "its own branch is kept")
+        instructions = srv._compose(entry, "b/two", entry["work"], entry["base"], True, entry.get("origin"))[0]
+        self.assertIn("c'est sur b/two que tu travailles", instructions)
+        self.assertNotIn("a démarré sur", instructions, "where an imported session started is not known, so it is not said")
+
+    def test_a_branch_found_in_one_repository_is_that_repository(self):
+        self.addCleanup(self.forget_sessions)
+        self.forget_sessions()
+        self.assertTrue(self.add_by_branch("claude/x-1", repos=("only/one",))["accepted"])
+        self.assertEqual(srv._session_entry("session_TEST123abc")["repo"], "only/one")
 
     def test_a_branch_with_the_link_of_the_session_uses_that_session(self):
         self.addCleanup(self.forget_sessions)

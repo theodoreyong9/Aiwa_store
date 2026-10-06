@@ -144,6 +144,7 @@ private fun publishesFromGithub(deploy: String) = deploy == "pages" || deploy ==
 
 // Every button of the widget is one of these two shapes (34 dp high in the
 // compact layout, sized to the room in the full one).
+// badge: a small red dot on the corner: something is asked of the person here (the repository to choose).
 @Composable
 private fun Chip(
     text: String,
@@ -154,9 +155,34 @@ private fun Chip(
     bold: Boolean = false,
     alignStart: Boolean = false,
     height: Dp = 34.dp,
+    badge: Boolean = false,
+) {
+    if (!badge) {
+        ChipFace(text, background, color, action, modifier.height(height), bold, alignStart, height)
+        return
+    }
+    // Only a chip whose width is given (a weighted one) can carry the dot: the face then fills the box the dot sits on.
+    Box(modifier = modifier.height(height), contentAlignment = Alignment.TopEnd) {
+        ChipFace(text, background, color, action, GlanceModifier.fillMaxSize(), bold, alignStart, height)
+        Box(modifier = GlanceModifier.padding(top = 1.dp, end = 6.dp)) {
+            Box(modifier = GlanceModifier.size(11.dp).background(rgb(android.graphics.Color.rgb(255, 59, 48))).cornerRadius(6.dp).clickable(action)) { }
+        }
+    }
+}
+
+@Composable
+private fun ChipFace(
+    text: String,
+    background: ColorProvider,
+    color: ColorProvider,
+    action: Action,
+    modifier: GlanceModifier,
+    bold: Boolean,
+    alignStart: Boolean,
+    height: Dp,
 ) {
     Box(
-        modifier = modifier.height(height).background(background).cornerRadius(height / 2).padding(horizontal = 10.dp).clickable(action),
+        modifier = modifier.background(background).cornerRadius(height / 2).padding(horizontal = 10.dp).clickable(action),
         contentAlignment = if (alignStart) Alignment.CenterStart else Alignment.Center,
     ) {
         Text(
@@ -273,6 +299,8 @@ private fun FullContent(state: AiwaState) {
         state.repoAccessMissing != null && state.repoAccessMissing == state.repo -> { status = "⚠ Claude n'a pas accès à ce dépôt — touche ici"; statusColor = alertText; statusBold = true }
         // Every session starts on a repository: none chosen, nothing to send yet.
         state.needsRepo -> { status = "Choisis un dépôt (⎇) pour commencer"; statusColor = warm; statusBold = true }
+        // A session with no repository (added by a branch that exists in several of them: none is guessed): it is told which when one is chosen.
+        state.repo == null && state.cloudSessionId != null -> { status = "Choisis le dépôt de cette session (⎇)"; statusColor = warm; statusBold = true }
         else -> { status = "Prêt"; statusColor = subtle }
     }
     val updateRoom = if (state.storeUpdateReady) avatar + 8f else 0f
@@ -291,7 +319,7 @@ private fun FullContent(state: AiwaState) {
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
         state.status == AiwaState.Status.ERROR && state.notice != null -> actionStartActivity<MainActivity>()
         state.repoAccessMissing != null && state.repoAccessMissing == state.repo -> actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(state.githubAppUrl ?: "https://github.com/apps/claude/installations/new")))
-        state.needsRepo -> actionStartActivity<RepoPickerActivity>()
+        state.needsRepo || state.repo == null -> actionStartActivity<RepoPickerActivity>()
         else -> lockable(locked, actionStartActivity<SessionPickerActivity>())
     }
 
@@ -368,7 +396,7 @@ private fun FullContent(state: AiwaState) {
             )
         }
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
+            Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, badge = state.repo == null)
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(modelText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<ModelPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
         }
@@ -622,7 +650,7 @@ private fun CompactContent(state: AiwaState) {
                 "⎇ " + fitLabel(repoName, avail - others - 20f - textWidth("⎇  ▾", fontScale) - textWidth(more, fontScale), fontScale) + more + " ▾"
             }
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true)
+                Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, badge = state.repo == null)
                 if (hasRepo) {
                     Spacer(GlanceModifier.width(GAP.dp))
                     Chip(pushText, if (locked) (if (state.pushMain) GREEN_DIM else PILL_DIM) else if (state.pushMain) green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionRunCallback<TogglePushMainCallback>()))

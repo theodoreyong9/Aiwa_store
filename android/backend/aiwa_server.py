@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 29
+BACKEND_VERSION = 30
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -397,7 +397,7 @@ def _load_cloud_sessions():
     return data if isinstance(data, list) else []
 
 
-def _save_cloud_session(session_id, title, url, repo=None, work=None, base=None, direct=None, instr=None, model=None, effort=None):
+def _save_cloud_session(session_id, title, url, repo=None, work=None, base=None, direct=None, instr=None, model=None, effort=None, imported=None):
     """The CLI has no non-interactive way to LIST cloud sessions, so the
     ones Aiwa created or was given a link to are remembered here, with the
     repository (and branch) a session was started on and a fingerprint of
@@ -416,7 +416,7 @@ def _save_cloud_session(session_id, title, url, repo=None, work=None, base=None,
             "url": url or existing.get("url") or f"https://claude.ai/code/{session_id}",
         })
         # model / effort: "" = automatic, absent = unknown.
-        for key, value in (("repo", repo), ("work", work), ("base", base), ("direct", direct), ("instr", instr), ("model", model), ("effort", effort)):
+        for key, value in (("repo", repo), ("work", work), ("base", base), ("direct", direct), ("instr", instr), ("model", model), ("effort", effort), ("imported", imported)):
             if value is not None:
                 entry[key] = value
         entries.insert(0, entry)
@@ -445,7 +445,8 @@ def _follow_repo(session_id, repo):
     entry = _session_entry(session_id)
     if not entry or entry.get("repo") == repo:
         return
-    started = entry.get("origin") if entry.get("origin") is not None else (entry.get("repo") or "")
+    # Where an imported session started is not known (Aiwa found its branch, it did not create it): the wording stays neutral then.
+    started = "" if entry.get("imported") else entry.get("origin") if entry.get("origin") is not None else (entry.get("repo") or "")
     base = github.default_branch(repo)
     work = entry.get("work") or "aiwa/" + time.strftime("%Y%m%d-%H%M%S")
     _update_session(session_id, repo=repo, base=base, work=work, origin=None if started == repo else started)
@@ -519,9 +520,9 @@ def _instruction_lines(repo, work, base, direct, origin=None):
     moved = repo and origin is not None and origin != repo
     if repo:
         if moved:
-            began = f"Ta session a démarré sur {origin}" if origin else "Ta session n'a pas été démarrée sur un dépôt"
+            began = f"Ta session a démarré sur {origin}, mais à partir" if origin else "À partir"
             text = (
-                f"Dépôt : {repo}. {began}, mais à partir de ce message c'est sur {repo} que tu travailles (la conversation continue, seul le dépôt change). "
+                f"Dépôt : {repo}. {began} de ce message c'est sur {repo} que tu travailles (la conversation continue, seul le dépôt change). "
                 f"Rattache-le avec l'outil `add_repo` (accès `push`) s'il n'est pas déjà attaché à ta session, et fais-y tout ce que les consignes ci-dessous disent d'un dépôt : "
                 f"branche, push, déploiement, vérification, signaux. Ne modifie plus {origin or 'les autres dépôts'} sauf si je te le demande. "
                 "Sans cet outil, ou si l'accès est refusé, dis-le-moi et arrête-toi."
@@ -762,7 +763,7 @@ def cloud_add(text):
     branch = branch_match.group(0).rstrip("/.")
     found, tried = github.find_branch_session(_branch_candidates(), branch)
     print(f"[{_ts()}] import by branch {branch}: tried {tried}", flush=True)
-    if found is None:
+    if not found:
         wording = {"missing": "branche absente", "unreachable": "privé ou inaccessible", "trop lent": "trop lent"}
         detail = ", ".join(f"{name} ({wording.get(state, state)})" for name, state in tried) or "aucun dépôt candidat"
         return None, (
@@ -770,20 +771,23 @@ def cloud_add(text):
             "Un dépôt privé ne peut pas être lu par Aiwa : le dépôt de la session doit être public, "
             "ou déjà choisi une fois dans le widget (il est alors essayé en premier)."
         )
-    repo, found_id = found
     given = CLOUD_ID_RE.search(text)
-    session_id = given.group(0) if given else found_id
+    session_id = given.group(0) if given else next((found_id for _, found_id in found if found_id), None)
     if session_id is None:
+        where = ", ".join(name for name, _ in found)
         return None, (
-            f"Aiwa cherche la branche dans tes dépôts : elle existe dans {repo}, mais aucun de ses derniers commits ne porte le lien de la session. "
+            f"Aiwa cherche la branche dans tes dépôts : elle existe dans {where}, mais aucun de ses derniers commits ne porte le lien de la session. "
             "Copie aussi le lien de la session (claude.ai/code/session_…) avec le nom de la branche."
         )
+    # The repository is only known when the branch is in ONE of them. A session can work on several repositories with the same branch
+    # name, and taking the first that answers is a guess about where Claude is going to push: none is taken then, and the person chooses.
+    repo = found[0][0] if len(found) == 1 else None
     title = branch
     url_match = CLOUD_URL_RE.search(text)
     # An imported session works on its own branch: that is the only one Claude can push to.
     _save_cloud_session(
         session_id, title, url_match.group(0) if url_match else None,
-        repo=repo, work=branch, base=github.default_branch(repo), direct=True,
+        repo=repo, work=branch, base=github.default_branch(repo) if repo else None, direct=True, imported=True,
     )
     with lock:
         current_cloud = last_cloud = session_id
