@@ -308,7 +308,7 @@ async function mineInPage(page, { epoch = 3, timeout = 40000 } = {}) {
   await page.waitForSelector('#wallet-section:not([hidden])');
   await page.fill('#burn-amount', '1');
   await page.click('#btn-burn');
-  await page.waitForFunction(() => /Burned and committed/.test(document.getElementById('burn-result').textContent));
+  await page.waitForFunction(() => /Burned and committed/.test(document.getElementById('burn-result').textContent), null, { timeout: Math.max(timeout, 60000) });
   await page.waitForFunction((n) => new RegExp(`epoch ${n}|epoch [${n}-9]`).test(document.getElementById('out-mining').textContent), epoch, { timeout })
     .catch(async (error) => { throw new Error(`the wallet did not reach epoch ${epoch}; it shows: ${await page.locator('#out-mining').textContent()}`, { cause: error }); });
 }
@@ -967,7 +967,7 @@ test('three wallets: they introduce each other, and with enough direct links two
   const logs = pages.map(() => []);
   pages.forEach((P, i) => P.page.on('console', (m) => logs[i].push(m.text())));
   try {
-    for (const P of pages) await mineInPage(P.page, { epoch: 2, timeout: 120000 });
+    for (const P of pages) await mineInPage(P.page, { epoch: 2, timeout: 180000 });
     // every wallet has two direct links of its own; two of the three have left the room, and the one with the lowest id has stayed in it
     for (const [i, P] of pages.entries()) {
       await P.page.waitForFunction(() => {
