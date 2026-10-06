@@ -59,6 +59,8 @@ elif "--cloud" in sys.argv:
     if "--debug-file" in sys.argv and os.environ.get("FAKE_CLAUDE_MODE") == "noapp":
         # what the real CLI writes there when Claude's GitHub app is not installed on the repository
         open(sys.argv[sys.argv.index("--debug-file") + 1], "w").write("Checking GitHub app installation for o/r\nGitHub app is not installed on o/r\n[teleportToRemote] Bundling (reason: github_preflight_failed)\n")
+    if "--debug-file" in sys.argv and os.environ.get("FAKE_CLAUDE_MODE") == "nobranch":
+        open(sys.argv[sys.argv.index("--debug-file") + 1], "w").write("[teleportToRemote] Bundling (reason: branch_not_on_remote)\n")
     if os.environ.get("FAKE_CLAUDE_MODE") == "fail":
         print("Error: Not logged in · Please run /login")
         sys.exit(1)
@@ -735,6 +737,13 @@ class CloudSendTests(Base):
         srv.current_cloud = None                                    # a new session, not a message into the first
         self.assertTrue(srv.cloud_send("encore")["ok"])
         self.assertIsNone(srv.repo_access_missing)
+
+    def test_another_reason_to_send_the_folder_is_said_as_the_cli_said_it_not_blamed_on_the_app(self):
+        os.environ["FAKE_CLAUDE_MODE"] = "nobranch"
+        self.assertTrue(srv.cloud_send("bonjour")["ok"])
+        self.assertIsNone(srv.repo_access_missing, "this is not the missing app")
+        self.assertIn("branch_not_on_remote", srv.github_error)
+        self.assertNotIn("app GitHub", srv.github_error)
 
     def test_a_cli_that_waits_for_an_answer_is_reported_at_once_with_what_it_asks(self):
         # e.g. "do you trust this folder?" in a folder the CLI has never seen: nobody is there to answer, so waiting 3 minutes tells nothing

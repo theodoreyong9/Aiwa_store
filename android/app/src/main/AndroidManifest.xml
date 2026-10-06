@@ -148,6 +148,11 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
+        <!-- The site button when the site does not answer: Pages settings of the repository, with a line on what to choose. -->
+        <activity android:name=".OpenPagesSettingsActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <!-- The widget's "Claude ↗" button: no UI, opens the current cloud
              session in the Claude app (OpenClaudeActivity.kt). -->
         <activity android:name=".OpenClaudeActivity" android:exported="false"

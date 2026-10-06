@@ -249,7 +249,7 @@ class RepoPickerActivity : ComponentActivity() {
                 if (state.repo == null) add(PickerEntry("Choisis le dépôt sur lequel Claude travaille :", false) { })
                 // Right under the first line, not after a list that can run to a hundred names. The new repository shows up in
                 // the list when this window is opened again (the backend re-reads the owner's list when it is older than 30 s).
-                add(PickerEntry("＋  Créer un dépôt GitHub ↗  (coche « Add a README » : il faut un premier commit, sinon il n'a pas de branche)", false, lines = 3) { openNewRepoPage() })
+                add(PickerEntry("＋  Créer un dépôt GitHub ↗", false) { openNewRepoPage() })
                 val list = repos
                 if (list == null) {
                     add(PickerEntry(if (starting) "Démarrage du backend (Termux)… quelques secondes" else "Chargement des dépôts…", false) { })

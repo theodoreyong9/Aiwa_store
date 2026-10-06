@@ -114,6 +114,8 @@ private val TEXT_DIM = rgb(android.graphics.Color.rgb(130, 130, 144))
 // The APK's download button, for an app that declared it needs Termux: the line to paste there is copied as the download starts.
 private fun siteAction(context: Context, state: AiwaState, site: String): Action = when {
     state.siteKind == "apk" && state.siteTermux != null -> actionStartActivity<ApkDownloadActivity>()
+    // The site does not answer (a 404): GitHub Pages is not turned on, or has not published yet. Its settings page is where that is fixed.
+    state.siteKind == "site" && state.siteState != "live" && state.repo != null && !isStoreRepository(context, state.repo) -> actionStartActivity<OpenPagesSettingsActivity>()
     state.siteKind == "site" && isStoreRepository(context, state.repo) -> actionStartActivity<StoreActivity>()
     else -> actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(site)))
 }

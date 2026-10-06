@@ -787,18 +787,21 @@ def _rename_session(session_id, title):
 
 
 def _cli_repo_verdict(repo):
-    """Whether the CLI took the folder for the repository's content instead of naming the repository (Claude's GitHub app is not installed
-    on it): read from its debug log, which is then deleted (it holds the message). True, or False when it named the repository."""
+    """Why the CLI took the folder for the repository's content instead of naming the repository, from its debug log (which is then deleted:
+    it holds the message): "no_app" (Claude's GitHub app is not installed on it), another reason of the CLI's own words, or None when it named
+    the repository."""
     try:
         log = CLI_DEBUG.read_text(encoding="utf-8", errors="replace")[-400_000:]
     except OSError:
-        return False
+        return None
     finally:
         CLI_DEBUG.unlink(missing_ok=True)
-    if CLI_NO_APP_RE.search(log):
-        return True
     reason = CLI_BUNDLING_RE.search(log)
-    return bool(reason and reason.group(1) in ("github_preflight_failed", "no_github_remote", "branch_not_on_remote"))
+    if reason is None:
+        return None
+    if CLI_NO_APP_RE.search(log) or reason.group(1) == "github_preflight_failed":
+        return "no_app"
+    return reason.group(1)
 
 
 def cloud_send(text, command=False):
@@ -891,13 +894,18 @@ def cloud_send(text, command=False):
             found = from_url.group(0) if from_url else None
         print(f"[{_ts()}] cloud_send: created={found!r} code={code} {timeline[-1]}", flush=True)
         verdict = _cli_repo_verdict(repo)
-        if repo and found and verdict:
+        if repo and found and verdict == "no_app":
             github_error = (
                 f"Claude n'a pas accès à {repo} : son app GitHub n'y est pas installée, donc la session est partie avec un dossier vide. "
                 "Installe-la sur ce dépôt, ou une fois pour tous (« All repositories »)."
             )
             with lock:
                 repo_access_missing = repo
+        elif repo and found and verdict:
+            # The CLI sent the folder for another reason: said as it said it, without guessing at the cause.
+            github_error = f"La session est partie avec un dossier vide au lieu de cloner {repo} (raison du CLI : {verdict})."
+            with lock:
+                repo_access_missing = None
                 _save_state()
         elif repo and found:
             with lock:
