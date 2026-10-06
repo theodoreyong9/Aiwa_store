@@ -104,6 +104,18 @@ test('nobody to offer: it waits before asking again, by itself, and asks nobody 
   manager.stop();
 });
 
+test('a retry whose timer fires before the clock says its time is set again, not forgotten', async () => {
+  let t = 1000;                                                // a clock the test moves: the timer (50 ms) fires while it still stands at the same time
+  const { manager, asked } = setup({ lobbyPeers: ['l1'], directPeers: [], manager: { now: () => t } });
+  manager.start();
+  await waitUntil(() => asked.length === 1);
+  await sleep(120);                                            // the first timer fired meanwhile, too early
+  assert.equal(asked.length, 1);
+  t += 50;
+  await waitUntil(() => asked.length === 2, { timeoutMs: 1000 });
+  manager.stop();
+});
+
 test('an introduction that never answers is given up on', async () => {
   const { manager, asked } = setup({ lobbyPeers: ['l1'], introduce: () => new Promise(() => {}) });
   manager.start();

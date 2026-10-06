@@ -127,7 +127,7 @@ These are settings and accounts. Until they are done, the matching workflow is *
 | Tested in CI | Not verified |
 |---|---|
 | The protocol: identity, signed events, proofs of work, accrual, claims, double spend (421 tests, with a cross-check against an independent Rust implementation) | A real burn on Solana |
-| The wallet, the creator's share, backup and restore (113 + 106 tests) | The Android app on a real phone: keystore, GitHub sign-in, Android's backup, the widget, the page updating itself from the site (compiled in CI, its checks unit-tested, never run) |
+| The wallet, the creator's share, backup and restore (113 + 107 tests) | The Android app on a real phone: keystore, GitHub sign-in, Android's backup, the widget, the page updating itself from the site (compiled in CI, its checks unit-tested, never run) |
 | The registry: signatures, proofs, burns, ranking (17 tests) | A real pull request through the registry workflow |
 | The web app in a real Chromium: ranking, sandbox, tampering, offline, restore, burn, publishing of both kinds, an app using the wallet, a click duel between two pages, two phones linking by two codes, a scan against a fake camera, the description of the site's release (46 tests) | The legal status of the creator's share |
 | The whole path against a stand-in Solana (`devnet-check --fake`) | The economic parameters in the field |

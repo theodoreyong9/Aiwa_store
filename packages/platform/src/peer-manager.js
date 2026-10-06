@@ -84,7 +84,11 @@ export class PeerManager {
         if ((direct < this.low || total === 0) && !this.lobby.connected) await this.lobby.connect();
       }
     }
-    if (direct < this.target && total > 0 && !this._asking && this.now() >= this._notBefore) this._askForMore();
+    if (direct < this.target && total > 0 && !this._asking) {
+      const wait = this._notBefore - this.now();
+      if (wait <= 0) this._askForMore();
+      else this._later(wait + 1);                        // a timer can fire a millisecond before the clock says its time: it is set again, not forgotten
+    }
   }
 
   // The lowest id among the wallets of the room (this one included) is the one that stays.

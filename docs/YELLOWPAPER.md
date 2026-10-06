@@ -2085,7 +2085,7 @@ without a Rust toolchain. It cross-checks the fundamentals; it is not a second i
 
 ## Appendix D. Verification status
 
-**What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 106 in `aiwa-platform`,
+**What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 107 in `aiwa-platform`,
 113 in `aiwa-lib`, 17 in `aiwa-registry`, 52 in `aiwa-store-web` (28 of them drive the app in Chromium: ranking, the sandbox refusing
 `parent.document`, a tampering host, offline use, the wallet starting and restoring by itself, the burn with its fee, publishing both
 kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK, an app using the wallet through the door, a click duel between two pages that pays the winner, two pages linking by two codes and each showing where the other stands, and a QR code read by the page from a fake camera),
