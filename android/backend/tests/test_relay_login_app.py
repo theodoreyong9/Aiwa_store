@@ -438,18 +438,20 @@ class MailboxTests(Base):
             srv.deploy_mode = mode
             srv.waiting["since"] = None
             self.signal(f"attend {self.now()}")
+            # The pace stays short until the watch has ended: the loop reads it each time it goes to sleep, and a patch that ended first (on a slow
+            # machine the thread was not scheduled in between) left it asleep for the real 20 seconds.
             with unittest.mock.patch.object(srv, "MAILBOX_EVERY", 0.05):
                 srv._mailbox_watch(self.REPO, self.WORK)
                 self.assertTrue(wait_for(lambda: srv.waiting["since"] is not None), mode)
-            srv.mailbox["until"] = 0.0      # the watch ends by itself at its deadline
-            self.assertTrue(wait_for(lambda: not srv.mailbox["running"]), mode)
+                srv.mailbox["until"] = 0.0      # the watch ends by itself at its deadline
+                self.assertTrue(wait_for(lambda: not srv.mailbox["running"]), mode)
         self.push_app(name="demo.aiwa.html")
         with unittest.mock.patch.object(srv, "MAILBOX_EVERY", 0.05):
             srv._mailbox_watch(self.REPO, self.WORK)
             self.assertTrue(wait_for(lambda: srv._sent_app_snapshot() is not None))
-        self.assertEqual(srv._sent_app_snapshot()["kind"], "aiwa")
-        srv.mailbox["until"] = 0.0
-        self.assertTrue(wait_for(lambda: not srv.mailbox["running"]))
+            self.assertEqual(srv._sent_app_snapshot()["kind"], "aiwa")
+            srv.mailbox["until"] = 0.0
+            self.assertTrue(wait_for(lambda: not srv.mailbox["running"]))
 
     # ---- where the code of the app is on GitHub ----
     def session_on(self, direct, work=None, base="main"):
