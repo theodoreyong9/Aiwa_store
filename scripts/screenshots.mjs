@@ -16,7 +16,7 @@ import { CREATOR, deployment as testDeployment, fakeSolana, minedWallet } from '
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const { chromium } = createRequire(join(root, 'apps/web/package.json'))('playwright');
-const out = join(root, 'docs/img');
+const out = process.env.AIWA_SHOTS_OUT ? resolve(process.env.AIWA_SHOTS_OUT) : join(root, 'docs/img');
 const tmp = mkdtempSync(join(tmpdir(), 'aiwa-shots-'));
 const site = join(tmp, 'site');
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
@@ -107,7 +107,7 @@ await page.waitForSelector('#store-list .app');
 await shot('store.png', 640);
 
 // 2. an app, open, in its sandbox
-await page.locator('#store-list .app[data-id="tip-split"] button').click();
+await page.locator('#store-list .app[data-id="tip-split"] button.primary').click();
 await page.locator('#viewer iframe').waitFor();
 await page.frameLocator('#viewer iframe').locator('#each').waitFor();
 await page.waitForTimeout(400);
