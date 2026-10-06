@@ -25,6 +25,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.aiwa.bridge.WakeKind
 import org.vosk.LibVosk
 import org.vosk.LogLevel
 import org.vosk.Model
@@ -37,9 +38,10 @@ object ListenSettings {
 }
 
 /**
- * Listens for "instruction" all the time (a foreground service of the microphone type: the phone shows its green microphone dot for as
- * long as it runs), and when it is heard opens a dictation as if the mic of the widget had been touched, with the words that follow read as
- * instructions to Aiwa from the start ("instruction Aiwa modèle Opus push main … c'est bon vas-y"). Works with the screen locked as long as
+ * Listens for "mon agent" and "instruction" all the time (a foreground service of the microphone type: the phone shows its green microphone dot for as
+ * long as it runs), and when one is heard opens a dictation as if the mic of the widget had been touched, with the words that follow read as
+ * instructions to Aiwa from the start ("mon agent, t'en es où … modèle Opus, push main … c'est bon vas-y"). "Mon agent" is also the question: where
+ * things stand is read aloud first. Whatever is said is read back and has to be confirmed, every time (VoiceDictation.confirmAll). Works with the screen locked as long as
  * Android keeps the service alive.
  *
  * What it is not: it is off until the person turns it on; the speech model runs on the phone (VoskModelStore), nothing is sent anywhere;
@@ -127,23 +129,27 @@ class WakeWordService : Service() {
     private fun listen() {
         val current = model ?: return
         if (paused || dictation != null) return
-        say("À l'écoute : dis « instruction Aiwa »")
+        say("À l'écoute : dis « mon agent » (t'en es où ?) ou « instruction »")
         holdCpu(true)
         detector = WakeWordDetector(
             model = current,
-            onWake = { main.post { heardWakeWord() } },
+            onWake = { kind -> main.post { heardWakeWord(kind) } },
             onFailure = { reason -> main.post { fail("Écoute permanente arrêtée : $reason") } },
         ).also { it.start() }
     }
 
-    private fun heardWakeWord() {
+    private fun heardWakeWord(kind: WakeKind) {
         detector = null
         if (paused) return
         try { ToneGenerator(AudioManager.STREAM_MUSIC, 80).startTone(ToneGenerator.TONE_PROP_BEEP, 150) } catch (err: Exception) { /* no tone */ }
-        say("Je t'écoute… dis « c'est bon vas-y » pour finir")
+        say(if (kind == WakeKind.AGENT) "Je regarde où on en est…" else "Je t'écoute… dis « c'est bon vas-y » pour finir")
+        // Woken by a phrase, nobody is looking at a screen: everything is read back and confirmed, every time. "Mon agent" is also the question
+        // "t'en es où ?": where things stand is read first.
         dictation = VoiceDictation(
             context = this,
             startInInstructions = true,
+            reportFirst = kind == WakeKind.AGENT,
+            confirmAll = true,
             onUnderstood = { if (it.isNotBlank()) say(it) },
             onQuestion = { if (!it.isNullOrBlank()) say(it) },
             onFinished = { main.post { dictation = null; listen() } },

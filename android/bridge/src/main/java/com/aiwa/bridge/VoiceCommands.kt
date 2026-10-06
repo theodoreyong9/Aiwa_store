@@ -126,6 +126,19 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
             // "Aiwa" said again right after the keyword or a command is not text for Claude
             afterCommand && isAiwa(segment, i) > 0 -> { i += isAiwa(segment, i) }
 
+            // The wake phrase that opened this dictation, said again as the first words ("mon agent …"): not text for Claude either
+            startInInstructions && afterCommand && w.plain == "mon" && next?.plain == "agent" -> { i += 2 }
+            startInInstructions && afterCommand && w.plain == "agent" -> { i++ }
+
+            // "t'en es où là ?" is "t'es sur quoi" said the other way round
+            w.plain == "en" && next?.plain == "es" && wordAt(i + 2)?.plain == "ou" -> {
+                commands.add(VoiceCommand.Report)
+                i += 3
+                while (leftover.isNotEmpty() && plainWord(leftover.last()) in QUESTION_WORDS) leftover.removeAt(leftover.size - 1)
+                while (wordAt(i)?.plain in QUESTION_WORDS) i++
+                afterCommand = true
+            }
+
             w.plain in REPORT_WORDS || (w.plain == "sur" && next?.plain == "quoi") -> {
                 commands.add(VoiceCommand.Report)
                 i += if (w.plain == "sur") 2 else 1
@@ -290,5 +303,29 @@ fun statusReport(repo: String?, modelLabel: String, pushMain: Boolean, deploy: S
     return parts.joinToString(". ") + "."
 }
 
-/** The wake word, as the detector hears it: "instruction" (the word "Aiwa" is not in the small French model's vocabulary, so it cannot be listened for). */
-fun isWakeWord(heard: String): Boolean = words(heard).any { it.plain in TRIGGER }
+/** What woke the listening: "mon agent …" (the phone then reads where things stand) or "instruction …" (it goes straight to listening). */
+enum class WakeKind { AGENT, INSTRUCTION }
+
+/**
+ * The wake word, as the detector hears it. "Aiwa" cannot be listened for (it is not in the small French model's vocabulary), so the words
+ * are French ones: "mon agent", and "instruction".
+ */
+fun wakeKind(heard: String): WakeKind? {
+    val list = words(heard)
+    for (i in 1 until list.size) if (list[i].plain == "agent" && list[i - 1].plain == "mon") return WakeKind.AGENT
+    return if (list.any { it.plain in TRIGGER }) WakeKind.INSTRUCTION else null
+}
+
+fun isWakeWord(heard: String): Boolean = wakeKind(heard) != null
+
+/** What the phone says back before a hands-free dictation is applied: everything it is about to do, and the question. Null when there is nothing to do. */
+fun recapSentence(dictation: Dictation): String? {
+    val commands = dictation.commands.filter { it !is VoiceCommand.Report }
+    if (commands.isEmpty() && dictation.message.isBlank()) return null
+    val parts = mutableListOf<String>()
+    if (commands.isNotEmpty()) parts.add("J'applique : " + commands.joinToString(", ") { describeCommand(it) })
+    if (dictation.message.isNotBlank()) parts.add("J'envoie à Claude : " + dictation.message.take(160) + if (dictation.message.length > 160) "…" else "")
+    if (dictation.problems.isNotEmpty()) parts.add("Je n'ai pas compris : " + dictation.problems.joinToString(", "))
+    parts.add("Tu confirmes ?")
+    return parts.joinToString(". ")
+}

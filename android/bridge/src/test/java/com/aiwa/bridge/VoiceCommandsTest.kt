@@ -186,4 +186,39 @@ class VoiceCommandsTest {
         assertFalse(isWakeWord("construction"))
         assertFalse(isWakeWord("bonjour tout le monde"))
     }
+
+    @Test fun theWakePhrasesAreMonAgentAndInstruction() {
+        assertEquals(WakeKind.AGENT, wakeKind("mon agent"))
+        assertEquals(WakeKind.AGENT, wakeKind("Mon agent, t'en es où là"))
+        assertEquals(WakeKind.INSTRUCTION, wakeKind("instruction"))
+        assertEquals(WakeKind.AGENT, wakeKind("instruction mon agent"))
+        assertEquals(null, wakeKind("agent immobilier"))
+        assertEquals(null, wakeKind("bonjour"))
+        assertTrue(isWakeWord("mon agent"))
+    }
+
+    @Test fun theWakePhraseAndTheQuestionAreNotTextForClaude() {
+        val d = parseDictation("mon agent t'en es où là modèle opus push main", models, sessions, repos, startInInstructions = true)
+        assertEquals(listOf(VoiceCommand.Report, VoiceCommand.Model("claude-opus-5-5", "Opus 5.5"), VoiceCommand.PushMain(true)), d.commands)
+        assertEquals("", d.message)
+        val onlyQuestion = parseDictation("t'en es où", models, sessions, repos, startInInstructions = true)
+        assertEquals(listOf<VoiceCommand>(VoiceCommand.Report), onlyQuestion.commands)
+        assertEquals("", onlyQuestion.message)
+        val agentWord = parseDictation("mon agent immobilier", models, sessions, repos, startInInstructions = true)
+        assertEquals("immobilier", agentWord.message)
+        val kept = parseDictation("fais une page pour mon agent", models, sessions, repos, startInInstructions = true)
+        assertEquals("fais une page pour mon agent", kept.message)
+    }
+
+    @Test fun beforeAHandsFreeDictationIsAppliedTheWholeOfItIsReadBack() {
+        val d = parse("fais une page d'accueil instruction aiwa modèle opus push main dépôt jobber")
+        assertEquals(
+            "J'applique : modèle Opus 5.5, push main, dépôt Jobber. J'envoie à Claude : fais une page d'accueil. Tu confirmes ?",
+            recapSentence(d),
+        )
+        assertEquals(null, recapSentence(parse("instruction aiwa t'es sur quoi")))
+        val problem = recapSentence(parse("instruction aiwa modèle opus 9.9 push main"))!!
+        assertTrue(problem.contains("Je n'ai pas compris"))
+        assertTrue(problem.startsWith("J'applique : push main"))
+    }
 }

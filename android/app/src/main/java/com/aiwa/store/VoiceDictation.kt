@@ -7,6 +7,7 @@ import com.aiwa.bridge.VoiceModel
 import com.aiwa.bridge.VoiceSession
 import com.aiwa.bridge.describeCommand
 import com.aiwa.bridge.parseDictation
+import com.aiwa.bridge.recapSentence
 import com.aiwa.bridge.statusReport
 import androidx.glance.appwidget.updateAll
 import kotlin.coroutines.resume
@@ -32,6 +33,10 @@ import kotlinx.coroutines.withContext
 class VoiceDictation(
     context: Context,
     private val startInInstructions: Boolean = false,
+    // Hands-free (woken by a phrase, not by a touch): where things stand is read first, and before anything is applied or sent the phone reads back all of it
+    // and waits for "c'est bon vas-y", every time: nobody looks at a screen to catch a mistake or a false waking.
+    private val reportFirst: Boolean = false,
+    private val confirmAll: Boolean = false,
     private val onPartial: (String) -> Unit = {},
     private val onUnderstood: (String) -> Unit = {},
     private val onQuestion: (String?) -> Unit = {},
@@ -63,6 +68,19 @@ class VoiceDictation(
         CoroutineScope(Dispatchers.IO).launch {
             repoNames = try { LocalClaudeBridge().githubRepos().map { it.name } } catch (err: Exception) { emptyList() }
         }
+        if (reportFirst) {
+            // The voice speaks first, then the microphone opens (it must not hear the voice).
+            work = scope.launch {
+                readReport(LocalClaudeBridge())
+                beginListening()
+            }
+        } else {
+            beginListening()
+        }
+    }
+
+    private fun beginListening() {
+        if (ended) return
         listener = StopPhraseListener(
             context = voiceContext,
             onPartial = { lastPartial = it; onPartial(it); onUnderstood(understoodLine(it)) },
@@ -120,8 +138,24 @@ class VoiceDictation(
     }
 
     // Applied at the end, in an order that makes sense (the session, then the repository it works on, then the rest), then the message.
-    private suspend fun runInstructions(dictation: Dictation) {
+    private suspend fun runInstructions(heard: Dictation) {
         val bridge = LocalClaudeBridge()
+        // The report was read when the dictation began: it is not read a second time because "t'en es où" was said again.
+        val dictation = if (reportFirst) heard.copy(commands = heard.commands.filter { it !is VoiceCommand.Report }) else heard
+        var repoConfirmed = false
+        if (confirmAll) {
+            val recap = recapSentence(dictation)
+            if (recap != null) {
+                if (!confirmSentence(recap)) {
+                    // What was said is not lost, and nothing was applied nor sent.
+                    if (dictation.message.isNotBlank()) copyToClipboard(appContext, dictation.message)
+                    toastOnMain(appContext, "Pas confirmé : rien n'est appliqué ni envoyé." + if (dictation.message.isNotBlank()) " Le message est copié." else "")
+                    end()
+                    return
+                }
+                repoConfirmed = true   // the repository was part of what was read back
+            }
+        }
         val done = mutableListOf<String>()
         var repoRefused = false
         var report = false
@@ -145,7 +179,7 @@ class VoiceDictation(
                 is VoiceCommand.Report -> report = true
                 is VoiceCommand.Repo -> {
                     // A repository is never changed on a guess: the phone asks aloud and the answer is the same phrase.
-                    if (confirmRepo(command.name)) {
+                    if (repoConfirmed || confirmRepo(command.name)) {
                         switchRepo(appContext, bridge, command.name)
                     } else {
                         repoRefused = true
@@ -187,11 +221,15 @@ class VoiceDictation(
     // The phone says the question, then listens for "c'est bon vas-y" and nothing else: silence or any other words are a no.
     private suspend fun confirmRepo(name: String): Boolean {
         val spoken = name.substringAfter('/').replace('_', ' ').replace('-', ' ')
-        onQuestion("Dépôt $spoken ? Dis « c'est bon vas-y » pour confirmer")
-        val asked = Speaker.speakAndWait(voiceContext, "Dépôt $spoken. Tu confirmes ? Dis : c'est bon, vas-y.")
+        return confirmSentence("Dépôt $spoken. Tu confirmes ?")
+    }
+
+    private suspend fun confirmSentence(sentence: String): Boolean {
+        onQuestion("$sentence Dis « c'est bon vas-y » pour confirmer")
+        val asked = Speaker.speakAndWait(voiceContext, "$sentence Dis : c'est bon, vas-y.")
         if (!asked) {
             onQuestion(null)
-            toastOnMain(appContext, "Pas de voix sur ce téléphone pour poser la question : le dépôt ne change pas.")
+            toastOnMain(appContext, "Pas de voix sur ce téléphone pour poser la question : rien ne change.")
             return false
         }
         delay(400)   // the end of the voice must not be heard as the answer
