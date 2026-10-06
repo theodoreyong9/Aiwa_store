@@ -79,7 +79,7 @@ That is all the Store needs. The widget below is optional.
 
 The widget talks to Claude Code, which runs in **Termux** on the same phone. You need your own Claude account.
 
-1. Install **Termux from F-Droid** (the Play Store version is no longer maintained).
+1. Install **Termux from F-Droid** (or from its GitHub releases): the Play Store version is an unofficial, old copy (it behaves like Termux 0.108) that lacks the `RUN_COMMAND` call the widget uses to start the backend, and a Termux from one source cannot be updated from another.
 2. In Termux, paste this one line and wait: it installs the backend, and it also downloads the latest APK into Downloads (so it can replace step 1 above).
    ```sh
    curl -fsSL https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh | bash
