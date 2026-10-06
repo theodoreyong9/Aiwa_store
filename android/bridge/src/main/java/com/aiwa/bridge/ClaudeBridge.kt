@@ -47,6 +47,9 @@ data class BackendStatus(
     val site: SiteInfo = SiteInfo(null, "off"),
     val ci: CiInfo? = null,
     val githubError: String? = null,
+    // The repository whose last session started empty because Claude's GitHub app is not installed on it, and where to install it.
+    val repoAccessMissing: String? = null,
+    val githubAppUrl: String? = null,
     // Whether the CLI is logged in to a Claude account: ok / needed / unknown.
     val claudeLogin: String = "unknown",
     // Whether a command Claude runs in the cloud reaches the relay (its network access must

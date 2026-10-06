@@ -1873,8 +1873,9 @@ it is the seed of this role, not the role.
 how keepers choose what to keep; whether a keeper that holds an event is also a useful observer of it (a stable reference, at the price
 of pulling the protocol toward the infrastructure it is built to avoid). The rendezvous is not a keeper: a wallet that is open meets the others in a Trystero room (a public relay introduces two peers, and sees only that
 someone is looking), with the manual offer/answer exchange kept for when no relay can be reached. The room is for the first contact: a wallet then asks
-its peers to introduce it to theirs (the `Introducer`, §13.6), and with six direct connections it leaves the room (it comes back under three). A machine
-that is always on stays in it, which is what lets a newcomer find someone; with none, wallets that have left cannot be found. A consequence seen in practice: an application published from one device can be loaded by someone
+its peers to introduce it to theirs (the `Introducer`, §13.6), and with six direct connections it leaves the room (it comes back under three), unless fewer than three others are in it or it has the lowest id of those in it:
+so the room is never emptied. A machine that is always on stays in it as well; the rest of the wallets that have left cannot be found by a newcomer, only by
+those they are connected to. Changing network, or waking up, drops the links at once and joins the room again. A consequence seen in practice: an application published from one device can be loaded by someone
 else only while a copy of its events is reachable, such as a hosted export.
 
 ---
@@ -2084,11 +2085,11 @@ without a Rust toolchain. It cross-checks the fundamentals; it is not a second i
 
 ## Appendix D. Verification status
 
-**What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 101 in `aiwa-platform`,
-113 in `aiwa-lib`, 17 in `aiwa-registry`, 51 in `aiwa-store-web` (27 of them drive the app in Chromium: ranking, the sandbox refusing
+**What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 106 in `aiwa-platform`,
+113 in `aiwa-lib`, 17 in `aiwa-registry`, 52 in `aiwa-store-web` (28 of them drive the app in Chromium: ranking, the sandbox refusing
 `parent.document`, a tampering host, offline use, the wallet starting and restoring by itself, the burn with its fee, publishing both
 kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK, an app using the wallet through the door, a click duel between two pages that pays the winner, two pages linking by two codes and each showing where the other stands, and a QR code read by the page from a fake camera),
-111 for the dictation backend. `node scripts/devnet-check.mjs --fake` plays the whole path (burn, record, mine, evidence, registry) against
+113 for the dictation backend. `node scripts/devnet-check.mjs --fake` plays the whole path (burn, record, mine, evidence, registry) against
 a stand-in Solana that decodes the real transaction the wallet builds, 11 checks; it also runs in CI. Every part is testable on its own,
 none needs a hosted server.
 

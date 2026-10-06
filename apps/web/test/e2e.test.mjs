@@ -921,7 +921,38 @@ test('two wallets that are open find each other by themselves, through a relay, 
   }
 });
 
-test('three wallets: they introduce each other, and with enough direct links each leaves the room and stays connected', { timeout: 420000 }, async () => {
+test('a wallet whose network changes drops its links and finds the others again, from where it is now', { timeout: 300000 }, async () => {
+  const relay = await startRelay();
+  const chain = new Map();
+  const online = async (p) => {
+    await injectSolana(p, chain); await injectHost(p);
+    await p.addInitScript((url) => { localStorage.setItem('aiwa-network', 'on'); localStorage.setItem('aiwa-relays', JSON.stringify([url])); }, relay.url);
+  };
+  const A = await openPage(online);
+  const B = await openPage(online);
+  const logs = [];
+  A.page.on('console', (m) => logs.push(m.text()));
+  try {
+    await mineInPage(A.page, { epoch: 2, timeout: 120000 });
+    await mineInPage(B.page, { epoch: 2, timeout: 120000 });
+    for (const P of [A, B]) await P.page.waitForFunction(() => /Connected to 1 wallet/.test(document.getElementById('net-status').textContent), null, { timeout: 90000 });
+
+    // the browser says the wallet is back online (on another network): the links are dropped and made again
+    await A.page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await until(() => logs.some((t) => /network changed: online/.test(t)), { ms: 15000, what: 'the wallet to notice the change' });
+    for (const [name, P] of [['A', A], ['B', B]]) {
+      await P.page.waitForFunction(() => /Connected to 1 wallet/.test(document.getElementById('net-status').textContent), null, { timeout: 90000 })
+        .catch(async (error) => { throw new Error(`${name} did not find the other again: ${await P.page.locator('#net-status').textContent()}`, { cause: error }); });
+    }
+    assert.deepEqual([A.errors, B.errors], [[], []]);
+  } finally {
+    relay.close();
+    await A.context.close();
+    await B.context.close();
+  }
+});
+
+test('three wallets: they introduce each other, and with enough direct links two leave the room, the one with the lowest id stays, and all stay connected', { timeout: 420000 }, async () => {
   const relay = await startRelay();
   const chain = new Map();
   const online = async (p) => {
@@ -929,7 +960,7 @@ test('three wallets: they introduce each other, and with enough direct links eac
     await p.addInitScript((url) => {
       localStorage.setItem('aiwa-network', 'on');
       localStorage.setItem('aiwa-relays', JSON.stringify([url]));
-      localStorage.setItem('aiwa-peers', JSON.stringify({ target: 2, low: 1 }));      // three wallets: two direct links are enough
+      localStorage.setItem('aiwa-peers', JSON.stringify({ target: 2, low: 1, roomMin: 1, leaveJitterMs: 500 }));      // three wallets: two direct links are enough
     }, relay.url);
   };
   const pages = [await openPage(online), await openPage(online), await openPage(online)];
@@ -937,14 +968,18 @@ test('three wallets: they introduce each other, and with enough direct links eac
   pages.forEach((P, i) => P.page.on('console', (m) => logs[i].push(m.text())));
   try {
     for (const P of pages) await mineInPage(P.page, { epoch: 2, timeout: 120000 });
+    // every wallet has two direct links of its own; two of the three have left the room, and the one with the lowest id has stayed in it
     for (const [i, P] of pages.entries()) {
       await P.page.waitForFunction(() => {
         const el = document.getElementById('net-status');
-        return el.dataset.direct === '2' && el.dataset.room === 'out' && /Connected to 2 wallets/.test(el.textContent);
+        return el.dataset.direct === '2' && /Connected to 2 wallets/.test(el.textContent);
       }, null, { timeout: 120000 })
-        .catch(async (error) => { throw new Error(`wallet ${i} never had two direct links and left the room; it shows: ${await P.page.locator('#net-status').textContent()} (direct ${await P.page.locator('#net-status').getAttribute('data-direct')}, room ${await P.page.locator('#net-status').getAttribute('data-room')}) | errors ${JSON.stringify(pages.map((p) => p.errors))} | console ${JSON.stringify(logs.map((l) => l.filter((t) => /introduc|peer manager|WebRTC|link/i.test(t)).slice(-6)))}`, { cause: error }); });
+        .catch(async (error) => { throw new Error(`wallet ${i} never had two direct links; it shows: ${await P.page.locator('#net-status').textContent()} (direct ${await P.page.locator('#net-status').getAttribute('data-direct')}, room ${await P.page.locator('#net-status').getAttribute('data-room')}) | errors ${JSON.stringify(pages.map((p) => p.errors))} | console ${JSON.stringify(logs.map((l) => l.filter((t) => /introduc|peer manager|WebRTC|link/i.test(t)).slice(-8)))}`, { cause: error }); });
     }
-    // out of the room, they are still connected to each other
+    const rooms = async () => Promise.all(pages.map((P) => P.page.locator('#net-status').getAttribute('data-room')));
+    await until(async () => (await rooms()).filter((r) => r === 'out').length === 2, { ms: 60000, what: 'two of the three to leave the room' })
+      .catch(async (error) => { throw new Error(`rooms: ${JSON.stringify(await rooms())}`, { cause: error }); });
+    assert.equal((await rooms()).filter((r) => r === 'in').length, 1, 'one stays: the room is never left empty');
     // out of the room they stay connected: a link that drops is made again (under three direct links the wallet goes back to the room), so
     // what is asked is that all three are connected to the two others again within a while, not that no link ever blinked
     await sleepMs(3000);

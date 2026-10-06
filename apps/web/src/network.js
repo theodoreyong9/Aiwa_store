@@ -28,9 +28,39 @@ function relays() {
 
 function peerLimits() {
   try {
-    const { target, low } = JSON.parse(read(PEERS));
-    return Number.isInteger(target) && Number.isInteger(low) && target >= 1 && low >= 1 && low <= target ? { target, low } : {};
+    const { target, low, roomMin, leaveJitterMs } = JSON.parse(read(PEERS));
+    if (!(Number.isInteger(target) && Number.isInteger(low) && target >= 1 && low >= 1 && low <= target)) return {};
+    return { target, low, ...(Number.isInteger(roomMin) && roomMin >= 0 ? { roomMin } : {}), ...(Number.isInteger(leaveJitterMs) && leaveJitterMs >= 0 ? { leaveJitterMs } : {}) };
   } catch { return {}; }
+}
+
+// What the browser says about the network it is on ('wifi', 'cellular'…), where it says it.
+const connectionKind = () => navigator.connection?.type ?? null;
+
+/**
+ * A wallet that changes network (Wi-Fi to the phone's data) or wakes up after a long sleep has links that are tied to an address it no
+ * longer has. The browser says so in a few ways; any of them has the manager drop the links and look for the others again at once, instead
+ * of finding out half a minute later when the connections time out.
+ */
+function watchNetworkChanges(manager) {
+  let kind = connectionKind();
+  let hiddenAt = null;
+  let timer = null;
+  const changed = (why) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { console.debug('network changed:', why); manager.networkChanged().catch((err) => console.debug('network change:', err.message)); }, 1500);
+  };
+  window.addEventListener('online', () => changed('online'));
+  navigator.connection?.addEventListener?.('change', () => {
+    const now = connectionKind();
+    if (now !== kind) { kind = now; changed('connection'); }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    const slept = hiddenAt !== null && Date.now() - hiddenAt > 60_000;
+    hiddenAt = null;
+    if (slept) changed('resumed');
+  });
 }
 
 const networks = new WeakMap();      // wallet -> { manual, lobby, all, manager }
@@ -54,6 +84,7 @@ export async function networkOf(aiwa) {
     net.manager = new PeerManager({ transport: all, direct: manual, lobby, introducer, stay: read(LOBBY) === 'stay', ...peerLimits() });
     net.manager.enabled = wantsNetwork();
     net.manager.start();
+    watchNetworkChanges(net.manager);
   }
   return net;
 }

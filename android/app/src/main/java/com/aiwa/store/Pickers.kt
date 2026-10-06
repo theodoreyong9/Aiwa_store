@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -44,7 +45,8 @@ import kotlinx.coroutines.withContext
 // so the widget itself can stay a single compact row.
 
 // header: a section title, not something to tap. lines: how many lines the label may take.
-class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val onClick: () -> Unit)
+// side: a second, small button at the end of the row (a repository's page on GitHub, for instance) with its own action.
+class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val onClick: () -> Unit)
 
 @Composable
 private fun PickerSheet(entries: List<PickerEntry>, onDismiss: () -> Unit) {
@@ -70,13 +72,22 @@ private fun PickerSheet(entries: List<PickerEntry>, onDismiss: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 4.dp),
                             )
                         } else {
-                            Text(
-                                text = (if (entry.active) "●  " else "    ") + entry.label,
-                                color = if (entry.active) MaterialTheme.colorScheme.primary else Color.Unspecified,
-                                maxLines = entry.lines,
-                                modifier = Modifier.fillMaxWidth().clickable { entry.onClick() }
-                                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                            )
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = (if (entry.active) "●  " else "    ") + entry.label,
+                                    color = if (entry.active) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                                    maxLines = entry.lines,
+                                    modifier = Modifier.weight(1f).clickable { entry.onClick() }
+                                        .padding(start = 20.dp, end = if (entry.side == null) 20.dp else 8.dp, top = 14.dp, bottom = 14.dp),
+                                )
+                                if (entry.side != null) {
+                                    Text(
+                                        text = entry.side,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.clickable { entry.onSide() }.padding(start = 12.dp, end = 20.dp, top = 14.dp, bottom = 14.dp),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -238,13 +249,13 @@ class RepoPickerActivity : ComponentActivity() {
                 if (state.repo == null) add(PickerEntry("Choisis le dépôt sur lequel Claude travaille :", false) { })
                 // Right under the first line, not after a list that can run to a hundred names. The new repository shows up in
                 // the list when this window is opened again (the backend re-reads the owner's list when it is older than 30 s).
-                add(PickerEntry("＋  Créer un dépôt GitHub ↗  (coche « Add a README » pour qu'il ne soit pas vide)", false) { openNewRepoPage() })
+                add(PickerEntry("＋  Créer un dépôt GitHub ↗  (coche « Add a README » : il faut un premier commit, sinon il n'a pas de branche)", false, lines = 3) { openNewRepoPage() })
                 val list = repos
                 if (list == null) {
                     add(PickerEntry(if (starting) "Démarrage du backend (Termux)… quelques secondes" else "Chargement des dépôts…", false) { })
                 } else {
                     list.forEach { r ->
-                        add(PickerEntry(r.name + if (r.isPrivate) "  (privé)" else "", r.name == state.repo) { pickRepo(r.name) })
+                        add(PickerEntry(r.name + if (r.isPrivate) "  (privé)" else "", r.name == state.repo, side = "↗", onSide = { openRepoOnGithub(r.name) }) { pickRepo(r.name) })
                     }
                     if (list.isEmpty()) add(PickerEntry("Aucun dépôt trouvé", false) { })
                 }
@@ -280,6 +291,11 @@ class RepoPickerActivity : ComponentActivity() {
     }
 
     private fun openNewRepoPage() = openPage(GITHUB_NEW_REPO_URL)
+
+    // The repository's own page on GitHub, in the browser; the list stays open.
+    private fun openRepoOnGithub(repo: String) {
+        if (!openUrl(applicationContext, "https://github.com/$repo")) toastOnMain(applicationContext, "Impossible d'ouvrir le navigateur.")
+    }
 }
 
 // GitHub's own page for creating a repository (the browser is logged in there, Aiwa never is).

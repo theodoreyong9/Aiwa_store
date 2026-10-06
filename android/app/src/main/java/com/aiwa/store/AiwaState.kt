@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 26
+const val EXPECTED_BACKEND_VERSION = 27
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -132,6 +132,8 @@ data class AiwaState(
     // Which workflow / commit / event / author the GitHub verdict is about (the "État d'Aiwa" list says it).
     val ciDetail: String? = null,
     val githubError: String? = null,
+    val repoAccessMissing: String? = null,
+    val githubAppUrl: String? = null,
     // Whether the local backend answers: "unknown" (not asked yet), "up", "down",
     // or "starting" (Termux was asked to start it, since backendStartedAt).
     // "missing" is a backend that cannot be there: Termux is not installed, or it was started twice in vain (not installed in it).

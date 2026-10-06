@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 26
+BACKEND_VERSION = 27
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -106,6 +106,12 @@ STATE_FILE = Path.home() / ".aiwa_state.json"
 # The full output of the last `claude --cloud` run, for diagnosing a
 # failure (`cat` it from Termux) — the error shown in the app is only the tail.
 CLOUD_LOG = Path.home() / "aiwa_cloud_last.log"
+# What the CLI says it decided about the repository, written where Aiwa can read it (its debug log: the terminal is not touched). With no
+# Claude GitHub app on the repository it uploads the (empty) folder instead of naming the repository, and the session starts empty.
+CLI_DEBUG = Path.home() / ".aiwa_cli_debug.log"
+CLI_NO_APP_RE = re.compile(r"GitHub app is not installed on (\S+)")
+CLI_BUNDLING_RE = re.compile(r"Bundling \(reason: (\w+)\)")
+GITHUB_APP_URL = "https://github.com/apps/claude/installations/new"
 CLOUD_ID_RE = re.compile(r"(?:session|cse)_[A-Za-z0-9]+")
 CLOUD_URL_RE = re.compile(r"https://claude\.ai/code/[^\s\"')>\]]+")
 
@@ -149,6 +155,7 @@ waiting_topic = None
 waiting_lock = threading.Lock()
 waiting = {"since": None, "last_ping": None}
 github_error = None  # the last GitHub problem worth showing in the app
+repo_access_missing = None  # the repository whose last session started without it: Claude's GitHub app is not installed there
 # The account the CLI is logged in to: state is unknown / ok / needed, looked up in
 # the background (see _login_state). login_flow is the `claude auth login` run the
 # app drives from its "Connecter Claude" window: phase idle / starting / url /
@@ -193,7 +200,7 @@ followup_lock = threading.Lock()
 
 def _load_state():
     global current_model, current_cloud, current_repo, push_main, deploy_mode, extra
-    global current_effort, waiting_topic, last_cloud, sent_app, last_message_at
+    global current_effort, waiting_topic, last_cloud, sent_app, last_message_at, repo_access_missing
     try:
         data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -206,6 +213,8 @@ def _load_state():
     last = data.get("last_cloud")
     last_cloud = last if isinstance(last, str) and CLOUD_ID_RE.fullmatch(last) else current_cloud
     current_repo = repo if isinstance(repo, str) and github.REPO_RE.fullmatch(repo) else None
+    missing = data.get("repo_access_missing")
+    repo_access_missing = missing if isinstance(missing, str) and github.REPO_RE.fullmatch(missing) else None
     push_main = data.get("push_main") is not False
     mode = data.get("deploy")
     # Older state files only knew a yes/no: yes was GitHub Pages.
@@ -253,6 +262,7 @@ def _save_state():
             "push_main": push_main, "deploy": deploy_mode, "extra": extra, "extra_repos": extra_repos,
             "effort": current_effort, "topic": waiting_topic, "last_cloud": last_cloud, "ci_seen": ci_seen,
             "relay_cloud": relay_cloud, "sent_app": sent_app, "relay_seen": relay_seen, "last_message": last_message_at,
+            "repo_access_missing": repo_access_missing,
         }), encoding="utf-8")
     except OSError as err:
         print(f"[{_ts()}] could not save state: {err}", flush=True)
@@ -776,6 +786,21 @@ def _rename_session(session_id, title):
         print(f"[{_ts()}] rename failed: {err}", flush=True)
 
 
+def _cli_repo_verdict(repo):
+    """Whether the CLI took the folder for the repository's content instead of naming the repository (Claude's GitHub app is not installed
+    on it): read from its debug log, which is then deleted (it holds the message). True, or False when it named the repository."""
+    try:
+        log = CLI_DEBUG.read_text(encoding="utf-8", errors="replace")[-400_000:]
+    except OSError:
+        return False
+    finally:
+        CLI_DEBUG.unlink(missing_ok=True)
+    if CLI_NO_APP_RE.search(log):
+        return True
+    reason = CLI_BUNDLING_RE.search(log)
+    return bool(reason and reason.group(1) in ("github_preflight_failed", "no_github_remote", "branch_not_on_remote"))
+
+
 def cloud_send(text, command=False):
     """Sends one message to the current cloud session — creating a new
     one when none is selected. Synchronous: creating a session can take a
@@ -784,7 +809,7 @@ def cloud_send(text, command=False):
     command=True: `text` is a slash command for the CURRENT session (e.g.
     `/model opus`); it never creates a session and leaves the session's
     name and rank in the list alone."""
-    global current_cloud, cloud_busy, cloud_busy_since, cloud_progress, github_error, last_cloud
+    global current_cloud, cloud_busy, cloud_busy_since, cloud_progress, github_error, last_cloud, repo_access_missing
     with lock:
         if cloud_busy:
             return {"ok": False, "error": "busy"}
@@ -847,7 +872,8 @@ def cloud_send(text, command=False):
             task = "Message : " + task
         with lock:
             effort = current_effort
-        command_line = ["claude"] + (["--model", model] if model else []) + (["--effort", effort] if effort else []) + ["--cloud", task]
+        CLI_DEBUG.unlink(missing_ok=True)
+        command_line = ["claude"] + (["--model", model] if model else []) + (["--effort", effort] if effort else []) + ["--debug-file", str(CLI_DEBUG), "--cloud", task]
         # Under `script` the CLI gets a full terminal including a
         # controlling one (a bare pty has none, and a program that opens
         # /dev/tty then fails); without `script` it just gets the pty.
@@ -864,14 +890,20 @@ def cloud_send(text, command=False):
             from_url = CLOUD_ID_RE.search(url)
             found = from_url.group(0) if from_url else None
         print(f"[{_ts()}] cloud_send: created={found!r} code={code} {timeline[-1]}", flush=True)
-        if repo and found and re.search(r"bundl", output, re.I):
-            # Documented: without access to the GitHub remote, Claude Code
-            # uploads the local directory instead of cloning — here the empty
-            # stub. Unverified wording, hence the hedge.
+        verdict = _cli_repo_verdict(repo)
+        if repo and found and verdict:
             github_error = (
-                f"La session semble avoir reçu un dossier vide au lieu de cloner {repo} : "
-                "Claude n'a peut-être pas accès à ce dépôt (autorise-le sur claude.ai/connect-github)."
+                f"Claude n'a pas accès à {repo} : son app GitHub n'y est pas installée, donc la session est partie avec un dossier vide. "
+                "Installe-la sur ce dépôt, ou une fois pour tous (« All repositories »)."
             )
+            with lock:
+                repo_access_missing = repo
+                _save_state()
+        elif repo and found:
+            with lock:
+                if repo_access_missing == repo:
+                    repo_access_missing = None
+                    _save_state()
         if found is None:
             prompted = reason == "waiting for an answer"
             if prompted:
@@ -1655,6 +1687,7 @@ class Handler(BaseHTTPRequestHandler):
             with lock:
                 model, cloud_session = current_model, current_cloud
                 repo, direct, problem = current_repo, push_main, github_error
+                missing_access = repo_access_missing if repo_access_missing == current_repo else None
                 deploy, own, effort = deploy_mode, extra, current_effort
                 more = list(extra_repos)
             with waiting_lock:
@@ -1666,7 +1699,7 @@ class Handler(BaseHTTPRequestHandler):
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "extra": own, "extra_repos": more,
                 "waiting": is_waiting, "alert_last": last_ping,
-                "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem,
+                "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
                 "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(),
             })
         elif self.path == "/api/cloud/sessions":

@@ -17,6 +17,9 @@ function fakeTransport(peers = []) {
   return {
     list: [...peers],
     peers() { return [...this.list]; },
+    closed: [],
+    closePeer(id) { this.closed.push(id); this.remove(id); },
+    linked() { return [...this.list]; },
     onPeerJoin(h) { joins.add(h); return () => joins.delete(h); },
     onPeerLeave(h) { leaves.add(h); return () => leaves.delete(h); },
     add(id) { this.list.push(id); for (const h of joins) h(id); },
@@ -24,8 +27,8 @@ function fakeTransport(peers = []) {
   };
 }
 
-function fakeLobby({ enabled = true, connected = true } = {}) {
-  return { enabled, connected, calls: [], async connect() { this.connected = true; this.calls.push('connect'); }, async disconnect() { this.connected = false; this.calls.push('disconnect'); } };
+function fakeLobby({ enabled = true, connected = true, selfId = 'zzz' } = {}) {
+  return { enabled, connected, selfId, calls: [], async connect() { this.connected = true; this.calls.push('connect'); }, async disconnect() { this.connected = false; this.calls.push('disconnect'); } };
 }
 
 function setup({ lobbyPeers = [], directPeers = [], introduce = async () => { throw new Error('nobody to offer'); }, ...options } = {}) {
@@ -35,7 +38,7 @@ function setup({ lobbyPeers = [], directPeers = [], introduce = async () => { th
   const all = { peers: () => [...new Set([...direct.peers(), ...lobbyT.peers()])], onPeerJoin: (h) => { const a = direct.onPeerJoin(h); const b = lobbyT.onPeerJoin(h); return () => { a(); b(); }; }, onPeerLeave: (h) => { const a = direct.onPeerLeave(h); const b = lobbyT.onPeerLeave(h); return () => { a(); b(); }; } };
   const asked = [];
   const introducer = { async requestIntroduction(mediator, opts) { asked.push({ mediator, exclude: opts.exclude }); return introduce(mediator, opts); } };
-  const manager = new PeerManager({ transport: all, direct, lobby, introducer, target: 3, low: 2, retryMs: 50, answerMs: 200, ...options.manager });
+  const manager = new PeerManager({ transport: all, direct, lobby, introducer, target: 3, low: 2, roomMin: 1, leaveJitterMs: 0, retryMs: 50, answerMs: 200, ...options.manager });
   return { manager, lobby, lobbyT, direct, asked };
 }
 
@@ -120,4 +123,56 @@ test('the composite hands the signaling of a direct connection to the transport 
   composite.closePeer('x');
   assert.deepEqual(calls, [['offer', 'x'], ['accept', 'blob', 'y'], ['complete', 'x', 'ans'], ['close', 'x']]);
   assert.throws(() => new CompositeTransport([lobby]).createOfferFor('x'), /direct connections/);
+});
+
+test('a thin room is not left: someone has to stay in it for a newcomer to find', async () => {
+  const { manager, lobby, lobbyT } = setup({ lobbyPeers: ['l1', 'l2'], directPeers: ['d1', 'd2', 'd3'], manager: { roomMin: 3 } });
+  manager.start();
+  await sleep(40);
+  assert.deepEqual(lobby.calls, [], 'two others in the room: it stays');
+  lobbyT.add('l3');                                            // a third: the room can spare this wallet
+  await waitUntil(() => lobby.calls.includes('disconnect'));
+  manager.stop();
+});
+
+test('a network change drops every direct link and goes back to the room at once', async () => {
+  const { manager, lobby, direct } = setup({ lobbyPeers: ['l1'], directPeers: ['d1', 'd2', 'd3'], lobby: { connected: false } });
+  manager.start();
+  await sleep(20);
+  assert.deepEqual(lobby.calls, [], 'three direct links: no need for the room');
+  await manager.networkChanged();
+  assert.deepEqual(direct.closed.sort(), ['d1', 'd2', 'd3']);
+  assert.equal(lobby.connected, true, 'it looks for the others again, from where it is now');
+  manager.stop();
+});
+
+test('a network change in the room leaves it and joins it again', async () => {
+  const { manager, lobby } = setup({ lobbyPeers: ['l1'], directPeers: [], lobby: { connected: true } });
+  manager.start();
+  await sleep(10);
+  await manager.networkChanged();
+  assert.deepEqual(lobby.calls, ['disconnect', 'connect']);
+  manager.stop();
+});
+
+test('a person who turned the network off is left alone by a network change', async () => {
+  const { manager, lobby, direct } = setup({ lobby: { enabled: false, connected: false }, directPeers: ['d1'] });
+  manager.enabled = false;
+  manager.start();
+  await manager.networkChanged();
+  assert.deepEqual(direct.closed, []);
+  assert.deepEqual(lobby.calls, []);
+  manager.stop();
+});
+
+test('the wallet with the lowest id among those in the room never leaves it, so the room is never emptied', async () => {
+  const anchor = setup({ lobbyPeers: ['l1', 'l2'], directPeers: ['d1', 'd2', 'd3'], lobby: { selfId: 'a' } });
+  anchor.manager.start();
+  await sleep(40);
+  assert.deepEqual(anchor.lobby.calls, [], 'the lowest id: it stays whatever it has');
+  anchor.manager.stop();
+  const other = setup({ lobbyPeers: ['l1', 'l2'], directPeers: ['d1', 'd2', 'd3'], lobby: { selfId: 'm' } });
+  other.manager.start();
+  await waitUntil(() => other.lobby.calls.includes('disconnect'));    // 'l1' is lower: this one can go
+  other.manager.stop();
 });

@@ -56,6 +56,9 @@ elif "--cloud" in sys.argv:
     # Creation and follow-up (the /rename queued after a creation) run at the same time: two files.
     name = "last_followup_args.json" if "-p" in sys.argv else "last_create_args.json"
     open(os.path.expanduser("~/" + name), "w").write(json.dumps({"argv": sys.argv[1:]}))
+    if "--debug-file" in sys.argv and os.environ.get("FAKE_CLAUDE_MODE") == "noapp":
+        # what the real CLI writes there when Claude's GitHub app is not installed on the repository
+        open(sys.argv[sys.argv.index("--debug-file") + 1], "w").write("Checking GitHub app installation for o/r\nGitHub app is not installed on o/r\n[teleportToRemote] Bundling (reason: github_preflight_failed)\n")
     if os.environ.get("FAKE_CLAUDE_MODE") == "fail":
         print("Error: Not logged in · Please run /login")
         sys.exit(1)
@@ -718,6 +721,21 @@ class CloudSendTests(Base):
         self.assertIn("attend une réponse", answer["error"])
         self.assertIn("proot-distro login ubuntu", answer["error"])
 
+    def test_a_session_that_started_without_the_repository_says_so_and_how_to_fix_it(self):
+        # the CLI's own words: Claude's GitHub app is not installed on the repository, so it uploaded the empty folder
+        os.environ["FAKE_CLAUDE_MODE"] = "noapp"
+        answer = srv.cloud_send("bonjour")
+        self.assertTrue(answer["ok"], "the session exists, it just starts empty")
+        self.assertEqual(srv.repo_access_missing, "o/r")
+        self.assertIn("app GitHub", srv.github_error)
+        self.assertFalse(Path(srv.CLI_DEBUG).exists(), "the debug log holds the message: it is not kept")
+        # once the app is there, the next session names the repository and the warning goes
+        os.environ.pop("FAKE_CLAUDE_MODE", None)
+        srv.cloud_busy = False
+        srv.current_cloud = None                                    # a new session, not a message into the first
+        self.assertTrue(srv.cloud_send("encore")["ok"])
+        self.assertIsNone(srv.repo_access_missing)
+
     def test_a_cli_that_waits_for_an_answer_is_reported_at_once_with_what_it_asks(self):
         # e.g. "do you trust this folder?" in a folder the CLI has never seen: nobody is there to answer, so waiting 3 minutes tells nothing
         os.environ["FAKE_CLAUDE_MODE"] = "prompt"
@@ -1183,6 +1201,17 @@ class HttpTests(Base):
         finally:
             release.set()
             srv._queue_followup, srv.current_cloud = original, session
+
+    def test_the_status_says_which_repository_has_no_claude_app_and_where_to_install_it(self):
+        original = srv.repo_access_missing, srv.current_repo
+        self.addCleanup(lambda: setattr(srv, "repo_access_missing", original[0]) or setattr(srv, "current_repo", original[1]))
+        srv.current_repo = "o/r"
+        srv.repo_access_missing = "o/r"
+        status = self.call("/api/status")
+        self.assertEqual(status["repo_access_missing"], "o/r")
+        self.assertTrue(status["github_app_url"].startswith("https://github.com/apps/claude"))
+        srv.current_repo = "p/q"                                   # another repository is chosen: it is not about that one
+        self.assertIsNone(self.call("/api/status")["repo_access_missing"])
 
     def forget_sessions(self):
         Path(srv.CLOUD_STORE).unlink(missing_ok=True)
