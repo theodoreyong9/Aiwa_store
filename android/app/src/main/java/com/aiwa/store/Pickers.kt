@@ -1,6 +1,10 @@
 package com.aiwa.store
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -437,6 +441,75 @@ class SourceReposPickerActivity : ComponentActivity() {
 
     private fun openRepoOnGithub(repo: String) {
         if (!openUrl(applicationContext, "https://github.com/$repo")) toastOnMain(applicationContext, "Impossible d'ouvrir le navigateur.")
+    }
+}
+
+/**
+ * The widget's voice button (before the mic): the voice commands, written out, and the switch of the always-on listening. The list is the one
+ * place the commands are given in the app; VoiceCommands.kt (the bridge) is what understands them.
+ */
+class VoiceHelpActivity : ComponentActivity() {
+    private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) turnOn() else toastOnMain(applicationContext, "Écoute permanente : sans la permission du micro, rien à faire.")
+    }
+
+    private fun turnOn() {
+        ListenSettings.setEnabled(this, true)
+        WakeWordService.start(this)
+    }
+
+    private fun toggle() {
+        if (ListenSettings.enabled(this)) {
+            ListenSettings.setEnabled(this, false)
+            WakeWordService.stop(this)
+        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            turnOn()
+        } else {
+            micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        wakeAiwa(applicationContext)
+        setContent {
+            val state by AiwaRepository.state.collectAsState()
+            // the switch is the person's wish; "listening" is whether the service is running (after a restart of the phone it is not, until the app is opened)
+            val wanted = ListenSettings.enabled(this) || state.listening
+            val entries = buildList {
+                add(PickerEntry("Écoute permanente", false, header = true) { })
+                add(PickerEntry(if (wanted) "✓  Allumée : le téléphone écoute « mon agent », « instruction » et « stop Claude » — toucher pour l'éteindre" else "Éteinte — toucher pour l'allumer", wanted, lines = 3) { toggle() })
+                if (ListenSettings.enabled(this@VoiceHelpActivity) && !state.listening) {
+                    add(PickerEntry("⚠  Allumée mais arrêtée (le téléphone a redémarré ?) — toucher pour la relancer", false, lines = 3) { turnOn() })
+                }
+                add(PickerEntry("Elle reste sur le téléphone (rien n'est envoyé). Le point vert du micro reste affiché et la batterie baisse plus vite. 41 Mo à télécharger la première fois.", false, lines = 4) { })
+
+                add(PickerEntry("Dictée (le micro)", false, header = true) { })
+                add(PickerEntry("Parle : c'est du texte pour Claude. « C'est bon vas-y » envoie.", false, lines = 3) { })
+                add(PickerEntry("« Non, c'est pas bon, arrête » ou « annule », à la fin : tout est abandonné.", false, lines = 3) { })
+
+                add(PickerEntry("Après « instruction Aiwa » (enchaîne autant que tu veux)", false, header = true) { })
+                add(PickerEntry("modèle Opus · Sonnet · Haiku · Fable (+ version « 5.5 », « un million ») · automatique", false, lines = 3) { })
+                add(PickerEntry("push main · push branche", false) { })
+                add(PickerEntry("déploiement Pages · Android · Store · Aiwa · aucun", false, lines = 3) { })
+                add(PickerEntry("nouvelle session · session + un bout du titre", false, lines = 3) { })
+                add(PickerEntry("dépôt + son nom (le téléphone demande confirmation à voix haute)", false, lines = 3) { })
+                add(PickerEntry("t'es sur quoi ? (rapport, statut, bilan) : le téléphone lit les pastilles", false, lines = 3) { })
+                add(PickerEntry("stop · arrête Claude · arrête-toi : demande à Claude de s'arrêter (il le lit à sa prochaine étape)", false, lines = 3) { })
+                add(PickerEntry("Tout s'applique à « c'est bon vas-y » ; ce qui n'est pas une commande reste du texte pour Claude.", false, lines = 3) { })
+
+                add(PickerEntry("Écoute permanente : les mots de réveil", false, header = true) { })
+                add(PickerEntry("« Mon agent » : il lit les pastilles, puis tu donnes tes instructions. Il relit tout et attend « c'est bon vas-y » avant d'appliquer ou d'envoyer, à chaque fois.", false, lines = 5) { })
+                add(PickerEntry("« Instruction » : tu donnes directement tes instructions (même relecture).", false, lines = 3) { })
+                add(PickerEntry("« Stop Claude » ou « arrête Claude » : arrête Claude tout de suite, sans confirmation.", false, lines = 3) { })
+            }
+            PickerSheet(entries) { finish() }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        WakeWordService.instance?.let { AiwaRepository.update { s -> s.copy(listening = true) } }
     }
 }
 

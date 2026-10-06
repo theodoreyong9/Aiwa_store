@@ -465,8 +465,17 @@ private fun FullContent(state: AiwaState) {
             // button that opens the list of the documents (DocsPickerActivity): the yellow paper, the plain-words explanation, the
             // plan, the business model. The "Store" mode (a plain app) has no use for them.
             val docsMode = state.deploy == "aiwa"
+            // Before the mic: what can be said (the voice commands), and the switch of the always-on listening. Green while it listens.
+            RoundButton(
+                icon = R.drawable.ic_voice,
+                description = if (state.listening) "Commandes vocales : l'écoute permanente est allumée" else "Commandes vocales et écoute permanente",
+                background = if (state.listening) green else pill,
+                action = actionStartActivity<VoiceHelpActivity>(),
+                diameter = micH.dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
             Box(
-                modifier = (if (docsMode) GlanceModifier.defaultWeight() else GlanceModifier.fillMaxWidth()).height(micH.dp)
+                modifier = GlanceModifier.defaultWeight().height(micH.dp)
                     .background(if (locked) MIC_DIM else micGrey)
                     .cornerRadius((micH / 2).dp)
                     .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing"))),
@@ -537,7 +546,7 @@ private fun CompactContent(state: AiwaState) {
     val modelText = modelLabel(state.model).replace(" · ", "·").take(12) + " ▾"
     val pillText = "● Claude ↗"
     val updateRoom = if (state.storeUpdateReady) 36f + GAP else 0f
-    val fixedLeft = 36f + 40f + chipWidth(modelText, fontScale) + 3 * GAP + updateRoom // A, mic, model, the update button when there is one, and the gaps before them
+    val fixedLeft = 36f + 36f + 40f + chipWidth(modelText, fontScale) + 4 * GAP + updateRoom // A, the voice button, mic, model, the update button when there is one, and the gaps before them
     // Claude waiting gets its words when there is room for them next to a
     // readable session name; otherwise it stays a round button, still red.
     val claudePill = state.waiting && avail - fixedLeft - (chipWidth(pillText, fontScale) + GAP) >= 96f
@@ -569,6 +578,14 @@ private fun CompactContent(state: AiwaState) {
                     else -> lockable(locked, actionStartActivity<SessionPickerActivity>())
                 },
                 GlanceModifier.defaultWeight(), bold = true, alignStart = true,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
+            RoundButton(
+                icon = R.drawable.ic_voice,
+                description = if (state.listening) "Commandes vocales : l'écoute permanente est allumée" else "Commandes vocales et écoute permanente",
+                background = if (state.listening) green else pill,
+                action = actionStartActivity<VoiceHelpActivity>(),
+                diameter = 36.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
             Box(

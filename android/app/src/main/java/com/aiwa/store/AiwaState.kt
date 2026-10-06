@@ -122,6 +122,8 @@ data class AiwaState(
     val claudeLogin: String = "unknown",
     val relayCloud: String = "untested",
     val sentApp: SentApp? = null,
+    // The always-on listening is running right now (WakeWordService): the widget's voice button is green then. Not persisted: a new process starts with it off.
+    val listening: Boolean = false,
     // The latest GitHub Actions run of the repository: running / success /
     // failure / none, with the link to that run (null = unknown).
     val ciState: String? = null,

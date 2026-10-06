@@ -269,7 +269,7 @@ class KeepAliveService : Service() {
 
     private fun widgetKey(): List<Any?> {
         val state = AiwaRepository.state.value
-        return listOf(state.backend, state.status, state.sendingNote, if (state.status == AiwaState.Status.WORKING && state.sendingSince > 0) (System.currentTimeMillis() - state.sendingSince) / 10_000 else null, state.waiting, state.ciFresh, state.ciState, state.siteState, state.cloudSessionId, state.repo, state.extraRepos, state.model, state.repoAccessMissing, state.sourceRepos, state.storeUpdateReady, state.pushMain, state.deploy, state.siteKind, state.claudeLogin, state.relayCloud, state.sentApp)
+        return listOf(state.backend, state.status, state.sendingNote, if (state.status == AiwaState.Status.WORKING && state.sendingSince > 0) (System.currentTimeMillis() - state.sendingSince) / 10_000 else null, state.waiting, state.ciFresh, state.ciState, state.siteState, state.cloudSessionId, state.repo, state.extraRepos, state.model, state.repoAccessMissing, state.sourceRepos, state.storeUpdateReady, state.listening, state.pushMain, state.deploy, state.siteKind, state.claudeLogin, state.relayCloud, state.sentApp)
     }
 
     override fun onDestroy() {

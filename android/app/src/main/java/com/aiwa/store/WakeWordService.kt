@@ -25,6 +25,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.glance.appwidget.updateAll
 import com.aiwa.bridge.WakeKind
 import org.vosk.LibVosk
 import org.vosk.LogLevel
@@ -97,6 +98,8 @@ class WakeWordService : Service() {
             return START_NOT_STICKY
         }
         instance = this
+        AiwaRepository.update { it.copy(listening = true) }
+        CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
         if (preparing?.isActive != true && detector == null && dictation == null) preparing = scope.launch { prepare() }
         // Not sticky on purpose: restarted by the system from the background, a microphone service is refused, and it would loop.
         return START_NOT_STICKY
@@ -223,6 +226,8 @@ class WakeWordService : Service() {
 
     override fun onDestroy() {
         instance = null
+        AiwaRepository.update { it.copy(listening = false) }
+        CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
         detector?.stop()
         detector = null
         dictation?.cancel()
