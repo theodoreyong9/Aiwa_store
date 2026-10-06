@@ -807,9 +807,11 @@ test('two phones link by two codes, exchange what each holds, and each shows whe
   assert.match(await A.page.locator('#standing-list').textContent(), /Nobody yet/);
 
   // A starts: a code on A's screen; B reads it (here: pastes it) and shows an answer; A reads that
+  await A.page.click('#link-section summary');
   await A.page.click('#btn-link-start');
   await A.page.waitForFunction(() => !document.getElementById('door-show').hidden && document.getElementById('door-text').value.startsWith('link1.'));
   const offer = await A.page.inputValue('#door-text');
+  await B.page.click('#link-section summary');
   await B.page.click('#btn-link-join');
   await B.page.waitForSelector('#door-scan:not([hidden])').catch(async (error) => { throw new Error(`B's link line says: ${await B.page.locator('#link-status').textContent()} | page errors: ${JSON.stringify([A.errors, B.errors])}`, { cause: error }); });
   await B.page.fill('#door-paste', offer);

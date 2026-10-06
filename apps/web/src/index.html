@@ -31,7 +31,7 @@
   </div>
   <p class="muted" id="store-status"></p>
   <div id="store-list"></div>
-  <p class="hint" id="store-empty" hidden>No app here yet. Press ＋ to publish one (paste its HTML file), or dictate one with the widget and press ▦.</p>
+  <p class="hint" id="store-empty" hidden>No app here yet. Press ＋ to publish one (paste its HTML file), or dictate one with the widget and use its Store button.</p>
   <p class="hint">Apps run in a sandbox: they cannot see your wallet unless they say they use it, and then a banner tells you. They are not reviewed; the list is ordered by what their authors have mined (<code>score / laps</code>).</p>
 </main>
 
@@ -122,15 +122,15 @@
       </section>
     </div>
 
-    <section class="card" id="link-section">
-      <h2>Link with another phone</h2>
-      <p class="muted">The two phones swap two codes, then exchange what each holds, directly: no server. Each signs what it received, which is how a phone can prove where another one stands. It shares your wallet's history (signed events), never your 12 words.</p>
+    <details class="card" id="link-section">
+      <summary>Link with another phone</summary>
+      <p class="muted">By hand, for two phones side by side: they swap two codes, then send each other what each holds (signed events, never the 12 words), and each signs what it received. Nothing connects phones by itself: no node is there yet for them to find each other.</p>
       <div class="line">
         <button id="btn-link-start">Start a link</button>
         <button id="btn-link-join">Join a link</button>
       </div>
       <div id="link-status" class="muted"></div>
-    </section>
+    </details>
 
     <details class="card" id="standing-section">
       <summary>Who this phone has seen</summary>
