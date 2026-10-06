@@ -25,6 +25,7 @@ initWallet();
 setBackHandler(() => {
   if (!$('viewer').hidden) { closeViewer(); return true; }
   if (sheetIsOpen()) { closeSheet(); return true; }
+  if (!$('codesheet').hidden) { $('codesheet').hidden = true; return true; }
   const view = document.querySelector('#app-nav button.active')?.dataset.view;
   if (view && view !== 'store') { switchView('store'); return true; }
   return false;

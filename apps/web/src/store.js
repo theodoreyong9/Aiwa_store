@@ -52,7 +52,8 @@ export function filterApps(apps, query) {
  * For an app of kind aiwa the bundle is fetched too (the registry keeps the signed events; the same events can come
  * from any holder of them) and verified by Aiwa itself against the manifest id the author signed: whoever served the
  * events, what runs is exactly what the author published.
- * @returns {Promise<{ pkg: object, html: string, source: 'network'|'cache' }>}
+ * `files` is the code as published, path to text: what the author signed (the one file of a plain app, every file of an Aiwa contract), for reading it.
+ * @returns {Promise<{ pkg: object, html: string, files: Record<string, string>, source: 'network'|'cache' }>}
  * @throws if the package is not what the entry says, or is not what its author signed
  */
 export async function loadApp({ entry, baseUrl, fetchFn = fetch, cache = null }) {
@@ -75,14 +76,16 @@ export async function loadApp({ entry, baseUrl, fetchFn = fetch, cache = null })
     if (pkg[field] !== entry[field]) throw new Error(`Not opened: the package's ${field} is not the one the registry lists`);
   }
   let html = pkg.html;
+  let files = { 'index.html': pkg.html };
   if (pkg.kind === 'aiwa') {
     if (pkg.manifestId !== entry.manifestId) throw new Error('Not opened: the package points at another manifest than the registry lists');
     const checked = await verifyBundle(bundle, { manifestId: pkg.manifestId, domain: verified.domain, name: pkg.name, version: pkg.version });
     if (!checked.ok) throw new Error(`Not opened: ${checked.reason}`);
     html = assembleHtml(checked.files);
+    files = checked.files;
   }
   if (source === 'network') await cache?.set(key, held).catch?.(() => {});
-  return { pkg, html, source };
+  return { pkg, html, files, source };
 }
 
 export const shortAddress = (s) => (s && s.length > 14 ? `${s.slice(0, 6)}…${s.slice(-4)}` : (s ?? ''));

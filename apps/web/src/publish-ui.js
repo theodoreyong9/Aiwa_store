@@ -65,6 +65,7 @@ function stopRechecking() {
 
 function close() {
   $('sheet').hidden = true;
+  $('sheet-source').hidden = true;
   stopRechecking();
   job = null;
   manual = null;
@@ -74,7 +75,12 @@ function close() {
 // mining while the sheet is open, so it is looked at again.
 async function ready() {
   if (busy) return;
-  if (!connected()) { warn(''); $('sheet-go').disabled = true; say(STARTING); return; }
+  if (!connected()) {
+    $('sheet-go').disabled = true;
+    // Still starting: wait. Started and no wallet: say so, with the way out. An app is signed with a wallet and ranked by what it has mined.
+    if (session.starting) { warn(''); say(STARTING); } else { say(''); warn('No wallet yet. Create or restore it in the Wallet tab: an app is signed with your wallet and ranked by what it has mined.'); }
+    return;
+  }
   const mining = await session.aiwa.mining();
   if (busy) return;
   const publishable = job?.mode === 'refresh' || (mining && Number(mining.claimable) > 0);
@@ -109,6 +115,10 @@ function openPublish(app) {
   $('app-version').value = mine ? nextVersion(catalog.apps, { id: app.id, author: mine }) : '1.0.0';
   $('app-description').value = app.description;
   const kb = Math.max(1, Math.round(sizeOf(app) / 1024));
+  // The draft, to be read before it is signed (once published, its code is read from the Store's </> button)
+  $('sheet-source-text').textContent = app.kind === 'aiwa' ? app.files.map((f) => (app.files.length > 1 ? `// ---- ${f.path} ----\n${f.content}` : f.content)).join('\n\n') : app.html;
+  $('sheet-source').open = false;
+  $('sheet-source').hidden = false;
   openSheet({
     title: 'Publish this app',
     summary: `${app.kind === 'aiwa' ? 'One HTML file, published through Aiwa' : 'One HTML file'} (${kb} KB). It is signed with your wallet and sent to the Store's registry as a pull request on your GitHub account. `
@@ -123,6 +133,7 @@ function openPaste() {
   manual = null;
   stopRechecking();
   $('sheet-title').textContent = 'Publish an app';
+  $('sheet-source').hidden = true;
   $('sheet-summary').textContent = "Paste the app's one HTML file. It is then signed with your wallet and sent to the Store's registry, where it is ranked by what you have mined.";
   $('sheet-paste').hidden = false;
   $('sheet-fields').hidden = true;

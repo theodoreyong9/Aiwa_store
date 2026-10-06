@@ -193,10 +193,33 @@ test('the store lists the apps ranked by score / laps, and search narrows the li
   await context.close();
 });
 
+test('the published code of an app can be read afterwards, checked, from its </> button or from the widget\'s address', async () => {
+  const { page, errors, context } = await openPage();
+  await page.waitForSelector('#store-list .app');
+  await page.locator('#store-list .app[data-id="alpha"] button.icon').click();
+  await page.waitForSelector('#codesheet:not([hidden])');
+  assert.match(await page.locator('#code-title').textContent(), /Alpha v/);
+  assert.match(await page.locator('#code-proof').textContent(), /Checked here: signed by its author/);
+  assert.match(await page.locator('#code-files pre').first().textContent(), /Alpha/, 'the file as published');
+  await page.click('#code-close');
+  assert.equal(await page.locator('#codesheet').isHidden(), true);
+
+  // the address the Android app writes for its </> button
+  await page.evaluate(() => { location.hash = '#code=beta'; });
+  await page.waitForSelector('#codesheet:not([hidden])');
+  assert.match(await page.locator('#code-title').textContent(), /Beta v/);
+  await page.click('#code-close');
+  await page.evaluate(() => { location.hash = '#code=not-published-yet'; });
+  await page.waitForFunction(() => /is not in the registry yet/.test(document.getElementById('store-status').textContent));
+  assert.equal(await page.locator('#codesheet').isHidden(), true);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('an app opens in a sandbox that cannot reach the page: opaque origin, no same-origin access', async () => {
   const { page, context } = await openPage();
   await page.waitForSelector('#store-list .app');
-  await page.locator('#store-list .app[data-id="alpha"] button').click();
+  await page.locator('#store-list .app[data-id="alpha"] button.primary').click();
   const iframe = page.locator('#viewer iframe');
   await iframe.waitFor();
   assert.equal(await iframe.getAttribute('sandbox'), 'allow-scripts', 'allow-scripts and nothing else, never allow-same-origin');
@@ -215,7 +238,7 @@ test('a host that changes a package is caught: the app is not opened, and the re
   await page.waitForSelector('#store-list .app');
   control.tamper = { path: 'apps/beta/1.0.0.json' };
   try {
-    await page.locator('#store-list .app[data-id="beta"] button').click();
+    await page.locator('#store-list .app[data-id="beta"] button.primary').click();
     await page.waitForFunction(() => /Not opened/.test(document.getElementById('store-status').textContent));
     assert.match(await page.locator('#store-status').textContent(), /hash does not match the content/);
     assert.equal(await page.locator('#viewer').isHidden(), true);
@@ -226,7 +249,7 @@ test('a host that changes a package is caught: the app is not opened, and the re
 test('offline: the last list is shown and an app already opened still opens', async () => {
   const { page, context } = await openPage();
   await page.waitForSelector('#store-list .app');
-  await page.locator('#store-list .app[data-id="beta"] button').click();           // opened once: kept by its hash
+  await page.locator('#store-list .app[data-id="beta"] button.primary').click();           // opened once: kept by its hash
   await page.locator('#viewer iframe').waitFor();
   await page.click('#viewer-close');
 
@@ -235,11 +258,11 @@ test('offline: the last list is shown and an app already opened still opens', as
     await page.click('#store-refresh');
     await page.waitForFunction(() => /Offline/.test(document.getElementById('store-status').textContent));
     assert.equal(await page.locator('#store-list .app').count(), 3, 'the last list seen');
-    await page.locator('#store-list .app[data-id="beta"] button').click();
+    await page.locator('#store-list .app[data-id="beta"] button.primary').click();
     await page.locator('#viewer iframe').waitFor();
     assert.equal(await page.frameLocator('#viewer iframe').locator('h1').textContent(), 'Beta');
     await page.click('#viewer-close');
-    await page.locator('#store-list .app[data-id="alpha"] button').click();         // never opened: needs the host
+    await page.locator('#store-list .app[data-id="alpha"] button.primary').click();         // never opened: needs the host
     await page.waitForFunction(() => /does not serve this app/.test(document.getElementById('store-status').textContent));
   } finally { control.down = false; }
   await context.close();
@@ -367,6 +390,8 @@ test('on a new phone the 12 words bring the wallet back, and the registry brings
   assert.match(await page.locator('#restore-note').textContent(), /came back from the registry: epoch [1-9]/);
   await page.waitForSelector('#my-apps-section:not([hidden])');
   assert.match(await page.locator('#my-apps-list').textContent(), /Alpha v1\.0\.0/, 'and the author\'s own app is listed');
+  assert.match(await page.locator('#out-ranking').textContent(), /Ranking figure: score .* · laps \d+ → score\/laps/, 'the wallet shows its own ranking figure');
+  assert.match(await page.locator('#out-permission').textContent(), /New app: /, 'and what the registry asks of a new app');
   assert.deepEqual(errors, []);
   await context.close();
 
@@ -508,7 +533,7 @@ test('to be paid in person: my identity is shown as a QR code, and the Send fiel
   await context.close();
 });
 
-test('an app published through Aiwa: the pull request carries a pointer and the signed bundle, never the code', async () => {
+test('an app published through Aiwa: the pull request carries a pointer and the signed bundle (the files travel in the bundle, not as plain html)', async () => {
   const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
   const github = await fakeGitHub(context);
   await mineInPage(page);
@@ -561,6 +586,16 @@ test('the GitHub login is asked once: a second publication reuses the token, and
   await page.click('#sheet-go');
   await page.waitForFunction(() => window.__posted.filter((m) => m.cmd === 'github-login').length === 2, null, { timeout: 5000 });
   assert.equal(await logins(), 2, 'asked again, once');
+  await context.close();
+});
+
+test('without a wallet the sheet says so, with the way out, instead of waiting for it', async () => {
+  const { page, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  await handoff(page, 'code', 'Taps', SAMPLE_APP);
+  await page.waitForSelector('#sheet:not([hidden])');
+  await page.waitForFunction(() => /No wallet yet/.test(document.getElementById('sheet-warning').textContent));
+  assert.match(await page.locator('#sheet-warning').textContent(), /Create or restore it in the Wallet tab/);
+  assert.equal(await page.locator('#sheet-go').isDisabled(), true);
   await context.close();
 });
 
@@ -638,7 +673,7 @@ test('inside the Android app: there is no Dictate tab, back closes the sheet or 
   assert.equal(await page.locator('#tab-dictate').count(), 0, 'dictating is the widget\'s job, not a tab of the Store');
 
   await page.waitForSelector('#store-list .app');
-  await page.locator('#store-list .app[data-id="beta"] button').click();
+  await page.locator('#store-list .app[data-id="beta"] button.primary').click();
   await page.locator('#viewer iframe').waitFor();
   assert.equal(await page.evaluate(() => window.aiwaHostBack()), true);
   assert.equal(await page.locator('#viewer').isHidden(), true);
@@ -659,7 +694,7 @@ test('an app of kind aiwa opens from the store: its files are assembled and run 
   const { page, errors, context } = await openPage();
   await page.waitForSelector('#store-list .app');
   assert.match(await page.locator('#store-list .app[data-id="gamma"] .meta').textContent(), /· Aiwa ·/);
-  await page.locator('#store-list .app[data-id="gamma"] button').click();
+  await page.locator('#store-list .app[data-id="gamma"] button.primary').click();
   const frame = page.frameLocator('#viewer iframe');
   await frame.locator('h1').waitFor();
   assert.equal(await frame.locator('#r').textContent(), 'from a file', 'the script that lives in another file of the bundle ran');

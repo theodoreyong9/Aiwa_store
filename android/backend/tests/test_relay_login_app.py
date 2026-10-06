@@ -218,8 +218,9 @@ class SentAppTests(Base):
         text = dict(srv._instruction_lines(None, None, None, True))["deploy"]
         for wanted in ("-T nom.aiwa.html", "Title: aiwa-app", f"{srv.NTFY_SERVER}/{srv.waiting_topic}", "Ne la pousse sur AUCUN dépôt",
                        srv.AIWA_SDK_URL, "signedAction", "verifySignedAction", "DANS l'action", 'sandbox="allow-scripts"', "512 Ko",
-                       "aiwa-app-example.html", "pointeur", "immuable"):
+                       "aiwa-app-example.html", "pointeur", "immuable", "deux fichiers", "paquet de code signé", "autre version"):
             self.assertIn(wanted, text)
+        self.assertNotIn("ne contient qu'un pointeur", text, "the registry keeps the code too, in the second file: it was wrong to say GitHub only holds a pointer")
         self.assertIn("lib/aiwa.js", srv.AIWA_SDK_URL)
 
     def test_an_app_sent_with_curl_is_downloaded_and_kept(self):

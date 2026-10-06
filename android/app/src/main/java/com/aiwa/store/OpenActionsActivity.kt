@@ -9,7 +9,12 @@ class OpenActionsActivity : ComponentActivity() {
         wakeAiwa(applicationContext)
         val state = AiwaRepository.state.value
         val repo = state.repo
-        if (repo == null) {
+        val registry = if (state.deploy == "aiwa") registryRepository(this) else null
+        if (registry != null) {
+            // An Aiwa contract is not built in the person's repository: what checks it is the registry's workflow, on the pull request the Store opened.
+            toastOnMain(this, "Le workflow du registre vérifie ta publication : cherche ta pull request dans la liste.")
+            if (!openUrl(this, "https://github.com/$registry/actions/workflows/registry.yml")) toastOnMain(this, "Impossible d'ouvrir le navigateur.")
+        } else if (repo == null) {
             toastOnMain(this, "Choisis d'abord un dépôt.")
         } else {
             acknowledgeNews(this)

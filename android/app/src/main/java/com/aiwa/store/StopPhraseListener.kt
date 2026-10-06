@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import com.aiwa.bridge.endsWithCancelPhrase
 
 private val STOP_PHRASE_REGEX = Regex("""\bc['\s]?est\s+bon,?\s+vas[\s-]?y\b[!.\s]*$""", RegexOption.IGNORE_CASE)
 
@@ -41,6 +42,8 @@ class StopPhraseListener(
     private val onFinalText: (String) -> Unit,
     private val onPartial: (String) -> Unit,
     private val onGiveUp: () -> Unit,
+    // "Non, c'est pas bon, arrête" (or "annule") at the end of what was heard: everything is dropped
+    private val onCancelPhrase: () -> Unit = {},
 ) : RecognitionListener {
     private val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
     private val accumulated = StringBuilder()
@@ -61,8 +64,15 @@ class StopPhraseListener(
     }
 
     fun cancel() {
+        if (stopped) return
         stopped = true
         recognizer.destroy()
+    }
+
+    private fun cancelledByVoice() {
+        stopped = true
+        recognizer.destroy()
+        onCancelPhrase()
     }
 
     private fun finishWith(text: String) {
@@ -74,6 +84,7 @@ class StopPhraseListener(
     override fun onResults(results: Bundle) {
         if (stopped) return
         val heard = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
+        if (endsWithCancelPhrase(heard)) { cancelledByVoice(); return }
         val beforeStopPhrase = stripStopPhrase(heard)
         if (beforeStopPhrase != null) {
             if (accumulated.isNotEmpty() && beforeStopPhrase.isNotEmpty()) accumulated.append(" ")
@@ -104,6 +115,7 @@ class StopPhraseListener(
         if (stopped) return
         val partial = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
         val combined = (accumulated.toString() + " " + partial).trim()
+        if (endsWithCancelPhrase(partial)) { cancelledByVoice(); return }
         onPartial(combined)
     }
 
@@ -169,7 +181,7 @@ class ConfirmListener(context: Context, private val onAnswer: (Boolean) -> Unit)
 
     override fun onPartialResults(partialResults: Bundle) {
         val heard = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
-        if (containsStopPhrase(heard)) answer(true)
+        if (endsWithCancelPhrase(heard)) answer(false) else if (containsStopPhrase(heard)) answer(true)
     }
 
     override fun onError(error: Int) {

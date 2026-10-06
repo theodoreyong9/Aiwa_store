@@ -344,3 +344,17 @@ fun openClaudeApp(context: Context): Boolean {
     }
     return opened
 }
+
+/**
+ * What is sent to Claude's session to stop it ("stop Claude", "arrête Claude", said at any moment). It is a message like any other: the session
+ * reads it at its next step. It is not a hard interruption of the running step (the CLI has one, for its own sessions; it was not tried here).
+ */
+const val STOP_CLAUDE_TEXT = "STOP. Arrête immédiatement ce que tu fais : ne lance plus aucun outil, ne modifie plus rien, ne pousse plus rien. " +
+    "Dis-moi en deux phrases où tu en es, ce qui est fait et ce qui ne l'est pas, puis attends mes instructions."
+
+/** Asks Claude's session to stop. True when the message went. */
+suspend fun stopClaude(context: Context): Boolean {
+    val sent = sendAndTrack(context, LocalClaudeBridge(), STOP_CLAUDE_TEXT, toastErrors = true)
+    AiwaWidget().updateAll(context)
+    return sent
+}

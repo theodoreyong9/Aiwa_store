@@ -434,7 +434,7 @@ An app is **one HTML file** (or a small set of files) that its author *signed*. 
 | | What GitHub holds | Who checks the code |
 |---|---|---|
 | **`code`** | the file itself, in the submission | anyone, by recomputing its fingerprint |
-| **`aiwa`** | only a **pointer**: the number of a signed manifest published through Aiwa, which pins every file by its fingerprint | the registry and the Store, each on its own, so whoever served the files, they are exactly what the author published |
+| **`aiwa`** | two files: the **package**, whose content is only a **pointer** (the number of a signed manifest published through Aiwa, which pins every file by its fingerprint), and the **bundle**, the signed events that carry the files themselves | the registry and the Store, each on its own, so whoever served the files, they are exactly what the author published |
 
 ### 6.2 Publishing
 
@@ -599,7 +599,7 @@ cost, hash-locked vouchers, session keys. No prior-art search has been done. Wha
 ## 9. What has been verified, and what has not
 
 **Verified by tests** (all run in CI): the protocol (421 tests, including a cross-check against an independent Rust implementation of its
-core computations), the distribution layer (107), the wallet API (113), the registry (17), the web app (52, 28 of them in a real Chromium:
+core computations), the distribution layer (107), the wallet API (113), the registry (17), the web app (54, 30 of them in a real Chromium:
 ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds, an app using the wallet, a click duel between two pages, two phones linking by two codes, a QR code read from a fake camera), the dictation backend (119), the Android app's checks of a downloaded page (14, on a plain JVM), and a whole
 dry run against a stand-in Solana (`node scripts/devnet-check.mjs --fake`).
 

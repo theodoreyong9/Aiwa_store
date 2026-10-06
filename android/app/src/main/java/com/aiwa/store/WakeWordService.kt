@@ -129,7 +129,7 @@ class WakeWordService : Service() {
     private fun listen() {
         val current = model ?: return
         if (paused || dictation != null) return
-        say("À l'écoute : dis « mon agent » (t'es sur quoi ?) ou « instruction »")
+        say("À l'écoute : dis « mon agent » (t'es sur quoi ?), « instruction » ou « stop Claude »")
         holdCpu(true)
         detector = WakeWordDetector(
             model = current,
@@ -142,6 +142,16 @@ class WakeWordService : Service() {
         detector = null
         if (paused) return
         try { ToneGenerator(AudioManager.STREAM_MUSIC, 80).startTone(ToneGenerator.TONE_PROP_BEEP, 150) } catch (err: Exception) { /* no tone */ }
+        if (kind == WakeKind.STOP) {
+            // Not a dictation: Claude is asked to stop, at once, and the phone says it did.
+            say("J'ai demandé à Claude de s'arrêter")
+            scope.launch {
+                val sent = stopClaude(applicationContext)
+                Speaker.speakAndWait(applicationContext, if (sent) "J'ai demandé à Claude de s'arrêter." else "Je n'ai pas pu envoyer l'arrêt à Claude.")
+                listen()
+            }
+            return
+        }
         say(if (kind == WakeKind.AGENT) "Je regarde où on en est…" else "Je t'écoute… dis « c'est bon vas-y » pour finir")
         // Woken by a phrase, nobody is looking at a screen: everything is read back and confirmed, every time. "Mon agent" is also the question
         // "t'en es où ?": where things stand is read first.

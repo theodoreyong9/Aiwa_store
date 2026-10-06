@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 30
+BACKEND_VERSION = 31
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -619,7 +619,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             "(5) pensée d'abord pour un téléphone (~390 px de large), sans débordement horizontal. "
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/store-app-example.html. "
             + (
-                "Place-la aussi dans le dépôt, sous `aiwa-apps/nom.app.html` (crée le dossier), avec la consigne Push ci-dessus : c'est là que je relis son code (bouton </> du widget). "
+                "Place-la aussi dans le dépôt, sous `aiwa-apps/nom.app.html` (crée le dossier), avec la consigne Push ci-dessus : c'est la copie de travail dans le dépôt (je relis le brouillon dans le Store, et le code publié avec le bouton </> du widget). "
                 "La publier sur le Store, c'est moi qui le fais depuis le Store (bouton ▦ du widget), avec mon identité. "
                 if repo else
                 "Ne la pousse sur AUCUN dépôt : je la relis, l'essaie et la publie moi-même depuis le Store (bouton ▦ du widget), avec mon identité. "
@@ -637,7 +637,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             "Déploiement (Aiwa) : le livrable est UNE app publiée par Aiwa, un fichier `nom.aiwa.html` (nom en minuscules, chiffres et tirets, 40 caractères au plus) : "
             "un `index.html` complet et autonome dont la logique est un CONTRAT Aiwa, c'est-à-dire des règles que n'importe qui rejoue à partir des événements signés qu'il détient "
             "(un vote, un score, un jeton, un jeu…), sans avoir à croire personne. Je la publie moi-même depuis le Store : elle devient immuable (signée, identifiée par son hash) "
-            "et l'entrée sur GitHub ne contient qu'un pointeur vers elle. Le Store l'ouvre dans un cadre isolé (`<iframe sandbox=\"allow-scripts\">`, origine opaque), donc : "
+            "le Store la range en deux fichiers dans le registre GitHub : un pointeur signé (le numéro du manifeste, qui épingle chaque fichier par son hash) et le paquet de code signé que ce pointeur désigne. Changer le code, c'est publier une autre version. Le Store l'ouvre dans un cadre isolé (`<iframe sandbox=\"allow-scripts\">`, origine opaque), donc : "
             "(1) un seul fichier, 512 Ko au plus ; "
             f"(2) le SDK Aiwa est UN module ES, chargé par son adresse ABSOLUE : `import {{ generateIdentity, defineContract, Contract, signedAction, verifySignedAction, EventLog, createMemoryBackend }} from '{AIWA_SDK_URL}'` ; "
             "jamais de chemin relatif ; "
@@ -650,7 +650,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/aiwa-app-example.html. "
             f"Lis aussi le yellow paper ({REFERENCE_RAW}/docs/YELLOWPAPER.md : identité, journal d'événements, contrats) : ce que l'app fait avec le SDK doit correspondre à ce document, pas à ce que tu supposes. "
             + (
-                "Place-la aussi dans le dépôt, sous `aiwa-apps/nom.aiwa.html` (crée le dossier), avec la consigne Push ci-dessus : c'est là que je relis son code (bouton </> du widget). "
+                "Place-la aussi dans le dépôt, sous `aiwa-apps/nom.aiwa.html` (crée le dossier), avec la consigne Push ci-dessus : c'est la copie de travail dans le dépôt (je relis le brouillon dans le Store, et le code publié avec le bouton </> du widget). "
                 if repo else
                 "Ne la pousse sur AUCUN dépôt. "
             ) + "Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile ; "

@@ -187,6 +187,34 @@ class VoiceCommandsTest {
         assertFalse(isWakeWord("bonjour tout le monde"))
     }
 
+    @Test fun stopClaudeIsAKeywordAndAWakePhrase() {
+        for (phrase in listOf("stop", "stop claude", "arrête claude", "arrête-toi", "stoppe tout", "arrête")) {
+            assertTrue("$phrase", parse("instruction aiwa $phrase").commands.contains(VoiceCommand.StopClaude))
+        }
+        assertEquals("arrêter is not arrête", "arrêter ne sert à rien", parse("instruction aiwa arrêter ne sert à rien").message)
+        val notStop = parse("instruction aiwa je ne t'arrête pas de coder")
+        assertTrue(notStop.commands.isEmpty())
+        assertEquals(WakeKind.STOP, wakeKind("stop claude"))
+        assertEquals(WakeKind.STOP, wakeKind("arrête claude"))
+        assertEquals(WakeKind.STOP, wakeKind("mon agent arrête claude"))
+        assertEquals(null, wakeKind("claude"))
+        // a stop is never read back for confirmation: it is not one of the things to apply
+        assertEquals(null, recapSentence(parse("instruction aiwa stop")))
+        assertEquals("J'applique : push main. Tu confirmes ?", recapSentence(parse("instruction aiwa stop push main")))
+    }
+
+    @Test fun nonCestPasBonArreteCancelsAtTheEndOfWhatWasHeard() {
+        assertTrue(endsWithCancelPhrase("fais une page non c'est pas bon arrête"))
+        assertTrue(endsWithCancelPhrase("non c'est pas bon"))
+        assertTrue(endsWithCancelPhrase("Non, ce n'est pas bon"))
+        assertTrue(endsWithCancelPhrase("modèle opus annule"))
+        assertTrue(endsWithCancelPhrase("modèle opus annule tout"))
+        assertFalse(endsWithCancelPhrase("annule la commande de pizza et envoie le mail"))
+        assertFalse(endsWithCancelPhrase("je dis non mais ce n'est pas mauvais du tout, c'est bon pour moi un jour"))
+        assertFalse(endsWithCancelPhrase("fais une page"))
+        assertFalse(endsWithCancelPhrase(""))
+    }
+
     @Test fun theWakePhrasesAreMonAgentAndInstruction() {
         assertEquals(WakeKind.AGENT, wakeKind("mon agent"))
         assertEquals(WakeKind.AGENT, wakeKind("Mon agent, t'en es où là"))

@@ -45,6 +45,7 @@ test('an app is opened only if it is what its author signed and what the registr
 
   const ok = await loadApp({ entry, baseUrl: 'x', fetchFn: serve(pkg) });
   assert.equal(ok.html, pkg.html);
+  assert.deepEqual(ok.files, { 'index.html': pkg.html }, 'a plain app is its one file, for reading');
   assert.equal(ok.source, 'network');
 
   await assert.rejects(loadApp({ entry, baseUrl: 'x', fetchFn: serve({ ...pkg, html: html('evil') }) }), /hash does not match/);
@@ -95,8 +96,10 @@ const serveBoth = (pkg, bundle) => async (url) => json(url.endsWith('.bundle.jso
 
 test('an app of kind aiwa is opened from its pointer: the bundle is verified by Aiwa against the signed manifest, then assembled', async () => {
   const { pkg, bundle, entry } = await aiwaApp();
-  const { html, source } = await loadApp({ entry, baseUrl: 'x', fetchFn: serveBoth(pkg, bundle) });
+  const { html, files, source } = await loadApp({ entry, baseUrl: 'x', fetchFn: serveBoth(pkg, bundle) });
   assert.equal(source, 'network');
+  assert.deepEqual(Object.keys(files).sort(), FILES.map((f) => f.path).sort(), 'every file of the contract is there to be read, as signed');
+  assert.equal(files['app.js'], FILES.find((f) => f.path === 'app.js').content);
   assert.match(html, /<style>h1 \{ color: red; \}<\/style>/, 'the stylesheet is inside');
   assert.match(html, /<script>document\.title = "<\\\/script>";<\/script>/, 'the script is inside, its closing tag defused');
   assert.ok(!html.includes('href="style.css"') && !html.includes('src="./app.js"'));

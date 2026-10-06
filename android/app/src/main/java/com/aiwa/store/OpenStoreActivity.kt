@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
  * already in it — and does nothing else: the user reads it, tries it and publishes it themself. A no-UI trampoline, like
  * the other buttons of the widget.
  *
- * Reading the code first is the job of the "</>" button next to it (CodeViewActivity); this one goes straight to the Store.
+ * The draft is read in the sheet this opens; the code of an app already published is the job of the "</>" button next to it (OpenCodeActivity).
  *
  * The code also goes to the clipboard, always. An app too big for an address is over the Store's own limit (512 KB): the
  * user is told so, and asks Claude for a smaller one.

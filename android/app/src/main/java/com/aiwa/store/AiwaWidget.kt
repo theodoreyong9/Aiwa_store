@@ -114,12 +114,9 @@ private val TEXT_DIM = rgb(android.graphics.Color.rgb(130, 130, 144))
 // is also looking at the news the red dot was about.
 private val siteAction: Action get() = actionStartActivity<SiteButtonActivity>()
 
-// The code of the app Claude wrote: on GitHub, once it is there (Claude is asked to put it in the repository); the copy received by the
-// phone is the fallback (a private repository, or Claude did not push).
-private fun codeAction(state: AiwaState): Action {
-    val address = state.sentApp?.github
-    return if (address != null) actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(address))) else actionStartActivity<CodeViewActivity>()
-}
+// The code of the app, as it was PUBLISHED (the version the registry lists, checked again by the Store before it is shown). The draft, before
+// publishing, is read in the publish sheet (the Store button). OpenCodeActivity opens the Store on it.
+private val codeAction: Action get() = actionStartActivity<OpenCodeActivity>()
 
 // The mic records; with no repository chosen there is nothing to send to yet, so it opens the repository list instead.
 // The backend is not installed (in Termux): the voice cannot be sent anywhere. The writing screen opens instead, with the steps to install it.
@@ -342,7 +339,7 @@ private fun FullContent(state: AiwaState) {
     // In the Store mode nothing is published through GitHub: the round "GitHub Actions" button (the build of this
     // repository) has no meaning there, and gives way to a button that shows the code Claude sent.
     val showCode = showStore
-    val showActions = hasRepo && !storeMode && (publishesFromGithub(state.deploy) || state.ciState != null)
+    val showActions = (hasRepo && !storeMode && (publishesFromGithub(state.deploy) || state.ciState != null)) || state.deploy == "aiwa"
     val fixed = (if (showSite) GAP + chipH else 0f) + (if (showStore) GAP + chipH else 0f) + (if (showCode) GAP + chipH else 0f) + (if (showActions) GAP + chipH else 0f)
     val each = (avail - fixed - GAP) / 2f - 20f
     fun pick(full: String, short: String) = if (textWidth(full, fontScale) <= each) full else short
@@ -439,7 +436,7 @@ private fun FullContent(state: AiwaState) {
                         icon = R.drawable.ic_code,
                         description = if (state.sentApp?.github != null) "Voir le code sur GitHub" else "Voir le code reçu de Claude",
                         background = if (storeReady) claudeOrange else pill,
-                        action = codeAction(state),
+                        action = codeAction,
                         diameter = chipH.dp,
                     )
                 }
@@ -448,13 +445,13 @@ private fun FullContent(state: AiwaState) {
                     // The colour is how the last run went: green, red, grey (running or unknown).
                     RoundButton(
                         icon = R.drawable.ic_actions,
-                        description = "GitHub Actions : " + when (state.ciState) {
+                        description = if (state.deploy == "aiwa") "Workflow du registre : la vérification de ta publication" else "GitHub Actions : " + when (state.ciState) {
                             "success" -> "réussi"
                             "failure" -> "échec"
                             "running" -> "en cours"
                             else -> "état inconnu"
                         },
-                        background = when (state.ciState) { "success" -> green; "failure" -> alertRed; else -> pill },
+                        background = if (state.deploy == "aiwa") pill else when (state.ciState) { "success" -> green; "failure" -> alertRed; else -> pill },
                         action = actionStartActivity<OpenActionsActivity>(),
                         badge = state.ciFresh && !(showSite && site != null),
                         diameter = chipH.dp,
@@ -635,7 +632,7 @@ private fun CompactContent(state: AiwaState) {
             // In the Store mode nothing is published through GitHub: the round "GitHub Actions" button (the build of this
             // repository) has no meaning there, and gives way to a button that shows the code Claude sent.
             val showCode = showStore
-            val showActions = hasRepo && !storeMode && (publishesFromGithub(state.deploy) || state.ciState != null)
+            val showActions = (hasRepo && !storeMode && (publishesFromGithub(state.deploy) || state.ciState != null)) || state.deploy == "aiwa"
             var others = 0f
             if (hasRepo) others += GAP + chipWidth(pushText, fontScale) + GAP + chipWidth(deployText, fontScale)
             if (showSite) others += GAP + 34f
@@ -682,7 +679,7 @@ private fun CompactContent(state: AiwaState) {
                             icon = R.drawable.ic_code,
                             description = if (state.sentApp?.github != null) "Voir le code sur GitHub" else "Voir le code reçu de Claude",
                             background = if (storeReady) claudeOrange else pill,
-                            action = codeAction(state),
+                            action = codeAction,
                         )
                     }
                     if (showActions) {
@@ -690,13 +687,13 @@ private fun CompactContent(state: AiwaState) {
                         // The colour is how the last run went: green, red, grey (running or unknown).
                         RoundButton(
                             icon = R.drawable.ic_actions,
-                            description = "GitHub Actions : " + when (state.ciState) {
+                            description = if (state.deploy == "aiwa") "Workflow du registre : la vérification de ta publication" else "GitHub Actions : " + when (state.ciState) {
                                 "success" -> "réussi"
                                 "failure" -> "échec"
                                 "running" -> "en cours"
                                 else -> "état inconnu"
                             },
-                            background = when (state.ciState) { "success" -> green; "failure" -> alertRed; else -> pill },
+                            background = if (state.deploy == "aiwa") pill else when (state.ciState) { "success" -> green; "failure" -> alertRed; else -> pill },
                             action = actionStartActivity<OpenActionsActivity>(),
                             badge = state.ciFresh && !(showSite && site != null),
                         )

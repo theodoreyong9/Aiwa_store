@@ -67,6 +67,8 @@
         <button id="btn-claim" class="light">Claim</button>
       </div>
       <div class="sub" id="out-mining">No burn yet</div>
+      <div class="sub" id="out-ranking"></div>
+      <div class="sub" id="out-permission"></div>
       <div class="sub" id="restore-note" hidden></div>
       <div id="sync-progress" hidden>
         <div class="sub"><span>Catching up</span> <span id="sync-progress-label">—</span></div>
@@ -193,6 +195,10 @@
       <input id="app-description" type="text" placeholder="One line about it" aria-label="Description">
     </div>
     <p class="muted" id="sheet-summary"></p>
+    <details id="sheet-source" class="plain" hidden>
+      <summary>Read the code before publishing (the draft)</summary>
+      <pre id="sheet-source-text" class="draft"></pre>
+    </details>
     <div class="error" id="sheet-warning" hidden></div>
     <div id="sheet-code" class="notice" hidden>
       <p class="muted">On GitHub (the app opened it), enter this code:</p>
@@ -212,6 +218,20 @@
       <button id="sheet-try" type="button">Try it</button>
       <button id="sheet-go" type="button" class="primary">Publish</button>
       <button id="sheet-close" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CODE SHEET: the published code of an app, as Aiwa checked it ============ -->
+<div id="codesheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="code-title">
+  <div class="sheet-card">
+    <h2 id="code-title">Code</h2>
+    <p class="muted" id="code-meta"></p>
+    <p class="muted" id="code-proof"></p>
+    <div id="code-files"></div>
+    <div class="line flow">
+      <button id="code-copy" type="button">Copy all</button>
+      <button id="code-close" type="button" class="primary">Close</button>
     </div>
   </div>
 </div>

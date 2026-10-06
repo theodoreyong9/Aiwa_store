@@ -9,7 +9,7 @@ import org.vosk.Model
 import org.vosk.Recognizer
 
 /**
- * Listens to the microphone for two phrases and nothing else: "mon agent" and "instruction". The speech model runs on the phone with a grammar
+ * Listens to the microphone for a few phrases and nothing else: "mon agent", "instruction", "stop Claude" and "arrête Claude". The speech model runs on the phone with a grammar
  * that has only those (anything else is "[unk]"), so it is cheap, and no sound leaves the phone. When the word is heard the microphone is
  * released at once and onWake is called (on this detector's thread: post it where it must run), because the dictation that follows needs
  * the microphone.
@@ -56,7 +56,7 @@ class WakeWordDetector(
         }
         var woken: WakeKind? = null
         try {
-            Recognizer(model, sampleRate.toFloat(), "[\"mon agent\", \"instruction\", \"[unk]\"]").use { recognizer ->
+            Recognizer(model, sampleRate.toFloat(), "[\"mon agent\", \"instruction\", \"stop claude\", \"arrête claude\", \"[unk]\"]").use { recognizer ->
                 record.startRecording()
                 val buffer = ShortArray(2048)
                 while (running) {

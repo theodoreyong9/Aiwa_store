@@ -40,6 +40,18 @@ private fun pack(code: String): String? {
     return if (payload.length > MAX_FRAGMENT_CHARS) null else payload
 }
 
+// An app's id as the registry has it: lowercase letters, digits and hyphens.
+private val APP_ID = Regex("[a-z0-9-]{1,40}")
+
+/**
+ * The address that makes the Store show the PUBLISHED code of an app (the version the registry lists, checked again before it is shown):
+ *
+ *     https://appassets.androidplatform.net/assets/web/index.html#code=<id>
+ *
+ * Null when the id is not an id. The name of the file Claude wrote (`name.aiwa.html`) is the id the publish sheet proposes.
+ */
+fun storeCodeUrl(id: String, base: String = STORE_APP_URL): String? = if (APP_ID.matches(id)) "$base#code=$id" else null
+
 // The kinds of app the Store takes: its code in the package ("code": one HTML file), or published through Aiwa ("aiwa").
 private val KINDS = setOf("code", "aiwa")
 

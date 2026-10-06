@@ -39,6 +39,7 @@ async function refreshLocalState() {
   $('out-mining').textContent = mining
     ? `Mining ${mining.capital} SOL · T ${Math.round(mining.T * 100)} % · epoch ${mining.epoch} (${mining.sinceLastAction} since your last action)`
     : 'No burn yet';
+  await showStanding();
 }
 
 // ---------- history: read from the event log, never a separate ledger ----------
@@ -301,10 +302,32 @@ async function link(how) {
 
 // ---------- the author's apps ----------
 
+// What the wallet's mining makes of it: the ranking figure (what an app of this author ranks by) and what the registry asks of a NEW app,
+// the permission ratio: the author's current score / laps must not be below the one their last publication was ranked with.
+let lastPublication = null;
+const ratio = (figure) => Number(figure.score) / Math.max(1, Number(figure.laps));
+async function showStanding() {
+  const aiwa = session.aiwa;
+  if (!aiwa?.identity) return;
+  let figure = null;
+  try { figure = await aiwa.ranking(); } catch { /* the wallet is not ready: nothing to show yet */ }
+  $('out-ranking').textContent = figure
+    ? `Ranking figure: score ${Number(figure.score).toPrecision(3)} · laps ${figure.laps} → score/laps ${ratio(figure).toPrecision(3)}`
+    : 'Ranking figure: none yet (no burn)';
+  let permission;
+  if (!figure || !(Number(figure.score) > 0)) permission = 'New app: nothing claimable yet, mine first.';
+  else if (!lastPublication) permission = 'New app: allowed (a first publication is free of the permission ratio).';
+  else if (ratio(figure) >= ratio(lastPublication)) permission = `New app: allowed (your score/laps ${ratio(figure).toPrecision(3)} is not below ${ratio(lastPublication).toPrecision(3)}, your last publication's).`;
+  else permission = `New app: refused for now (your score/laps ${ratio(figure).toPrecision(3)} is below ${ratio(lastPublication).toPrecision(3)}, your last publication's). An update of an app only needs you to own it.`;
+  $('out-permission').textContent = permission;
+}
+
 /** The apps of the store whose author is this wallet. */
 function showMyApps(apps) {
   const aiwa = session.aiwa;
   const mine = aiwa?.identity ? apps.filter((app) => app.author === aiwa.address) : [];
+  lastPublication = [...mine].sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0))[0] ?? null;
+  showStanding().catch(() => {});
   $('my-apps-section').hidden = mine.length === 0;
   const list = $('my-apps-list');
   list.replaceChildren();
@@ -376,6 +399,7 @@ async function run(aiwa) {
   trackProgress(aiwa);
   await refreshLocalState();     // before it is shown: never an empty wallet on screen
   starting = false;
+  session.starting = false;
   updateGates();
   const restored = await restoreHistory(aiwa);
   $('restore-note').hidden = !restored;
@@ -482,5 +506,6 @@ export async function initWallet() {
     showError($('connect-error'), err.message);
   }
   starting = false;
+  session.starting = false;
   updateGates();
 }

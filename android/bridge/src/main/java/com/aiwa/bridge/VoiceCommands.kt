@@ -23,6 +23,8 @@ sealed class VoiceCommand {
     data class Repo(val name: String) : VoiceCommand()
     /** "t'es sur quoi ?": the pills read aloud (statusReport). */
     object Report : VoiceCommand()
+    /** "stop", "arrête Claude": a message that asks the session to stop (it reads it at its next step: not a hard interruption). */
+    object StopClaude : VoiceCommand()
 }
 
 data class VoiceModel(val id: String?, val label: String)
@@ -40,6 +42,7 @@ fun describeCommand(command: VoiceCommand): String = when (command) {
     is VoiceCommand.SelectSession -> "session « " + command.title + " »"
     is VoiceCommand.Repo -> "dépôt " + command.name.substringAfter('/')
     is VoiceCommand.Report -> "rapport des réglages"
+    is VoiceCommand.StopClaude -> "stop Claude"
 }
 
 private class Word(val original: String, val plain: String)
@@ -63,6 +66,8 @@ private val SESSION_WORDS = setOf("session", "sessions")
 private val REPO_WORDS = setOf("depot", "depots", "repo", "repos", "repository")
 private val NEW_WORDS = setOf("nouvelle", "nouveau")
 private val REPORT_WORDS = setOf("rapport", "statut", "bilan", "etat")
+private val STOP_WORDS = setOf("stop", "stoppe", "arrete", "arrete-toi", "stoppe-toi")
+private val STOP_TARGETS = setOf("claude", "toi", "tout", "maintenant")
 private val QUESTION_WORDS = setOf("tu", "es", "ou", "la", "est", "quel", "quels")
 private val FILLERS = setOf("et", "puis", "ensuite", "alors", "aussi", "donc", "ok", "voila", "apres")
 private val SKIPPABLE = setOf("de", "du", "le", "la", "l", "les", "en", "sur", "avec", "mode", "est", "sera", "pour", "passe", "mets", "met", "a", "au", "ma", "une", "sa", "ta", "un")
@@ -136,6 +141,15 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
                 i += 3
                 while (leftover.isNotEmpty() && plainWord(leftover.last()) in QUESTION_WORDS) leftover.removeAt(leftover.size - 1)
                 while (wordAt(i)?.plain in QUESTION_WORDS) i++
+                afterCommand = true
+            }
+
+            // "stop", "arrête Claude", "arrête-toi": not "t'arrête pas" (an apostrophe in the word), and "arrête" alone only when nothing else follows it
+            w.plain in STOP_WORDS && !w.original.contains('\'') && !w.original.contains('’') &&
+                (w.plain.startsWith("stop") || w.plain.endsWith("-toi") || next == null || next.plain in STOP_TARGETS || startsCommand(next, wordAt(i + 2))) -> {
+                commands.add(VoiceCommand.StopClaude)
+                i++
+                while (wordAt(i)?.plain in STOP_TARGETS) i++
                 afterCommand = true
             }
 
@@ -304,7 +318,7 @@ fun statusReport(repo: String?, modelLabel: String, pushMain: Boolean, deploy: S
 }
 
 /** What woke the listening: "mon agent …" (the phone then reads where things stand) or "instruction …" (it goes straight to listening). */
-enum class WakeKind { AGENT, INSTRUCTION }
+enum class WakeKind { AGENT, INSTRUCTION, STOP }
 
 /**
  * The wake word, as the detector hears it. "Aiwa" cannot be listened for (it is not in the small French model's vocabulary), so the words
@@ -312,6 +326,8 @@ enum class WakeKind { AGENT, INSTRUCTION }
  */
 fun wakeKind(heard: String): WakeKind? {
     val list = words(heard)
+    // "stop Claude" / "arrête Claude": said at any moment, it is not a dictation: it stops Claude (see StopClaude)
+    for (i in 1 until list.size) if (list[i].plain == "claude" && list[i - 1].plain in STOP_WORDS) return WakeKind.STOP
     for (i in 1 until list.size) if (list[i].plain == "agent" && list[i - 1].plain == "mon") return WakeKind.AGENT
     return if (list.any { it.plain in TRIGGER }) WakeKind.INSTRUCTION else null
 }
@@ -320,7 +336,8 @@ fun isWakeWord(heard: String): Boolean = wakeKind(heard) != null
 
 /** What the phone says back before a hands-free dictation is applied: everything it is about to do, and the question. Null when there is nothing to do. */
 fun recapSentence(dictation: Dictation): String? {
-    val commands = dictation.commands.filter { it !is VoiceCommand.Report }
+    // The report and the stop are not "applied": the first only reads, the second is done at once, never read back and waited on
+    val commands = dictation.commands.filter { it !is VoiceCommand.Report && it !is VoiceCommand.StopClaude }
     if (commands.isEmpty() && dictation.message.isBlank()) return null
     val parts = mutableListOf<String>()
     if (commands.isNotEmpty()) parts.add("J'applique : " + commands.joinToString(", ") { describeCommand(it) })
@@ -328,4 +345,19 @@ fun recapSentence(dictation: Dictation): String? {
     if (dictation.problems.isNotEmpty()) parts.add("Je n'ai pas compris : " + dictation.problems.joinToString(", "))
     parts.add("Tu confirmes ?")
     return parts.joinToString(". ")
+}
+
+/**
+ * "Non, c'est pas bon, arrête" (or "annule") said at the END of what was heard: the dictation is dropped, nothing is applied and nothing is sent.
+ * It is looked for at the end only: "annule la commande" in the middle of a message is a message.
+ */
+fun endsWithCancelPhrase(text: String): Boolean {
+    val tail = words(text).map { it.plain }.filter { it.isNotEmpty() }.takeLast(6)
+    if (tail.isEmpty()) return false
+    if (tail.last() == "annule" || tail.last() == "annuler" || (tail.size >= 2 && tail[tail.size - 2] == "annule" && tail.last() == "tout")) return true
+    val non = tail.indexOfLast { it == "non" }
+    if (non < 0) return false
+    val after = tail.subList(non + 1, tail.size)
+    val pas = after.indexOf("pas")
+    return pas >= 0 && after.subList(pas + 1, after.size).contains("bon")
 }

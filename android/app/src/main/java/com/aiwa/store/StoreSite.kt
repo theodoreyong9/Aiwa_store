@@ -20,6 +20,11 @@ private var storeRepository: String? = null
  */
 fun isStoreRepository(context: Context, repo: String?): Boolean {
     if (repo == null) return false
+    return registryRepository(context)?.equals(repo, ignoreCase = true) == true
+}
+
+/** The repository the Store and its registry live in (deployment.json: repository, part of the APK): where publications are checked. */
+fun registryRepository(context: Context): String? {
     if (!storeRepositoryRead) {
         storeRepository = try {
             JSONObject(context.assets.open("deployment.json").use { String(it.readBytes(), Charsets.UTF_8) }).optString("repository").ifEmpty { null }
@@ -28,7 +33,7 @@ fun isStoreRepository(context: Context, repo: String?): Boolean {
         }
         storeRepositoryRead = true
     }
-    return storeRepository?.equals(repo, ignoreCase = true) == true
+    return storeRepository
 }
 
 private fun bundledRelease(context: Context) =

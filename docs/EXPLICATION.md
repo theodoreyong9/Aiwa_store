@@ -623,7 +623,7 @@ qui est inhabituel, c'est la combinaison :
 ## 9. Ce qui a été vérifié, et ce qui ne l'a pas été
 
 **Vérifié par des tests** (tous exécutés en CI) : le protocole (421 tests, dont un recoupement avec une implémentation Rust indépendante de
-ses calculs de base), la couche de distribution (107), l'API du portefeuille (113), le registre (17), l'application web (52, dont 28 dans un
+ses calculs de base), la couche de distribution (107), l'API du portefeuille (113), le registre (17), l'application web (54, dont 30 dans un
 vrai Chromium : classement, bac à sable, falsification, hors ligne, restauration du portefeuille, brûlage avec sa part, publication des deux
 types, une app qui utilise le portefeuille, un duel de clics entre deux pages, deux téléphones qui se lient par deux codes, un QR code lu par une fausse caméra), le backend de dictée (119), les vérifications d'une page téléchargée par l'appli Android (14, sur une JVM ordinaire), et une répétition complète contre un Solana de substitution (`node scripts/devnet-check.mjs --fake`).
 

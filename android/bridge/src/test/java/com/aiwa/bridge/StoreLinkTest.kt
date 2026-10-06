@@ -73,4 +73,13 @@ class StoreLinkTest {
         // an address that is not the Store's page is left alone
         assertEquals("https://example.com/", servedAddress("https://example.com/", downloaded = true))
     }
+
+    @Test fun theCodeOfAPublishedAppIsAskedForByItsId() {
+        assertEquals("$STORE_APP_URL#code=meteo-du-jour", storeCodeUrl("meteo-du-jour"))
+        assertEquals("$SITE_APP_URL#code=a1", servedAddress(storeCodeUrl("a1")!!, downloaded = true).replace("#code=a1", "") + "#code=a1")
+        assertNull("an id is lowercase letters, digits and hyphens", storeCodeUrl("Météo du jour"))
+        assertNull(storeCodeUrl(""))
+        assertNull(storeCodeUrl("a".repeat(41)))
+        assertNull("nothing can be slipped into the fragment", storeCodeUrl("x;y"))
+    }
 }

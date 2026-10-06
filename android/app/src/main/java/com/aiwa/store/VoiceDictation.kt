@@ -86,6 +86,7 @@ class VoiceDictation(
             onPartial = { lastPartial = it; onPartial(it); onUnderstood(understoodLine(it)) },
             onFinalText = { text -> handleFinal(text) },
             onGiveUp = { end() },
+            onCancelPhrase = { toastOnMain(appContext, "Annulé : rien n'est appliqué ni envoyé."); cancel() },
         )
         listener?.start()
     }
@@ -142,6 +143,8 @@ class VoiceDictation(
         val bridge = LocalClaudeBridge()
         // The report was read when the dictation began: it is not read a second time because "t'en es où" was said again.
         val dictation = if (reportFirst) heard.copy(commands = heard.commands.filter { it !is VoiceCommand.Report }) else heard
+        // A stop is done at once and never waits for a confirmation: stopping loses nothing, and every second counts.
+        if (dictation.commands.any { it is VoiceCommand.StopClaude }) stopClaude(appContext)
         var repoConfirmed = false
         if (confirmAll) {
             val recap = recapSentence(dictation)
@@ -167,6 +170,7 @@ class VoiceDictation(
                 is VoiceCommand.PushMain -> 3
                 is VoiceCommand.Deploy -> 4
                 is VoiceCommand.Report -> 5
+                is VoiceCommand.StopClaude -> 6
             }
         }
         for (command in ordered) {
@@ -177,6 +181,7 @@ class VoiceDictation(
                 is VoiceCommand.PushMain -> switchOptions(appContext, bridge, pushMain = command.direct)
                 is VoiceCommand.Deploy -> switchOptions(appContext, bridge, deploy = command.mode)
                 is VoiceCommand.Report -> report = true
+                is VoiceCommand.StopClaude -> {}   // done above
                 is VoiceCommand.Repo -> {
                     // A repository is never changed on a guess: the phone asks aloud and the answer is the same phrase.
                     if (repoConfirmed || confirmRepo(command.name)) {
@@ -187,7 +192,7 @@ class VoiceDictation(
                     }
                 }
             }
-            if (command !is VoiceCommand.Report) done.add(describeCommand(command))
+            if (command !is VoiceCommand.Report && command !is VoiceCommand.StopClaude) done.add(describeCommand(command))
         }
         if (done.isNotEmpty()) toastOnMain(appContext, "Aiwa : " + done.joinToString(" · "))
         if (dictation.problems.isNotEmpty()) toastOnMain(appContext, "⚠ " + dictation.problems.joinToString(" · "))
