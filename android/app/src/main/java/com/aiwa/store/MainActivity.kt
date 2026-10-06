@@ -103,6 +103,16 @@ fun startTermuxBackend(){
 val granted=ContextCompat.checkSelfPermission(context,"com.termux.permission.RUN_COMMAND")==PackageManager.PERMISSION_GRANTED
 if(granted){launchTermuxBackend();askNotifications()} else termuxPermissionLauncher.launch("com.termux.permission.RUN_COMMAND")
 }
+// The always-on listening for "instruction Aiwa" (WakeWordService.kt): off until it is turned on here, which asks for the microphone once.
+var listening by remember{mutableStateOf(ListenSettings.enabled(context))}
+val listenPermissionLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){granted->
+if(granted){ListenSettings.setEnabled(context,true);listening=true;WakeWordService.start(context)}
+}
+fun turnListening(on:Boolean){
+if(!on){ListenSettings.setEnabled(context,false);listening=false;WakeWordService.stop(context);return}
+if(ContextCompat.checkSelfPermission(context,"android.permission.RECORD_AUDIO")==PackageManager.PERMISSION_GRANTED){ListenSettings.setEnabled(context,true);listening=true;WakeWordService.start(context)}
+else listenPermissionLauncher.launch("android.permission.RECORD_AUDIO")
+}
 LaunchedEffect(Unit){try{focus.requestFocus()}catch(err:Exception){}}
 LaunchedEffect(Unit){
 // Reported live: "I have to restart the app to send the first
@@ -130,6 +140,8 @@ startTermuxBackend()
 // it here means it's running from the first time the app is opened,
 // same bootstrap spot as the Termux auto-start above.
 try{ContextCompat.startForegroundService(context,Intent(context,KeepAliveService::class.java))}catch(err:Exception){}
+// The listening does not come back by itself after the phone restarts (Android refuses a microphone service started from the background): opening the app does it.
+if(ListenSettings.enabled(context)&&WakeWordService.instance==null)WakeWordService.start(context)
 // Reported live: features silently missing because the backend
 // running on the phone was older than this app (history never
 // loaded — it predated /api/history). The backend reports its
@@ -187,7 +199,7 @@ Surface(shape=MaterialTheme.shapes.medium,color=MaterialTheme.colorScheme.errorC
 Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
 Text("Installer Aiwa en entier, une seule fois",style=MaterialTheme.typography.titleSmall,color=MaterialTheme.colorScheme.onErrorContainer)
 Text(
-"1. Termux doit être sur le téléphone (depuis F-Droid : la version du Play Store n'est plus à jour).\n2. Ouvre Termux, colle cette ligne et valide : elle installe le backend, règle l'autorisation entre Aiwa et Termux, et télécharge la dernière application dans Téléchargements.\n3. Quand elle a fini, reviens ici : le micro du widget marche.",
+"1. Termux doit être sur le téléphone (depuis F-Droid : la version du Play Store est une copie non officielle trop ancienne).\n2. Ouvre Termux, colle cette ligne et valide : elle installe le backend, règle l'autorisation entre Aiwa et Termux, et télécharge la dernière application dans Téléchargements.\n3. Quand elle a fini, reviens ici : le micro du widget marche.",
 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onErrorContainer,
 )
 SelectionContainer{Text(BOOTSTRAP_COMMAND,style=MaterialTheme.typography.bodySmall,fontFamily=FontFamily.Monospace,color=MaterialTheme.colorScheme.onErrorContainer)}
@@ -198,6 +210,13 @@ Button(onClick={context.startActivity(Intent(context,InstallHelpActivity::class.
 // Two things that need a person, each with the way to do it (see ClaudeLoginActivity / HealthActivity).
 if(state.claudeLogin=="needed"){
 Button(onClick={context.startActivity(Intent(context,ClaudeLoginActivity::class.java))},modifier=Modifier.fillMaxWidth()){Text("Claude n'est pas connecté : connecter")}
+}
+Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+Column(Modifier.weight(1f)){
+Text("Écoute permanente : dis « instruction Aiwa »",style=MaterialTheme.typography.titleSmall)
+Text("Le téléphone écoute le mot « instruction » en continu, même écran verrouillé, puis ouvre le micro. Tout reste sur le téléphone. Le point vert du micro reste affiché et la batterie baisse plus vite. 41 Mo à télécharger la première fois.",style=MaterialTheme.typography.bodySmall)
+}
+Switch(checked=listening,onCheckedChange={turnListening(it)})
 }
 TextButton(onClick={context.startActivity(Intent(context,HealthActivity::class.java))}){Text("État d'Aiwa (Claude, alertes, permissions)")}
 OutlinedTextField(

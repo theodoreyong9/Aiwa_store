@@ -148,4 +148,42 @@ class VoiceCommandsTest {
         )
         assertEquals(listOf("nouvelle session", "dépôt Jobber", "modèle Sonnet 5.5", "push branche", "déploiement aucun"), d.commands.map { describeCommand(it) })
     }
+
+    @Test fun askingWhatTheWidgetIsOnIsAReportAndNotTextForClaude() {
+        for (phrase in listOf("t'es sur quoi", "t'es sur quoi là", "tu es sur quoi là", "rapport", "donne-moi le bilan", "statut")) {
+            val d = parse("instruction aiwa $phrase")
+            assertTrue("$phrase: " + d.commands, d.commands.contains(VoiceCommand.Report))
+        }
+        val d = parse("instruction aiwa modèle opus t'es sur quoi là")
+        assertEquals(listOf(VoiceCommand.Model("claude-opus-5-5", "Opus 5.5"), VoiceCommand.Report), d.commands)
+        assertEquals("", d.message)
+    }
+
+    @Test fun theReportReadsAllThePillsAndWarnsWhenTheBackendIsDown() {
+        assertEquals(
+            "Dépôt Aiwa store. Modèle Opus 5.5. Push direct sur main. Déploiement Pages. Session Widget du matin.",
+            statusReport("theodoreyong9/Aiwa_store", "Opus 5.5", true, "pages", "Widget du matin", true),
+        )
+        val bare = statusReport(null, "automatique", false, "none", null, false)
+        assertTrue(bare.startsWith("Aucun dépôt choisi. Modèle automatique. Push sur une branche. Aucun déploiement. Pas de session en cours."))
+        assertTrue(bare.contains("Termux ne répond pas"))
+    }
+
+    @Test fun whenTheWakeWordWasHeardTheWholeTextIsCommands() {
+        val d = parseDictation("Aiwa modèle opus push main fais une page", models, sessions, repos, startInInstructions = true)
+        assertEquals(listOf(VoiceCommand.Model("claude-opus-5-5", "Opus 5.5"), VoiceCommand.PushMain(true)), d.commands)
+        assertEquals("fais une page", d.message)
+        assertTrue(d.instructions)
+        val none = parseDictation("rien de tout cela", models, sessions, repos, startInInstructions = true)
+        assertEquals("rien de tout cela", none.message)
+        assertTrue(none.commands.isEmpty())
+    }
+
+    @Test fun theWakeWordIsInstructionWhateverFollows() {
+        assertTrue(isWakeWord("instruction"))
+        assertTrue(isWakeWord("Instructions Aïwa"))
+        assertTrue(isWakeWord("bonjour l'instruction"))
+        assertFalse(isWakeWord("construction"))
+        assertFalse(isWakeWord("bonjour tout le monde"))
+    }
 }

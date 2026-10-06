@@ -12,6 +12,8 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        // The speech model's native library (Vosk) only for the phones that exist: it keeps the APK from growing for x86 builds nobody installs.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
     // Without a pinned debug keystore, AGP auto-generates one per
     // machine the first time it's needed (~/.android/debug.keystore) —
@@ -67,4 +69,7 @@ dependencies {
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.glance:glance-material3:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // The speech recognizer that listens for "instruction" on the phone itself (WakeWordService): Apache 2.0, runs offline.
+    implementation("com.alphacephei:vosk-android:0.3.47")
+    implementation("net.java.dev.jna:jna:5.13.0@aar")
 }

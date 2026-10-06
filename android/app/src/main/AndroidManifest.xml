@@ -46,6 +46,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- The always-on listening for "instruction" (WakeWordService.kt): off until the person turns it on. The CPU is held while it listens. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Automatic backup is on, so that the wallet's history (the WebView's storage) follows its owner to a new phone; the secrets are
          left out (res/xml/data_extraction_rules.xml): the 12 words are typed once there. -->
     <application android:name=".AiwaApp" android:allowBackup="true" android:dataExtractionRules="@xml/data_extraction_rules" android:fullBackupContent="@xml/backup_rules" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:label="Aiwa Store" android:supportsRtl="true" android:theme="@style/Theme.Aiwa" android:networkSecurityConfig="@xml/network_security_config">
@@ -196,5 +199,6 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Garde Aiwa actif pour que le micro du widget reste instantane" />
         </service>
+        <service android:name=".WakeWordService" android:exported="false" android:foregroundServiceType="microphone" />
     </application>
 </manifest>

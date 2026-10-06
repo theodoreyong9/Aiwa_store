@@ -21,6 +21,8 @@ sealed class VoiceCommand {
     object NewSession : VoiceCommand()
     data class SelectSession(val id: String, val title: String) : VoiceCommand()
     data class Repo(val name: String) : VoiceCommand()
+    /** "t'es sur quoi ?": the pills read aloud (statusReport). */
+    object Report : VoiceCommand()
 }
 
 data class VoiceModel(val id: String?, val label: String)
@@ -37,6 +39,7 @@ fun describeCommand(command: VoiceCommand): String = when (command) {
     is VoiceCommand.NewSession -> "nouvelle session"
     is VoiceCommand.SelectSession -> "session « " + command.title + " »"
     is VoiceCommand.Repo -> "dépôt " + command.name.substringAfter('/')
+    is VoiceCommand.Report -> "rapport des réglages"
 }
 
 private class Word(val original: String, val plain: String)
@@ -59,6 +62,8 @@ private val DEPLOY_WORDS = setOf("deploiement", "deploiements", "deploy")
 private val SESSION_WORDS = setOf("session", "sessions")
 private val REPO_WORDS = setOf("depot", "depots", "repo", "repos", "repository")
 private val NEW_WORDS = setOf("nouvelle", "nouveau")
+private val REPORT_WORDS = setOf("rapport", "statut", "bilan", "etat")
+private val QUESTION_WORDS = setOf("tu", "es", "ou", "la", "est", "quel", "quels")
 private val FILLERS = setOf("et", "puis", "ensuite", "alors", "aussi", "donc", "ok", "voila", "apres")
 private val SKIPPABLE = setOf("de", "du", "le", "la", "l", "les", "en", "sur", "avec", "mode", "est", "sera", "pour", "passe", "mets", "met", "a", "au", "ma", "une", "sa", "ta", "un")
 private val FAMILIES = setOf("opus", "sonnet", "haiku", "fable")
@@ -83,21 +88,26 @@ private fun isAiwa(list: List<Word>, at: Int): Int {
 
 private fun isVersion(word: String) = Regex("^\\d+([.,]\\d+)?$").matches(word)
 
-/** The text with "instruction Aiwa" and what follows read as commands where they are one. */
-fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<VoiceSession>, repos: List<String>): Dictation {
+/**
+ * The text with "instruction Aiwa" and what follows read as commands where they are one.
+ * startInInstructions: the whole text is already what follows "instruction Aiwa" (it was the wake word, heard before the dictation began).
+ */
+fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<VoiceSession>, repos: List<String>, startInInstructions: Boolean = false): Dictation {
     val all = words(heard)
     var trigger = -1
     var triggerLength = 0
-    for (i in all.indices) {
-        if (all[i].plain in TRIGGER) {
-            val n = isAiwa(all, i + 1)
-            if (n > 0) { trigger = i; triggerLength = 1 + n; break }
+    if (!startInInstructions) {
+        for (i in all.indices) {
+            if (all[i].plain in TRIGGER) {
+                val n = isAiwa(all, i + 1)
+                if (n > 0) { trigger = i; triggerLength = 1 + n; break }
+            }
         }
+        if (trigger < 0) return Dictation(heard.trim(), emptyList(), emptyList(), false)
     }
-    if (trigger < 0) return Dictation(heard.trim(), emptyList(), emptyList(), false)
 
-    val before = all.subList(0, trigger).map { it.original }
-    val segment = all.subList(trigger + triggerLength, all.size)
+    val before = if (startInInstructions) emptyList() else all.subList(0, trigger).map { it.original }
+    val segment = if (startInInstructions) all else all.subList(trigger + triggerLength, all.size)
     val commands = mutableListOf<VoiceCommand>()
     val problems = mutableListOf<String>()
     val leftover = mutableListOf<String>()
@@ -112,6 +122,18 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
         val next = wordAt(i + 1)
         when {
             w.plain in TRIGGER && isAiwa(segment, i + 1) > 0 -> { i += 1 + isAiwa(segment, i + 1) }
+
+            // "Aiwa" said again right after the keyword or a command is not text for Claude
+            afterCommand && isAiwa(segment, i) > 0 -> { i += isAiwa(segment, i) }
+
+            w.plain in REPORT_WORDS || (w.plain == "sur" && next?.plain == "quoi") -> {
+                commands.add(VoiceCommand.Report)
+                i += if (w.plain == "sur") 2 else 1
+                // "tu es sur quoi là ?": the words that asked it are not text for Claude either
+                while (leftover.isNotEmpty() && plainWord(leftover.last()) in QUESTION_WORDS) leftover.removeAt(leftover.size - 1)
+                while (wordAt(i)?.plain in QUESTION_WORDS) i++
+                afterCommand = true
+            }
 
             w.plain in MODEL_WORDS -> {
                 var k = skipSkippable(i + 1)
@@ -247,3 +269,26 @@ private fun pickModel(spoken: List<String>, models: List<VoiceModel>): VoiceMode
             (label.contains("1m") == million)
     }
 }
+
+/** What the pills say, as a sentence the phone can read aloud. */
+fun statusReport(repo: String?, modelLabel: String, pushMain: Boolean, deploy: String, session: String?, backendUp: Boolean): String {
+    val parts = mutableListOf<String>()
+    parts.add(if (repo == null) "Aucun dépôt choisi" else "Dépôt " + repo.substringAfter('/').replace('_', ' ').replace('-', ' '))
+    parts.add("Modèle $modelLabel")
+    parts.add(if (pushMain) "Push direct sur main" else "Push sur une branche")
+    parts.add(
+        when (deploy) {
+            "pages" -> "Déploiement Pages"
+            "android" -> "Déploiement Android"
+            "store" -> "Déploiement Store"
+            "aiwa" -> "Déploiement Aiwa"
+            else -> "Aucun déploiement"
+        },
+    )
+    parts.add(if (session.isNullOrBlank()) "Pas de session en cours" else "Session $session")
+    if (!backendUp) parts.add("Attention : le serveur Termux ne répond pas, ces réglages peuvent ne pas être à jour")
+    return parts.joinToString(". ") + "."
+}
+
+/** The wake word, as the detector hears it: "instruction" (the word "Aiwa" is not in the small French model's vocabulary, so it cannot be listened for). */
+fun isWakeWord(heard: String): Boolean = words(heard).any { it.plain in TRIGGER }
