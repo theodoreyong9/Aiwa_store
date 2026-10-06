@@ -55,7 +55,7 @@ echo "If this is the first time, run 'claude' once by hand to authenticate"
 echo "before continuing — the backend below assumes you're already logged in."
 
 echo "== Preventing Android from killing Termux in the background =="
-termux-wake-lock || echo "termux-wake-lock unavailable — install the Termux:API app/package for this to work."
+termux-wake-lock || echo "termux-wake-lock did not work (it belongs to Termux itself, no extra app is needed): in Android's settings, turn off the battery optimisation of Termux so it is not stopped in the background."
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo "== Starting the Aiwa backend on 127.0.0.1:8787 =="

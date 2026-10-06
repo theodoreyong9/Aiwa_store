@@ -57,11 +57,10 @@ fi
 
 # Only when asked: hand the file to Android's installer from here.
 if [ "${1:-}" = "--open" ]; then
-  pkg install -y termux-api >/dev/null 2>&1 || true
   if termux-open "$APK_PATH" 2>/dev/null; then
     echo "APK: the Android installer was asked to open it — tap Install/Update when it appears."
   else
-    echo "APK: the installer did not open from here (the Termux:API app is needed for that): use the Files app as above."
+    echo "APK: the installer did not open from here from here: use the Files app as above."
   fi
 fi
 exit 0

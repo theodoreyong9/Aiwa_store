@@ -104,7 +104,7 @@ echo "\"Claude n'est pas connecté\" until you tap it and approve the login in y
 echo "(By hand, if you ever prefer: proot-distro login $DISTRO -- claude)"
 
 echo "== Preventing Android from killing Termux in the background =="
-termux-wake-lock || echo "termux-wake-lock unavailable — install the Termux:API app/package for this to work."
+termux-wake-lock || echo "termux-wake-lock did not work (it belongs to Termux itself, no extra app is needed): in Android's settings, turn off the battery optimisation of Termux so it is not stopped in the background."
 
 # A backend started earlier (by the app, or by the last run of this script) still holds port 8787 and still
 # runs the OLD code, which an update just replaced on disk: starting a second one used to die with
