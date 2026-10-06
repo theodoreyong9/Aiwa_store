@@ -102,13 +102,25 @@ class KeepAliveService : Service() {
         session = mediaSession
         publish(cardFor(AiwaRepository.state.value), first = true)
         // The card follows the state at once, not at the next poll.
+        spokenFresh = AiwaRepository.state.value.ciFresh      // news that was already there when the service started is not announced again
         watcher = CoroutineScope(Dispatchers.Default).launch {
             AiwaRepository.state.collect {
                 publish(cardFor(it), first = false)
                 announceApp(it)
+                announceReady(it)
             }
         }
         if (poller?.isActive != true) poller = CoroutineScope(Dispatchers.IO).launch { pollBackend() }
+    }
+
+    // "C'est prêt", said aloud by the phone's voice, when a new build or deployment of the repository ends green (the moment the red dot
+    // shows on the widget). Once per news: it is said when the news appears, not again while it waits to be looked at.
+    private var spokenFresh = false
+
+    private fun announceReady(state: AiwaState) {
+        val was = spokenFresh
+        spokenFresh = state.ciFresh
+        if (state.ciFresh && !was) CoroutineScope(Dispatchers.Default).launch { Speaker.speakAndWait(applicationContext, "C'est prêt") }
     }
 
     // The same story as the widget's first band.

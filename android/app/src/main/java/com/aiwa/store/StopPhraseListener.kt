@@ -7,6 +7,11 @@ import android.speech.SpeechRecognizer
 
 private val STOP_PHRASE_REGEX = Regex("""\bc['\s]?est\s+bon,?\s+vas[\s-]?y\b[!.\s]*$""", RegexOption.IGNORE_CASE)
 
+// The same words anywhere in what was heard: the answer to a question ("Dépôt X, tu confirmes ?") is just that phrase.
+private val STOP_PHRASE_ANYWHERE = Regex("""\bc['\s]?est\s+bon,?\s+vas[\s-]?y\b""", RegexOption.IGNORE_CASE)
+
+fun containsStopPhrase(text: String): Boolean = STOP_PHRASE_ANYWHERE.containsMatchIn(text)
+
 private fun stripStopPhrase(text: String): String? {
     val match = STOP_PHRASE_REGEX.find(text) ?: return null
     return text.substring(0, match.range.first).trim()
@@ -111,6 +116,64 @@ class StopPhraseListener(
             }
             else -> finishWith(accumulated.toString().trim())
         }
+    }
+
+    override fun onReadyForSpeech(params: Bundle?) {}
+    override fun onBeginningOfSpeech() {}
+    override fun onRmsChanged(rmsdB: Float) {}
+    override fun onBufferReceived(buffer: ByteArray?) {}
+    override fun onEndOfSpeech() {}
+    override fun onEvent(eventType: Int, params: Bundle?) {}
+}
+
+/**
+ * Listens for one answer to a question the phone just asked aloud: true if "c'est bon vas-y" was said, false for anything else or
+ * for silence (a second pass is given once to a silence). The question is never taken as answered by default: nothing changes
+ * unless the phrase was heard.
+ */
+class ConfirmListener(context: Context, private val onAnswer: (Boolean) -> Unit) : RecognitionListener {
+    private val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+    private var answered = false
+    private var silences = 0
+
+    init {
+        recognizer.setRecognitionListener(this)
+    }
+
+    fun start() {
+        if (answered) return
+        val intent = android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        }
+        recognizer.startListening(intent)
+    }
+
+    fun cancel() {
+        if (answered) return
+        answered = true
+        recognizer.destroy()
+    }
+
+    private fun answer(yes: Boolean) {
+        if (answered) return
+        answered = true
+        recognizer.destroy()
+        onAnswer(yes)
+    }
+
+    override fun onResults(results: Bundle) {
+        val heard = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
+        if (containsStopPhrase(heard)) answer(true) else if (heard.isBlank() && silences++ < 1) start() else answer(false)
+    }
+
+    override fun onPartialResults(partialResults: Bundle) {
+        val heard = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
+        if (containsStopPhrase(heard)) answer(true)
+    }
+
+    override fun onError(error: Int) {
+        if ((error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) && silences++ < 1) start() else answer(false)
     }
 
     override fun onReadyForSpeech(params: Bundle?) {}

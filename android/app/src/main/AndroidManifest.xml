@@ -17,6 +17,10 @@
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
         </intent>
+        <!-- Lets the phone's voice (text-to-speech) be used from Android 11 on: it asks which repository, and says "C'est prêt". -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
         <package android:name="com.termux" />
         <!-- Lets openClaudeApp() see whether the Claude app is installed. -->
         <package android:name="com.anthropic.claude" />

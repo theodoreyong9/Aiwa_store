@@ -120,6 +120,8 @@ is in `~/aiwa_cloud_last.log`.
 
 A session added by its branch gets a repository only when the branch is found in exactly one of the candidate repositories; found in several (a session can work on several with the same branch name), it gets none, and the widget asks (a red dot on the repository chip, a line in the status band) rather than guess where Claude pushes.
 
+**Voice instructions to Aiwa.** In a dictation, what comes before *« instruction Aiwa »* is the message for Claude; after it, the pills' keywords are commands (*modèle*, *push*, *déploiement*, *session*, *dépôt*), chained freely, applied when *« c'est bon vas-y »* ends the dictation, and the rest of the words stay text for Claude. A repository is only changed after the phone asks aloud and hears *« c'est bon vas-y »* again. A name that matches nothing, or several things, changes nothing. The phone also says *« C'est prêt »* when a new build ends green. The parser is tested on a JVM (`VoiceCommandsTest`); the voice and the mic are compiled in CI and were never run on a phone, and how the phone's recognizer writes *Aiwa* is not known.
+
 **How what Claude says reaches the phone.** An app, the "Claude waits" alert and the relay test all go to a public relay (ntfy.sh) with one
 `curl`. That needs the cloud environment to allow `ntfy.sh`, a setting only claude.ai can change (a new environment is on the default list,
 which does not have it; *État d'Aiwa* then says the cloud alerts are blocked). There is a second road that needs no setting, because a
