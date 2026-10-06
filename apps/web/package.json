@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@solana/web3.js": "^1.98.0",
+    "@trystero-p2p/nostr": "0.25.4",
     "aiwa-core": "^0.1.0",
     "aiwa-lib": "^0.1.0",
     "aiwa-registry": "^0.1.0",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "esbuild": "^0.25.12",
-    "playwright": "1.56.1"
+    "playwright": "1.56.1",
+    "ws": "7.5.13"
   }
 }

@@ -9,6 +9,8 @@ export { generateIdentity, identityFromSecretKey, publicIdentity, deriveId, Iden
 
 export { LoopbackTransport } from './transport.js';
 export { WebrtcTransport } from './webrtc-transport.js';
+export { TrysteroTransport } from './trystero-transport.js';
+export { CompositeTransport } from './composite-transport.js';
 export { encodeSignal, decodeSignal } from './signaling-codec.js';
 export { Replicator } from './replicator.js';
 export { Introducer } from './introducer.js';

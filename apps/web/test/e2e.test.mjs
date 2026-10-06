@@ -14,6 +14,8 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import QRCode from 'qrcode';
+import WebSocket from 'ws';
+const WebSocketServer = WebSocket.Server;
 import { deflateRawSync } from 'node:zlib';
 import { buildAppPackage, buildBundle, validateSubmission, applyAccepted, emptyStore, writeStore, rankApps } from 'aiwa-registry';
 import { CREATOR, deployment as testDeployment, fakeSolana, minedWallet } from '../../../registry/support/helpers.mjs';
@@ -125,6 +127,9 @@ async function openPage(extra = async () => {}) {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  // A test page does not look for other wallets on the public relays (every page of every run would find the others): the network
+  // test turns it on, with the relay of its own.
+  await page.addInitScript(() => { try { if (!localStorage.getItem('aiwa-network')) localStorage.setItem('aiwa-network', 'off'); } catch { /* none */ } });
   await extra(page);
   await page.goto(`${base}/index.html`);
   return { page, errors, context };
@@ -826,7 +831,7 @@ test('two phones link by two codes, exchange what each holds, and each shows whe
 
   // linked, and each phone holds the other's events and has signed for them
   for (const [name, P] of [['A', A], ['B', B]]) {
-    await P.page.waitForFunction(() => /Linked with 1 phone · \d+ events received/.test(document.getElementById('link-status').textContent), null, { timeout: 60000 })
+    await P.page.waitForFunction(() => /Connected to 1 wallet · \d+ events received/.test(document.getElementById('net-status').textContent), null, { timeout: 60000 })
       .catch(async (error) => { throw new Error(`${name} never linked; its link line says: ${await P.page.locator('#link-status').textContent()} | page errors: ${JSON.stringify([A.errors, B.errors])}`, { cause: error }); });
     await P.page.locator('#standing-section summary').click();
   }
@@ -840,6 +845,78 @@ test('two phones link by two codes, exchange what each holds, and each shows whe
   assert.match(seenByB, /proven ≥ [1-9]/);
   assert.doesNotMatch(seenByA + seenByB, /signed two different histories/, 'two honest phones');
   assert.deepEqual([A.errors, B.errors], [[], []]);
+});
+
+// A Nostr relay of the simplest kind (what Trystero needs of one): it keeps the events, hands a subscriber the ones that match its
+// filter, and passes new ones on to those who subscribed. Wallets meet through it on the loopback address, as through a public one.
+function startRelay() {
+  const wss = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+  const subs = new Map();
+  const events = [];
+  const matches = (f, e) => (!f.kinds || f.kinds.includes(e.kind)) && (!f['#x'] || e.tags.some((t) => t[0] === 'x' && f['#x'].includes(t[1]))) && (f.since === undefined || e.created_at >= f.since);
+  wss.on('connection', (ws) => {
+    subs.set(ws, new Map());
+    ws.on('message', (raw) => {
+      let msg;
+      try { msg = JSON.parse(raw.toString()); } catch { return; }
+      const [type, a, b] = msg;
+      if (type === 'REQ') {
+        subs.get(ws).set(a, b);
+        for (const e of events) if (matches(b, e)) ws.send(JSON.stringify(['EVENT', a, e]));
+        ws.send(JSON.stringify(['EOSE', a]));
+      } else if (type === 'CLOSE') {
+        subs.get(ws)?.delete(a);
+      } else if (type === 'EVENT') {
+        events.push(a);
+        ws.send(JSON.stringify(['OK', a.id, true, '']));
+        for (const [other, map] of subs) for (const [subId, filter] of map) if (matches(filter, a)) other.send(JSON.stringify(['EVENT', subId, a]));
+      }
+    });
+    ws.on('close', () => subs.delete(ws));
+  });
+  return new Promise((resolveRelay) => wss.once('listening', () => resolveRelay({ url: `ws://127.0.0.1:${wss.address().port}`, close: () => wss.close() })));
+}
+
+test('two wallets that are open find each other by themselves, through a relay, and each shows where the other stands', { timeout: 300000 }, async () => {
+  const relay = await startRelay();
+  const chain = new Map();                                // one Solana for both phones
+  const online = async (p) => {
+    await injectSolana(p, chain); await injectHost(p);
+    await p.addInitScript((url) => { localStorage.setItem('aiwa-network', 'on'); localStorage.setItem('aiwa-relays', JSON.stringify([url])); }, relay.url);
+  };
+  const A = await openPage(online);
+  const B = await openPage(online);
+  try {
+    await mineInPage(A.page, { epoch: 3, timeout: 120000 });
+    await mineInPage(B.page, { epoch: 3, timeout: 120000 });
+    const idOf = (page) => page.locator('#out-identity-id').getAttribute('data-full');
+    const [idA, idB] = [await idOf(A.page), await idOf(B.page)];
+    const shortOf = (id) => `${id.slice(0, 8)}…${id.slice(-6)}`;
+
+    // nothing was done by hand: the line says who each is connected to, and the events came across
+    for (const [name, P] of [['A', A], ['B', B]]) {
+      await P.page.waitForFunction(() => /Connected to 1 wallet · \d+ events received/.test(document.getElementById('net-status').textContent), null, { timeout: 90000 })
+        .catch(async (error) => { throw new Error(`${name} never met the other; its network line says: ${await P.page.locator('#net-status').textContent()} | page errors: ${JSON.stringify([A.errors, B.errors])}`, { cause: error }); });
+      await P.page.locator('#standing-section summary').click();
+    }
+    const row = async (P, id) => until(async () => {
+      const text = await P.page.locator('#standing-list .idrow').first().innerText();
+      return text.includes(shortOf(id)) && /epoch \d+/.test(text) && text;
+    }, { ms: 60000, what: 'the other wallet to show in the list' });
+    assert.match(await row(A, idB), /proven ≥ [1-9]/);
+    assert.match(await row(B, idA), /proven ≥ [1-9]/);
+
+    // it can be turned off, and says so
+    await A.page.click('#btn-net-toggle');
+    await A.page.waitForFunction(() => /^Off/.test(document.getElementById('net-status').textContent));
+    assert.equal(await A.page.locator('#btn-net-toggle').textContent(), 'Connect');
+    await B.page.waitForFunction(() => /Looking for other wallets/.test(document.getElementById('net-status').textContent), null, { timeout: 30000 });
+    assert.deepEqual([A.errors, B.errors], [[], []]);
+  } finally {
+    relay.close();
+    await A.context.close();
+    await B.context.close();
+  }
 });
 
 test('click duel: two phones link by two codes, click for 20 seconds, and the one who clicked less pays what they clicked', { timeout: 300000 }, async () => {

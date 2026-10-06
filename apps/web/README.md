@@ -52,7 +52,7 @@ app that uses the SDK. Solana is a stand-in that decodes the transaction the wal
 
 `deployment.json` at the repository root, shared with the registry (the build resolves `@deployment` to it):
 the economic parameters, the RPC endpoint, the registry's URL, the creator fee (with no address there is no fee, and the wallet
-says so), `github.clientId` (the OAuth App of the login) and `archiveNodes` (optional always-on holders of backups).
+says so), `github.clientId` (the OAuth App of the login), and optionally `archiveNodes` (always-on holders of backups; not set here: persistence is a job for machines that stay connected, apart from the network).
 
 ## Two kinds of app
 

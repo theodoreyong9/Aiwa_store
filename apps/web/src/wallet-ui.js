@@ -10,7 +10,8 @@ import { secretsAreSafe } from './keys.js';
 import { $, short, setId, showError, flash } from './ui.js';
 import { openRefresh } from './publish-ui.js';
 import { drawQr, scanQr } from './qr.js';
-import { startLink, joinLink, watchLinks } from './link.js';
+import { startLink, joinLink } from './link.js';
+import { watchNetwork, setNetwork, wantsNetwork } from './network.js';
 import { showCode } from './app-door.js';
 
 let displayRefreshTimer = null;
@@ -238,31 +239,59 @@ async function renderStandings() {
   for (const s of all) list.append(standingRow(s));
 }
 
-// ---------- link with another phone ----------
+// ---------- the network ----------
 
 const linkMessage = (err) => err.message === 'cancelled' ? 'Cancelled.' : `error: ${err.message}`;
 let watching = new WeakSet();
+const tellers = new WeakMap();       // wallet -> what says the network's state again
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+function networkText({ peers, received, wanted }) {
+  if (peers > 0) return `Connected to ${plural(peers, 'wallet')}${received > 0 ? ` · ${plural(received, 'event')} received` : ''}.`;
+  return wanted ? 'Looking for other wallets…' : 'Off: this wallet is not looking for other wallets.';
+}
+
+/** The wallet joins the network by itself as soon as it is there, and says who it is connected to. */
+async function watchNetworkOf(aiwa) {
+  if (watching.has(aiwa)) return;
+  watching.add(aiwa);
+  try {
+    const tell = await watchNetwork(aiwa, async (state) => {
+      if (session.aiwa !== aiwa) return;
+      $('net-status').textContent = networkText(state);
+      $('btn-net-toggle').textContent = wantsNetwork() ? 'Disconnect' : 'Connect';
+      if (state.received > 0) {
+        await aiwa.settled();                       // what it signs for what just arrived is part of the evidence
+        await refreshLocalState();
+        renderHistory();
+        renderStandings();
+      }
+    });
+    tellers.set(aiwa, tell);
+  } catch (err) {
+    $('net-status').textContent = `error: ${err.message}`;
+  }
+}
+
+async function toggleNetwork() {
+  const aiwa = session.aiwa;
+  if (!aiwa || !aiwa.identity) return;
+  await watchNetworkOf(aiwa);
+  await setNetwork(aiwa, !wantsNetwork());
+  tellers.get(aiwa)?.();
+}
+
+// ---------- link with another phone, by hand ----------
 
 async function link(how) {
   const aiwa = session.aiwa;
   if (!aiwa || !aiwa.identity) return;
   try {
-    if (!watching.has(aiwa)) {
-      watching.add(aiwa);
-      await watchLinks(aiwa, async ({ phones, received }) => {
-        if (session.aiwa !== aiwa) return;
-        $('link-status').textContent = phones === 0 ? 'No phone linked.' : `Linked with ${phones} phone${phones === 1 ? '' : 's'}${received > 0 ? ` · ${received} events received` : ''}.`;
-        if (received > 0) {
-          await aiwa.settled();                     // what it signs for what just arrived is part of the evidence
-          await refreshLocalState();
-          renderHistory();
-          renderStandings();
-        }
-      });
-    }
+    await watchNetworkOf(aiwa);
     $('link-status').textContent = how === 'start' ? 'Waiting for the other phone…' : 'Reading the other phone…';
     await (how === 'start' ? startLink(aiwa) : joinLink(aiwa));
-    if (!/^Linked/.test($('link-status').textContent)) $('link-status').textContent = 'Connecting…';    // the link may already be up
+    $('link-status').textContent = 'Connecting… (the line above says when it is up)';
   } catch (err) {
     $('link-status').textContent = linkMessage(err);
   }
@@ -353,6 +382,7 @@ async function run(aiwa) {
     await refreshLocalState();
   }
   keepRunning(aiwa);     // after the restore: working epochs on an empty log would fork the history that was about to come back
+  watchNetworkOf(aiwa);  // the wallet meets the other wallets by itself
   showPhraseNotice();
   displayRefreshTimer = setInterval(() => { if (session.aiwa) refreshLocalState(); }, 5000);
 }
@@ -394,6 +424,7 @@ export async function initWallet() {
   $('standing-section').addEventListener('toggle', renderStandings);
   $('btn-link-start').addEventListener('click', () => link('start'));
   $('btn-link-join').addEventListener('click', () => link('join'));
+  $('btn-net-toggle').addEventListener('click', toggleNetwork);
   $('burn-amount').addEventListener('input', previewBurn);
   $('burn-t').addEventListener('input', previewBurn);
   $('btn-burn').addEventListener('click', burn);

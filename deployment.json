@@ -9,7 +9,6 @@
   "github": {
     "clientId": ""
   },
-  "archiveNodes": [],
   "progress": {
     "intervalMs": 30000
   },

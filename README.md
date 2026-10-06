@@ -22,7 +22,7 @@ The real screens at phone size. The apps and the Solana network are demo stand-i
 | **Submit** | One tap. The Store signs the app with your wallet, adds proof of the work you have done, and opens the pull request on your GitHub account. No form, no file to carry. |
 | **Store** | A list ranked by what each author has *mined*, not by ads or ratings, and nobody edits it. Every app is checked against its author's signature before it opens, and runs in a sealed box. Works offline. |
 | **Token** | **AIWA** is created by your phone doing verifiable work, after one burn of SOL: no miners' network, no exchange. Send it by QR code or text, even with no connection. |
-| **Link and see** | *Link with another phone*: two codes, then the phones exchange what each lacks, directly. Each signs a receipt for what it received, and the wallet shows where every identity it holds anything of stands: what is proven, the vote, a fork, its pace against yours. |
+| **Connect and see** | The wallets that are open find each other by themselves (a public relay introduces them, never sees the data) and exchange what each lacks, directly; *Link with another phone* does it by hand with two codes. Each signs a receipt for what it received, and the wallet shows where every identity it holds anything of stands: what is proven, the vote, a fork, its pace against yours. |
 | **Play and pay** | An app can use your wallet. [Click duel](docs/demo-apps/click-duel.html): two phones, a price per click, 20 seconds, whoever clicked less pays what they clicked, and nothing is signed per click. |
 
 **Underneath, a distributed system with no central part.** Each phone keeps its own history of signed events and shows it to others when it
@@ -127,7 +127,7 @@ These are settings and accounts. Until they are done, the matching workflow is *
 | Tested in CI | Not verified |
 |---|---|
 | The protocol: identity, signed events, proofs of work, accrual, claims, double spend (421 tests, with a cross-check against an independent Rust implementation) | A real burn on Solana |
-| The wallet, the creator's share, backup and restore (113 + 88 tests) | The Android app on a real phone: keystore, GitHub sign-in, Android's backup, the widget, the page updating itself from the site (compiled in CI, its checks unit-tested, never run) |
+| The wallet, the creator's share, backup and restore (113 + 94 tests) | The Android app on a real phone: keystore, GitHub sign-in, Android's backup, the widget, the page updating itself from the site (compiled in CI, its checks unit-tested, never run) |
 | The registry: signatures, proofs, burns, ranking (17 tests) | A real pull request through the registry workflow |
 | The web app in a real Chromium: ranking, sandbox, tampering, offline, restore, burn, publishing of both kinds, an app using the wallet, a click duel between two pages, two phones linking by two codes, a scan against a fake camera, the description of the site's release (46 tests) | The legal status of the creator's share |
 | The whole path against a stand-in Solana (`devnet-check --fake`) | The economic parameters in the field |

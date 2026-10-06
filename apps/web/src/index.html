@@ -122,9 +122,18 @@
       </section>
     </div>
 
+    <section class="card" id="network-section">
+      <h2>Network</h2>
+      <p class="muted">The wallets that are open find each other by themselves and send each other what each lacks: signed events, never your 12 words. A public relay sees that a wallet is looking for others, and the wallets you connect to see your network address.</p>
+      <div class="line">
+        <span class="muted" id="net-status">…</span>
+        <button id="btn-net-toggle" type="button">Disconnect</button>
+      </div>
+    </section>
+
     <details class="card" id="link-section">
       <summary>Link with another phone</summary>
-      <p class="muted">By hand, for two phones side by side: they swap two codes, then send each other what each holds (signed events, never the 12 words), and each signs what it received. Nothing connects phones by itself: no node is there yet for them to find each other.</p>
+      <p class="muted">By hand, for when the network cannot be reached: two phones side by side swap two codes, then connect directly.</p>
       <div class="line">
         <button id="btn-link-start">Start a link</button>
         <button id="btn-link-join">Join a link</button>

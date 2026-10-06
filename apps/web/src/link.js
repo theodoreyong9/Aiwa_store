@@ -6,8 +6,7 @@
 // another one provable (§19).
 //
 // What goes across is the wallet's history of signed events, which is no secret (a payment carries as much); never the 12 words.
-import { WebrtcTransport } from 'aiwa-lib';
-import { config } from './config.js';
+import { networkOf } from './network.js';
 import { showCode, scanCode, closeSheet } from './app-door.js';
 
 const toB64 = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -29,36 +28,9 @@ export async function unpack(code) {
   catch { throw new Error('this link code is damaged: read or paste it again'); }
 }
 
-const transports = new WeakMap();      // wallet -> its one transport: any number of phones can be linked through it
-
-/** The wallet's transport, made and joined to the wallet's replicator the first time. */
-async function networkOf(aiwa) {
-  let transport = transports.get(aiwa);
-  if (!transport) {
-    transport = new WebrtcTransport({ iceServers: config.nearby?.iceServers ?? [{ urls: 'stun:stun.l.google.com:19302' }] });
-    transports.set(aiwa, transport);
-    await aiwa.joinNetwork(transport);
-  }
-  return transport;
-}
-
-/**
- * Tells `onChange({ phones, received })` when a phone links or leaves, and when events arrive from one. `phones` is how many are linked
- * now, `received` how many events came in over the links so far.
- */
-export async function watchLinks(aiwa, onChange) {
-  const transport = await networkOf(aiwa);
-  let received = 0;
-  const tell = () => onChange({ phones: transport.peers().length, received });
-  transport.onPeerJoin(tell);
-  transport.onPeerLeave(tell);
-  aiwa.replicator.onSync(({ receivedCount }) => { if (receivedCount > 0) { received += receivedCount; tell(); } });
-  tell();
-}
-
 /** This phone starts: shows a code, then reads the answer of the other. Resolves once the answer is given (the link opens a moment later). */
 export async function startLink(aiwa) {
-  const transport = await networkOf(aiwa);
+  const transport = (await networkOf(aiwa)).manual;
   const peer = crypto.randomUUID().slice(0, 8);
   try {
     const offer = await transport.createOfferFor(peer);
@@ -74,7 +46,7 @@ export async function startLink(aiwa) {
 
 /** This phone answers: reads the code of the other, shows its own answer. */
 export async function joinLink(aiwa) {
-  const transport = await networkOf(aiwa);
+  const transport = (await networkOf(aiwa)).manual;
   const peer = crypto.randomUUID().slice(0, 8);      // our own name for this link: trying again never meets a half-made one
   try {
     const offer = await scanCode({ title: 'Read the code of the other phone' });

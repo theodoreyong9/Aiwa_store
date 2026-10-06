@@ -382,8 +382,9 @@ Your own mining history is protected differently: each step names the previous o
 it. Without any witness, the only protection is the work it costs. A submission is also a snapshot: an action after the last epoch shown,
 followed by nothing, can be left out.
 
-**Seeing it yourself.** The wallet page has *Link with another phone*: the two phones swap two codes (one shown and read by the other, then
-the answer back), and from then on they exchange what each lacks, directly, with no server. Each signs a receipt for what it received, so each
+**Seeing it yourself.** The wallet page has a *Network* line: the wallets that are open find each other by themselves (a public relay introduces
+them and sees only that someone looks), and from then on they exchange what each lacks, directly. *Link with another phone* does the same by hand,
+with two codes, for when no relay can be reached. Each signs a receipt for what it received, so each
 now holds proof of where the other is. *Who this phone has seen* lists every identity this phone holds anything of: where it stands (never
 below what is proven), what is proven, the vote of the observers it knows, whether it signed two histories, and how fast it progresses compared
 with you (two of your own receipts and your own epoch at each; no clock). It is information: it changes nobody's earnings.
@@ -598,7 +599,7 @@ cost, hash-locked vouchers, session keys. No prior-art search has been done. Wha
 ## 9. What has been verified, and what has not
 
 **Verified by tests** (all run in CI): the protocol (421 tests, including a cross-check against an independent Rust implementation of its
-core computations), the distribution layer (88), the wallet API (113), the registry (17), the web app (49, 25 of them in a real Chromium:
+core computations), the distribution layer (94), the wallet API (113), the registry (17), the web app (50, 26 of them in a real Chromium:
 ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds, an app using the wallet, a click duel between two pages, two phones linking by two codes, a QR code read from a fake camera), the dictation backend (111), the Android app's checks of a downloaded page (14, on a plain JVM), and a whole
 dry run against a stand-in Solana (`node scripts/devnet-check.mjs --fake`).
 

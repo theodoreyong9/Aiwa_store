@@ -291,3 +291,6 @@ a.button { display: inline-flex; align-items: center; height: 38px; padding: 0 1
 details.plain { margin-top: 10px; }
 details.plain > * + * { margin-top: 8px; }
 .error[hidden] { display: none; }
+
+#network-section .line { justify-content: space-between; }
+#net-status { flex: 1; min-width: 0; }

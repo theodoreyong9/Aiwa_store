@@ -396,8 +396,9 @@ meilleur. Cela se ferme avec les **témoins** : quiconque a reçu un événement
 ta prochaine soumission le contienne. Sans aucun témoin, la seule protection est le travail que cela coûte. Une soumission est aussi un
 instantané : une action après la dernière époque montrée, suivie de rien, peut être omise.
 
-**Le voir soi-même.** La page du portefeuille a *Link with another phone* : les deux téléphones s'échangent deux codes (l'un est montré et
-lu par l'autre, puis la réponse revient), puis ils s'échangent directement ce qui manque à chacun, sans serveur. Chacun signe un reçu pour
+**Le voir soi-même.** La page du portefeuille a une ligne *Network* : les portefeuilles ouverts se trouvent tout seuls (un relais public les présente et
+voit seulement que quelqu'un cherche), puis ils s'échangent directement ce qui manque à chacun. *Link with another phone* le fait à la main,
+avec deux codes (l'un est montré et lu par l'autre, puis la réponse revient), quand aucun relais n'est joignable. Chacun signe un reçu pour
 ce qu'il a reçu : chacun détient donc la preuve de là où se trouve l'autre. *Who this phone has seen* liste toutes les identités dont ce
 téléphone détient quelque chose : où elle en est (jamais en dessous de ce qui est prouvé), ce qui est prouvé, le vote des observateurs qu'il
 connaît, si elle a signé deux historiques, et à quelle vitesse elle progresse par rapport à toi (deux de tes propres reçus et ta propre
@@ -622,7 +623,7 @@ qui est inhabituel, c'est la combinaison :
 ## 9. Ce qui a été vérifié, et ce qui ne l'a pas été
 
 **Vérifié par des tests** (tous exécutés en CI) : le protocole (421 tests, dont un recoupement avec une implémentation Rust indépendante de
-ses calculs de base), la couche de distribution (88), l'API du portefeuille (113), le registre (17), l'application web (49, dont 25 dans un
+ses calculs de base), la couche de distribution (94), l'API du portefeuille (113), le registre (17), l'application web (50, dont 26 dans un
 vrai Chromium : classement, bac à sable, falsification, hors ligne, restauration du portefeuille, brûlage avec sa part, publication des deux
 types, une app qui utilise le portefeuille, un duel de clics entre deux pages, deux téléphones qui se lient par deux codes, un QR code lu par une fausse caméra), le backend de dictée (111), les vérifications d'une page téléchargée par l'appli Android (14, sur une JVM ordinaire), et une répétition complète contre un Solana de substitution (`node scripts/devnet-check.mjs --fake`).
 

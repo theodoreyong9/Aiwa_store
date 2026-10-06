@@ -1127,7 +1127,7 @@ reader, because each event verifies on its own (§4.2):
 | a file, pasted text, a QR code, NFC | `encodeOfflineBundle` / `decodeOfflineBundle` (`aiwa-lib`) |
 | a GitHub pull request | the store's registry (§18) |
 | an archive node | `aiwa-platform`, `archive-server.js` (§15) |
-| a direct connection (WebRTC) | `aiwa-platform`'s replicator, which the wallet page starts with *Link with another phone*: two codes are swapped (shown and read, as in the click duel), then the phones exchange what each lacks |
+| a direct connection (WebRTC) | `aiwa-platform`'s replicator. The wallets that are open find each other by themselves in a room (`trystero-transport.js`: a public relay introduces them and sees only that someone looks for peers), or by hand (*Link with another phone*: two codes are swapped, as in the click duel); then they exchange what each lacks |
 
 The replicator is deliberately simple:
 
@@ -1273,7 +1273,7 @@ working epochs before it has looked**: a log that began from nothing would fork 
 every checkpoint: whoever only sees a backup trusts its signature instead of re-deriving history from genesis.
 
 **Not claimed.** A wallet with no backup, no node and no peer that lost its device loses its journal. The burns stay on Solana
-and the key stays in the phrase; the epochs and their proofs are gone. In this repository's deployment `archiveNodes` is empty:
+and the key stays in the phrase; the epochs and their proofs are gone. In this repository's deployment no `archiveNodes` is set:
 the first two sources in practice are the device backup and the registry's baseline.
 
 ---
@@ -1871,8 +1871,8 @@ it is the seed of this role, not the role.
 
 **Open, not solved.** Who runs keepers and why (no incentive is specified: accrual is local and unconditional, it pays nobody to store);
 how keepers choose what to keep; whether a keeper that holds an event is also a useful observer of it (a stable reference, at the price
-of pulling the protocol toward the infrastructure it is built to avoid). There is no rendezvous: the first connection between two peers
-is a manual offer/answer exchange. A consequence seen in practice: an application published from one device can be loaded by someone
+of pulling the protocol toward the infrastructure it is built to avoid). The rendezvous is not a keeper: a wallet that is open meets the others in a Trystero room (a public relay introduces two peers, and sees only that
+someone is looking), with the manual offer/answer exchange kept for when no relay can be reached. A consequence seen in practice: an application published from one device can be loaded by someone
 else only while a copy of its events is reachable, such as a hosted export.
 
 ---
@@ -1909,7 +1909,7 @@ history at real cost: the claim is narrower, that fabricated identities cannot f
 **Not specified.**
 
 - **Durability** of data no domain chooses to keep, and who is paid to keep it (§19.5).
-- **Rendezvous** between strangers (§19.5).
+- **Rendezvous** that is not a third party's relay (§19.5): strangers meet through public Nostr relays, which can see who looks for whom and can refuse.
 - **Equal hardware.** An epoch is a fixed amount of sequential work, so a faster (or specialised) machine earns epochs faster. The proof makes
   that work cheap to *check* (§6.4); it does not make it equal to *do*. The reference wallet advances one epoch every 30 s while open, which
   is its own choice, not a protocol cap.
@@ -2083,7 +2083,7 @@ without a Rust toolchain. It cross-checks the fundamentals; it is not a second i
 ## Appendix D. Verification status
 
 **What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 88 in `aiwa-platform`,
-113 in `aiwa-lib`, 17 in `aiwa-registry`, 49 in `aiwa-store-web` (25 of them drive the app in Chromium: ranking, the sandbox refusing
+113 in `aiwa-lib`, 17 in `aiwa-registry`, 50 in `aiwa-store-web` (26 of them drive the app in Chromium: ranking, the sandbox refusing
 `parent.document`, a tampering host, offline use, the wallet starting and restoring by itself, the burn with its fee, publishing both
 kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK, an app using the wallet through the door, a click duel between two pages that pays the winner, two pages linking by two codes and each showing where the other stands, and a QR code read by the page from a fake camera),
 111 for the dictation backend. `node scripts/devnet-check.mjs --fake` plays the whole path (burn, record, mine, evidence, registry) against
