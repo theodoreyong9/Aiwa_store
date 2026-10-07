@@ -132,9 +132,30 @@ export class Mining {
     return { epoch: epoch - epochs, eventId: null, discarded: true };
   }
 
-  /** advance() on a timer until stopLoop(): how a wallet keeps its claimable growing while open. Errors go to `onError`. */
-  startLoop({ intervalMs = 30_000, vdfIterations = 100_000, epochs = 1, onError } = {}) {
-    this._ticker.start(intervalMs, () => this.advance({ vdfIterations, epochs }), onError);
+  /**
+   * advance() until stopLoop(): how a wallet keeps its claimable growing while open. Errors go to `onError`.
+   *
+   * With `eventMs`, in a deployment that fixes the work of an epoch, the wallet does not wait: it works back to back,
+   * as fast as the device can, and signs one event for what it worked in about `eventMs`, so the log grows as slowly as
+   * with a timer while a faster device works more epochs. Nothing in the protocol paces a wallet, and a wallet that
+   * waits earns less than one that does not. It does not work before its first commitment: those epochs earn nothing
+   * and only raise its age (q_tot), which slows what it accrues afterwards.
+   *
+   * Without `eventMs`: one advance() every `intervalMs`.
+   */
+  startLoop({ intervalMs = 30_000, vdfIterations = 100_000, epochs = 1, eventMs = 0, onError } = {}) {
+    if (!(eventMs > 0) || !this.chained) {
+      this._ticker.start(intervalMs, () => this.advance({ vdfIterations, epochs }), onError);
+      return;
+    }
+    let perEvent = 1; // epochs per event, adapted so that one event is about eventMs of work on this device
+    this._ticker.start(50, async () => {
+      if (!(await this.state())) { await new Promise((resolve) => setTimeout(resolve, 1000)); return; }
+      const started = Date.now();
+      const made = await this.advance({ epochs: perEvent });
+      if (made.discarded) return;
+      perEvent = Math.max(1, Math.round(eventMs / (Math.max(1, Date.now() - started) / perEvent)));
+    }, onError);
   }
 
   stopLoop() {

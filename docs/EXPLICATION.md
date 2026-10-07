@@ -138,8 +138,8 @@ Trois détails comptent :
 - **Chaque étape est signée par toi et nomme l'étape d'avant.** Personne d'autre ne peut donc faire ton travail à ta place (ce qui
   ralentirait tes gains futurs), et tu ne peux pas écarter discrètement une action de ton historique : le travail qui suit lui est lié,
   et un historique sans elle devrait refaire ce travail.
-- **Le portefeuille de référence travaille pour toi** tant qu'il est ouvert : une époque toutes les 30 secondes. Fermé, il ne fait
-  rien ; le temps ne court pas pour lui.
+- **Le portefeuille de référence travaille pour toi** tant qu'il est ouvert, sans attendre entre deux époques, et une fois que tu t'es engagé.
+  Fermé, il ne fait rien ; le temps ne court pas pour lui.
 - **Une machine plus rapide fait plus d'époques.** La preuve rend le travail peu coûteux à *vérifier*, pas égal à *faire*.
 
 ### 2.2 La propriété : une créance ne bouge qu'une fois
@@ -260,7 +260,7 @@ reste : avec un petit T tu gagnes plus au début, avec un grand T tu gagnes plus
 ### 3.4 Un exemple réel
 
 Un brûlage de **1 SOL avec T = 20 %** : le créateur reçoit 0,0002 SOL, le capital qui compte est **0,8**. Le portefeuille reste ouvert
-(une époque toutes les 30 secondes) et rien n'est réclamé en route. Ces chiffres viennent de la vraie formule de gain avec les paramètres de
+(compté à une époque toutes les 30 secondes ; le vrai portefeuille travaille plus vite, donc les mêmes chiffres arrivent plus tôt) et rien n'est réclamé en route. Ces chiffres viennent de la vraie formule de gain avec les paramètres de
 ce dépôt (`deployment.json`) :
 
 | Portefeuille ouvert depuis | AIWA réclamables | Même brûlage à T = 0 | Même brûlage à T = 40 % |

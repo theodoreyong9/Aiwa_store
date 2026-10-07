@@ -66,9 +66,12 @@ export async function restoreHistory(aiwa, { fetchFn = fetch } = {}) {
   return null;
 }
 
-/** What a wallet does while the app is open: work epochs, keep its own start fast, and send its backup to the archive nodes. */
+/** What a wallet does while the app is open: work epochs without waiting (one signed event per `eventMs` of work), keep its own start fast, and send its backup to the archive nodes. */
 export function keepRunning(aiwa) {
-  aiwa.startProgressLoop({ intervalMs: config.progress?.intervalMs ?? 30_000, onError: (err) => console.error('progress:', err) });
+  // `progress.intervalMs` (tests, demos): one epoch per interval. Otherwise the wallet works without waiting.
+  const { intervalMs, eventMs } = config.progress ?? {};
+  const onError = (err) => console.error('progress:', err);
+  aiwa.startProgressLoop(intervalMs ? { intervalMs, onError } : { eventMs: eventMs ?? 30_000, onError });
   aiwa.startAutoCheckpoint({ onError: (err) => console.error('checkpoint:', err) });
   if ((config.archiveNodes ?? []).length > 0) aiwa.startAutoArchive({ nodes: config.archiveNodes, onError: (err) => console.error('archive:', err) });
 }

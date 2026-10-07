@@ -328,8 +328,12 @@ accrual formula (§10) and never resets, so a third party can lower every future
 $b{=}100$, $q{=}1$, $T{=}0$ the reward falls from about $0.087$ at $q_{\text{tot}}{=}1$ to about $0.0097$ at
 $q_{\text{tot}}{=}20000$).
 
-**Automatic in the reference wallet.** The wallet advances progression on a timer for as long as it is open (default: one
-epoch every 30 s). A domain that never advances stays at epoch 0 and accrues nothing, however much wall-clock time passes.
+**Automatic in the reference wallet.** For as long as it is open, the wallet works epochs back to back, as fast as the device
+can, and signs one event for what it worked in about 30 s (`progress.eventMs`; the number of epochs per event adapts to the
+device, so the log grows as slowly as with a timer). It does not work before its first commitment: those epochs would earn
+nothing and only raise the age $q_{\text{tot}}$ (§10.1). Nothing in the protocol paces a wallet: a faster device, or a client
+without the reference wallet's wait, works more epochs in the same time and accrues more (§20). A domain that
+never advances stays at epoch 0 and accrues nothing, however much wall-clock time passes.
 
 ### 6.2 The sequential proof (symmetric form)
 
@@ -806,8 +810,10 @@ sequenceDiagram
 ### 10.2 What the numbers look like
 
 One real burn, computed with the reference `reward()` and the deployment's parameters: **1 SOL at $T = 0.2$**. The creator gets
-$0.0002$ SOL (§11), $0.2$ SOL is destroyed without counting, and the capital is $b = 0.8$. The wallet works one epoch every 30 s
-while it is open; for the figures below it is assumed to stay open, and nothing was claimed in between ($q = q_{\text{tot}}$).
+$0.0002$ SOL (§11), $0.2$ SOL is destroyed without counting, and the capital is $b = 0.8$. The figures are counted in epochs, at the
+pace of one epoch every 30 s (120 per hour): the wallet is assumed to stay open at that pace, and nothing was claimed in between
+($q = q_{\text{tot}}$). The reference wallet now works faster than that (about 12 times, measured with its JavaScript client on one
+core), so the same epochs come sooner in real time; a native client would go faster still.
 
 | Time open | Epochs | Claimable (AIWA) | Same SOL at $T=0$ ($b=1$) | At $T=0.4$ ($b=0.6$) |
 |---|---|---|---|---|
@@ -1915,8 +1921,10 @@ history at real cost: the claim is narrower, that fabricated identities cannot f
 - **Durability** of data no domain chooses to keep, and who is paid to keep it (§19.5).
 - **Rendezvous** that is not a third party's relay (§19.5): strangers meet through public Nostr relays, which can see who looks for whom and can refuse.
 - **Equal hardware.** An epoch is a fixed amount of sequential work, so a faster (or specialised) machine earns epochs faster. The proof makes
-  that work cheap to *check* (§6.4); it does not make it equal to *do*. The reference wallet advances one epoch every 30 s while open, which
-  is its own choice, not a protocol cap.
+  that work cheap to *check* (§6.4); it does not make it equal to *do*. A wallet that does not wait between epochs accrues more than one
+  that does, and a client faster than the reference wallet's JavaScript more again: nothing here is a cap, and production in AIWA grows
+  with the speed of one core (estimated, not measured on a native client: about 26 to 42 times more AIWA after a day to a year at 60 times
+  the 30 s pace, since the formula slows with age).
 - **A market price** for AIWA. Nothing here implies it is worth anything.
 - **Real-time prevention** of a double spend between parties who never exchange events (§13.5).
 - **An anchor of a log's head on Solana**, the only way to bound what a snapshot can leave out. **[not built]**
@@ -2024,7 +2032,7 @@ Files of the registry: `store/index.json`, `store/apps/<id>/<version>.json`, `st
 | Creator fee | address in `deployment.json`, $\mathrm{rateOfT}=0.001$ | `creatorFee` | a new rule set (§11) |
 | Wesolowski modulus | the 2048-bit RSA challenge modulus | `wesolowski-vdf.js` | a new rule set |
 | Quantities | AIWA: integers of $10^{-18}$; SOL: lamports | `units.js` | — |
-| Progress loop | one epoch per 30 s while the wallet is open | `deployment.json` → `progress.intervalMs` | a wallet setting |
+| Progress loop | works without waiting, one signed event per 30 s of work, only after the first commitment | `deployment.json` → `progress.eventMs` (`progress.intervalMs`: one epoch per interval, for tests) | a wallet setting |
 | Auto checkpoint | every 5 minutes | `startAutoCheckpoint` | a wallet setting |
 | Replicator chunk | 100 events and 64 KiB | `Replicator` | an implementation setting |
 | Submission limits | 200 000 events · 200 burns · 50 witnesses · 16 384 bytes per witness · 32 witnesses kept per domain | `SUBMISSION_LIMITS` | a registry setting |

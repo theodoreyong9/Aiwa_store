@@ -10,7 +10,7 @@
     "clientId": ""
   },
   "progress": {
-    "intervalMs": 30000
+    "eventMs": 30000
   },
   "nearby": {
     "iceServers": [

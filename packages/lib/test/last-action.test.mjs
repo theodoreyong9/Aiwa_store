@@ -144,6 +144,25 @@ test('the progress loop never runs two ticks at once, however slow the device', 
   assert.equal(overlapped, false);
 });
 
+test('a wallet that works without waiting signs one event for many epochs, and does not work before its first commitment', async () => {
+  const aiwa = await wallet({ ...succinct, commitmentBacking: 'none' });
+  const me = aiwa.identity.id;
+  const epoch = async () => (await aiwa.ledger.state()).accrual.progression.domains[me]?.epoch ?? 0;
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  aiwa.startProgressLoop({ eventMs: 300, onError: (e) => { throw e; } });
+  await sleep(400);
+  assert.equal(await epoch(), 0, 'no commitment yet: nothing worked, so no age to slow the accrual later');
+  await aiwa.recordCommitment({ b: 5 });
+  await sleep(2500);
+  aiwa.stopProgressLoop();
+  await sleep(100);
+  const worked = await epoch();
+  const events = (await collectAncestors(aiwa.log, await aiwa.log.head())).filter((e) => e.type === 'progression');
+  assert.ok(events.length >= 1);
+  assert.ok(worked > events.length * 2, `${worked} epochs in ${events.length} events: an event holds the work of about eventMs, not one epoch`);
+  assert.ok(Number(await aiwa.claimable()) > 0);
+});
+
 // --- The mining events are one signed chain (aiwa-core): the wallet keeps it ---
 
 test('a checkpoint between two stretches of work does not break what a validator reads (it used to)', async () => {

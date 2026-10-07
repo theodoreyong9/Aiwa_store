@@ -135,7 +135,7 @@ Three details matter:
 - **Each step is signed by you and names the step before it.** So nobody else can do your work for you (that would let them slow your
   future rewards), and you cannot quietly leave an action out of your history: the work that follows is tied to it, and a history without
   it would have to redo that work.
-- **The reference wallet works for you** while it is open: one epoch every 30 seconds. Closed, it does nothing; time does not run for it.
+- **The reference wallet works for you** while it is open, without waiting between epochs, and once you have committed. Closed, it does nothing; time does not run for it.
 - **A faster machine makes more epochs.** The proof makes work cheap to *check*, not equal to *do*.
 
 ### 2.2 Ownership: a claim moves once
@@ -249,8 +249,8 @@ small T you earn more at the start, with a large T you earn more after a while. 
 
 ### 3.4 A real example
 
-One burn of **1 SOL at T = 20 %**: the creator gets 0.0002 SOL, the capital that counts is **0.8**. The wallet is left open (one epoch
-every 30 seconds) and nothing is claimed along the way. These numbers come from the actual reward formula with this repository's
+One burn of **1 SOL at T = 20 %**: the creator gets 0.0002 SOL, the capital that counts is **0.8**. The wallet is left open (counted at one epoch
+every 30 seconds; the real wallet works faster than that, so the same numbers come sooner) and nothing is claimed along the way. These numbers come from the actual reward formula with this repository's
 parameters (`deployment.json`):
 
 | Wallet open for | Claimable AIWA | Same burn at T = 0 | Same burn at T = 40 % |
