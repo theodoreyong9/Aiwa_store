@@ -17,8 +17,6 @@ import { numberToFixed, fixedToNumber, mulFixed, divFixed, powFixed, lnFixed, SC
 
 export class RewardError extends Error {}
 
-const CAP_FIXED = numberToFixed(1e12);
-
 // The reproducible core: identical inputs (as Numbers, converted to Fixed
 // via the exact IEEE-754 decomposition in fixed-point-math.js) yield an
 // identical Fixed BigInt in any correct implementation, JS or otherwise —
@@ -59,7 +57,7 @@ export function rewardFixed(b, q, qTotal, patienceRate, { alpha, beta, gamma, C,
   if (denominator <= 0n) return null; // BigInt has no NaN/Infinity to also guard against here
 
   const r = divFixed(numerator, denominator);
-  return (r < 0n || r > CAP_FIXED) ? null : r;
+  return r < 0n ? null : r;
 }
 
 export function reward(b, q, qTotal, patienceRate, params) {
