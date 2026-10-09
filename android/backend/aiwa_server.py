@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 40
+BACKEND_VERSION = 41
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -645,6 +645,10 @@ def _instruction_lines(repo, work, base, direct, origin=None):
                 f"Déploiement : le site est publié par GitHub Pages via GitHub Actions, à l'adresse {github.pages_url(repo)}. "
                 "S'il n'y a pas encore de workflow Pages (actions/configure-pages, upload-pages-artifact, deploy-pages, déclenché à chaque push sur la branche principale), ajoute-le ; pas de branche gh-pages. "
                 f"Le déploiement ne se déclenche que par un push sur {base} : tant que ton travail n'y est pas intégré, rien n'est publié. "
+                "GitHub n'autorise le déploiement Pages (environnement github-pages) que depuis la branche PAR DÉFAUT du dépôt, et la première branche poussée dans un dépôt vide le devient. "
+                "Donc : si le dépôt est vide (`git ls-remote --heads origin` ne renvoie rien), pousse d'abord un premier commit sur `main`, avant toute branche de travail ; "
+                "si la branche par défaut n'est pas `main` (`git ls-remote --symref origin HEAD` le dit), mets CETTE branche dans les déclencheurs du workflow (`on: push: branches: [...]`) et déploie depuis elle : "
+                "un échec « not allowed to deploy to github-pages due to environment protection rules » vient de là, et ne doit pas me demander de réglage. "
                 "Si activer Pages avec la source « GitHub Actions » est hors de ta portée, dis-moi précisément le réglage à faire. Après un changement, vérifie que le déploiement a réussi.",
             ))
         elif deploy == "android":
