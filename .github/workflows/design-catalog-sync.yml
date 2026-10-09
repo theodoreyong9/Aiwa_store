@@ -39,5 +39,5 @@ jobs:
         run: |
           git config user.name "design-research"
           git config user.email "actions@users.noreply.github.com"
-          git add design-research/catalog design-research/screenshots design-research/analysis
+          git add -A design-research
           git diff --cached --quiet || (git commit -m "Design catalogue: weekly sync" && git push)

@@ -8,6 +8,10 @@ import { sync, crawlUrl, reclassify, homeDirs } from './pipeline.js';
 import { search } from './retrieval/search.js';
 import { buildPack } from './pack.js';
 import { registries } from './registry/index.js';
+import { writeJson } from './util.js';
+
+// what a run found and what went wrong, kept in the catalogue so that a failed run can be read from the repository
+const keepRun = (name, summary) => { writeJson(join(dirs.catalog, `last-${name}.json`), { at: new Date().toISOString(), ...summary }); return summary; };
 
 const HOME = resolve(process.env.DR_HOME ?? join(dirname(fileURLToPath(import.meta.url)), '..'));
 const args = process.argv.slice(2);
@@ -28,8 +32,8 @@ const usage = `design-research
 
 async function main() {
   switch (command) {
-    case 'bootstrap': return out(await sync({ home: HOME, limit: 120, pages: 6, maxCrawls: Number(flags.crawls ?? 60) }));
-    case 'sync': return out(await sync({ home: HOME, limit: Number(flags.limit ?? 30), pages: 2, maxCrawls: Number(flags.crawls ?? 20) }));
+    case 'bootstrap': return out(keepRun('sync', await sync({ home: HOME, limit: 120, pages: 6, maxCrawls: Number(flags.crawls ?? 60) })));
+    case 'sync': return out(keepRun('sync', await sync({ home: HOME, limit: Number(flags.limit ?? 30), pages: 2, maxCrawls: Number(flags.crawls ?? 20) })));
     case 'crawl': { if (!rest[0]) throw new Error('crawl <url>'); const s = await crawlUrl({ home: HOME, url: rest[0] }); return out({ id: s.id, crawl: s.crawl, traits: s.traits, tech: s.tech?.map((t) => `${t.name} (${t.status} ${t.confidence})`), transposable: s.transposable && Object.fromEntries(Object.entries(s.transposable).filter(([, v]) => v?.verdict).map(([k, v]) => [k, v.verdict])) }); }
     case 'classify': { if (!rest[0]) throw new Error('classify <id>'); const s = reclassify(new Catalog(dirs.catalog), rest[0], dirs); return out(s.traits); }
     case 'analyze': return out('Interpretation (art direction, tone, why a reference works) is done by Claude Code from the research pack and its screenshots: run `design-research research "<brief>"`.');
