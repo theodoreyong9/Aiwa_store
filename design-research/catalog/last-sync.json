@@ -1,14 +1,14 @@
 {
-  "at": "2026-10-09T08:41:04.567Z",
+  "at": "2026-10-09T10:38:58.314Z",
   "NEW": 0,
   "UPDATED": 0,
   "UNCHANGED": 0,
   "crawled": 0,
   "errors": [
-    "csswinner: https://www.csswinner.com/websites/: HTTP 404",
-    "csswinner: https://www.csswinner.com/: reachable but no project link; project-looking links: ; page size 14401",
-    "csswinner: https://www.csswinner.com/winners/: reachable but no project link; project-looking links: ; page size 30617",
-    "csswinner: https://www.csswinner.com/website-of-the-day/: HTTP 404"
+    "csswinner: https://www.csswinner.com/websites/: reachable but no project link; project-looking links: ; page size 6353",
+    "csswinner: https://www.csswinner.com/: reachable but no project link; project-looking links: ; page size 13867",
+    "csswinner: https://www.csswinner.com/winners/: reachable but no project link; project-looking links: ; page size 30105",
+    "csswinner: https://www.csswinner.com/website-of-the-day/: reachable but no project link; project-looking links: ; page size 6353"
   ],
   "registries": {
     "csswinner": {
