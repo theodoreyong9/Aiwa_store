@@ -29,7 +29,7 @@ class BackendHealthTest {
     }
 
     @Test fun theInstallLineIsTheOneOfTheReadmeAndTheScriptExists() {
-        assertTrue(BOOTSTRAP_COMMAND.startsWith("curl -fsSL https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/"))
+        assertTrue(BOOTSTRAP_COMMAND.startsWith("curl -fsSL https://raw.githubusercontent.com/theodoreyong9/public/main/"))
         assertTrue(BOOTSTRAP_COMMAND.endsWith("| bash"))
         val readme = java.io.File("../../README.md").takeIf { it.exists() }?.readText()
         if (readme != null) assertTrue("the README gives the same line", readme.contains(BOOTSTRAP_COMMAND))
