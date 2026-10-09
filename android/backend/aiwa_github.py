@@ -152,6 +152,64 @@ def _epoch(stamp):
         return 0
 
 
+_hints = {}   # run id -> its hint (or None): a failed run is read once
+
+
+def _get_json(path):
+    request = urllib.request.Request(f"{GITHUB_API}{path}", headers={"User-Agent": "aiwa", "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(request, timeout=10) as reply:
+        return json.load(reply)
+
+
+def pages_hint(messages, repo):
+    """What to do by hand, when a failed run says (in the words of GitHub's own annotations) that a GitHub setting is what stops the
+    deployment: {"code", "title", "steps", "url"}, or None for any other failure. Those two settings cannot be changed by Claude or by Aiwa
+    (they take the owner's rights on the repository, and Aiwa never asks for a token): the person has to, and has to be told how."""
+    text = " ".join(messages).lower()
+    if "environment protection rules" in text or "not allowed to deploy to github-pages" in text:
+        return {
+            "code": "pages_branch",
+            "title": "GitHub refuse de publier la branche main",
+            "steps": [
+                "Sur GitHub, ouvre le dépôt : Settings, puis Environments, puis github-pages.",
+                "Dans « Deployment branches and tags », choisis « No restriction » (ou ajoute la branche main).",
+                "Enregistre, puis relance le workflow (Re-run all jobs) depuis l'onglet Actions.",
+            ],
+            "url": f"https://github.com/{repo}/settings/environments",
+        }
+    if "pages is not enabled" in text or "get pages site failed" in text or "create pages site failed" in text or "pages site" in text and "not found" in text:
+        return {
+            "code": "pages_off",
+            "title": "GitHub Pages n'est pas activé sur ce dépôt",
+            "steps": [
+                "Sur GitHub, ouvre le dépôt : Settings, puis Pages.",
+                "Dans « Build and deployment », mets Source sur « GitHub Actions ».",
+                "Relance le workflow (Re-run all jobs) depuis l'onglet Actions.",
+            ],
+            "url": f"https://github.com/{repo}/settings/pages",
+        }
+    return None
+
+
+def failure_hint(repo, run_id):
+    """The hint for one failed run, from the annotations of its failed jobs (public data, two requests, remembered per run)."""
+    if run_id in _hints:
+        return _hints[run_id]
+    hint = None
+    try:
+        jobs = _get_json(f"/repos/{repo}/actions/runs/{run_id}/jobs").get("jobs") or []
+        messages = []
+        for job in jobs:
+            if job.get("conclusion") == "failure" and job.get("id"):
+                for note in _get_json(f"/repos/{repo}/check-runs/{job['id']}/annotations") or []:
+                    messages.append(str(note.get("message") or ""))
+        hint = pages_hint(messages, repo)
+    except (OSError, ValueError):
+        return None      # not remembered: tried again at the next look
+    _hints[run_id] = hint
+    return hint
+
+
 def latest_run(repo):
     """The verdict on the most recent COMMIT of a repository's GitHub Actions: {"state":
     "running" | "success" | "failure" | "none", "url", "id", "sha", "done", "detail"} — a plain
@@ -186,7 +244,12 @@ def latest_run(repo):
         done = max(_epoch(r.get("updated_at")) for r in same)
     actor = (shown.get("actor") or {}).get("login") or "?"
     detail = f"{shown.get('name') or '?'} — {shown.get('display_title') or '?'} ({shown.get('event') or '?'}, {actor})"
-    return {"state": state, "url": shown.get("html_url"), "id": head.get("id"), "sha": head.get("head_sha"), "done": done, "detail": detail}
+    result = {"state": state, "url": shown.get("html_url"), "id": head.get("id"), "sha": head.get("head_sha"), "done": done, "detail": detail}
+    if state == "failure" and shown.get("id"):
+        hint = failure_hint(repo, shown["id"])
+        if hint:
+            result["hint"] = hint
+    return result
 
 
 def checkout_owner():

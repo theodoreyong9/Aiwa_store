@@ -29,7 +29,9 @@ data class LoginStep(val phase: String, val url: String?, val message: String)
 // state: running, success, failure or none — the verdict on the latest commit's runs together.
 // fresh: a new green commit the user has not been told about yet. detail: which workflow, commit,
 // event and author the verdict is about (so that a surprising "Prêt" can be explained).
-data class CiInfo(val state: String, val url: String?, val fresh: Boolean = false, val detail: String? = null)
+// hint: a setting of GitHub that has to be changed by hand for the deployment to work (title, the steps, the page of that setting), or null.
+data class CiHint(val code: String, val title: String, val steps: List<String>, val url: String)
+data class CiInfo(val state: String, val url: String?, val fresh: Boolean = false, val detail: String? = null, val hint: CiHint? = null)
 
 data class BackendStatus(
     val model: String?,

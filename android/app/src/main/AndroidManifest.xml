@@ -147,6 +147,10 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".PagesHelpActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <activity android:name=".AccessActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""

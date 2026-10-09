@@ -287,6 +287,7 @@ private fun FullContent(state: AiwaState) {
             statusBold = refused
         }
         state.ask != null -> { status = "❓ Claude te pose une question — touche ici"; statusColor = alertText; statusBold = true }
+        state.ciHintTitle != null -> { status = "⚠ GitHub : un réglage à faire — touche 🌐"; statusColor = alertText; statusBold = true }
         state.waiting -> { status = "● Claude attend ta réponse"; statusColor = alertText; statusBold = true }
         storeReady -> {
             status = "App prête : touche ▦ pour l'ouvrir dans le Store, </> montre son code"

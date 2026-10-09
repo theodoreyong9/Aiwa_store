@@ -1520,3 +1520,40 @@ class AllowedToolsTests(unittest.TestCase):
         self.assertIn("mcp__Claude_Code_Remote__add_repo", args[1].split(","))
         # only what attaching a repository needs: no other tool of that server, no shell
         self.assertEqual(set(args[1].split(",")), {"mcp__Claude_Code_Remote__add_repo", "mcp__Claude_Code_Remote__register_repo_root"})
+
+
+class PagesHintTests(unittest.TestCase):
+    def test_a_branch_the_environment_refuses_is_said_with_its_steps_and_its_page(self):
+        import aiwa_github as gh
+        hint = gh.pages_hint(['Branch "main" is not allowed to deploy to github-pages due to environment protection rules.'], "o/r")
+        self.assertEqual(hint["code"], "pages_branch")
+        self.assertEqual(hint["url"], "https://github.com/o/r/settings/environments")
+        self.assertGreaterEqual(len(hint["steps"]), 3)
+
+    def test_pages_not_turned_on_is_said_with_the_settings_page(self):
+        import aiwa_github as gh
+        hint = gh.pages_hint(["Get Pages site failed. Please verify that the repository has Pages enabled and configured to build using GitHub Actions"], "o/r")
+        self.assertEqual(hint["code"], "pages_off")
+        self.assertEqual(hint["url"], "https://github.com/o/r/settings/pages")
+
+    def test_any_other_failure_has_no_hint(self):
+        import aiwa_github as gh
+        self.assertIsNone(gh.pages_hint(["Process completed with exit code 1."], "o/r"))
+        self.assertIsNone(gh.pages_hint([], "o/r"))
+
+    def test_the_hint_goes_with_a_failed_run(self):
+        import aiwa_github as gh
+        from unittest import mock
+        runs = {"workflow_runs": [{"id": 7, "event": "push", "status": "completed", "conclusion": "failure", "head_sha": "abc", "name": "Deploy Pages",
+                                   "display_title": "t", "html_url": "u", "actor": {"login": "x"}, "updated_at": "2026-01-01T00:00:00Z"}]}
+        def fake(path):
+            if "/actions/runs?" in path: return runs
+            if path.endswith("/jobs"): return {"jobs": [{"id": 9, "conclusion": "failure"}]}
+            return [{"message": 'Branch "main" is not allowed to deploy to github-pages due to environment protection rules.'}]
+        gh._hints.clear()
+        with mock.patch.object(gh, "_get_json", side_effect=fake), mock.patch("urllib.request.urlopen") as opened:
+            opened.return_value.__enter__.return_value.read.return_value = json.dumps(runs).encode()
+            with mock.patch.object(gh.json, "load", return_value=runs):
+                result = gh.latest_run("o/r")
+        self.assertEqual(result["state"], "failure")
+        self.assertEqual(result["hint"]["code"], "pages_branch")

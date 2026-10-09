@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 39
+const val EXPECTED_BACKEND_VERSION = 40
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -125,6 +125,10 @@ data class AiwaState(
     val ciFresh: Boolean = false,
     // Which workflow / commit / event / author the GitHub verdict is about (the "État d'Aiwa" list says it).
     val ciDetail: String? = null,
+    // A setting of GitHub to change by hand for the deployment to work (what the failed run says): its title, steps and the page to open.
+    val ciHintTitle: String? = null,
+    val ciHintSteps: List<String> = emptyList(),
+    val ciHintUrl: String? = null,
     val githubError: String? = null,
     // A newer release of the Store's page has been downloaded and waits for the next start of the Store (a button of the widget applies it).
     val storeUpdateReady: Boolean = false,

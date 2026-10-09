@@ -80,7 +80,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             waiting = json.optBoolean("waiting", false),
             alertLast = if (json.isNull("alert_last")) null else json.optLong("alert_last"),
             site = SiteInfo(site?.str("url"), site?.str("state") ?: "off", site?.str("kind") ?: "site", site?.str("termux")),
-            ci = run?.let { CiInfo(it.str("state") ?: "none", it.str("url"), it.optBoolean("fresh", false), it.str("detail")) },
+            ci = run?.let { CiInfo(it.str("state") ?: "none", it.str("url"), it.optBoolean("fresh", false), it.str("detail"), ciHint(it.optJSONObject("hint"))) },
             githubError = json.str("github_error"),
             repoAccessMissing = json.str("repo_access_missing"),
             githubAppUrl = json.str("github_app_url"),
@@ -280,4 +280,14 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             },
         )
     }
+}
+
+private fun ciHint(json: org.json.JSONObject?): CiHint? {
+    if (json == null) return null
+    val steps = json.optJSONArray("steps")
+    return CiHint(
+        json.optString("code"), json.optString("title"),
+        if (steps == null) emptyList() else (0 until steps.length()).map { steps.getString(it) },
+        json.optString("url"),
+    )
 }

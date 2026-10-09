@@ -32,6 +32,7 @@ private const val NOTIFICATION_ID = 1
 private const val APP_CHANNEL_ID = "aiwa_app"
 private const val APP_NOTIFICATION_ID = 2
 private const val ASK_NOTIFICATION_ID = 3
+private const val PAGES_NOTIFICATION_ID = 4
 
 /** What the lock-screen card says, and what a tap on it opens. */
 private data class Card(val title: String, val status: String, val detail: String, val target: Class<*>)
@@ -109,6 +110,7 @@ class KeepAliveService : Service() {
                 publish(cardFor(it), first = false)
                 announceApp(it)
                 announceAsk(it)
+                announcePagesHint(it)
                 announceReady(it)
             }
         }
@@ -202,6 +204,28 @@ class KeepAliveService : Service() {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .build()
         manager.notify(ASK_NOTIFICATION_ID, notification)
+    }
+
+    // A setting of GitHub to change by hand (the deployment stops on it): a notification that stays until it is done, and opens the explanation.
+    private fun announcePagesHint(state: AiwaState) {
+        val manager = getSystemService(NotificationManager::class.java)
+        val title = state.ciHintTitle
+        if (title == null) { manager.cancel(PAGES_NOTIFICATION_ID); return }
+        val tap = PendingIntent.getActivity(
+            this, 3, Intent(this, PagesHelpActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val steps = state.ciHintSteps.mapIndexed { i, step -> "${i + 1}. $step" }.joinToString("\n")
+        val notification = Notification.Builder(this, APP_CHANNEL_ID)
+            .setContentTitle("GitHub : un réglage à faire")
+            .setContentText(title)
+            .setStyle(Notification.BigTextStyle().bigText("$title\n$steps"))
+            .setSmallIcon(R.drawable.ic_actions)
+            .setContentIntent(tap)
+            .setOngoing(true)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .build()
+        manager.notify(PAGES_NOTIFICATION_ID, notification)
     }
 
     @Synchronized
@@ -299,7 +323,7 @@ class KeepAliveService : Service() {
 
     private fun widgetKey(): List<Any?> {
         val state = AiwaRepository.state.value
-        return listOf(state.backend, state.status, state.sendingNote, if (state.status == AiwaState.Status.WORKING && state.sendingSince > 0) (System.currentTimeMillis() - state.sendingSince) / 10_000 else null, state.waiting, state.ciFresh, state.ciState, state.siteState, state.cloudSessionId, state.repo, state.extraRepos, state.model, state.repoAccessMissing, state.sourceRepos, state.storeUpdateReady, state.listening, state.pushMain, state.deploy, state.siteKind, state.claudeLogin, state.relayCloud, state.sentApp)
+        return listOf(state.backend, state.status, state.sendingNote, if (state.status == AiwaState.Status.WORKING && state.sendingSince > 0) (System.currentTimeMillis() - state.sendingSince) / 10_000 else null, state.waiting, state.ciFresh, state.ciState, state.ciHintTitle, state.siteState, state.cloudSessionId, state.repo, state.extraRepos, state.model, state.repoAccessMissing, state.sourceRepos, state.storeUpdateReady, state.listening, state.pushMain, state.deploy, state.siteKind, state.claudeLogin, state.relayCloud, state.sentApp)
     }
 
     override fun onDestroy() {
