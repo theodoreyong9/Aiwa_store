@@ -27,8 +27,8 @@ export const registries = {
     // its listing is drawn by JavaScript: the plain HTML holds no project link, so the listing is read in Chromium
     rendered: true,
     // the listing address was a guess that gave a 404: several are tried, and what the first page shows is kept when none works
-    listings: (page = 1) => ['https://www.csswinner.com/websites/', 'https://www.csswinner.com/', 'https://www.csswinner.com/winners/', 'https://www.csswinner.com/website-of-the-day/'].map((u) => (page > 1 ? `${u}page/${page}/` : u)),
-    projectLinks: (html) => hrefs(html, /href=["'](?:https:\/\/www\.csswinner\.com)?(\/(?:website|websites|details|site)\/[a-z0-9][a-z0-9-]*)\/?["']/gi),
+    listings: (page = 1) => ['https://www.csswinner.com/winners/', 'https://www.csswinner.com/'].map((u) => (page > 1 ? `${u}page/${page}/` : u)),
+    projectLinks: (html) => hrefs(html, /href=["'](?:https:\/\/www\.csswinner\.com)?(\/details\/[a-z0-9][a-z0-9-]*\/\d+)\/?["']/gi),
     projectUrl: (path) => `https://www.csswinner.com${path}`,
     parseProject(html) {
       const out = hrefs(html, /href=["'](https?:\/\/(?!(?:www\.)?csswinner\.com)[^"']+)["'][^>]*>\s*(?:<[^>]+>\s*)*(?:Visit|Visiter|Launch)/gi)[0];
@@ -66,7 +66,7 @@ export async function discover(name, { limit = 30, pages = 2, fetchFn = fetch, d
       // the outbound link may be drawn by JavaScript too: one more try in Chromium
       if (!parsed.url && registry.rendered && render) parsed = registry.parseProject(await renderPage(page, { fetchFn, delayMs }));
       if (parsed.url) found.push({ registry: name, award: registry.award, page, url: parsed.url, title: parsed.title || '' });
-      else errors.push(`${page}: no outbound link found`);
+      else errors.push(`${page}: no outbound link found; external hrefs: ${hrefs(await politeFetch(page, { fetchFn, delayMs }), /href=["'](https?:\/\/(?!(?:www\.|cdn\.)?csswinner\.com)[^"']+)["']/gi).slice(0, 12).join(' ')}`);
     } catch (err) { errors.push(String(err.message ?? err)); }
   }
   return { found, errors };

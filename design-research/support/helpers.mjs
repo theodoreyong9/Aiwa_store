@@ -32,8 +32,8 @@ export function fakeFetch(port) {
     if (u.includes('awwwards.com/websites/sites_of_the_day')) return text(fixture('listing-awwwards.html'));
     if (u.includes('awwwards.com/sites/maison-nuit')) return text(fixture('project-awwwards.html').replaceAll('__PORT__', port));
     if (u.includes('awwwards.com/sites/cafe-du-coin')) return text(`<html><head><meta property="og:title" content="Café du coin | Awwwards"></head><body><a href="http://127.0.0.1:${port}/plain.html?utm_source=awwwards">Visit</a></body></html>`);
-    if (u.includes('csswinner.com/websites')) return text(fixture('listing-csswinner.html'));
-    if (u.includes('csswinner.com/website/maison-nuit')) return text(fixture('project-csswinner.html').replaceAll('__PORT__', port));
+    if (u.includes('csswinner.com/winners')) return text(fixture('listing-csswinner.html'));
+    if (u.includes('csswinner.com/details/maison-nuit/19462')) return text(fixture('project-csswinner.html').replaceAll('__PORT__', port));
     return text('', 404);
   };
 }
