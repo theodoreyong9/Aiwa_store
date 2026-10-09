@@ -406,7 +406,8 @@ def _git(args, cwd=None, timeout=300):
     return done.stdout
 
 
-def default_branch(repo):
+def default_branch_or_none(repo):
+    """The repository's default branch as GitHub says it now, None when it cannot be read (empty repository, offline)."""
     try:
         out = _git(["ls-remote", "--symref", f"{GITHUB_BASE}/{repo}.git", "HEAD"], timeout=30)
         match = re.search(r"ref: refs/heads/(\S+)\s+HEAD", out)
@@ -414,7 +415,11 @@ def default_branch(repo):
             return match.group(1)
     except GithubError:
         pass
-    return "main"
+    return None
+
+
+def default_branch(repo):
+    return default_branch_or_none(repo) or "main"
 
 
 def prepare_repo_dir(repo):

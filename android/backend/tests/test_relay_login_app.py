@@ -1522,6 +1522,21 @@ class AllowedToolsTests(unittest.TestCase):
         self.assertEqual(set(args[1].split(",")), {"mcp__Claude_Code_Remote__add_repo", "mcp__Claude_Code_Remote__register_repo_root"})
 
 
+class DefaultBranchTests(unittest.TestCase):
+    def test_an_unreadable_default_branch_is_none_and_the_old_helper_still_says_main(self):
+        with unittest.mock.patch.object(gh, "_git", side_effect=gh.GithubError("offline")):
+            self.assertIsNone(gh.default_branch_or_none("o/r"))
+            self.assertEqual(gh.default_branch("o/r"), "main")
+
+    def test_the_default_branch_is_read_from_the_remote_head(self):
+        with unittest.mock.patch.object(gh, "_git", return_value="ref: refs/heads/aiwa/2026\tHEAD\nabc\tHEAD\n"):
+            self.assertEqual(gh.default_branch_or_none("o/r"), "aiwa/2026")
+
+    def test_the_push_instruction_forbids_asking_for_repository_settings(self):
+        text = dict(srv._instruction_lines("o/r", "aiwa/x", "main", True))["push"]
+        self.assertIn("Ne me demande jamais de changer un réglage du dépôt", text)
+
+
 class PagesHintTests(unittest.TestCase):
     def test_a_branch_the_environment_refuses_is_said_with_its_steps_and_its_page(self):
         import aiwa_github as gh

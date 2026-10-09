@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 43
+BACKEND_VERSION = 44
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -632,6 +632,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
                 "Si la fusion se fait sans conflit, intègre et pousse sans me demander : une modification parallèle (un autre commit, une autre session, un workflow changé) "
                 "et les fichiers `aiwa-out/` de ta branche sont normaux, ils ne sont pas un doute. Si la fusion a un vrai conflit, résous-le toi-même quand il est mécanique ; "
                 "s'il ne l'est pas, n'intègre rien et pose-moi la question par la consigne Questions (le widget), pas dans ta conversation. "
+                "Ne me demande jamais de changer un réglage du dépôt (branche par défaut, Pages, environnements) : choisis toi-même la branche qui marche et dis-moi ce que tu as fait. "
                 "Jamais de force-push, jamais d'écrasement du travail de quelqu'un d'autre.",
             ))
         else:
@@ -983,6 +984,12 @@ def cloud_send(text, command=False):
                 work = base = None
                 if entry.get("repo"):
                     work, base = _session_targets(session_id, entry)
+                    # The default branch can change after the session started (the first branch pushed into an empty repository becomes it):
+                    # the instructions follow it, so Claude never has to ask which branch to integrate into.
+                    fresh = github.default_branch_or_none(entry["repo"])
+                    if fresh and fresh != base:
+                        _update_session(session_id, base=fresh)
+                        base = fresh
                     entry = _session_entry(session_id)
                 extra_text, fingerprint = _compose(entry, entry.get("repo"), work, base, entry.get("direct", True), entry.get("origin"))
                 sent += extra_text
