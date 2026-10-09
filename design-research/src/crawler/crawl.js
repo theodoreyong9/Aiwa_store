@@ -1,7 +1,6 @@
 // One visit: Playwright drives Chromium (navigation, scroll, hover, screenshots), the Chrome DevTools Protocol watches what
 // the browser itself knows (network, animations, performance, console, targets). Raw observations only; detection and
 // classification come after, from these.
-import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { INIT_SCRIPT } from './instrument.js';
@@ -98,6 +97,8 @@ async function observeContext(browser, url, { mobile, shotDir, wantShots, fullPa
 
 /** Visits `url` on desktop and on a phone. Returns raw observations (see detection/ and classify/ for what is made of them). */
 export async function crawl(url, { shotDir = null, fullPage = true, executablePath = process.env.CHROMIUM_PATH || undefined } = {}) {
+  // loaded here, not at the top: reading the published catalogue (search, research) needs no browser, and a phone has none
+  const { chromium } = await import('playwright');
   const browser = await chromium.launch({ executablePath, args: ['--autoplay-policy=no-user-gesture-required'] });
   try {
     const desktop = await observeContext(browser, url, { mobile: false, shotDir, wantShots: !!shotDir, fullPage });

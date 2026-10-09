@@ -27,7 +27,7 @@ node design-research/src/cli.js doctor
 
 `DR_CATALOG_URL` (and `DR_SHOTS_URL`) read the published catalogue instead of a local one: a phone or a session without the repository only needs the JSONL and the pictures it asks for. `DR_FULLPAGE=0` skips the full-page capture.
 
-The workflow `.github/workflows/design-catalog-sync.yml` runs `sync` every week and commits what changed. `INSTRUCTION.md` is the line to give a Claude Code session so it uses the pack.
+The workflow `.github/workflows/design-catalog-sync.yml` runs `sync` every week and commits what changed. The widget's backend (`android/backend/aiwa_server.py`, `_design_line`) gives every session that has an interface to make the instruction to clone the Store read-only and run `research` against the published catalogue (`DR_CATALOG_URL`); `INSTRUCTION.md` is the same line for a session set up by hand.
 
 ## What it decides and what it does not
 

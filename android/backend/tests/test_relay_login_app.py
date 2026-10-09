@@ -556,6 +556,24 @@ class MailboxTests(Base):
         self.assertNotIn("aiwa-out", without)
 
 
+class DesignLineTests(Base):
+    def test_a_session_with_an_interface_to_make_is_told_how_to_use_the_design_research(self):
+        for repo, deploy in (("o/r", "pages"), (None, "store"), (None, "aiwa"), ("o/r", "android")):
+            with unittest.mock.patch.object(srv, "deploy_mode", deploy):
+                text = dict(srv._instruction_lines(repo, "w", "main", True)).get("design", "")
+            self.assertIn("design-research/src/cli.js research", text, f"{repo} {deploy}")
+            self.assertIn("DR_CATALOG_URL=" + srv.REFERENCE_RAW + "/design-research/catalog", text)
+            self.assertIn("ne recopie ni l'identité", text)
+            self.assertIn("conçois sans", text, "the catalogue may be empty or unreachable: Claude goes on without it")
+
+    def test_it_is_told_once_and_again_only_when_it_changes(self):
+        with unittest.mock.patch.object(srv, "deploy_mode", "store"):
+            first, told = srv._compose(None, None, None, None, True)
+            self.assertIn("Design :", first)
+            again, _ = srv._compose({"instr": told}, None, None, None, True)
+            self.assertEqual(again, "")
+
+
 class RelayTests(Base):
     def event(self, message="attend", **over):
         event = {"id": f"id{time.time_ns()}", "time": int(time.time()), "event": "message", "message": message}

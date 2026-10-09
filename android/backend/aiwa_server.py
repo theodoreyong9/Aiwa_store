@@ -474,7 +474,22 @@ def _known_repos():
     return [r for r in known if isinstance(r, str) and github.REPO_RE.fullmatch(r)]
 
 
-_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration"}
+_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design"}
+
+
+def _design_line():
+    """The design research: measured references (type, motion, composition, palette, what each format can hold), read from the
+    Store's published catalogue. Claude Code runs the script itself; the line says how, and what the result is and is not."""
+    return (
+        "Design : avant de dessiner une interface (site, PWA, APK, écran d'un contrat), prends des références MESURÉES au lieu de t'en remettre à ta mémoire. "
+        f"Clone le Store en lecture seule (`git clone --depth 1 https://github.com/{REFERENCE_REPO} /tmp/aiwa-ref`), puis, depuis ton répertoire de travail : "
+        f"`DR_CATALOG_URL={REFERENCE_RAW}/design-research/catalog DR_SHOTS_URL={REFERENCE_RAW}/design-research/screenshots "
+        "node /tmp/aiwa-ref/design-research/src/cli.js research \"<ma demande en une phrase>\" --format=<site|pwa|apk|contract_ui>`. "
+        "Lis ensuite `.research/latest/synthesis.md`, `references.json` et les captures. Les traits sont des mesures ; l'ambiance, le ton et pourquoi une référence marche, "
+        "c'est à toi de les juger en regardant les captures. Retiens les motifs que PLUSIEURS références partagent, respecte ce que le format peut porter (`transposable_to_format`), "
+        "et ne recopie ni l'identité, ni la mise en page, ni le contenu, ni les assets, ni l'implémentation distinctive d'un site. "
+        "Si le clone ou le catalogue est inaccessible ou vide, dis-le-moi en une phrase et conçois sans. N'ajoute pas `.research/` au dépôt."
+    )
 
 
 def _sources_line():
@@ -660,6 +675,8 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             + _mailbox_fallback(repo, work, "nom.aiwa.html") + "). Dis-moi ensuite en une phrase ce que fait l'app.",
         ))
         lines.append(("sources", _sources_line()))
+    if repo or deploy in ("store", "aiwa"):
+        lines.append(("design", _design_line()))
     # Mandatory, not a switch: it is how the widget learns that Claude is
     # waiting (the CLI can't read a cloud reply back). A public relay, a
     # random topic; the command is harmless when the network blocks it.
