@@ -51,7 +51,7 @@ export async function discover(name, { limit = 30, pages = 2, fetchFn = fetch, d
           const links = registry.projectLinks(html);
           for (const p of links) if (!paths.includes(p)) paths.push(p);
           if (links.length) { got = links.length; break; }
-          errors.push(`${url}: reachable but no project link; first links: ${hrefs(html, /href=["']([^"'#]+)["']/gi).slice(0, 12).join(' ')}`);
+          errors.push(`${url}: reachable but no project link; project-looking links: ${hrefs(html, /href=["']((?:https:\/\/www\.csswinner\.com)?\/[^"'#]*[a-z0-9-]{3,}[^"'#]*)["']/gi).filter((h) => !/\.(css|js|png|ico|svg)/.test(h)).slice(0, 30).join(' ')}; page size ${html.length}`);
         } catch (err) { errors.push(String(err.message ?? err)); }
       }
       if (!got) break;
