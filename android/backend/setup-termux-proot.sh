@@ -77,8 +77,14 @@ node_is_real_linux() {
   command -v node >/dev/null 2>&1 && [ "$(node -p process.platform 2>/dev/null)" = "linux" ]
 }
 
-if ! node_is_real_linux; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+# The Claude Code CLI asks for Node 22 or newer (its npm package says so: node >=22): an older Node installed by an earlier version of this
+# script is upgraded here, and the CLI below is always installed again at its latest version.
+node_major() {
+  node -p "process.versions.node.split(\".\")[0]" 2>/dev/null || echo 0
+}
+
+if ! node_is_real_linux || [ "$(node_major)" -lt 22 ]; then
+  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt-get install -y nodejs
 fi
 
