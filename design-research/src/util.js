@@ -57,7 +57,7 @@ export function robotsAllows(robotsTxt, path) {
 
 /** fetch with our user agent, a timeout, and a check of the host's robots.txt (cached for the run). */
 const robotsCache = new Map();
-export async function politeFetch(url, { fetchFn = fetch, delayMs = 1500, timeoutMs = 30000 } = {}) {
+async function checkRobots(url, fetchFn, timeoutMs) {
   const u = new URL(url);
   if (!robotsCache.has(u.origin)) {
     try {
@@ -66,6 +66,26 @@ export async function politeFetch(url, { fetchFn = fetch, delayMs = 1500, timeou
     } catch { robotsCache.set(u.origin, ''); }
   }
   if (!robotsAllows(robotsCache.get(u.origin), u.pathname + u.search)) throw new Error(`robots.txt disallows ${u.pathname}`);
+}
+
+/** The page AFTER its scripts ran (Chromium), for listings that are drawn by JavaScript. Same robots.txt check and pace as politeFetch. */
+export async function renderPage(url, { fetchFn = fetch, delayMs = 1500, timeoutMs = 45000, executablePath = process.env.CHROMIUM_PATH || undefined } = {}) {
+  await checkRobots(url, fetchFn, 30000);
+  await sleep(delayMs);
+  const { chromium } = await import('playwright');
+  const browser = await chromium.launch({ executablePath });
+  try {
+    const page = await browser.newPage({ userAgent: UA });
+    await page.goto(url, { waitUntil: 'networkidle', timeout: timeoutMs }).catch(() => {});
+    // lists load more as they are scrolled
+    for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, 4000); await page.waitForTimeout(600); }
+    return await page.content();
+  } finally { await browser.close(); }
+}
+
+export async function politeFetch(url, { fetchFn = fetch, delayMs = 1500, timeoutMs = 30000 } = {}) {
+  const u = new URL(url);
+  await checkRobots(url, fetchFn, timeoutMs);
   await sleep(delayMs);
   const res = await fetchFn(url, { headers: { 'user-agent': UA, accept: 'text/html,*/*' }, signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);

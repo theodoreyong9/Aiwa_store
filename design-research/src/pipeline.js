@@ -43,7 +43,7 @@ export async function sync({ home, registries = ['awwwards', 'csswinner'], limit
   const catalog = new Catalog(dirs.catalog);
   const summary = { NEW: 0, UPDATED: 0, UNCHANGED: 0, crawled: 0, errors: [], registries: {} };
   for (const name of registries) {
-    const { found, errors } = await discover(name, { limit, pages, fetchFn, delayMs });
+    const { found, errors } = await discover(name, { limit, pages, fetchFn, delayMs, render: fetchFn === fetch });
     for (const item of found) summary[catalog.upsert(item)]++;
     summary.errors.push(...errors.map((e) => `${name}: ${e}`));
     summary.registries[name] = { found: found.length };
