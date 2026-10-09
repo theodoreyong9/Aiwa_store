@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 36
+BACKEND_VERSION = 37
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -912,7 +912,9 @@ def _keep_cli_repo_lines(log):
     that speak of GitHub, the repository or the bundling, kept in a file and in the backend's log, so that "the session started empty" can be
     explained afterwards instead of guessed."""
     try:
-        lines = [ln[:300] for ln in log.splitlines() if re.search(r"github|repo|bundl|preflight|source|clone", ln, re.I)][-40:]
+        lines = [ln[:300] for ln in log.splitlines() if re.search(r"github|repo|bundl|preflight|source|clone|debug file", ln, re.I)][-40:]
+        if not lines:
+            lines = [f"(the CLI's debug log has {len(log)} characters and none speaks of GitHub, the repository or the bundling)"]
         CLI_REPO_LOG.write_text(f"[{_ts()}]\n" + "\n".join(lines) + "\n", encoding="utf-8")
         print(f"[{_ts()}] cloud_send: the CLI's lines on the repository: {len(lines)} kept in {CLI_REPO_LOG.name}", flush=True)
     except OSError:
@@ -926,6 +928,7 @@ def _cli_repo_verdict(repo):
     try:
         log = CLI_DEBUG.read_text(encoding="utf-8", errors="replace")[-400_000:]
     except OSError:
+        _keep_cli_repo_lines("(the CLI wrote no debug file: nothing to read about the repository)")
         return None
     finally:
         CLI_DEBUG.unlink(missing_ok=True)
