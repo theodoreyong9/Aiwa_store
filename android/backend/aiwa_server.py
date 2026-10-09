@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 38
+BACKEND_VERSION = 39
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -997,6 +997,8 @@ def cloud_send(text, command=False):
         # the directory is an empty stub whose origin is that repository, and the
         # cloud clones it itself, with Claude's own access (the user grants it at
         # claude.ai/connect-github). Nothing of the repository goes through the phone.
+        with lock:
+            repo_access_missing = None
         cloud_progress = f"préparation de la session sur {repo}…"
         try:
             directory, work, base = github.prepare_repo_dir(repo)
@@ -1973,7 +1975,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
 
     def do_POST(self):
-        global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, current_effort, last_cloud
+        global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, current_effort, last_cloud, repo_access_missing
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -2114,6 +2116,7 @@ class Handler(BaseHTTPRequestHandler):
             with lock:
                 current_repo = requested or None
                 running = current_cloud
+                repo_access_missing = None   # a new choice starts afresh: the alert is shown again only if the next session fails again
                 if current_repo in extra_repos:
                     extra_repos.remove(current_repo)
                 _save_state()

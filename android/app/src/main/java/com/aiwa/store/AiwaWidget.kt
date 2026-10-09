@@ -296,7 +296,7 @@ private fun FullContent(state: AiwaState) {
         // The last send did not go: its reason was only a toast, and "Prêt" made it look as if nothing was wrong.
         state.status == AiwaState.Status.ERROR && state.notice != null -> { status = "⚠ Dernier envoi échoué — touche ici"; statusColor = alertText; statusBold = true }
         // Claude's GitHub app is not on this repository: a session started on it has an empty folder, and it will again.
-        state.repoAccessMissing != null && state.repoAccessMissing == state.repo -> { status = "⚠ Claude n'a pas accès à ce dépôt — touche ici"; statusColor = alertText; statusBold = true }
+        state.repoAccessMissing != null && state.repoAccessMissing == state.repo -> { status = "⚠ Claude n'a pas accès à ce dépôt"; statusColor = alertText; statusBold = true }
         // Every session starts on a repository: none chosen, nothing to send yet.
         state.needsRepo -> { status = "Choisis un dépôt (⎇) pour commencer"; statusColor = warm; statusBold = true }
         // A session with no repository (added by a branch that exists in several of them: none is guessed): it is told which when one is chosen.
@@ -321,7 +321,6 @@ private fun FullContent(state: AiwaState) {
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
         state.ask != null && state.status != AiwaState.Status.WORKING -> actionStartActivity<AskActivity>()
         state.status == AiwaState.Status.ERROR && state.notice != null -> actionStartActivity<MainActivity>()
-        state.repoAccessMissing != null && state.repoAccessMissing == state.repo -> actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(state.githubAppUrl ?: "https://github.com/apps/claude/installations/new")))
         state.needsRepo || state.repo == null -> actionStartActivity<RepoPickerActivity>()
         else -> lockable(locked, actionStartActivity<SessionPickerActivity>())
     }
