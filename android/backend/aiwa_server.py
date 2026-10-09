@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 35
+BACKEND_VERSION = 36
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -904,6 +904,21 @@ def _rename_session(session_id, title):
         print(f"[{_ts()}] rename failed: {err}", flush=True)
 
 
+CLI_REPO_LOG = Path.home() / "aiwa_cli_repo_last.log"
+
+
+def _keep_cli_repo_lines(log):
+    """What the CLI said about the repository when it created the session (its debug log is deleted, and holds the message): only the lines
+    that speak of GitHub, the repository or the bundling, kept in a file and in the backend's log, so that "the session started empty" can be
+    explained afterwards instead of guessed."""
+    try:
+        lines = [ln[:300] for ln in log.splitlines() if re.search(r"github|repo|bundl|preflight|source|clone", ln, re.I)][-40:]
+        CLI_REPO_LOG.write_text(f"[{_ts()}]\n" + "\n".join(lines) + "\n", encoding="utf-8")
+        print(f"[{_ts()}] cloud_send: the CLI's lines on the repository: {len(lines)} kept in {CLI_REPO_LOG.name}", flush=True)
+    except OSError:
+        pass
+
+
 def _cli_repo_verdict(repo):
     """Why the CLI took the folder for the repository's content instead of naming the repository, from its debug log (which is then deleted:
     it holds the message): "no_app" (Claude's GitHub app is not installed on it), another reason of the CLI's own words, or None when it named
@@ -914,6 +929,7 @@ def _cli_repo_verdict(repo):
         return None
     finally:
         CLI_DEBUG.unlink(missing_ok=True)
+    _keep_cli_repo_lines(log)
     reason = CLI_BUNDLING_RE.search(log)
     if reason is None:
         return None
