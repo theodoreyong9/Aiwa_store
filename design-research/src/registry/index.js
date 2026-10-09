@@ -31,7 +31,10 @@ export const registries = {
     projectLinks: (html) => hrefs(html, /href=["'](?:https:\/\/www\.csswinner\.com)?(\/details\/[a-z0-9][a-z0-9-]*\/\d+)\/?["']/gi),
     projectUrl: (path) => `https://www.csswinner.com${path}`,
     parseProject(html) {
-      const out = hrefs(html, /href=["'](https?:\/\/(?!(?:www\.)?csswinner\.com)[^"']+)["'][^>]*>\s*(?:<[^>]+>\s*)*(?:Visit|Visiter|Launch)/gi)[0];
+      // the page links its own social accounts first, then the site (seen on the live pages): the first outbound link that is not a social or share link
+      const social = /^https?:\/\/(?:[a-z0-9-]+\.)*(?:csswinner\.com|twitter\.com|x\.com|facebook\.com|pinterest\.com|instagram\.com|linkedin\.com|youtube\.com|dribbble\.com|behance\.net|github\.com|webflow\.com|google\.com|gmpg\.org|w3\.org)(?:[/?#]|$)/i;
+      const out = hrefs(html, /href=["'](https?:\/\/(?!(?:www\.)?csswinner\.com)[^"']+)["'][^>]*>\s*(?:<[^>]+>\s*)*(?:Visit|Visiter|Launch)/gi)[0]
+        ?? hrefs(html, /href=["'](https?:\/\/[^"']+)["']/gi).find((h) => !social.test(h));
       return { url: out && decode(out), title: decode(meta(html, 'og:title')?.replace(/\s*[-|–].*css\s*winner.*$/i, '')) };
     },
   },
