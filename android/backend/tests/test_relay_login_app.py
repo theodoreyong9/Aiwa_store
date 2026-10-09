@@ -1557,3 +1557,15 @@ class PagesHintTests(unittest.TestCase):
                 result = gh.latest_run("o/r")
         self.assertEqual(result["state"], "failure")
         self.assertEqual(result["hint"]["code"], "pages_branch")
+
+
+class CiWatchAfterFailureTests(unittest.TestCase):
+    def test_lookups_stay_quick_for_a_while_after_a_failure_then_go_back_to_the_idle_pace(self):
+        import aiwa_server as srv
+        now = 10_000.0
+        recent = {"state": "failure", "failure_since": now - 60}
+        old = {"state": "failure", "failure_since": now - srv.CI_FAILURE_WATCH_SECONDS - 1}
+        with unittest.mock.patch.object(srv, "last_message_at", 0):
+            self.assertEqual(srv._ci_ttl(recent, now), srv.CI_POLL_FAST)
+            self.assertEqual(srv._ci_ttl(old, now), srv.CI_POLL_IDLE)
+            self.assertEqual(srv._ci_ttl({"state": "success"}, now), srv.CI_POLL_IDLE)

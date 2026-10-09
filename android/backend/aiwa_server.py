@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 41
+BACKEND_VERSION = 42
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -1172,8 +1172,16 @@ def _site_snapshot():
     return {"url": url, "state": state, "kind": kind, "termux": _apk_termux_command(repo) if kind == "apk" else None}
 
 
+CI_FAILURE_WATCH_SECONDS = 600   # after a failure is first seen, the lookups stay quick this long: a fix is often on its way
+
+
 def _ci_probe(repo):
     info = github.latest_run(repo)
+    if info and info.get("state") == "failure":
+        with site_lock:
+            before = ci_cache["info"] if ci_cache["repo"] == repo else None
+        same = bool(before) and before.get("state") == "failure" and before.get("id") == info.get("id")
+        info["failure_since"] = before.get("failure_since", time.time()) if same else time.time()
     with site_lock:
         # A failed lookup (rate limit, private repository) keeps what was known.
         ci_cache.update(repo=repo, info=info if info is not None else (ci_cache["info"] if ci_cache["repo"] == repo else None), at=time.time(), busy=False)
@@ -1185,7 +1193,8 @@ def _ci_ttl(info, now=None):
     now = time.time() if now is None else now
     running = bool(info) and info.get("state") == "running"
     awaited = bool(last_message_at) and now - last_message_at < CI_WATCH_SECONDS
-    return CI_POLL_FAST if running or awaited else CI_POLL_IDLE
+    failing = bool(info) and info.get("state") == "failure" and now - info.get("failure_since", 0) < CI_FAILURE_WATCH_SECONDS
+    return CI_POLL_FAST if running or awaited or failing else CI_POLL_IDLE
 
 
 def _ci_lookup_allowed(now=None):
