@@ -474,7 +474,7 @@ def _known_repos():
     return [r for r in known if isinstance(r, str) and github.REPO_RE.fullmatch(r)]
 
 
-_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design"}
+_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "game": "jeu"}
 
 
 def _design_line():
@@ -489,6 +489,20 @@ def _design_line():
         "c'est à toi de les juger en regardant les captures. Retiens les motifs que PLUSIEURS références partagent, respecte ce que le format peut porter (`transposable_to_format`), "
         "et ne recopie ni l'identité, ni la mise en page, ni le contenu, ni les assets, ni l'implémentation distinctive d'un site. "
         "Si le clone ou le catalogue est inaccessible ou vide, dis-le-moi en une phrase et conçois sans. N'ajoute pas `.research/` au dépôt."
+    )
+
+
+def _game_line():
+    """What is asked of a session when the request is a game: the standard of docs/GAME-FOUNDATION.md, in short."""
+    return (
+        "Jeu : si ma demande est un jeu, lis d'abord " + REFERENCE_RAW + "/docs/GAME-FOUNDATION.md (le standard de qualité), puis pose-moi EN UNE FOIS les questions qui manquent "
+        "(genre, 2D ou 3D, solo ou multijoueur, nombre de joueurs, temps réel ou tour par tour, plateformes visées) avant de construire. "
+        "Choisis le socle selon le besoin et dis-moi pourquoi : un fichier HTML ou un site pour un petit jeu ; un contrat Aiwa quand les résultats ou les récompenses doivent être vérifiables par tous sans serveur ; "
+        "Godot 4 + Nakama pour du multijoueur temps réel de 2 à 16 joueurs. "
+        "Construis par étapes vérifiées, et ne passe pas à la suivante si une étape échoue. Le serveur (ou Aiwa) a le dernier mot sur les résultats et les récompenses : teste une action falsifiée et une commande en double. "
+        "Écris les règles de déconnexion, d'abandon et de reconnexion et teste-les. Ne dis jamais qu'un build, un test ou un déploiement a réussi sans la sortie de son exécution, "
+        "ne remplace pas une fonction manquante par une simulation non signalée, n'invente aucune méthode d'un SDK (lis la documentation officielle de la version utilisée), et n'annonce aucune capacité (8 ou 16 joueurs) que tu n'as pas mesurée. "
+        "Pour l'interface et la direction visuelle, applique aussi la consigne Design."
     )
 
 
@@ -677,6 +691,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
         lines.append(("sources", _sources_line()))
     if repo or deploy in ("store", "aiwa"):
         lines.append(("design", _design_line()))
+        lines.append(("game", _game_line()))
     # Mandatory, not a switch: it is how the widget learns that Claude is
     # waiting (the CLI can't read a cloud reply back). A public relay, a
     # random topic; the command is harmless when the network blocks it.

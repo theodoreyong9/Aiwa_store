@@ -566,6 +566,14 @@ class DesignLineTests(Base):
             self.assertIn("ne recopie ni l'identité", text)
             self.assertIn("conçois sans", text, "the catalogue may be empty or unreachable: Claude goes on without it")
 
+    def test_a_game_is_asked_for_the_standard_before_it_is_built(self):
+        with unittest.mock.patch.object(srv, "deploy_mode", "store"):
+            text = dict(srv._instruction_lines(None, None, None, True))["game"]
+        self.assertIn(srv.REFERENCE_RAW + "/docs/GAME-FOUNDATION.md", text)
+        self.assertIn("Godot 4 + Nakama", text)
+        self.assertIn("sans la sortie de son exécution", text)
+        self.assertIn("n'invente aucune méthode", text)
+
     def test_it_is_told_once_and_again_only_when_it_changes(self):
         with unittest.mock.patch.object(srv, "deploy_mode", "store"):
             first, told = srv._compose(None, None, None, None, True)
