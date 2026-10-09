@@ -8,7 +8,8 @@
   "workspaces": [
     "packages/*",
     "registry",
-    "apps/*"
+    "apps/*",
+    "design-research"
   ],
   "scripts": {
     "test": "npm test --workspaces --if-present",

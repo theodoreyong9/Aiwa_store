@@ -1,0 +1,59 @@
+// The two registries of V1: Awwwards and CSS Winner (Site of the Day). Each yields { name, url, registry, award, page, date }.
+// The parsers read the public listing pages and each project's page; they are written for the markup as known and were
+// NOT run against the live sites when written (no network where they were written). `doctor` and the health workflow
+// say when a parser finds nothing, which is what a markup change looks like.
+import { politeFetch } from '../util.js';
+
+const hrefs = (html, re) => [...new Set([...html.matchAll(re)].map((m) => m[1]))];
+const meta = (html, prop) => (new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']*)["']`, 'i').exec(html)
+  || new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${prop}["']`, 'i').exec(html))?.[1];
+const decode = (s) => (s ?? '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+
+export const registries = {
+  awwwards: {
+    award: 'SOTD',
+    listing: (page = 1) => `https://www.awwwards.com/websites/sites_of_the_day/?page=${page}`,
+    projectLinks: (html) => hrefs(html, /href=["'](?:https:\/\/www\.awwwards\.com)?(\/sites\/[a-z0-9][a-z0-9-]*)["']/gi),
+    projectUrl: (path) => `https://www.awwwards.com${path}`,
+    // the project page links out to the site; the outbound link carries awwwards in its utm parameters
+    parseProject(html) {
+      const out = hrefs(html, /href=["'](https?:\/\/[^"']+)["'][^>]*>\s*(?:<[^>]+>\s*)*(?:Visit|Visiter)/gi)[0]
+        ?? hrefs(html, /href=["'](https?:\/\/(?!(?:www\.)?awwwards\.com)[^"']*utm_source=awwwards[^"']*)["']/gi)[0];
+      return { url: out && decode(out), title: decode(meta(html, 'og:title')?.replace(/\s*[-|–].*awwwards.*$/i, '')) };
+    },
+  },
+  csswinner: {
+    award: 'SOTD',
+    listing: (page = 1) => `https://www.csswinner.com/websites/${page > 1 ? `page/${page}/` : ''}`,
+    projectLinks: (html) => hrefs(html, /href=["'](?:https:\/\/www\.csswinner\.com)?(\/(?:website|details)\/[a-z0-9][a-z0-9-]*)\/?["']/gi),
+    projectUrl: (path) => `https://www.csswinner.com${path}`,
+    parseProject(html) {
+      const out = hrefs(html, /href=["'](https?:\/\/(?!(?:www\.)?csswinner\.com)[^"']+)["'][^>]*>\s*(?:<[^>]+>\s*)*(?:Visit|Visiter|Launch)/gi)[0];
+      return { url: out && decode(out), title: decode(meta(html, 'og:title')?.replace(/\s*[-|–].*css\s*winner.*$/i, '')) };
+    },
+  },
+};
+
+/** Discovers up to `limit` recent projects of a registry. Returns { found, errors }. */
+export async function discover(name, { limit = 30, pages = 2, fetchFn = fetch, delayMs = 1500 } = {}) {
+  const registry = registries[name];
+  if (!registry) throw new Error(`unknown registry: ${name}`);
+  const found = [];
+  const errors = [];
+  const paths = [];
+  for (let page = 1; page <= pages && paths.length < limit; page++) {
+    try {
+      const html = await politeFetch(registry.listing(page), { fetchFn, delayMs });
+      for (const p of registry.projectLinks(html)) if (!paths.includes(p)) paths.push(p);
+    } catch (err) { errors.push(String(err.message ?? err)); break; }
+  }
+  for (const path of paths.slice(0, limit)) {
+    try {
+      const page = registry.projectUrl(path);
+      const parsed = registry.parseProject(await politeFetch(page, { fetchFn, delayMs }));
+      if (parsed.url) found.push({ registry: name, award: registry.award, page, url: parsed.url, title: parsed.title || '' });
+      else errors.push(`${page}: no outbound link found`);
+    } catch (err) { errors.push(String(err.message ?? err)); }
+  }
+  return { found, errors };
+}

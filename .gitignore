@@ -11,3 +11,6 @@ __pycache__/
 .idea/
 *.iml
 local.properties
+
+# the research pack a session builds
+.research/
