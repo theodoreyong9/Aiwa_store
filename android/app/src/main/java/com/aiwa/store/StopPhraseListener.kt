@@ -46,6 +46,8 @@ class StopPhraseListener(
     private val onCancelPhrase: () -> Unit = {},
 ) : RecognitionListener {
     private val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+    private val quiet = QuietSounds(context)
+    private fun release() { recognizer.destroy(); quiet.off() }
     private val accumulated = StringBuilder()
     private var consecutiveSilentPasses = 0
     private var stopped = false
@@ -60,24 +62,25 @@ class StopPhraseListener(
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
+        quiet.on()
         recognizer.startListening(intent)
     }
 
     fun cancel() {
         if (stopped) return
         stopped = true
-        recognizer.destroy()
+        release()
     }
 
     private fun cancelledByVoice() {
         stopped = true
-        recognizer.destroy()
+        release()
         onCancelPhrase()
     }
 
     private fun finishWith(text: String) {
         stopped = true
-        recognizer.destroy()
+        release()
         if (text.isNotBlank()) onFinalText(text) else onGiveUp()
     }
 
@@ -145,6 +148,8 @@ class StopPhraseListener(
  */
 class ConfirmListener(context: Context, private val onAnswer: (Boolean) -> Unit) : RecognitionListener {
     private val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+    private val quiet = QuietSounds(context)
+    private fun release() { recognizer.destroy(); quiet.off() }
     private var answered = false
     private var silences = 0
 
@@ -158,19 +163,20 @@ class ConfirmListener(context: Context, private val onAnswer: (Boolean) -> Unit)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
+        quiet.on()
         recognizer.startListening(intent)
     }
 
     fun cancel() {
         if (answered) return
         answered = true
-        recognizer.destroy()
+        release()
     }
 
     private fun answer(yes: Boolean) {
         if (answered) return
         answered = true
-        recognizer.destroy()
+        release()
         onAnswer(yes)
     }
 
@@ -194,4 +200,39 @@ class ConfirmListener(context: Context, private val onAnswer: (Boolean) -> Unit)
     override fun onBufferReceived(buffer: ByteArray?) {}
     override fun onEndOfSpeech() {}
     override fun onEvent(eventType: Int, params: Bundle?) {}
+}
+
+/**
+ * The beeps Android's recognizer plays when it starts and stops listening (and again at each restart of a pass): muted while a listener is
+ * alive, then given back. Only the streams that were not muted already are touched, and only if the system allows it (a refusal changes nothing).
+ * Nothing is spoken while a listener runs, so the voice (Speaker) is never cut. Music playing on the phone is silent for those seconds.
+ */
+class QuietSounds(context: Context) {
+    private val audio = context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+    private val muted = mutableListOf<Int>()
+    private var held = false
+
+    fun on() {
+        if (held) return
+        held = true
+        for (stream in listOf(android.media.AudioManager.STREAM_NOTIFICATION, android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.STREAM_MUSIC)) {
+            try {
+                if (!audio.isStreamMute(stream)) {
+                    audio.adjustStreamVolume(stream, android.media.AudioManager.ADJUST_MUTE, 0)
+                    muted.add(stream)
+                }
+            } catch (err: Exception) { /* not allowed here (Do Not Disturb): that stream keeps its sound */ }
+        }
+    }
+
+    fun off() {
+        if (!held) return
+        held = false
+        val streams = muted.toList()
+        muted.clear()
+        // A moment later: the closing beep comes right after the recognizer is destroyed
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            for (stream in streams) try { audio.adjustStreamVolume(stream, android.media.AudioManager.ADJUST_UNMUTE, 0) } catch (err: Exception) { }
+        }, 600)
+    }
 }

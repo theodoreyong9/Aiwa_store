@@ -10,8 +10,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
-import android.media.AudioManager
-import android.media.ToneGenerator
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -144,7 +142,6 @@ class WakeWordService : Service() {
     private fun heardWakeWord(kind: WakeKind) {
         detector = null
         if (paused) return
-        try { ToneGenerator(AudioManager.STREAM_MUSIC, 80).startTone(ToneGenerator.TONE_PROP_BEEP, 150) } catch (err: Exception) { /* no tone */ }
         if (kind == WakeKind.STOP) {
             // Not a dictation: Claude is asked to stop, at once, and the phone says it did.
             say("J'ai demandé à Claude de s'arrêter")
