@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 42
+BACKEND_VERSION = 43
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -629,7 +629,9 @@ def _instruction_lines(repo, work, base, direct, origin=None):
                 f"Le push se fait dans {base}, qui est la branche que GitHub Pages déploie ; seule exception : si le déploiement Pages de ce dépôt "
                 "est configuré pour publier depuis ta propre branche (regarde le workflow Pages et ses déclencheurs), pousse alors sur cette branche-là. "
                 f"Avant d'intégrer : récupère {base} et vérifie qu'il n'a pas reçu de modification parallèle qui entre en conflit avec les tiennes. "
-                "S'il y a un conflit, ou le moindre doute, n'intègre rien : explique-moi le problème et pose-moi la question. "
+                "Si la fusion se fait sans conflit, intègre et pousse sans me demander : une modification parallèle (un autre commit, une autre session, un workflow changé) "
+                "et les fichiers `aiwa-out/` de ta branche sont normaux, ils ne sont pas un doute. Si la fusion a un vrai conflit, résous-le toi-même quand il est mécanique ; "
+                "s'il ne l'est pas, n'intègre rien et pose-moi la question par la consigne Questions (le widget), pas dans ta conversation. "
                 "Jamais de force-push, jamais d'écrasement du travail de quelqu'un d'autre.",
             ))
         else:
