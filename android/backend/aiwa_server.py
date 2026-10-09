@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 32
+BACKEND_VERSION = 33
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -495,6 +495,8 @@ def _design_line():
         "Lis ensuite `.research/latest/synthesis.md`, `references.json` et les captures. Les traits sont des mesures ; l'ambiance, le ton et pourquoi une référence marche, "
         "c'est à toi de les juger en regardant les captures. Retiens les motifs que PLUSIEURS références partagent, respecte ce que le format peut porter (`transposable_to_format`), "
         "et ne recopie ni l'identité, ni la mise en page, ni le contenu, ni les assets, ni l'implémentation distinctive d'un site. "
+        "Une fois l'interface construite, ouvre-la dans Chromium avec Playwright (`npx playwright install chromium` si besoin) en 390 px et en 1440 px, regarde les captures, et corrige les débordements, "
+        "les contrastes faibles, les textes coupés, les images cassées et les erreurs de console avant de me dire que c'est fini. "
         "Si le clone ou le catalogue est inaccessible ou vide, dis-le-moi en une phrase et conçois sans. N'ajoute pas `.research/` au dépôt."
     )
 
@@ -502,13 +504,16 @@ def _design_line():
 def _game_line():
     """What is asked of a session when the request is a game: the standard of docs/GAME-FOUNDATION.md, in short."""
     return (
-        "Jeu : si ma demande est un jeu, lis d'abord " + REFERENCE_RAW + "/docs/GAME-FOUNDATION.md (le standard de qualité), puis pose-moi EN UNE FOIS les questions qui manquent "
+        "Jeu : si ma demande est un jeu, lis d'abord " + REFERENCE_RAW + "/docs/GAME-FOUNDATION.md (le standard de qualité), puis décide toi-même de ce qui manque quand le jeu est petit ou fait partie d'une autre création (un mini-jeu dans un site) ; "
+        "pour un vrai jeu à part entière, pose-moi EN UNE FOIS, par la question du widget, ce qui manque "
         "(genre, 2D ou 3D, solo ou multijoueur, nombre de joueurs, temps réel ou tour par tour, plateformes visées) avant de construire. "
         "Choisis le socle selon le besoin et dis-moi pourquoi : un fichier HTML ou un site pour un petit jeu ; un contrat Aiwa quand les résultats ou les récompenses doivent être vérifiables par tous sans serveur ; "
         "Godot 4 + Nakama pour du multijoueur temps réel de 2 à 16 joueurs. "
         "Construis par étapes vérifiées, et ne passe pas à la suivante si une étape échoue. Le serveur (ou Aiwa) a le dernier mot sur les résultats et les récompenses : teste une action falsifiée et une commande en double. "
         "Écris les règles de déconnexion, d'abandon et de reconnexion et teste-les. Ne dis jamais qu'un build, un test ou un déploiement a réussi sans la sortie de son exécution, "
         "ne remplace pas une fonction manquante par une simulation non signalée, n'invente aucune méthode d'un SDK (lis la documentation officielle de la version utilisée), et n'annonce aucune capacité (8 ou 16 joueurs) que tu n'as pas mesurée. "
+        "Avant de livrer, JOUE-LE toi-même : ouvre-le dans Chromium avec Playwright (installe-le si besoin : `npx playwright install chromium`), joue une partie complète par script (début, points, fin, rejouer), "
+        "vérifie qu'il n'y a aucune erreur dans la console, prends des captures en 390 px et 1440 px, regarde-les, corrige ce qui est cassé, coupé ou illisible, et dis-moi ce que tu as vu. "
         "Pour l'interface et la direction visuelle, applique aussi la consigne Design."
     )
 
@@ -536,7 +541,9 @@ def _video_line(repo):
         + REFERENCE_RAW + "/video-kit/ (rendu image par image avec Chromium, assemblage ffmpeg, contrôle automatique). N'invente aucune statistique, aucun témoignage, aucun résultat : "
         "tout ce qui est affiché vient de ce que j'ai fourni ou de ce que tu vois dans ma création. Contrôle le MP4 avant de le livrer (durée, résolution, piste audio, images noires, texte coupé). "
         f"Dépose chaque vidéo comme fichier de la release GitHub `videos` du dépôt {repo} (crée-la si elle n'existe pas ; un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4`), "
-        "avec son script et son rapport de contrôle sous `aiwa-videos/` dans le dépôt, puis dis-moi en une phrase ce qui est fait."
+        "avec son script et son rapport de contrôle sous `aiwa-videos/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
+        "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg`, `npx playwright install chromium`, `gh release create` ou l'API GitHub avec le jeton de l'environnement) "
+        "au lieu de t'arrêter. Si la release reste impossible, commite le MP4 sous `aiwa-videos/` sur ta branche et dis-moi en une phrase pourquoi, sans prétendre qu'il est dans la release."
     )
 
 
