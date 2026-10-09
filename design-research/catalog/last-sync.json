@@ -1,0 +1,19 @@
+{
+  "at": "2026-10-09T08:05:00.004Z",
+  "NEW": 29,
+  "UPDATED": 0,
+  "UNCHANGED": 0,
+  "crawled": 20,
+  "errors": [
+    "awwwards: https://www.awwwards.com/sites/bleibtgleich26: HTTP 502",
+    "csswinner: https://www.csswinner.com/websites/: HTTP 404"
+  ],
+  "registries": {
+    "awwwards": {
+      "found": 29
+    },
+    "csswinner": {
+      "found": 0
+    }
+  }
+}
