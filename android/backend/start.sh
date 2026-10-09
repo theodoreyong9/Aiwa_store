@@ -47,6 +47,6 @@ code=$?
 echo "=== server stopped, exit code $code — $(date) ===" >> "$LOG"
 if [ "$code" -ne 0 ]; then
   echo "If Ubuntu is not installed yet, run bootstrap.sh by hand once:" >> "$LOG"
-  echo "  curl -fsSL https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh | bash" >> "$LOG"
+  echo "  curl -fsSL https://raw.githubusercontent.com/theodoreyong9/public/main/android/backend/bootstrap.sh | bash" >> "$LOG"
 fi
 exit "$code"

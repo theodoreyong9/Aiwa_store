@@ -2,7 +2,7 @@
 # The ONE command a user ever needs to run in Termux, for both the
 # first install and every later update — from wherever they happen to
 # be, e.g. wherever Termux resumed their last session in:
-#   curl -fsSL https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/theodoreyong9/public/main/android/backend/bootstrap.sh | bash
 #
 # Always installs/updates to the SAME fixed location ($HOME/aiwa_store)
 # regardless of the current directory, instead of depending on the user
@@ -14,13 +14,17 @@ set -euo pipefail
 
 REPO_DIR="$HOME/aiwa_store"
 
-if [ -d "$REPO_DIR/.git" ]; then
+# What a phone installs comes from the PUBLIC repository (a copy of the backend that the main repository keeps up to date by itself),
+# so that the main one can be private. An install made from the main repository is replaced by a fresh one (its data lives in $HOME).
+SOURCE="${AIWA_SOURCE:-https://github.com/theodoreyong9/public}"
+if [ -d "$REPO_DIR/.git" ] && [ "$(git -C "$REPO_DIR" remote get-url origin 2>/dev/null)" = "$SOURCE" ]; then
   echo "== Updating the existing install at $REPO_DIR =="
   git -C "$REPO_DIR" pull --ff-only
 else
+  [ -d "$REPO_DIR" ] && echo "== Replacing the install at $REPO_DIR (it now comes from the public repository) ==" && rm -rf "$REPO_DIR"
   echo "== Installing into $REPO_DIR =="
   pkg install -y git
-  git clone --depth 1 https://github.com/theodoreyong9/Aiwa_store "$REPO_DIR"
+  git clone --depth 1 "$SOURCE" "$REPO_DIR"
 fi
 
 # The widget/app's "▶ Démarrer" button needs Termux's own separate

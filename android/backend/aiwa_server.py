@@ -72,7 +72,7 @@ APP_KEEP = 10
 APP_FILE_RE = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?\.(?:app|aiwa)\.html")
 # The repository the Store lives in: an important but OPTIONAL source for what is built in the "store" mode
 # (see _sources_line).
-REFERENCE_REPO = "theodoreyong9/Aiwa_store"
+REFERENCE_REPO = "theodoreyong9/public"
 REFERENCE_RAW = f"https://raw.githubusercontent.com/{REFERENCE_REPO}/main"
 # The mailbox: when the cloud environment blocks the relay, what Claude has to say can still leave the session through GitHub, the one road
 # a session always has (the GitHub proxy), on a repository attached to it: Claude pushes aiwa-out/SIGNAL (and, for an app, the app) to its own
