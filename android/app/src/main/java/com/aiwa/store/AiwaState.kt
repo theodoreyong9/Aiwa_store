@@ -47,7 +47,6 @@ val MODEL_CHOICES = listOf(
 
 // What Claude is asked to produce with the work (the widget's project-type chip, a list).
 val DEPLOY_CHOICES = listOf(
-    ModelChoice("none", "Aucun déploiement"),
     ModelChoice("pages", "Site web — publié avec GitHub Pages"),
     ModelChoice("android", "Application Android — l'APK dans une release GitHub"),
     ModelChoice("store", "Store Aiwa — une app écrite par Claude, que tu essaies puis publies depuis le Store (▦)"),
@@ -56,19 +55,6 @@ val DEPLOY_CHOICES = listOf(
 
 // The two modes that end with an app Claude sends to the phone, to be opened in the Store.
 fun deliversApp(deploy: String) = deploy == "store" || deploy == "aiwa"
-
-// The documents in the list the button next to the mic opens while the "Aiwa" mode is on (id = address): the yellow
-// paper (the protocol's specification), its plain-words version, the two PDFs (the ontology of the sustainable residue, in
-// English, and the 16-slide carousel), the plan of the version, the business model. The PDFs are files of `docs/`: the
-// browser downloads them and offers to open them.
-val DOC_CHOICES = listOf(
-    ModelChoice("https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/YELLOWPAPER.md", "Yellow paper — la spécification du protocole Aiwa"),
-    ModelChoice("https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/EXPLICATION.md", "Aiwa expliqué en mots simples"),
-    ModelChoice("https://github.com/theodoreyong9/Aiwa_store/raw/main/docs/value-ontology.pdf", "Value : une ontologie du résidu durable (PDF, en anglais)"),
-    ModelChoice("https://github.com/theodoreyong9/Aiwa_store/raw/main/docs/AIWA_carousel_16_pages_square_final.pdf", "Carrousel AIWA — 16 slides (PDF)"),
-    ModelChoice("https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/PLAN.md", "Plan de la version 1 (ce qui est fait, ce qui ne l'est pas)"),
-    ModelChoice("https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/BUSINESS.md", "Modèle économique, chiffres et limites"),
-)
 
 fun modelLabel(id: String?): String = MODEL_CHOICES.find { it.id == id }?.label?.substringBefore(" (") ?: id ?: "Auto"
 

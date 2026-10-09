@@ -302,7 +302,7 @@ private fun FullContent(state: AiwaState) {
         else -> { status = "Prêt"; statusColor = subtle }
     }
     val updateRoom = if (state.storeUpdateReady) avatar + 8f else 0f
-    val titleRoom = avail - avatar - 8f - (avatar + 8f) - updateRoom
+    val titleRoom = avail - avatar - 8f - updateRoom
     val title = when {
         needsSetup -> "Autoriser Aiwa ▸"
         state.backend == "missing" -> "Installer le backend ▸"
@@ -355,13 +355,6 @@ private fun FullContent(state: AiwaState) {
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            // The logo (a round PNG with real transparency): opens the app, the Store. The dictation screen is its Dictate tab.
-            Image(
-                provider = ImageProvider(R.drawable.logo_round),
-                contentDescription = "Ouvrir Aiwa",
-                modifier = GlanceModifier.size(avatar.dp).clickable(actionStartActivity<StoreActivity>()),
-            )
-            Spacer(GlanceModifier.width(8.dp))
             Column(
                 modifier = GlanceModifier.defaultWeight().clickable(bandAction),
                 verticalAlignment = Alignment.CenterVertically,
@@ -384,15 +377,12 @@ private fun FullContent(state: AiwaState) {
                     diameter = avatar.dp,
                 )
             }
-            // Always there (it vanished with the list of sessions, and only came back with a first message that went): with a
-            // session it opens that conversation in Claude, without one it opens Claude's Code tab, where a session can be made or found.
+            // The logo (a round PNG with real transparency), on the right: opens the app, the Store.
             Spacer(GlanceModifier.width(8.dp))
-            RoundButton(
-                icon = R.drawable.ic_claude,
-                description = if (state.waiting) "Claude attend une réponse : ouvrir la conversation" else if (hasSession) "Ouvrir la conversation dans Claude" else "Ouvrir Claude",
-                background = if (state.waiting) alertRed else claudeOrange,
-                action = actionStartActivity<OpenClaudeActivity>(),
-                diameter = avatar.dp,
+            Image(
+                provider = ImageProvider(R.drawable.logo_round),
+                contentDescription = "Ouvrir Aiwa",
+                modifier = GlanceModifier.size(avatar.dp).clickable(actionStartActivity<StoreActivity>()),
             )
         }
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
@@ -476,10 +466,6 @@ private fun FullContent(state: AiwaState) {
         }
         // The main action, big: dictate. The grey button with its red recording dot.
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            // In the "Aiwa" mode (an app that is a contract: it has to follow the protocol) the mic makes room, on its right, for ONE
-            // button that opens the list of the documents (DocsPickerActivity): the yellow paper, the plain-words explanation, the
-            // plan, the business model. The "Store" mode (a plain app) has no use for them.
-            val docsMode = state.deploy == "aiwa"
             // Before the mic: what can be said (the voice commands), and the switch of the always-on listening. Green while it listens.
             RoundButton(
                 icon = R.drawable.ic_voice,
@@ -506,16 +492,16 @@ private fun FullContent(state: AiwaState) {
                     Text("Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 }
             }
-            if (docsMode) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(
-                    icon = R.drawable.ic_paper,
-                    description = "Documents : yellow paper, explication, plan, modèle économique",
-                    background = pill,
-                    action = actionStartActivity<DocsPickerActivity>(),
-                    diameter = micH.dp,
-                )
-            }
+            // To the right of the mic. Always there: with a session it opens that conversation in Claude, without one it opens Claude's
+            // Code tab, where a session can be made or found. Red while Claude waits for an answer.
+            Spacer(GlanceModifier.width(GAP.dp))
+            RoundButton(
+                icon = R.drawable.ic_claude,
+                description = if (state.waiting) "Claude attend une réponse : ouvrir la conversation" else if (hasSession) "Ouvrir la conversation dans Claude" else "Ouvrir Claude",
+                background = if (state.waiting) alertRed else claudeOrange,
+                action = actionStartActivity<OpenClaudeActivity>(),
+                diameter = micH.dp,
+            )
         }
     }
 }

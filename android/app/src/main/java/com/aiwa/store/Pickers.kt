@@ -499,7 +499,7 @@ class VoiceHelpActivity : ComponentActivity() {
                 add(PickerEntry("Tout s'applique à « c'est bon vas-y » ; ce qui n'est pas une commande reste du texte pour Claude.", false, lines = 3) { })
 
                 add(PickerEntry("Écoute permanente : les mots de réveil", false, header = true) { })
-                add(PickerEntry("« Mon agent » : il lit les pastilles, puis tu donnes tes instructions. Il relit tout et attend « c'est bon vas-y » avant d'appliquer ou d'envoyer, à chaque fois.", false, lines = 5) { })
+                add(PickerEntry("« Mon agent » : il t'écoute, puis tu donnes tes instructions. Seul un changement de dépôt est relu et attend « c'est bon vas-y » ; le reste part comme tu l'as dit.", false, lines = 5) { })
                 add(PickerEntry("« Instruction » : tu donnes directement tes instructions (même relecture).", false, lines = 3) { })
                 add(PickerEntry("« Stop Claude » ou « arrête Claude » : arrête Claude tout de suite, sans confirmation.", false, lines = 3) { })
             }
@@ -617,30 +617,6 @@ class HealthActivity : ComponentActivity() {
             BackendSync.refresh(bridge)
             AiwaWidget().updateAll(app)
         }
-    }
-}
-
-/**
- * The documents of the "Store" mode (DOC_CHOICES): the round button next to the mic opens this list, one
- * entry opens one document in the browser (the PDFs are files: the browser downloads them and offers to
- * open them). One button and a list rather than one button per document.
- */
-class DocsPickerActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        wakeAiwa(applicationContext)
-        setContent {
-            val entries = buildList {
-                add(PickerEntry("Documents du Store", false, header = true) { })
-                DOC_CHOICES.forEach { doc -> add(PickerEntry(doc.label, false, lines = 3) { open(doc.id) }) }
-            }
-            PickerSheet(entries) { finish() }
-        }
-    }
-
-    private fun open(address: String?) {
-        if (address == null || !openUrl(applicationContext, address)) toastOnMain(this, "Impossible d'ouvrir le navigateur.")
-        finish()
     }
 }
 

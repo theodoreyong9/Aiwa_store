@@ -304,3 +304,6 @@ details.plain > * + * { margin-top: 8px; }
 .codefile pre { margin: 4px 0 0; max-height: 38vh; overflow: auto; padding: 8px; border-radius: 8px; background: rgba(127, 127, 127, 0.12); font-size: 12px; white-space: pre-wrap; word-break: break-word; user-select: text; }
 
 .draft { margin: 6px 0 0; max-height: 34vh; overflow: auto; padding: 8px; border-radius: 8px; background: rgba(127, 127, 127, 0.12); font-size: 12px; white-space: pre-wrap; word-break: break-word; user-select: text; }
+
+.plainlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.plainlist a { font-weight: 600; }

@@ -16,6 +16,9 @@ for (const btn of document.querySelectorAll('#app-nav button[data-view]')) btn.a
 
 $('link-source').href = `https://github.com/${config.repository}`;
 $('link-yellowpaper').href = `https://github.com/${config.repository}/blob/main/docs/YELLOWPAPER.md`;
+for (const link of document.querySelectorAll('#view-papers a[data-doc]')) link.href = `https://github.com/${config.repository}/${link.dataset.doc}`;
+// the video is a file of the repository (docs/aiwa-promo.mp4); it is only fetched when played (preload="none")
+$('papers-video').src = $('papers-video-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-promo.mp4`;
 
 initPublish();
 initStore();

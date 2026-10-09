@@ -213,8 +213,8 @@ Button(onClick={context.startActivity(Intent(context,ClaudeLoginActivity::class.
 }
 Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
 Column(Modifier.weight(1f)){
-Text("Écoute permanente : « mon agent, t'es sur quoi ? »",style=MaterialTheme.typography.titleSmall)
-Text("Le téléphone écoute « mon agent » (il lit où en sont les pastilles, puis tu donnes tes instructions) ou « instruction » (tu les donnes tout de suite), même écran verrouillé. Il relit tout et attend « c'est bon vas-y » avant d'appliquer ou d'envoyer. Tout reste sur le téléphone. Le point vert du micro reste affiché et la batterie baisse plus vite. 41 Mo à télécharger la première fois.",style=MaterialTheme.typography.bodySmall)
+Text("Écoute permanente : « mon agent »",style=MaterialTheme.typography.titleSmall)
+Text("Le téléphone écoute « mon agent » ou « instruction », puis tu donnes tes instructions, même écran verrouillé. Dis « t'en es où » pour qu'il lise les pastilles. Seul un changement de dépôt est relu et attend « c'est bon vas-y ». Tout reste sur le téléphone. Le point vert du micro reste affiché et la batterie baisse plus vite. 41 Mo à télécharger la première fois.",style=MaterialTheme.typography.bodySmall)
 }
 Switch(checked=listening,onCheckedChange={turnListening(it)})
 }
