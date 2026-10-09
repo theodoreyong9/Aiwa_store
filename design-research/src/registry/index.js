@@ -12,7 +12,7 @@ const decode = (s) => (s ?? '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').r
 export const registries = {
   awwwards: {
     award: 'SOTD',
-    listing: (page = 1) => `https://www.awwwards.com/websites/sites_of_the_day/?page=${page}`,
+    listings: (page = 1) => [`https://www.awwwards.com/websites/sites_of_the_day/?page=${page}`],
     projectLinks: (html) => hrefs(html, /href=["'](?:https:\/\/www\.awwwards\.com)?(\/sites\/[a-z0-9][a-z0-9-]*)["']/gi),
     projectUrl: (path) => `https://www.awwwards.com${path}`,
     // the project page links out to the site; the outbound link carries awwwards in its utm parameters
@@ -24,8 +24,9 @@ export const registries = {
   },
   csswinner: {
     award: 'SOTD',
-    listing: (page = 1) => `https://www.csswinner.com/websites/${page > 1 ? `page/${page}/` : ''}`,
-    projectLinks: (html) => hrefs(html, /href=["'](?:https:\/\/www\.csswinner\.com)?(\/(?:website|details)\/[a-z0-9][a-z0-9-]*)\/?["']/gi),
+    // the listing address was a guess that gave a 404: several are tried, and what the first page shows is kept when none works
+    listings: (page = 1) => ['https://www.csswinner.com/websites/', 'https://www.csswinner.com/', 'https://www.csswinner.com/winners/', 'https://www.csswinner.com/website-of-the-day/'].map((u) => (page > 1 ? `${u}page/${page}/` : u)),
+    projectLinks: (html) => hrefs(html, /href=["'](?:https:\/\/www\.csswinner\.com)?(\/(?:website|websites|details|site)\/[a-z0-9][a-z0-9-]*)\/?["']/gi),
     projectUrl: (path) => `https://www.csswinner.com${path}`,
     parseProject(html) {
       const out = hrefs(html, /href=["'](https?:\/\/(?!(?:www\.)?csswinner\.com)[^"']+)["'][^>]*>\s*(?:<[^>]+>\s*)*(?:Visit|Visiter|Launch)/gi)[0];
@@ -43,8 +44,17 @@ export async function discover(name, { limit = 30, pages = 2, fetchFn = fetch, d
   const paths = [];
   for (let page = 1; page <= pages && paths.length < limit; page++) {
     try {
-      const html = await politeFetch(registry.listing(page), { fetchFn, delayMs });
-      for (const p of registry.projectLinks(html)) if (!paths.includes(p)) paths.push(p);
+      let got = 0;
+      for (const url of registry.listings(page)) {
+        try {
+          const html = await politeFetch(url, { fetchFn, delayMs });
+          const links = registry.projectLinks(html);
+          for (const p of links) if (!paths.includes(p)) paths.push(p);
+          if (links.length) { got = links.length; break; }
+          errors.push(`${url}: reachable but no project link; first links: ${hrefs(html, /href=["']([^"'#]+)["']/gi).slice(0, 12).join(' ')}`);
+        } catch (err) { errors.push(String(err.message ?? err)); }
+      }
+      if (!got) break;
     } catch (err) { errors.push(String(err.message ?? err)); break; }
   }
   for (const path of paths.slice(0, limit)) {

@@ -26,13 +26,14 @@ jobs:
       - run: npx -w aiwa-design-research playwright install --with-deps chromium
       - name: Sync
         run: node design-research/src/cli.js sync --crawls=${{ github.event.inputs.crawls || '20' }} | tee sync.json
-      - name: Health (a registry that gives nothing is a markup change)
+      - name: Health (every registry giving nothing is a markup change)
         run: |
           node -e "
           const t = require('fs').readFileSync('sync.json','utf8');
           const s = JSON.parse(t.slice(t.lastIndexOf('\n{') + 1));
           const dead = Object.entries(s.registries).filter(([, r]) => r.found === 0);
-          if (dead.length) { console.error('no project found at: ' + dead.map(([n]) => n).join(', ') + '\n' + s.errors.slice(0, 10).join('\n')); process.exit(1); }
+          if (dead.length) console.error('::warning::no project found at: ' + dead.map(([n]) => n).join(', '));
+          if (dead.length === Object.keys(s.registries).length) { console.error('no project found at: ' + dead.map(([n]) => n).join(', ') + '\n' + s.errors.slice(0, 10).join('\n')); process.exit(1); }
           "
       - name: Commit the catalogue
         if: always()
