@@ -10,6 +10,14 @@ on:
       - 'design-research/**'
       - 'video-kit/**'
       - 'android/backend/**'
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'registry/**'
+      - 'scripts/describe-site.mjs'
+      - 'deployment.json'
+      - 'store/index.json'
+      - 'store/apps/**'
+      - 'store/baselines/**'
       - 'scripts/sync-public.sh'
       - '.github/workflows/sync-public.yml'
   schedule:
@@ -28,6 +36,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The site is built HERE (from the private sources) and only its output goes to the public repository, whose own Pages workflow
+      # publishes it. The registry's public files travel with it, as in the Pages workflow of this repository.
+      - run: npm install
+      - run: npm run build -w aiwa-store-web
+      - run: node scripts/describe-site.mjs apps/web/dist
+      - name: The registry's public files, next to the app
+        run: |
+          mkdir -p apps/web/dist/store
+          cp store/index.json apps/web/dist/store/
+          cp -r store/apps store/baselines apps/web/dist/store/ 2>/dev/null || true
       - name: Copy into the public repository
         env:
           PUBLIC_REPO_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
@@ -38,6 +59,8 @@ jobs:
           fi
           git clone --depth 1 "https://x-access-token:${PUBLIC_REPO_TOKEN}@github.com/${{ github.repository_owner }}/public.git" /tmp/public
           scripts/sync-public.sh /tmp/public
+          rm -rf /tmp/public/site
+          cp -r apps/web/dist /tmp/public/site
           cd /tmp/public
           git config user.name "aiwa-sync"
           git config user.email "aiwa-sync@users.noreply.github.com"
