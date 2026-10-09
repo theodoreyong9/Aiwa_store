@@ -1,16 +1,18 @@
 {
-  "at": "2026-10-09T08:05:00.004Z",
-  "NEW": 29,
+  "at": "2026-10-09T08:23:02.665Z",
+  "NEW": 1,
   "UPDATED": 0,
-  "UNCHANGED": 0,
-  "crawled": 20,
+  "UNCHANGED": 29,
+  "crawled": 10,
   "errors": [
-    "awwwards: https://www.awwwards.com/sites/bleibtgleich26: HTTP 502",
-    "csswinner: https://www.csswinner.com/websites/: HTTP 404"
+    "csswinner: https://www.csswinner.com/websites/: HTTP 404",
+    "csswinner: https://www.csswinner.com/: reachable but no project link; first links: https://cdn.csswinner.com/css/layout.css https://cdn.csswinner.com/images/favicon.ico https://cdn.csswinner.com/images/favicon.png https://cdn.csswinner.com/images/touch-icon-apple.png https://cdn.csswinner.com/images/android-chrome-192x192.png https://cdn.csswinner.com/images/mask-icon.svg https://www.csswinner.com/ https://www.csswinner.com/submitsite https://twitter.com/csswinner https://www.facebook.com/csswinners https://www.pinterest.com/csswinner https://www.csswinner.com/winners",
+    "csswinner: https://www.csswinner.com/winners/: reachable but no project link; first links: https://cdn.csswinner.com/css/layout.css https://cdn.csswinner.com/images/favicon.ico https://cdn.csswinner.com/images/favicon.png https://cdn.csswinner.com/images/touch-icon-apple.png https://cdn.csswinner.com/images/android-chrome-192x192.png https://cdn.csswinner.com/images/mask-icon.svg https://www.csswinner.com/ https://www.csswinner.com/submitsite https://twitter.com/csswinner https://www.facebook.com/csswinners https://www.pinterest.com/csswinner https://www.csswinner.com/winners",
+    "csswinner: https://www.csswinner.com/website-of-the-day/: HTTP 404"
   ],
   "registries": {
     "awwwards": {
-      "found": 29
+      "found": 30
     },
     "csswinner": {
       "found": 0
