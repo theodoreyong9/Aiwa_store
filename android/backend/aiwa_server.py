@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 37
+BACKEND_VERSION = 38
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -877,7 +877,7 @@ def cloud_add(text):
 def _queue_followup(session_id, text):
     """Queues one message into an existing cloud session
     (`claude -p --cloud <id>`). Returns {"ok", "url", "error"}."""
-    command = ["claude", "-p", "--cloud", session_id, "--output-format", "json"]
+    command = ["claude", "-p", *CLOUD_ALLOWED_TOOLS_ARGS, "--cloud", session_id, "--output-format", "json"]
     with followup_lock:
         done = subprocess.run(command, input=text, capture_output=True, text=True, timeout=90)
     output = _clean((done.stdout or "") + (done.stderr or ""))
@@ -903,6 +903,11 @@ def _rename_session(session_id, title):
     except (OSError, subprocess.SubprocessError) as err:
         print(f"[{_ts()}] rename failed: {err}", flush=True)
 
+
+# The tools Aiwa's own instructions ask a session to use: allowed from the start, so that the session does not stop to ask for them (a permission
+# prompt in the Claude conversation, which the widget cannot see and the person has to find). Attaching a repository is all it covers.
+CLOUD_ALLOWED_TOOLS = ["mcp__Claude_Code_Remote__add_repo", "mcp__Claude_Code_Remote__register_repo_root"]
+CLOUD_ALLOWED_TOOLS_ARGS = ["--allowedTools", ",".join(CLOUD_ALLOWED_TOOLS)]
 
 CLI_REPO_LOG = Path.home() / "aiwa_cli_repo_last.log"
 
@@ -1013,7 +1018,7 @@ def cloud_send(text, command=False):
         with lock:
             effort = current_effort
         CLI_DEBUG.unlink(missing_ok=True)
-        command_line = ["claude"] + (["--model", model] if model else []) + (["--effort", effort] if effort else []) + ["--debug-file", str(CLI_DEBUG), "--cloud", task]
+        command_line = ["claude"] + (["--model", model] if model else []) + (["--effort", effort] if effort else []) + CLOUD_ALLOWED_TOOLS_ARGS + ["--debug-file", str(CLI_DEBUG), "--cloud", task]
         # Under `script` the CLI gets a full terminal including a
         # controlling one (a bare pty has none, and a program that opens
         # /dev/tty then fails); without `script` it just gets the pty.

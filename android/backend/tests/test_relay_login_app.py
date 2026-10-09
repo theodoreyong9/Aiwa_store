@@ -1510,3 +1510,13 @@ class HttpTests(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AllowedToolsTests(unittest.TestCase):
+    def test_the_tools_the_instructions_ask_for_are_allowed_from_the_start(self):
+        import aiwa_server as srv
+        args = srv.CLOUD_ALLOWED_TOOLS_ARGS
+        self.assertEqual(args[0], "--allowedTools")
+        self.assertIn("mcp__Claude_Code_Remote__add_repo", args[1].split(","))
+        # only what attaching a repository needs: no other tool of that server, no shell
+        self.assertEqual(set(args[1].split(",")), {"mcp__Claude_Code_Remote__add_repo", "mcp__Claude_Code_Remote__register_repo_root"})
