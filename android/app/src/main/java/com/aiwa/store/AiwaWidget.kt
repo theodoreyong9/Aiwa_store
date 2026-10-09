@@ -323,7 +323,10 @@ private fun FullContent(state: AiwaState) {
     }
 
     // ---- band 2: repository and model, half the width each -----------------
-    val half = (avail - GAP) / 2f - 20f
+    // The push chip sits at the end of this band, as short as it can be ("main" / "branche"); the repository and the model share the rest.
+    val pushText = if (state.pushMain) "main" else "branche"
+    val pushRoom = if (hasRepo) GAP + chipWidth(pushText, fontScale) else 0f
+    val half = (avail - GAP - pushRoom) / 2f - 20f
     val repoName = state.repo?.substringAfter('/')
     // "+2": two more repositories Claude may work on (see the repository picker).
     val extraSuffix = if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""
@@ -343,9 +346,7 @@ private fun FullContent(state: AiwaState) {
     val showCode = showStore
     val showActions = (hasRepo && !storeMode && (publishesFromGithub(state.deploy) || state.ciState != null)) || state.deploy == "aiwa"
     val fixed = (if (showSite) GAP + chipH else 0f) + (if (showStore) GAP + chipH else 0f) + (if (showCode) GAP + chipH else 0f) + (if (showActions) GAP + chipH else 0f) + (if (hasRepo) GAP + chipH else 0f)
-    val each = (avail - fixed - GAP) / 2f - 20f
-    fun pick(full: String, short: String) = if (textWidth(full, fontScale) <= each) full else short
-    val pushText = fitLabel(pick(if (state.pushMain) "Push main" else "Push branche", if (state.pushMain) "main" else "branche"), each, fontScale)
+    val each = avail - fixed - 20f
     val deployText = fitLabel(deployLabel(state.deploy), each, fontScale)
 
     Column(
@@ -398,14 +399,17 @@ private fun FullContent(state: AiwaState) {
             Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, badge = state.repo == null)
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(modelText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<ModelPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
+            if (hasRepo) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                // Green = push straight to the main branch; grey = on a branch. A tap switches.
+                Chip(pushText, if (locked) (if (state.pushMain) GREEN_DIM else PILL_DIM) else if (state.pushMain) green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionRunCallback<TogglePushMainCallback>()), GlanceModifier.width(chipWidth(pushText, fontScale).dp), alignStart = true, height = chipH.dp)
+            }
         }
         // The buttons of this band appear once a repository is chosen. They are
         // instructions integrated into the conversation — Claude Code does the
         // work itself.
         if (hasRepo) {
             Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-                Chip(pushText, if (locked) (if (state.pushMain) GREEN_DIM else PILL_DIM) else if (state.pushMain) green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionRunCallback<TogglePushMainCallback>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
-                Spacer(GlanceModifier.width(GAP.dp))
                 Chip(deployText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else if (state.deploy != "none") green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
                 if (showSite && site != null) {
                     Spacer(GlanceModifier.width(GAP.dp))
