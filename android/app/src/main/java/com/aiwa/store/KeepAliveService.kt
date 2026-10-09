@@ -31,6 +31,7 @@ private const val NOTIFICATION_ID = 1
 // screen): the card below is silent and permanent, and a new one is news.
 private const val APP_CHANNEL_ID = "aiwa_app"
 private const val APP_NOTIFICATION_ID = 2
+private const val ASK_NOTIFICATION_ID = 3
 
 /** What the lock-screen card says, and what a tap on it opens. */
 private data class Card(val title: String, val status: String, val detail: String, val target: Class<*>)
@@ -107,6 +108,7 @@ class KeepAliveService : Service() {
             AiwaRepository.state.collect {
                 publish(cardFor(it), first = false)
                 announceApp(it)
+                announceAsk(it)
                 announceReady(it)
             }
         }
@@ -133,6 +135,7 @@ class KeepAliveService : Service() {
             state.backend == "down" -> "⚠ Backend arrêté — relance en cours"
             loginNeeded -> "⚠ Claude n'est pas connecté — touche pour le connecter"
             state.status == AiwaState.Status.WORKING -> "Envoi en cours…"
+            state.ask != null -> "❓ Claude te pose une question"
             state.waiting -> "● Claude attend ta réponse"
             appReady -> "App prête — touche pour l'ouvrir dans le Store"
             else -> "Prêt"
@@ -146,6 +149,7 @@ class KeepAliveService : Service() {
         }
         val target: Class<*> = when {
             loginNeeded -> ClaudeLoginActivity::class.java
+            state.ask != null -> AskActivity::class.java
             state.waiting && hasSession -> OpenClaudeActivity::class.java
             appReady -> OpenStoreActivity::class.java
             else -> DictateActivity::class.java
@@ -174,6 +178,30 @@ class KeepAliveService : Service() {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .build()
         getSystemService(NotificationManager::class.java).notify(APP_NOTIFICATION_ID, notification)
+    }
+
+    // A question from Claude (not yet answered, not yet announced): a notification that opens the window where it is answered.
+    private fun announceAsk(state: AiwaState) {
+        val manager = getSystemService(NotificationManager::class.java)
+        val ask = state.ask
+        if (ask == null) { manager.cancel(ASK_NOTIFICATION_ID); return }
+        val prefs = getSharedPreferences("aiwa_hints", MODE_PRIVATE)
+        if (prefs.getLong("ask_told", 0L) == ask.ts) return
+        prefs.edit().putLong("ask_told", ask.ts).apply()
+        val tap = PendingIntent.getActivity(
+            this, 2, Intent(this, AskActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val notification = Notification.Builder(this, APP_CHANNEL_ID)
+            .setContentTitle("Claude te pose une question")
+            .setContentText(ask.question)
+            .setStyle(Notification.BigTextStyle().bigText(ask.question))
+            .setSmallIcon(R.drawable.ic_claude)
+            .setContentIntent(tap)
+            .setAutoCancel(true)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .build()
+        manager.notify(ASK_NOTIFICATION_ID, notification)
     }
 
     @Synchronized

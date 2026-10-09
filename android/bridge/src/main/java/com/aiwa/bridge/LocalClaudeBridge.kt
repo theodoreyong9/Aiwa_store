@@ -89,6 +89,10 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             sending = json.optBoolean("sending", false),
             sendingSince = if (json.isNull("sending_since")) null else (json.optDouble("sending_since") * 1000).toLong(),
             sendingNote = json.str("sending_note"),
+            ask = json.optJSONObject("ask")?.let { a ->
+                val choices = a.optJSONArray("options")
+                AskInfo(a.optString("id"), a.optString("question"), if (choices == null) emptyList() else (0 until choices.length()).map { choices.getString(it) }, a.optLong("ts", 0L))
+            },
             sentApp = json.optJSONObject("sent_app")?.let {
                 SentApp(it.optString("name"), it.optInt("size", 0), it.optLong("ts", 0L), it.optBoolean("seen", false), it.str("kind") ?: "code", it.str("github"))
             },
@@ -252,5 +256,28 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
 
     override suspend fun sentAppSeen() = withContext(Dispatchers.IO) {
         requireAccepted(postText("/api/sent-app/seen", ""))
+    }
+
+    // The answer chosen or typed in the widget goes back to the session. The backend sends it like any message, so it can take a while
+    // (and answers "busy" while another message is on its way).
+    override suspend fun askAnswer(id: String, answer: String) = withContext(Dispatchers.IO) {
+        val json = JSONObject(postText("/api/ask/answer", JSONObject().put("id", id).put("answer", answer).toString()))
+        if (!json.optBoolean("ok", false)) {
+            val error = json.optString("error", "la réponse n'est pas partie")
+            if (error == "busy") throw BusyException("a message is already being sent")
+            throw IllegalStateException(error)
+        }
+    }
+
+    override suspend fun videos(): VideoList = withContext(Dispatchers.IO) {
+        val json = JSONObject(getText("/api/videos"))
+        val array = json.optJSONArray("videos")
+        VideoList(
+            json.str("repo"),
+            if (array == null) emptyList() else (0 until array.length()).map {
+                val v = array.getJSONObject(it)
+                VideoItem(v.optString("name"), v.optLong("size", 0L), v.optString("url"), v.optString("ts"))
+            },
+        )
     }
 }

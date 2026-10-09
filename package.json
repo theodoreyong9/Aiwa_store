@@ -9,7 +9,8 @@
     "packages/*",
     "registry",
     "apps/*",
-    "design-research"
+    "design-research",
+    "video-kit"
   ],
   "scripts": {
     "test": "npm test --workspaces --if-present",

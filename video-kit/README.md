@@ -1,0 +1,3 @@
+# video-kit
+
+The tools of `docs/PROMO-VIDEO.md`: render a timeline page frame by frame in Chromium (`src/render.js`), assemble the frames and a soundtrack into an MP4 with ffmpeg (`src/assemble.js`), check the result (`src/qc.js`), a template page that adapts to 9:16, 16:9, 1:1 and 4:5 (`template/timeline.html`), and a placeholder audio bed (`src/audio-bed.py`). `node src/cli.js` runs the three steps. The tests render the template in the four formats, assemble it and check it, and check that the check finds a silent file, black screens, a wrong size, a missing track and an unreadable file (they are skipped, saying so, where ffmpeg is not installed).

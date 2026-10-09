@@ -146,6 +146,15 @@
             android:taskAffinity=""
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize" />
+        <!-- The question Claude asked through the widget (AskActivity.kt) and the promotional videos of the creation (VideosActivity.kt). -->
+        <activity android:name=".AskActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".VideosActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <!-- "État d'Aiwa" (HealthActivity in Pickers.kt), and the widget's Store button
              (OpenStoreActivity.kt: opens the Store's publish sheet with the app Claude sent). -->
         <activity android:name=".HealthActivity" android:exported="false"

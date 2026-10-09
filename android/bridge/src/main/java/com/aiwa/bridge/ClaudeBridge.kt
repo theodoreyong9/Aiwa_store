@@ -12,6 +12,13 @@ data class SiteInfo(val url: String?, val state: String, val kind: String = "sit
 // seen: it was opened in the Store's publish sheet already.
 // github: the address of its code in the repository (aiwa-apps/<name> on Claude's branch), once it is known to be there.
 data class SentApp(val name: String, val size: Int, val ts: Long, val seen: Boolean, val kind: String = "code", val github: String? = null)
+// A question Claude asked through the widget (it never sees the conversation): the question, a few short choices, and an id the answer carries.
+data class AskInfo(val id: String, val question: String, val options: List<String>, val ts: Long)
+
+// A promotional video of the creation: a file of the GitHub release `videos` of its repository (a public repository only: Aiwa asks for no token).
+data class VideoItem(val name: String, val size: Long, val url: String, val ts: String)
+data class VideoList(val repo: String?, val videos: List<VideoItem>)
+
 data class SentAppCode(val name: String, val code: String, val kind: String = "code")
 
 // The `claude auth login` the backend runs for the app. phase: idle / starting / url (the
@@ -58,6 +65,8 @@ data class BackendStatus(
     // allow ntfy.sh): ok / untested / pending / missing.
     val relayCloud: String = "untested",
     val sentApp: SentApp? = null,
+    // The question Claude asked and that is not answered yet, or null.
+    val ask: AskInfo? = null,
     // The backend is working on a message right now (creating a session takes a while). It knows, whatever became of the app that sent it.
     val sending: Boolean = false,
     // When it began (epoch milliseconds), so that the widget can say how long it has lasted.
@@ -132,4 +141,11 @@ interface ClaudeBridge {
     suspend fun sentAppCode(): SentAppCode
 
     suspend fun sentAppSeen()
+
+    // ---- What Claude asks, and the videos of the creation ----
+
+    // Sends the answer to the question `id` to the session, as its next message. Throws with the reason.
+    suspend fun askAnswer(id: String, answer: String) { throw UnsupportedOperationException("askAnswer") }
+
+    suspend fun videos(): VideoList { throw UnsupportedOperationException("videos") }
 }

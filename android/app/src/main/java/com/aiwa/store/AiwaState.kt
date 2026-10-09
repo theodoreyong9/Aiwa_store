@@ -2,6 +2,7 @@ package com.aiwa.store
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.aiwa.bridge.AskInfo
 import com.aiwa.bridge.CloudSessionInfo
 import com.aiwa.bridge.SentApp
 import org.json.JSONArray
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 31
+const val EXPECTED_BACKEND_VERSION = 32
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -122,6 +123,8 @@ data class AiwaState(
     val claudeLogin: String = "unknown",
     val relayCloud: String = "untested",
     val sentApp: SentApp? = null,
+    // A question Claude asked through the widget and that is not answered yet (the widget says so; the window that answers it is AskActivity).
+    val ask: AskInfo? = null,
     // The always-on listening is running right now (WakeWordService): the widget's voice button is green then. Not persisted: a new process starts with it off.
     val listening: Boolean = false,
     // The latest GitHub Actions run of the repository: running / success /

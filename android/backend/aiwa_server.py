@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 31
+BACKEND_VERSION = 32
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -172,6 +172,8 @@ relay_cloud = {"asked": None, "ok": None}
 # The last app Claude sent: {"name", "size", "ts", "seen", "event"}; its source is
 # a file of APP_DIR. And the last relay event handled, to resume after a restart.
 sent_app = None
+# The last question Claude asked through the widget (`Title: aiwa-ask`, or aiwa-out/ask.json): {"id", "question", "options", "ts", "answered"}.
+ask = None
 relay_seen = {"id": None, "time": None}
 # Whether the Pages address of current_repo answers, probed in the background.
 site_lock = threading.Lock()
@@ -202,7 +204,7 @@ followup_lock = threading.Lock()
 
 def _load_state():
     global current_model, current_cloud, current_repo, push_main, deploy_mode, extra
-    global current_effort, waiting_topic, last_cloud, sent_app, last_message_at, repo_access_missing
+    global current_effort, waiting_topic, last_cloud, sent_app, ask, last_message_at, repo_access_missing
     try:
         data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -245,6 +247,11 @@ def _load_state():
     if isinstance(last, dict) and isinstance(last.get("name"), str) and APP_FILE_RE.fullmatch(last["name"]):
         sent_app = {"name": last["name"], "size": int(last.get("size") or 0), "ts": int(last.get("ts") or 0),
                     "seen": last.get("seen") is True, "event": last.get("event") if isinstance(last.get("event"), str) else None}
+    pending = data.get("ask")
+    ask = None
+    if isinstance(pending, dict) and isinstance(pending.get("question"), str) and isinstance(pending.get("id"), str):
+        ask = {"id": pending["id"], "question": pending["question"], "options": [o for o in pending.get("options", []) if isinstance(o, str)][:ASK_OPTIONS],
+               "ts": int(pending.get("ts") or 0), "answered": pending.get("answered") is True}
     handled = data.get("relay_seen")
     if isinstance(handled, dict):
         relay_seen.update(id=handled.get("id") if isinstance(handled.get("id"), str) else None,
@@ -265,7 +272,7 @@ def _save_state():
             "model": current_model, "cloud": current_cloud, "repo": current_repo,
             "push_main": push_main, "deploy": deploy_mode, "extra": extra, "extra_repos": extra_repos, "source_repos": source_repos,
             "effort": current_effort, "topic": waiting_topic, "last_cloud": last_cloud, "ci_seen": ci_seen,
-            "relay_cloud": relay_cloud, "sent_app": sent_app, "relay_seen": relay_seen, "last_message": last_message_at,
+            "relay_cloud": relay_cloud, "sent_app": sent_app, "ask": ask, "relay_seen": relay_seen, "last_message": last_message_at,
             "repo_access_missing": repo_access_missing,
         }), encoding="utf-8")
     except OSError as err:
@@ -474,7 +481,7 @@ def _known_repos():
     return [r for r in known if isinstance(r, str) and github.REPO_RE.fullmatch(r)]
 
 
-_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "game": "jeu"}
+_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "game": "jeu", "ask": "questions", "video": "vidéo"}
 
 
 def _design_line():
@@ -503,6 +510,33 @@ def _game_line():
         "Écris les règles de déconnexion, d'abandon et de reconnexion et teste-les. Ne dis jamais qu'un build, un test ou un déploiement a réussi sans la sortie de son exécution, "
         "ne remplace pas une fonction manquante par une simulation non signalée, n'invente aucune méthode d'un SDK (lis la documentation officielle de la version utilisée), et n'annonce aucune capacité (8 ou 16 joueurs) que tu n'as pas mesurée. "
         "Pour l'interface et la direction visuelle, applique aussi la consigne Design."
+    )
+
+
+def _ask_line(repo, work, topic):
+    """How Claude asks something: through the widget, because the widget never sees what is said in the conversation."""
+    fallback = (
+        f" Si la commande échoue (réseau bloqué), repli : écris le même JSON dans `aiwa-out/ask.json`, puis `echo \"ask $(date +%s)\" > aiwa-out/SIGNAL`, commite les deux sur ta branche {work} "
+        f"et pousse-la (`git push origin {work}`), jamais sur la branche principale."
+        if repo and work else ""
+    )
+    return (
+        "Questions : ne me pose JAMAIS de question dans ta conversation, je ne la vois pas (je ne vois que le widget). Produis toujours quelque chose de concret, "
+        "sur des hypothèses raisonnables que tu me dis en une phrase. Si une décision m'appartient vraiment et change le résultat, envoie-la comme demande : "
+        "`curl -s -m 10 -d '{\"question\":\"…\",\"options\":[\"…\",\"…\"]}' -H 'Title: aiwa-ask' " + f"{NTFY_SERVER}/{topic}" + "` "
+        "(une seule question, de trois à quatre choix courts : je choisis ou j'écris ma réponse dans le widget, et elle te revient comme mon message suivant). "
+        "Ne t'arrête pas pour l'attendre : continue sur ton hypothèse, et ajuste quand ma réponse arrive." + fallback
+    )
+
+
+def _video_line(repo):
+    """The promotional video of a creation: where the standard and the tools are, where the file goes."""
+    return (
+        "Vidéo : si je demande une vidéo promotionnelle de ma création, lis d'abord " + REFERENCE_RAW + "/docs/PROMO-VIDEO.md (le standard) et prends les outils de "
+        + REFERENCE_RAW + "/video-kit/ (rendu image par image avec Chromium, assemblage ffmpeg, contrôle automatique). N'invente aucune statistique, aucun témoignage, aucun résultat : "
+        "tout ce qui est affiché vient de ce que j'ai fourni ou de ce que tu vois dans ma création. Contrôle le MP4 avant de le livrer (durée, résolution, piste audio, images noires, texte coupé). "
+        f"Dépose chaque vidéo comme fichier de la release GitHub `videos` du dépôt {repo} (crée-la si elle n'existe pas ; un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4`), "
+        "avec son script et son rapport de contrôle sous `aiwa-videos/` dans le dépôt, puis dis-moi en une phrase ce qui est fait."
     )
 
 
@@ -692,6 +726,9 @@ def _instruction_lines(repo, work, base, direct, origin=None):
     if repo or deploy in ("store", "aiwa"):
         lines.append(("design", _design_line()))
         lines.append(("game", _game_line()))
+    if repo:
+        lines.append(("video", _video_line(repo)))
+    lines.append(("ask", _ask_line(repo, work, topic)))
     # Mandatory, not a switch: it is how the widget learns that Claude is
     # waiting (the CLI can't read a cloud reply back). A public relay, a
     # random topic; the command is harmless when the network blocks it.
@@ -1554,7 +1591,7 @@ def _mailbox_once(repo, work):
     parts = line.split()
     if len(parts) == 3 and parts[0] == "app" and APP_FILE_RE.fullmatch(parts[1]) and parts[2].isdigit():
         kind, name, moment = "app", parts[1], int(parts[2])
-    elif len(parts) == 2 and parts[0] in ("attend", "check") and parts[1].isdigit():
+    elif len(parts) == 2 and parts[0] in ("attend", "check", "ask") and parts[1].isdigit():
         kind, name, moment = parts[0], "", int(parts[1])
     else:
         return False
@@ -1580,6 +1617,10 @@ def _mailbox_once(repo, work):
         return bool(code.strip())
     with mailbox_lock:
         mailbox["seen"] = (repo, work, line)
+    if kind == "ask":
+        raw = _raw_get(f"{base}/ask.json?t={stamp}", 4000)
+        if raw:
+            _ask_set(raw.decode("utf-8", "replace"), f"github:{repo}@{work}:{moment}")
     if kind == "attend":
         _ping_seen("attend (GitHub)")
     _cloud_check_seen()                       # a signal that came through proves the cloud can say something to the phone
@@ -1678,6 +1719,101 @@ def _sent_app_code():
     return {"ok": True, "name": last["name"], "kind": _app_kind(last["name"]), "code": code}
 
 
+VIDEO_TAG = "videos"
+VIDEO_EXT = (".mp4", ".webm", ".mov")
+video_cache = {"key": None, "items": [], "at": 0.0}
+
+
+def _github_json(url):
+    """A public GitHub API answer (no token: Aiwa never asks for one), or None."""
+    try:
+        request = urllib.request.Request(url, headers={"User-Agent": "aiwa", "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(request, timeout=15) as reply:
+            return json.loads(reply.read(2_000_000))
+    except (OSError, ValueError):
+        return None
+
+
+def _videos_snapshot():
+    """The promotional videos of the session's repository: the files of its GitHub release `videos`, newest first. Only a public repository can say
+    (nothing is read with a token); for a private one the list is empty and the session sends the link."""
+    with lock:
+        session = current_cloud or last_cloud
+        repo = (_session_entry(session) or {}).get("repo") if session else None
+        repo = repo or current_repo
+    if not repo or not github.REPO_RE.fullmatch(repo):
+        return {"repo": None, "videos": []}
+    now = time.time()
+    with lock:
+        if video_cache["key"] == repo and now - video_cache["at"] < 60:
+            return {"repo": repo, "videos": list(video_cache["items"])}
+    release = _github_json(f"https://api.github.com/repos/{repo}/releases/tags/{VIDEO_TAG}")
+    items = []
+    for asset in (release or {}).get("assets", []) if isinstance(release, dict) else []:
+        name = str(asset.get("name") or "")
+        url = str(asset.get("browser_download_url") or "")
+        if name.lower().endswith(VIDEO_EXT) and url.startswith("https://github.com/"):
+            items.append({"name": name, "size": int(asset.get("size") or 0), "url": url, "ts": str(asset.get("updated_at") or "")})
+    items.sort(key=lambda v: v["ts"], reverse=True)
+    with lock:
+        video_cache.update(key=repo, items=items, at=now)
+    return {"repo": repo, "videos": items}
+
+
+ASK_OPTIONS = 6
+ASK_QUESTION_MAX = 600
+ASK_OPTION_MAX = 80
+
+
+def _ask_set(raw, event_id=None):
+    """A question from Claude: JSON {"question": "...", "options": ["...", ...]}. Kept (one at a time; a newer one replaces the older), and
+    shown by the widget until it is answered. The same event twice is one question. True if it was kept."""
+    global ask
+    try:
+        data = json.loads(raw) if isinstance(raw, (str, bytes)) else raw
+    except ValueError:
+        data = None
+    if not isinstance(data, dict) or not isinstance(data.get("question"), str) or not data["question"].strip():
+        print(f"[{_ts()}] ask not kept: not a question", flush=True)
+        return False
+    options = [o.strip()[:ASK_OPTION_MAX] for o in data.get("options", []) if isinstance(o, str) and o.strip()][:ASK_OPTIONS] if isinstance(data.get("options"), list) else []
+    identifier = str(event_id or data.get("id") or hashlib.sha1((data["question"] + str(time.time())).encode()).hexdigest()[:12])
+    with lock:
+        if ask is not None and ask["id"] == identifier:
+            return False
+        ask = {"id": identifier, "question": data["question"].strip()[:ASK_QUESTION_MAX], "options": options, "ts": int(time.time()), "answered": False}
+        _save_state()
+    print(f"[{_ts()}] question from Claude kept ({len(options)} choices)", flush=True)
+    return True
+
+
+def _ask_snapshot():
+    with lock:
+        return {k: ask[k] for k in ("id", "question", "options", "ts")} if ask is not None and not ask["answered"] else None
+
+
+def _ask_answer(body):
+    """The answer typed or chosen in the widget: sent to the session as its next message, with the question it answers."""
+    try:
+        data = json.loads(body)
+    except ValueError:
+        return {"ok": False, "error": "réponse illisible"}
+    text = str(data.get("answer", "")).strip()[:2000] if isinstance(data, dict) else ""
+    with lock:
+        pending = dict(ask) if ask is not None else None
+    if pending is None or pending["answered"] or str(data.get("id")) != pending["id"]:
+        return {"ok": False, "error": "cette question n'est plus d'actualité"}
+    if not text:
+        return {"ok": False, "error": "réponse vide"}
+    result = cloud_send(f"Ma réponse à ta demande « {pending['question']} » : {text}")
+    if result.get("ok"):
+        with lock:
+            if ask is not None and ask["id"] == pending["id"]:
+                ask["answered"] = True
+                _save_state()
+    return result
+
+
 def _sent_app_seen():
     with lock:
         if sent_app:
@@ -1698,6 +1834,9 @@ def _relay_event(event):
     attachment = event.get("attachment")
     attached = str(attachment.get("name") or "") if isinstance(attachment, dict) else ""
     if title == "aiwa-check":
+        _cloud_check_seen()
+    elif title == "aiwa-ask":
+        _ask_set(event.get("message"), event.get("id"))
         _cloud_check_seen()
     elif title == "aiwa-app" or attached.endswith((".app.html", ".aiwa.html")):
         if sent_app is None or sent_app.get("event") != event.get("id"):
@@ -1781,7 +1920,7 @@ class Handler(BaseHTTPRequestHandler):
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "extra": own, "extra_repos": more, "source_repos": inspiration,
                 "waiting": is_waiting, "alert_last": last_ping,
                 "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
-                "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(),
+                "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(), "ask": _ask_snapshot(),
             })
         elif self.path == "/api/cloud/sessions":
             self.reply_json(_load_cloud_sessions())
@@ -1793,6 +1932,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(_login_snapshot())
         elif self.path == "/api/sent-app":
             self.reply_json({"sent_app": _sent_app_snapshot()})
+        elif self.path == "/api/videos":
+            self.reply_json(_videos_snapshot())
         elif self.path == "/api/sent-app/code":
             self.reply_json(_sent_app_code())
         else:
@@ -1916,6 +2057,8 @@ class Handler(BaseHTTPRequestHandler):
                     relay_cloud.update(before)  # nothing was asked after all
                     _save_state()
             self.reply_json({"accepted": sent.get("ok") is True, "reason": sent.get("error")})
+        elif self.path == "/api/ask/answer":
+            self.reply_json(_ask_answer(body))
         elif self.path == "/api/sent-app/seen":
             _sent_app_seen()
             self.reply_json({"accepted": True})

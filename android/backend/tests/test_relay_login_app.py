@@ -582,6 +582,71 @@ class DesignLineTests(Base):
             self.assertEqual(again, "")
 
 
+class AskAndVideoTests(Base):
+    def setUp(self):
+        super().setUp()
+        with srv.lock:
+            srv.ask = None
+
+    def test_a_question_from_claude_reaches_the_widget_and_its_answer_goes_back_to_the_session(self):
+        srv._relay_event({"id": "e1", "time": int(time.time()), "title": "aiwa-ask", "message": json.dumps({"question": "Quelle couleur ?", "options": ["Bleu", "Rouge", "", 3]})})
+        shown = srv._ask_snapshot()
+        self.assertEqual(shown["question"], "Quelle couleur ?")
+        self.assertEqual(shown["options"], ["Bleu", "Rouge"])
+        sent = []
+        with unittest.mock.patch.object(srv, "cloud_send", lambda text, command=False: (sent.append(text), {"ok": True})[1]):
+            self.assertFalse(srv._ask_answer(json.dumps({"id": "other", "answer": "Bleu"}))["ok"], "an answer to another question is refused")
+            self.assertFalse(srv._ask_answer(json.dumps({"id": shown["id"], "answer": "  "}))["ok"])
+            self.assertTrue(srv._ask_answer(json.dumps({"id": shown["id"], "answer": "Bleu"}))["ok"])
+            self.assertFalse(srv._ask_answer(json.dumps({"id": shown["id"], "answer": "Bleu"}))["ok"], "answered once")
+        self.assertEqual(sent, ["Ma réponse à ta demande « Quelle couleur ? » : Bleu"])
+        self.assertIsNone(srv._ask_snapshot())
+
+    def test_a_failed_send_keeps_the_question_so_that_it_can_be_answered_again(self):
+        srv._ask_set(json.dumps({"question": "Oui ou non ?"}), "e2")
+        with unittest.mock.patch.object(srv, "cloud_send", lambda text, command=False: {"ok": False, "error": "busy"}):
+            self.assertFalse(srv._ask_answer(json.dumps({"id": "e2", "answer": "Oui"}))["ok"])
+        self.assertIsNotNone(srv._ask_snapshot())
+
+    def test_what_is_not_a_question_is_not_kept(self):
+        for raw in ("pas du json", "[]", json.dumps({"question": "  "}), json.dumps({"options": ["a"]})):
+            self.assertFalse(srv._ask_set(raw, "x"))
+        self.assertIsNone(srv._ask_snapshot())
+        self.assertTrue(srv._ask_set(json.dumps({"question": "q"}), "same"))
+        self.assertFalse(srv._ask_set(json.dumps({"question": "q"}), "same"), "the same event twice is one question")
+
+    def test_every_session_is_told_to_ask_through_the_widget_and_never_in_the_conversation(self):
+        for repo in (None, "o/r"):
+            text = dict(srv._instruction_lines(repo, "w", "main", True))["ask"]
+            self.assertIn("ne me pose JAMAIS de question dans ta conversation", text)
+            self.assertIn("Title: aiwa-ask", text)
+            self.assertIn("Ne t'arrête pas pour l'attendre", text)
+        self.assertIn("aiwa-out/ask.json", dict(srv._instruction_lines("o/r", "w", "main", True))["ask"])
+
+    def test_the_videos_of_a_repository_are_the_files_of_its_release(self):
+        release = {"assets": [
+            {"name": "demo-9x16.mp4", "size": 10, "browser_download_url": "https://github.com/o/r/releases/download/videos/demo-9x16.mp4", "updated_at": "2026-10-01T00:00:00Z"},
+            {"name": "demo-16x9.mp4", "size": 20, "browser_download_url": "https://github.com/o/r/releases/download/videos/demo-16x9.mp4", "updated_at": "2026-10-02T00:00:00Z"},
+            {"name": "notes.txt", "size": 1, "browser_download_url": "https://github.com/o/r/releases/download/videos/notes.txt", "updated_at": "2026-10-03T00:00:00Z"},
+            {"name": "evil.mp4", "size": 1, "browser_download_url": "https://evil.example/evil.mp4", "updated_at": "2026-10-04T00:00:00Z"},
+        ]}
+        asked = []
+        with unittest.mock.patch.object(srv, "current_repo", "o/r"), unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None), \
+                unittest.mock.patch.object(srv, "_github_json", lambda url: (asked.append(url), release)[1]):
+            srv.video_cache.update(key=None, items=[], at=0.0)
+            got = srv._videos_snapshot()
+            again = srv._videos_snapshot()
+        self.assertEqual([v["name"] for v in got["videos"]], ["demo-16x9.mp4", "demo-9x16.mp4"])
+        self.assertEqual(asked, ["https://api.github.com/repos/o/r/releases/tags/videos"], "one look a minute")
+        self.assertEqual(again, got)
+
+    def test_a_session_on_a_repository_is_told_where_the_videos_go(self):
+        text = dict(srv._instruction_lines("o/r", "w", "main", True))["video"]
+        self.assertIn("release GitHub `videos` du dépôt o/r", text)
+        self.assertIn("N'invente aucune statistique", text)
+        self.assertNotIn("video", dict(srv._instruction_lines(None, None, None, True)))
+
+
 class RelayTests(Base):
     def event(self, message="attend", **over):
         event = {"id": f"id{time.time_ns()}", "time": int(time.time()), "event": "message", "message": message}

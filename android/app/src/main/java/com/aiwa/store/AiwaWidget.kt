@@ -284,6 +284,7 @@ private fun FullContent(state: AiwaState) {
             statusColor = if (refused) warm else fg
             statusBold = refused
         }
+        state.ask != null -> { status = "❓ Claude te pose une question — touche ici"; statusColor = alertText; statusBold = true }
         state.waiting -> { status = "● Claude attend ta réponse"; statusColor = alertText; statusBold = true }
         storeReady -> {
             status = "App prête : touche ▦ pour l'ouvrir dans le Store, </> montre son code"
@@ -314,6 +315,7 @@ private fun FullContent(state: AiwaState) {
         needsSetup -> actionStartActivity<SetupActivity>()
         state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
+        state.ask != null && state.status != AiwaState.Status.WORKING -> actionStartActivity<AskActivity>()
         state.status == AiwaState.Status.ERROR && state.notice != null -> actionStartActivity<MainActivity>()
         state.repoAccessMissing != null && state.repoAccessMissing == state.repo -> actionStartIntent(Intent(Intent.ACTION_VIEW, Uri.parse(state.githubAppUrl ?: "https://github.com/apps/claude/installations/new")))
         state.needsRepo || state.repo == null -> actionStartActivity<RepoPickerActivity>()
@@ -340,7 +342,7 @@ private fun FullContent(state: AiwaState) {
     // repository) has no meaning there, and gives way to a button that shows the code Claude sent.
     val showCode = showStore
     val showActions = (hasRepo && !storeMode && (publishesFromGithub(state.deploy) || state.ciState != null)) || state.deploy == "aiwa"
-    val fixed = (if (showSite) GAP + chipH else 0f) + (if (showStore) GAP + chipH else 0f) + (if (showCode) GAP + chipH else 0f) + (if (showActions) GAP + chipH else 0f)
+    val fixed = (if (showSite) GAP + chipH else 0f) + (if (showStore) GAP + chipH else 0f) + (if (showCode) GAP + chipH else 0f) + (if (showActions) GAP + chipH else 0f) + (if (hasRepo) GAP + chipH else 0f)
     val each = (avail - fixed - GAP) / 2f - 20f
     fun pick(full: String, short: String) = if (textWidth(full, fontScale) <= each) full else short
     val pushText = fitLabel(pick(if (state.pushMain) "Push main" else "Push branche", if (state.pushMain) "main" else "branche"), each, fontScale)
@@ -440,6 +442,15 @@ private fun FullContent(state: AiwaState) {
                         diameter = chipH.dp,
                     )
                 }
+                // The promotional videos of the creation (VideosActivity): list them, or ask Claude for a new one.
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(
+                    icon = R.drawable.ic_video,
+                    description = "Vidéos promotionnelles de la création",
+                    background = pill,
+                    action = actionStartActivity<VideosActivity>(),
+                    diameter = chipH.dp,
+                )
                 if (showActions) {
                     Spacer(GlanceModifier.width(GAP.dp))
                     // The colour is how the last run went: green, red, grey (running or unknown).

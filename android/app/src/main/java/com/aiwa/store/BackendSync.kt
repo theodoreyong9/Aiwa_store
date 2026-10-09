@@ -86,6 +86,7 @@ object BackendSync {
                     claudeLogin = status.claudeLogin,
                     relayCloud = status.relayCloud,
                     sentApp = status.sentApp,
+                    ask = status.ask,
                 )
             }
         }
