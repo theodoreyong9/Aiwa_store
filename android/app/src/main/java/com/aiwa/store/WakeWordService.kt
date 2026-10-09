@@ -41,8 +41,8 @@ object ListenSettings {
 /**
  * Listens for "mon agent" and "instruction" all the time (a foreground service of the microphone type: the phone shows its green microphone dot for as
  * long as it runs), and when one is heard opens a dictation as if the mic of the widget had been touched, with the words that follow read as
- * instructions to Aiwa from the start ("mon agent, t'es sur quoi … modèle Opus, push main … c'est bon vas-y"). "Mon agent" is also the question ("t'es sur quoi ?", or "t'en es où ?"): where
- * things stand is read aloud first. Whatever is said is read back and has to be confirmed, every time (VoiceDictation.confirmAll). Works with the screen locked as long as
+ * instructions to Aiwa from the start ("mon agent, t'es sur quoi … modèle Opus, push main … c'est bon vas-y"). Where things stand is read aloud only when asked
+ * ("t'es sur quoi ?", "t'en es où ?"). Only a change of repository is read back and has to be confirmed (VoiceDictation.confirmRepo). Works with the screen locked as long as
  * Android keeps the service alive.
  *
  * What it is not: it is off until the person turns it on; the speech model runs on the phone (VoskModelStore), nothing is sent anywhere;
@@ -155,14 +155,14 @@ class WakeWordService : Service() {
             }
             return
         }
-        say(if (kind == WakeKind.AGENT) "Je regarde où on en est…" else "Je t'écoute… dis « c'est bon vas-y » pour finir")
-        // Woken by a phrase, nobody is looking at a screen: everything is read back and confirmed, every time. "Mon agent" is also the question
-        // "t'en es où ?": where things stand is read first.
+        say("Je t'écoute… dis « c'est bon vas-y » pour finir")
+        // Woken by a phrase, nobody is looking at a screen, but only a change of REPOSITORY is read back and confirmed (VoiceDictation.confirmRepo):
+        // the rest is applied and sent as said. Where things stand is read only when asked ("t'en es où", "t'es sur quoi"), "mon agent" alone does not.
         dictation = VoiceDictation(
             context = this,
             startInInstructions = true,
-            reportFirst = kind == WakeKind.AGENT,
-            confirmAll = true,
+            reportFirst = false,
+            confirmAll = false,
             onUnderstood = { if (it.isNotBlank()) say(it) },
             onQuestion = { if (!it.isNullOrBlank()) say(it) },
             onFinished = { main.post { dictation = null; listen() } },
