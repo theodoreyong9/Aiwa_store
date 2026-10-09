@@ -53,7 +53,7 @@ export async function discover(name, { limit = 30, pages = 2, fetchFn = fetch, d
           const links = registry.projectLinks(html);
           for (const p of links) if (!paths.includes(p)) paths.push(p);
           if (links.length) { got = links.length; break; }
-          errors.push(`${url}: reachable but no project link; project-looking links: ${hrefs(html, /href=["']((?:https:\/\/www\.csswinner\.com)?\/[^"'#]*[a-z0-9-]{3,}[^"'#]*)["']/gi).filter((h) => !/\.(css|js|png|ico|svg)/.test(h)).slice(0, 30).join(' ')}; page size ${html.length}; title: ${decode(/<title[^>]*>([^<]*)/i.exec(html)?.[1] ?? '')}; ${(html.match(/<a[\s>]/gi) ?? []).length} anchors; sample hrefs: ${hrefs(html, /href=["']([^"']+)["']/gi).slice(0, 15).join(' ')}; text: ${html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 200)}`);
+          errors.push(`${url}: reachable but no project link; project-looking links: ${hrefs(html, /href=["']((?:https:\/\/www\.csswinner\.com)?\/[^"'#]*[a-z0-9-]{3,}[^"'#]*)["']/gi).filter((h) => !/\.(css|js|png|ico|svg)/.test(h)).slice(0, 30).join(' ')}; page size ${html.length}; title: ${decode(/<title[^>]*>([^<]*)/i.exec(html)?.[1] ?? '')}; ${(html.match(/<a[\s>]/gi) ?? []).length} anchors; site paths: ${hrefs(html, /href=["'](?:https?:\/\/www\.csswinner\.com)?(\/[^"'#?]+)["']/gi).slice(0, 70).join(' ')}; text: ${html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 200)}`);
         } catch (err) { errors.push(String(err.message ?? err)); }
       }
       if (!got) break;
