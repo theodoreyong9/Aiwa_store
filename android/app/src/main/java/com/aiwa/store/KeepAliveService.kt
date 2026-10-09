@@ -275,9 +275,9 @@ class KeepAliveService : Service() {
                     lastLaunch = System.currentTimeMillis()
                     startAiwaBackendViaTermux(applicationContext)
                 }
-                // The Store's page: a newer release is looked for each hour, here, so that the widget can say it is ready without the Store being opened.
+                // The Store's page: a newer release is looked for every ten minutes, here, so that it is already downloaded when the Store is opened.
                 val clock = android.os.SystemClock.elapsedRealtime()
-                if (lastSiteCheck == 0L || clock - lastSiteCheck > 60 * 60 * 1000L) {
+                if (lastSiteCheck == 0L || clock - lastSiteCheck > 10 * 60 * 1000L) {
                     lastSiteCheck = clock
                     downloadSiteRelease(applicationContext)
                 }

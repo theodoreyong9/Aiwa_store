@@ -202,15 +202,18 @@ class StoreActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        // Back in front after a release came in while the app was away or open: this is the natural moment to put it in place (the widget has no
+        // button for it any more). The page is reloaded, as at a start.
+        if (AiwaRepository.state.value.storeUpdateReady && SystemClock.elapsedRealtime() - loadedAt >= FRESH_START_MS) applyUpdateNow()
         checkForUpdate()
     }
 
-    // At most once an hour, in the background. The release is downloaded and checked whole; it replaces the page at the next start,
-    // never while this one is running (a page that loads a script later must find the files of its own release).
+    // At most every two minutes, in the background. The release is downloaded and checked whole; it replaces the page at the next start
+    // (or when the app comes back in front), never while this one is being used (a page that loads a script later must find the files of its own release).
     private fun checkForUpdate() {
         val url = siteUrl ?: return
         val now = SystemClock.elapsedRealtime()
-        if (lastUpdateCheck != 0L && now - lastUpdateCheck < 60 * 60 * 1000L) return
+        if (lastUpdateCheck != 0L && now - lastUpdateCheck < 2 * 60 * 1000L) return
         lastUpdateCheck = now
         val have = listOfNotNull(siteStore.latest(), bundled).maxByOrNull { it.createdAt }
         CoroutineScope(Dispatchers.IO).launch {

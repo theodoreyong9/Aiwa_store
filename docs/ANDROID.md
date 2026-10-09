@@ -26,11 +26,11 @@ The download is checked entirely before it is kept (`SiteRelease.kt`, the same c
 4. A release older than the one held, or listing the very same files, is not an update. After the APK itself is updated, a downloaded
    copy older than the page inside it is dropped.
 
-The app looks each time the Store opens (at most once an hour while it stays open), and the widget's service looks every hour on its own, in the
-background; when the release arrives after those first 10 seconds, a round green button appears in the widget next to Claude's (it was a toast,
-gone before it was read): it opens the Store on the new release. The page is the same web app (`apps/web`) as on Pages: the app only keeps its own checked copy, so
+The app looks each time the Store opens or comes back in front (at most every two minutes), and the widget's service looks every ten minutes on its own, in the
+background; a release found later than the first 10 seconds of a start is downloaded and put in place the next time the app comes back in front (the
+page is reloaded then). The page is the same web app (`apps/web`) as on Pages: the app only keeps its own checked copy, so
 that it opens offline and never runs a half-downloaded page. What differs is how soon a new deployment shows: the Pages workflow takes a minute or two,
-then the phone has to fetch it.
+then the phone has to fetch it (within ten minutes, or at once when the app is opened).
 
 **Whose word it is.** There is no signature: what the site publishes is what the phones run, and the site is published by the repository's
 GitHub account, so that account is the key. The page travels over HTTPS and the hashes only keep it whole. If one day the Store holds
