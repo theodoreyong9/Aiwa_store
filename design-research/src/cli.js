@@ -23,7 +23,7 @@ const out = (v) => console.log(typeof v === 'string' ? v : JSON.stringify(v, nul
 
 const usage = `design-research
   bootstrap                  first catalogue: several pages of both registries, then the crawls
-  sync                       recent projects of both registries; visits what is new, failed or stale
+  sync                       recent projects of both registries; visits what is new, failed or stale (--only=csswinner: one registry)
   crawl <url>                visits one site and adds it to the catalogue
   classify <id>              re-runs the analysis on the stored observation
   search "<brief>"           ranked references (--format=site|pwa|apk|contract_ui, --limit=5, --json)
@@ -33,7 +33,7 @@ const usage = `design-research
 async function main() {
   switch (command) {
     case 'bootstrap': return out(keepRun('sync', await sync({ home: HOME, limit: 120, pages: 6, maxCrawls: Number(flags.crawls ?? 60) })));
-    case 'sync': return out(keepRun('sync', await sync({ home: HOME, limit: Number(flags.limit ?? 30), pages: 2, maxCrawls: Number(flags.crawls ?? 20) })));
+    case 'sync': return out(keepRun('sync', await sync({ home: HOME, limit: Number(flags.limit ?? 30), pages: 2, maxCrawls: Number(flags.crawls ?? 20), ...(flags.only ? { registries: String(flags.only).split(',') } : {}) })));
     case 'crawl': { if (!rest[0]) throw new Error('crawl <url>'); const s = await crawlUrl({ home: HOME, url: rest[0] }); return out({ id: s.id, crawl: s.crawl, traits: s.traits, tech: s.tech?.map((t) => `${t.name} (${t.status} ${t.confidence})`), transposable: s.transposable && Object.fromEntries(Object.entries(s.transposable).filter(([, v]) => v?.verdict).map(([k, v]) => [k, v.verdict])) }); }
     case 'classify': { if (!rest[0]) throw new Error('classify <id>'); const s = reclassify(new Catalog(dirs.catalog), rest[0], dirs); return out(s.traits); }
     case 'analyze': return out('Interpretation (art direction, tone, why a reference works) is done by Claude Code from the research pack and its screenshots: run `design-research research "<brief>"`.');
