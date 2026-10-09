@@ -34,6 +34,10 @@ object SendTracker {
  */
 suspend fun sendAndTrack(context: Context, bridge: ClaudeBridge, text: String, toastErrors: Boolean = false): Boolean {
     if (text.isBlank()) return false
+    accessNotice(AiwaRepository.state.value, 1)?.let {
+        if (toastErrors) toastOnMain(context, it)
+        return false
+    }
     if (AiwaRepository.state.value.needsRepo) {
         if (toastErrors) toastOnMain(context, "Choisis d'abord un dépôt (le bouton ⎇ du widget) : chaque session démarre sur un dépôt.")
         return false

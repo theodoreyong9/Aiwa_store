@@ -120,7 +120,8 @@ private val codeAction: Action get() = actionStartActivity<OpenCodeActivity>()
 
 // The mic records; with no repository chosen there is nothing to send to yet, so it opens the repository list instead.
 // The backend is not installed (in Termux): the voice cannot be sent anywhere. The writing screen opens instead, with the steps to install it.
-private fun micAction(needsRepo: Boolean, backendMissing: Boolean): Action = when {
+private fun micAction(needsRepo: Boolean, backendMissing: Boolean, noAccess: Boolean = false): Action = when {
+    noAccess -> actionStartActivity<AccessActivity>()
     backendMissing -> actionStartActivity<MainActivity>()
     needsRepo -> actionStartActivity<RepoPickerActivity>()
     else -> actionStartActivity<DictateActivity>()
@@ -262,6 +263,7 @@ private fun FullContent(state: AiwaState) {
     var statusBold = false
     when {
         needsSetup -> { status = "Touche ici pour autoriser Aiwa (une seule fois)"; statusColor = alertText; statusBold = true }
+        accessNotice(state, 1) != null -> { status = "⚠ Accès réservé — touche ici"; statusColor = alertText; statusBold = true }
         // Not "starting": it is not there. The tap copies the one line that installs it (InstallHelpActivity).
         state.backend == "missing" -> {
             status = if (state.backendMissing == "termux") "⚠ Termux manquant — touche ici" else "⚠ Installation manquante — touche ici"
@@ -305,6 +307,7 @@ private fun FullContent(state: AiwaState) {
     val titleRoom = avail - avatar - 8f - updateRoom
     val title = when {
         needsSetup -> "Autoriser Aiwa ▸"
+        accessNotice(state, 1) != null -> "Accès réservé ▸"
         state.backend == "missing" -> "Installer le backend ▸"
         needsLogin -> "Connecter Claude ▸"
         else -> fitLabel(state.session, titleRoom - textWidth(" ▾", fontScale * 1.25f), fontScale * 1.25f) + " ▾"
@@ -313,6 +316,7 @@ private fun FullContent(state: AiwaState) {
     // What a tap on the name and the status line opens: the fix for what is wrong, else the sessions.
     val bandAction: Action = when {
         needsSetup -> actionStartActivity<SetupActivity>()
+        accessNotice(state, 1) != null -> actionStartActivity<AccessActivity>()
         state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
         state.ask != null && state.status != AiwaState.Status.WORKING -> actionStartActivity<AskActivity>()
@@ -468,7 +472,7 @@ private fun FullContent(state: AiwaState) {
                 modifier = GlanceModifier.defaultWeight().height(micH.dp)
                     .background(if (locked) MIC_DIM else micGrey)
                     .cornerRadius((micH / 2).dp)
-                    .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing"))),
+                    .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -526,6 +530,7 @@ private fun CompactContent(state: AiwaState) {
     val storeReady = storeMode && state.sentApp?.seen == false
     val sessionLabel = when {
         needsSetup -> "Autoriser Aiwa"
+        accessNotice(state, 1) != null -> "Accès réservé"
         state.backend == "missing" -> "⚠ À installer"
         state.backend == "starting" -> "⏳ Démarrage"
         state.backend == "down" -> "⚠ Arrêté"
@@ -563,6 +568,7 @@ private fun CompactContent(state: AiwaState) {
                 sessionText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
                 when {
                     needsSetup -> actionStartActivity<SetupActivity>()
+                    accessNotice(state, 1) != null -> actionStartActivity<AccessActivity>()
                     state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
                     needsLogin -> actionStartActivity<ClaudeLoginActivity>()
                     else -> lockable(locked, actionStartActivity<SessionPickerActivity>())
@@ -582,7 +588,7 @@ private fun CompactContent(state: AiwaState) {
                 modifier = GlanceModifier.size(40.dp)
                     .background(if (locked) MIC_DIM else micGrey)
                     .cornerRadius(20.dp)
-                    .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing"))),
+                    .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
                 contentAlignment = Alignment.Center,
             ) {
                 Image(

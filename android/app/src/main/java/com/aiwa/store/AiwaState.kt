@@ -111,6 +111,10 @@ data class AiwaState(
     val sentApp: SentApp? = null,
     // A question Claude asked through the widget and that is not answered yet (the widget says so; the window that answers it is AskActivity).
     val ask: AskInfo? = null,
+    // Who may use this build (AccessGate): the list is on or off, the level of the signed-in GitHub account (2 everything, 1 Pages and APK, 0 nothing), and its name.
+    val accessEnforced: Boolean = false,
+    val accessLevel: Int = 2,
+    val accessLogin: String? = null,
     // The always-on listening is running right now (WakeWordService): the widget's voice button is green then. Not persisted: a new process starts with it off.
     val listening: Boolean = false,
     // The latest GitHub Actions run of the repository: running / success /

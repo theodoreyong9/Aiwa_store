@@ -632,7 +632,8 @@ class DeployPickerActivity : ComponentActivity() {
             val state by AiwaRepository.state.collectAsState()
             val entries = buildList {
                 add(PickerEntry("Que doit produire Claude ? (dès le prochain message)", false, header = true) { })
-                DEPLOY_CHOICES.forEach { choice ->
+                // Level 1 (AccessGate) has GitHub Pages and the Android APK only.
+                DEPLOY_CHOICES.filter { state.accessLevel >= 2 || !deliversApp(it.id.orEmpty()) }.forEach { choice ->
                     add(PickerEntry(choice.label, choice.id == state.deploy, lines = 3) { pick(choice.id) })
                 }
             }

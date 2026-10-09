@@ -104,6 +104,12 @@ class StoreActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Not for this account (AccessGate): the window that says why, and how to sign in, instead of the Store.
+        if (accessNotice(AiwaRepository.state.value, 2) != null) {
+            startActivity(Intent(this, AccessActivity::class.java))
+            finish()
+            return
+        }
         web = WebView(this)
         web.setBackgroundColor(Color.parseColor("#F3F2FA"))
         val root = FrameLayout(this)

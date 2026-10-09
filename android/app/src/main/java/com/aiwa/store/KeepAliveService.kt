@@ -275,6 +275,8 @@ class KeepAliveService : Service() {
                     lastLaunch = System.currentTimeMillis()
                     startAiwaBackendViaTermux(applicationContext)
                 }
+                // Who may use this build: the list and the account, at most every half hour.
+                AccessGate.refresh(applicationContext)
                 // The Store's page: a newer release is looked for every ten minutes, here, so that it is already downloaded when the Store is opened.
                 val clock = android.os.SystemClock.elapsedRealtime()
                 if (lastSiteCheck == 0L || clock - lastSiteCheck > 10 * 60 * 1000L) {

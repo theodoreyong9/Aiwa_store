@@ -49,6 +49,7 @@ class AiwaApp : Application() {
     override fun onCreate() {
         super.onCreate()
         AiwaRepository.restore(this)
+        AccessGate.load(this)
         wakeAiwa(this)
     }
 }
