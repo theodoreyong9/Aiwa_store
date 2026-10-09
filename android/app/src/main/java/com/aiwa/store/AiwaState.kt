@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 33
+const val EXPECTED_BACKEND_VERSION = 34
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -90,7 +90,7 @@ data class AiwaState(
     val pushMain: Boolean = true,
     // none / pages (GitHub Pages) / android (the APK as a GitHub release) / store (an
     // app for the Store sent to the phone, no GitHub).
-    val deploy: String = "none",
+    val deploy: String = "pages",
     val extra: String = "",
     // Claude pinged the relay: it waits for an answer (the widget shows it).
     // alertAt: epoch seconds of the last ping ever received, null = never.
@@ -206,7 +206,7 @@ object AiwaRepository {
                     repo = text("repo"),
                     extraRepos = json.optJSONArray("extraRepos")?.let { list -> (0 until list.length()).map { list.getString(it) } } ?: emptyList(),
                     pushMain = json.optBoolean("pushMain", true),
-                    deploy = text("deploy") ?: if (json.optBoolean("autodeploy", false)) "pages" else "none",
+                    deploy = text("deploy")?.takeIf { it != "none" } ?: "pages",
                     extra = text("extra") ?: "",
                     siteUrl = text("siteUrl"),
                     siteState = text("siteState") ?: "off",

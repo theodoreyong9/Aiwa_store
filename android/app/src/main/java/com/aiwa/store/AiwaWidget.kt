@@ -301,7 +301,7 @@ private fun FullContent(state: AiwaState) {
         state.repo == null && state.cloudSessionId != null -> { status = "Choisis le dépôt de cette session (⎇)"; statusColor = warm; statusBold = true }
         else -> { status = "Prêt"; statusColor = subtle }
     }
-    val updateRoom = if (state.storeUpdateReady) avatar + 8f else 0f
+    val updateRoom = 0f   // (the Store applies a downloaded update by itself when it opens: no button)
     val titleRoom = avail - avatar - 8f - updateRoom
     val title = when {
         needsSetup -> "Autoriser Aiwa ▸"
@@ -364,17 +364,6 @@ private fun FullContent(state: AiwaState) {
                     statusText,
                     style = TextStyle(color = statusColor, fontSize = 11.sp, fontWeight = if (statusBold) FontWeight.Bold else FontWeight.Normal),
                     maxLines = 1,
-                )
-            }
-            // A newer release of the Store's page is downloaded: this button applies it (it replaces a toast that was gone before it was read).
-            if (state.storeUpdateReady) {
-                Spacer(GlanceModifier.width(8.dp))
-                RoundButton(
-                    icon = R.drawable.ic_update,
-                    description = "Mise à jour du Store prête : touche pour l'appliquer",
-                    background = green,
-                    action = actionStartActivity<UpdateStoreActivity>(),
-                    diameter = avatar.dp,
                 )
             }
             // The logo (a round PNG with real transparency), on the right: opens the app, the Store.
@@ -546,7 +535,7 @@ private fun CompactContent(state: AiwaState) {
     }
     val modelText = modelLabel(state.model).replace(" · ", "·").take(12) + " ▾"
     val pillText = "● Claude ↗"
-    val updateRoom = if (state.storeUpdateReady) 36f + GAP else 0f
+    val updateRoom = 0f
     val fixedLeft = 36f + 36f + 40f + chipWidth(modelText, fontScale) + 4 * GAP + updateRoom // A, the voice button, mic, model, the update button when there is one, and the gaps before them
     // Claude waiting gets its words when there is room for them next to a
     // readable session name; otherwise it stays a round button, still red.
@@ -604,16 +593,6 @@ private fun CompactContent(state: AiwaState) {
             }
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(modelText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<ModelPickerActivity>()))
-            if (state.storeUpdateReady) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(
-                    icon = R.drawable.ic_update,
-                    description = "Mise à jour du Store prête : touche pour l'appliquer",
-                    background = green,
-                    action = actionStartActivity<UpdateStoreActivity>(),
-                    diameter = 36.dp,
-                )
-            }
             // Always there: with a session it opens that conversation, without one Claude's Code tab. Red while Claude waits for
             // an answer (it pinged the relay): the alert is this button and the
             // card's edge, not a notification.

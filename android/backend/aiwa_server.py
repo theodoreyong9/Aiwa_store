@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 33
+BACKEND_VERSION = 34
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -141,7 +141,7 @@ cloud_progress = ""          # what the running send is doing right now (a step 
 current_repo = None
 push_main = True
 DEPLOY_MODES = ("none", "pages", "android", "store", "aiwa")
-deploy_mode = "none"
+deploy_mode = "pages"
 # Other repositories Claude may ALSO work on (checked in the widget's picker):
 # told to it in the instructions; the platform decides whether it can reach them.
 extra_repos = []
@@ -222,7 +222,8 @@ def _load_state():
     push_main = data.get("push_main") is not False
     mode = data.get("deploy")
     # Older state files only knew a yes/no: yes was GitHub Pages.
-    deploy_mode = mode if mode in DEPLOY_MODES else ("pages" if data.get("autodeploy") is True else "none")
+    # "none" is no longer offered (the default is GitHub Pages): a state saved with it becomes Pages.
+    deploy_mode = mode if mode in DEPLOY_MODES and mode != "none" else "pages"
     sources = data.get("source_repos")
     source_repos[:] = [r for r in sources if isinstance(r, str) and github.REPO_RE.fullmatch(r)][:SOURCE_REPOS_MAX] if isinstance(sources, list) else []
     listed = data.get("extra_repos")
