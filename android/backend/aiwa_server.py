@@ -49,7 +49,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 34
+BACKEND_VERSION = 35
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -596,12 +596,13 @@ def _instruction_lines(repo, work, base, direct, origin=None):
                 f"Dépôt : {repo}. {began} de ce message c'est sur {repo} que tu travailles (la conversation continue, seul le dépôt change). "
                 f"Rattache-le avec l'outil `add_repo` (accès `push`) s'il n'est pas déjà attaché à ta session, et fais-y tout ce que les consignes ci-dessous disent d'un dépôt : "
                 f"branche, push, déploiement, vérification, signaux. Ne modifie plus {origin or 'les autres dépôts'} sauf si je te le demande. "
-                "Sans cet outil, ou si l'accès est refusé, dis-le-moi et arrête-toi."
+                f"Sans cet outil, ou si l'accès est refusé, réponds en UNE phrase : « Claude n'a pas accès à {repo} : sur github.com/settings/installations, ouvre Claude, choisis All repositories, enregistre. » Puis arrête-toi."
             )
         else:
             text = (
                 f"Dépôt : {repo}. Ton répertoire de travail doit être ce dépôt GitHub (vérifie `git remote -v`) ; si ce n'est pas le cas, dis-le-moi et arrête-toi. "
-                "Si le répertoire ne contient qu'un commit « stub » (le dépôt n'a pas été cloné), rattache le dépôt avec l'outil `add_repo` ; sans cet outil, ou si l'accès est refusé, dis-le-moi et arrête-toi."
+                "Si le répertoire ne contient qu'un commit « stub » (le dépôt n'a pas été cloné), rattache le dépôt avec l'outil `add_repo` ; sans cet outil, ou si l'accès est refusé, "
+                f"réponds en UNE phrase, sans rien construire ni proposer d'autre repli : « Claude n'a pas accès à {repo} : sur github.com/settings/installations, ouvre Claude, choisis All repositories, enregistre, puis relance une session. » Puis arrête-toi."
             )
         if more:
             text += (
@@ -1014,7 +1015,7 @@ def cloud_send(text, command=False):
         if repo and found and verdict == "no_app":
             github_error = (
                 f"Claude n'a pas accès à {repo} : son app GitHub n'y est pas installée, donc la session est partie avec un dossier vide. "
-                "Installe-la sur ce dépôt, ou une fois pour tous (« All repositories »)."
+                "Une fois pour tous tes dépôts, présents et futurs : github.com/settings/installations, Claude, All repositories, Enregistrer."
             )
             with lock:
                 repo_access_missing = repo

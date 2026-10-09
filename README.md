@@ -99,6 +99,7 @@ The widget talks to Claude Code, which runs in **Termux** on the same phone. You
 3. On the home screen: press and hold → **Widgets** → **Aiwa Store** → drag the 4×2 widget. Android opens a short setup: allow Aiwa to run
    Termux commands, and notifications.
 4. Tap **Connecter Claude** on the widget and log in with your Claude account (a page opens, the code goes back into the same window).
+   Claude reaches your repositories through its GitHub app: on github.com/settings/installations, open **Claude** and choose **All repositories** once. Then every repository you make later works without any setting; with only some repositories chosen, a new one starts an empty session and the widget says Claude has no access to it.
 5. Tap **Dicter un message** and say what the app should do. When Claude has written it, press **▦** on the widget: the Store opens its publish sheet.
 
 The widget's logo opens the app. The Store has no Dictate tab: dictating is what the widget is for.
