@@ -1,5 +1,16 @@
 # Aiwa Store
 
+<p align="center">
+  <a href="https://github.com/theodoreyong9/Aiwa_store/actions/workflows/ci.yml"><img src="https://github.com/theodoreyong9/Aiwa_store/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/theodoreyong9/Aiwa_store/actions/workflows/android.yml"><img src="https://github.com/theodoreyong9/Aiwa_store/actions/workflows/android.yml/badge.svg" alt="Android build"></a>
+  <a href="https://github.com/theodoreyong9/Aiwa_store/actions/workflows/pages.yml"><img src="https://github.com/theodoreyong9/Aiwa_store/actions/workflows/pages.yml/badge.svg" alt="Pages"></a>
+  <a href="https://github.com/theodoreyong9/Aiwa_store/actions/workflows/registry.yml"><img src="https://github.com/theodoreyong9/Aiwa_store/actions/workflows/registry.yml/badge.svg" alt="Registry"></a>
+  <a href="https://github.com/theodoreyong9/Aiwa_store/blob/main/LICENSE"><img src="https://img.shields.io/github/license/theodoreyong9/Aiwa_store" alt="License: MIT"></a>
+  <a href="https://github.com/theodoreyong9/Aiwa_store/releases/tag/android-latest"><img src="https://img.shields.io/github/downloads/theodoreyong9/Aiwa_store/android-latest/total?label=APK%20downloads&logo=android" alt="APK downloads"></a>
+  <a href="https://theodoreyong9.github.io/Aiwa_store/"><img src="https://img.shields.io/badge/demo-GitHub%20Pages-2e7d5a" alt="Demo"></a>
+  <img src="https://img.shields.io/badge/status-beta-orange" alt="Status: beta">
+</p>
+
 **A distributed app ecosystem in your pocket: build an app by talking to it, publish it in one tap, get ranked by the work behind it, and pay people directly. No server of ours, no shared ledger.**
 
 <p align="center">
