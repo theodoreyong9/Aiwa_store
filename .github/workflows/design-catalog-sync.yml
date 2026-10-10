@@ -9,6 +9,12 @@ on:
       crawls:
         description: 'Visits at most'
         default: '20'
+      pages:
+        description: 'Listing pages read per registry (2 = the recent ones; more goes back in time, politely: 1.5 s between requests)'
+        default: '2'
+      limit:
+        description: 'Projects kept per registry'
+        default: '30'
       only:
         description: 'One registry only (awwwards or csswinner); empty = both'
         default: ''
@@ -28,7 +34,7 @@ jobs:
       - run: npm install
       - run: npx -w aiwa-design-research playwright install --with-deps chromium
       - name: Sync
-        run: node design-research/src/cli.js sync --crawls=${{ github.event.inputs.crawls || '20' }} ${{ github.event.inputs.only && format('--only={0}', github.event.inputs.only) || '' }} | tee sync.json
+        run: node design-research/src/cli.js sync --crawls=${{ github.event.inputs.crawls || '20' }} --pages=${{ github.event.inputs.pages || '2' }} --limit=${{ github.event.inputs.limit || '30' }} ${{ github.event.inputs.only && format('--only={0}', github.event.inputs.only) || '' }} | tee sync.json
       - name: Health (every registry giving nothing is a markup change)
         run: |
           node -e "

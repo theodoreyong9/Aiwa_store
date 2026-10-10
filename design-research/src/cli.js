@@ -33,7 +33,7 @@ const usage = `design-research
 async function main() {
   switch (command) {
     case 'bootstrap': return out(keepRun('sync', await sync({ home: HOME, limit: 120, pages: 6, maxCrawls: Number(flags.crawls ?? 60) })));
-    case 'sync': return out(keepRun('sync', await sync({ home: HOME, limit: Number(flags.limit ?? 30), pages: 2, maxCrawls: Number(flags.crawls ?? 20), ...(flags.only ? { registries: String(flags.only).split(',') } : {}) })));
+    case 'sync': return out(keepRun('sync', await sync({ home: HOME, limit: Number(flags.limit ?? 30), pages: Number(flags.pages ?? 2), maxCrawls: Number(flags.crawls ?? 20), ...(flags.only ? { registries: String(flags.only).split(',') } : {}) })));
     case 'crawl': { if (!rest[0]) throw new Error('crawl <url>'); const s = await crawlUrl({ home: HOME, url: rest[0] }); return out({ id: s.id, crawl: s.crawl, traits: s.traits, tech: s.tech?.map((t) => `${t.name} (${t.status} ${t.confidence})`), transposable: s.transposable && Object.fromEntries(Object.entries(s.transposable).filter(([, v]) => v?.verdict).map(([k, v]) => [k, v.verdict])) }); }
     case 'classify': { if (!rest[0]) throw new Error('classify <id>'); const s = reclassify(new Catalog(dirs.catalog), rest[0], dirs); return out(s.traits); }
     case 'analyze': return out('Interpretation (art direction, tone, why a reference works) is done by Claude Code from the research pack and its screenshots: run `design-research research "<brief>"`.');
