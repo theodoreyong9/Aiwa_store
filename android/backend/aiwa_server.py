@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 47
+BACKEND_VERSION = 48
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -484,7 +484,7 @@ def _known_repos():
     return [r for r in known if isinstance(r, str) and github.REPO_RE.fullmatch(r)]
 
 
-_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "game": "jeu", "ask": "questions", "video": "vidéo"}
+_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "creative": "direction créative", "game": "jeu", "ask": "questions", "video": "vidéo"}
 
 
 def _design_line():
@@ -496,7 +496,7 @@ def _design_line():
         f"`DR_CATALOG_URL={REFERENCE_RAW}/design-research/catalog DR_SHOTS_URL={REFERENCE_RAW}/design-research/screenshots "
         "node /tmp/aiwa-ref/design-research/src/cli.js research \"<ma demande en une phrase>\" --format=<site|pwa|apk|contract_ui>`. "
         "Lis ensuite `.research/latest/synthesis.md`, `references.json` et les captures. Les traits sont des mesures ; l'ambiance, le ton et pourquoi une référence marche, "
-        "c'est à toi de les juger en regardant les captures. Retiens les motifs que PLUSIEURS références partagent, respecte ce que le format peut porter (`transposable_to_format`), "
+        "c'est à toi de les juger en regardant les captures. Retiens ce que PLUSIEURS références partagent pour les fondamentaux (lisibilité, structure, performance) et prends le risque ailleurs ; respecte ce que le format peut porter (`transposable_to_format`), "
         "et ne recopie ni l'identité, ni la mise en page, ni le contenu, ni les assets, ni l'implémentation distinctive d'un site. "
         "Une fois l'interface construite, ouvre-la dans Chromium avec Playwright (`npx playwright install chromium` si besoin) en 390 px et en 1440 px, regarde les captures, et corrige les débordements, "
         "les contrastes faibles, les textes coupés, les images cassées et les erreurs de console avant de me dire que c'est fini. "
@@ -542,7 +542,13 @@ def _video_line(repo):
     return (
         "Vidéo : si je demande une vidéo promotionnelle de ma création, lis d'abord " + REFERENCE_RAW + "/docs/PROMO-VIDEO.md (le standard) et prends les outils de "
         + REFERENCE_RAW + "/video-kit/ (rendu image par image avec Chromium, assemblage ffmpeg, contrôle automatique). N'invente aucune statistique, aucun témoignage, aucun résultat : "
-        "tout ce qui est affiché vient de ce que j'ai fourni ou de ce que tu vois dans ma création. Contrôle le MP4 avant de le livrer (durée, résolution, piste audio, images noires, texte coupé). "
+        "tout ce qui est affiché vient de ce que j'ai fourni ou de ce que tu vois dans ma création. "
+        "Une vidéo n'est PAS un diaporama : aucune capture ne reste posée au centre avec un titre au-dessus. Chaque scène bouge : texte qui s'anime (mot par mot, par masque, en mouvement), "
+        "captures recadrées en gros plan, zoom ou panoramique lent, vraie page qui défile (enregistre-la en mouvement avec Playwright plutôt que de la photographier), éléments qui entrent et sortent sur le tempo. "
+        "Une coupe ou un changement tous les 1,5 à 3 secondes, une accroche qui capte dans les 2 premières secondes, une seule direction artistique, et un son pensé (un rythme avec des accents sur les coupes, pas une nappe continue). "
+        "Quand il y a peu de matière (une page presque vide), fabrique de la matière avec ce que la création fait : l'animer, la zoomer, en isoler un détail, en faire un graphisme ; n'étire pas du vide. "
+        "Avant de livrer, extrais au moins 8 images à intervalles réguliers (`ffmpeg -i video.mp4 -vf fps=1/3 f%02d.png`), regarde-les, et dis-moi franchement si cela ressemble à un diaporama ; si oui, refais-la. "
+        "Contrôle aussi le MP4 (durée, résolution, piste audio, images noires, texte coupé). "
         f"Dépose chaque vidéo comme fichier de la release GitHub `videos` du dépôt {repo} (crée-la si elle n'existe pas ; un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4`), "
         "avec son script et son rapport de contrôle sous `aiwa-videos/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
         "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg`, `npx playwright install chromium`, `gh release create` ou l'API GitHub avec le jeton de l'environnement) "
@@ -579,6 +585,22 @@ def _mailbox_signal(kind, work):
     return (
         f"`mkdir -p aiwa-out && echo \"{kind} $(date +%s)\" > aiwa-out/SIGNAL`, commite ce fichier sur ta branche {work} et pousse-la "
         f"(`git push origin {work}`), jamais sur la branche principale"
+    )
+
+
+def _creative_line():
+    """The creative bar: what separates a page nobody remembers from one people show to others. The design line says how to look at references
+    and how to check; this one says how far to go."""
+    return (
+        "Direction créative : une page n'est pas un modèle à remplir. Avant de coder, écris en UNE phrase le concept (une idée, pas un style : « une page qui se comporte comme… »), "
+        "choisis UN élément signature qu'on retient (un geste visuel, une interaction, une mise en scène du texte) et une typographie marquée (pas la police système par défaut), "
+        "et écris du contenu précis et vivant : jamais de formules génériques (« simple, sobre, rapide », « moderne et accessible ») qui conviendraient à n'importe quelle page. "
+        "Quand ma demande est vague (pas de sujet, pas d'ambiance), n'en conclus pas qu'il faut rester sobre : « simple » décrit l'usage, pas l'ambition visuelle ; "
+        "fais une proposition audacieuse, dis-moi en une phrase l'hypothèse que tu as prise, et je corrigerai. "
+        "Fabrique toi-même les visuels par le code (SVG, canvas, WebGL, dégradés, formes animées) plutôt que de laisser des vides ou de n'utiliser que du texte et des cartes, "
+        "et mets du mouvement qui a un sens (entrée en scène, réaction au défilement et au survol, transitions), en respectant `prefers-reduced-motion`. "
+        "Le catalogue de références montre ce qui se fait à ce niveau (WebGL, GSAP, défilement piloté, transitions de vue) : prends ce que le format porte. "
+        "Avant de me rendre la page, demande-toi : serait-elle interchangeable avec un modèle de page trouvé en ligne ? Si oui, recommence avec une idée plus forte."
     )
 
 
@@ -743,6 +765,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
         lines.append(("sources", _sources_line()))
     if repo or deploy in ("store", "aiwa"):
         lines.append(("design", _design_line()))
+        lines.append(("creative", _creative_line()))
         lines.append(("game", _game_line()))
     if repo:
         lines.append(("video", _video_line(repo)))

@@ -1594,6 +1594,28 @@ class DefaultBranchTests(unittest.TestCase):
         self.assertIn("Ne me demande jamais de changer un réglage du dépôt", text)
 
 
+class CreativeBarTests(unittest.TestCase):
+    def test_a_session_with_a_repository_is_told_how_far_to_go_creatively(self):
+        lines = dict(srv._instruction_lines("o/r", "w", "main", True))
+        text = lines["creative"]
+        for wanted in ("UN élément signature", "typographie marquée", "« simple » décrit l'usage, pas l'ambition visuelle", "interchangeable", "prefers-reduced-motion"):
+            self.assertIn(wanted, text)
+        self.assertIn("pour les fondamentaux", lines["design"], "the shared patterns are for the basics only, the risk is taken elsewhere")
+        self.assertIn("creative", srv._INSTRUCTION_LABELS)
+
+    def test_the_creative_line_follows_the_design_line_without_a_repository_for_store_apps(self):
+        srv.deploy_mode = "store"
+        try:
+            self.assertIn("creative", dict(srv._instruction_lines(None, None, None, True)))
+        finally:
+            srv.deploy_mode = "none"
+
+    def test_the_video_instruction_forbids_the_slideshow(self):
+        text = dict(srv._instruction_lines("o/r", "w", "main", True))["video"]
+        for wanted in ("n'est PAS un diaporama", "zoom ou panoramique", "1,5 à 3 secondes", "au moins 8 images", "fabrique de la matière"):
+            self.assertIn(wanted, text)
+
+
 class PagesHintTests(unittest.TestCase):
     def test_a_branch_the_environment_refuses_is_said_with_its_steps_and_its_page(self):
         import aiwa_github as gh

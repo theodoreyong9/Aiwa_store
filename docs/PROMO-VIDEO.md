@@ -22,6 +22,16 @@ Scenes, in order. Each has an identifier, a planned duration, a narrative goal, 
 
 Several concepts only when that brings a real value (problem then solution, product demonstration, a benefit, an application walk-through, a cinematic presentation, an offer and a call to action); say which one is chosen and why.
 
+## 3b. Motion and ambition: a video is not a slideshow
+
+The rules above keep a video honest; this section keeps it worth watching. A screenshot laid in the middle of a dark frame with a title above it is a slide, not a video, and a page that has little content does not excuse it.
+
+- **Every scene moves.** Text is animated (word by word, by mask, in motion); captures are cropped in close, zoomed or panned slowly; a real page scrolls (record it in motion with Playwright instead of photographing it); elements enter and leave on the beat.
+- **Pace.** A cut or a visible change every 1.5 to 3 seconds. A hook in the first 2 seconds that holds the attention. One art direction (the rule above) is not a reason for one static composition.
+- **Little material.** When the creation is nearly empty, make material out of what it does: animate it, zoom on a detail, turn it into a graphic. Do not stretch emptiness.
+- **Sound is designed.** A rhythm with accents on the cuts (the bed of `audio-bed.py` is a placeholder), not a continuous pad; a licensed track when there is one.
+- **The honest look.** Before delivering, extract at least 8 frames at regular intervals (`ffmpeg -i video.mp4 -vf fps=1/3 f%02d.png`), look at them, and say plainly whether it looks like a slideshow. If it does, redo it. The automatic check cannot tell: it reads the file, not the idea.
+
 ## 4. Formats
 
 | Format | Size | For |
