@@ -20,7 +20,7 @@ const LOOK = `<div class="v" style="width:1000px;height:640px"><div id="vs" styl
 <rect id="vring" x="-70" y="-190" width="140" height="270" rx="30" fill="none" stroke="${TEA}" stroke-width="3" opacity="0" transform="translate(560,400)"/></svg>
 <div id="chip" style="position:absolute;width:420px;border-radius:26px;background:#14141ee0;border:2px solid ${TEA};padding:18px 22px;opacity:0;box-sizing:border-box;box-shadow:0 20px 60px rgba(0,0,0,.6)">
 <div style="font-size:42px;font-weight:800">Léa</div><div style="font-size:29px;color:#a4a4bc;margin-top:4px">échecs · design · créations</div><div style="font-size:27px;color:${TEA};margin-top:10px;font-weight:700">visible : elle l'a choisi</div></div></div>
-<div class="tag">Illustration de la vision</div></div>`;
+<div style="position:absolute;left:0;top:-14px;right:0;bottom:-14px;border:3px solid rgba(255,255,255,.22);border-radius:80px;pointer-events:none"></div><div style="position:absolute;right:30px;bottom:-4px;font-size:22px;letter-spacing:3px;color:#26c6b0">VUE DES LUNETTES</div><div class="tag">Illustration de la vision</div></div>`;
 function lookTick(root, t, M) {
   const $ = (id) => root.querySelector('#' + id);
   const walk = 560 + 70 * Math.sin(t * 0.8), head = -50 * Math.sin(t * 0.55 + 0.3);   // the person walks, the viewer's head turns
@@ -60,10 +60,6 @@ function playTick(root, t, M) {
   $('inv').style.transform = `scale(${t > 2.0 && t < 2.6 ? 0.94 : 1})`;
   const b = M.prog(t, 3.2, 0.7, M.ease.outBack); $('bd').style.opacity = M.clamp(b); $('bd').style.transform = `scale(${0.7 + 0.3 * Math.min(1, b)})`; $('pcs').style.opacity = M.clamp(b); $('pcs').style.transform = `scale(${0.7 + 0.3 * Math.min(1, b)})`;
 }
-// ---- the five layers -----------------------------------------------------------------------------------------------------------------
-const LAYERS = [['Dispositif optique', 'identifie et localise les lunettes', VIO], ['Lunettes', 'voient, suivent, affichent', TEA], ['Téléphone', 'relaie, calcule, protège', ORA], ['Réseau social', 'identités, autorisations, relations', GRN], ['SDK ouvert', 'des expériences créées par des tiers', '#f0f0f5']];
-const STACK = `<div class="v" style="width:1000px;height:730px">${LAYERS.map(([n, s, c], i) => `<div class="row" id="ly${i}" style="top:${i * 148}px;border-left:12px solid ${c}"><div class="dot" style="background:${c}">${i + 1}</div><div><b>${n}</b><br><span>${s}</span></div></div>`).join('')}</div>`;
-function stackTick(root, t, M) { LAYERS.forEach((_, i) => { const el = root.querySelector('#ly' + i), p = M.prog(t, 0.3 + i * 0.7, 0.6, M.ease.outBack); el.style.opacity = M.clamp(p); el.style.transform = `translateX(${(1 - Math.min(1, p)) * 110}px)`; }); }
 // ---- the hard problem, and the targets to prove ---------------------------------------------------------------------------------
 const TARGETS = [['< 5°', 'erreur de direction'], ['< 100 ms', 'mise à jour'], ['1 à 3 m', 'portée visée']];
 const HARD = `<div class="v" style="width:1000px;height:560px">${TARGETS.map(([v, l], i) => `<div class="row" id="tg${i}" style="top:${i * 140}px;height:120px;justify-content:space-between"><b style="font-size:76px;color:${i === 0 ? TEA : '#f0f0f5'}">${v}</b><span>${l}</span></div>`).join('')}<div class="tag" id="tgn" style="bottom:20px;font-size:25px;letter-spacing:2px">objectifs à prouver — pas des résultats</div></div>`;
@@ -83,16 +79,69 @@ const PARTNERS = [['Photonique et capteurs', VIO], ['Systèmes embarqués', TEA]
 const PEOPLE = `<div class="v" style="width:1000px;height:640px">${PARTNERS.map(([n, c], i) => `<div class="pill" id="pp${i}" style="left:${(i % 2) * 505}px;top:${(i >> 1) * 150}px;width:495px;height:124px;font-size:38px;border-color:${c};white-space:normal;text-align:center;padding:0 26px;line-height:1.15">${n}</div>`).join('')}</div>`;
 function peopleTick(root, t, M) { PARTNERS.forEach((_, i) => { const el = root.querySelector('#pp' + i), p = M.prog(t, 0.5 + i * 0.28, 0.5, M.ease.outBack); el.style.opacity = M.clamp(p); el.style.transform = `scale(${0.85 + 0.15 * Math.min(1, p)})`; }); }
 
+
+// ---- the glasses: an optical signal that says who is here ------------------------------------------------------------------------------
+const rim = (x, y) => `<rect class="gd" x="${x}" y="${y}" width="150" height="112" rx="46" fill="none" stroke="#f0f0f5" stroke-width="7"/>`;
+const GLASSES = `<div class="v" style="width:1000px;height:560px"><svg viewBox="0 0 1000 560" width="1000" height="560" style="overflow:visible">
+<g id="gA">${rim(80, 210)}${rim(270, 210)}<path class="gd" d="M230 250 Q250 232 270 250" fill="none" stroke="#f0f0f5" stroke-width="7"/><path class="gd" d="M80 240 L26 226" fill="none" stroke="#f0f0f5" stroke-width="7" stroke-linecap="round"/><path class="gd" d="M420 240 L470 226" fill="none" stroke="#f0f0f5" stroke-width="7" stroke-linecap="round"/>
+<rect id="gm" x="436" y="206" width="52" height="22" rx="11" fill="${TEA}"/></g>
+<g id="gB" transform="translate(690,230) scale(.55)" style="opacity:0">${rim(0, 0)}${rim(190, 0)}<path d="M150 40 Q170 22 190 40" fill="none" stroke="#a4a4bc" stroke-width="9"/><rect x="368" y="-6" width="52" height="22" rx="11" fill="${ORA}"/>
+<rect x="0" y="0" width="150" height="112" rx="46" fill="none" stroke="#a4a4bc" stroke-width="9"/><rect x="190" y="0" width="150" height="112" rx="46" fill="none" stroke="#a4a4bc" stroke-width="9"/></g>
+<g id="gr" fill="none" stroke="${TEA}" stroke-width="4" stroke-linecap="round" stroke-dasharray="3 16" style="opacity:0"><path d="M500 217 L690 250"/><path d="M500 217 L690 232"/><path d="M500 217 L690 270"/></g>
+<text id="gt1" x="420" y="150" fill="${TEA}" font-size="30" font-weight="700" style="opacity:0">capteur optique</text>
+<text id="gt2" x="420" y="186" fill="#a4a4bc" font-size="25" style="opacity:0">identifie · localise</text>
+<text id="gt3" x="640" y="400" fill="#a4a4bc" font-size="25" style="opacity:0">un autre participant</text></svg>
+<div class="tag" style="bottom:-20px">Illustration de la vision</div></div>`;
+function glassesTick(root, t, M) {
+  const $ = (id) => root.querySelector('#' + id);
+  root.querySelectorAll('.gd').forEach((el, i) => { try { M.draw(el, M.prog(t, 0.15 + i * 0.16, 0.9, M.ease.inOutCubic)); } catch (e) { /* a rect has no path length in some engines */ } });
+  $('gm').style.opacity = M.prog(t, 1.4, 0.4); $('gm').style.filter = `drop-shadow(0 0 ${6 + 6 * Math.sin(t * 6)}px ${TEA})`;
+  $('gt1').style.opacity = M.prog(t, 1.7, 0.5); $('gt2').style.opacity = M.prog(t, 2.0, 0.5);
+  $('gB').style.opacity = M.prog(t, 2.3, 0.6);
+  const r = $('gr'); r.style.opacity = M.prog(t, 2.9, 0.4) * (0.65 + 0.35 * Math.sin(t * 7)); r.style.strokeDashoffset = String(-t * 60);
+  $('gt3').style.opacity = M.prog(t, 3.4, 0.5);
+}
+// ---- an architecture, in four zeros ---------------------------------------------------------------------------------------------
+const ZEROS = [['Build and deploy', 'with 0 clic.', VIO], ['Rank', 'with 0 permission.', TEA], ['Pay', 'with 0 network.', ORA], ['Connect', 'with 0 login.', GRN]];
+const ZS = P ? 1.3 : 1;
+const ZERO = `<div class="v" style="width:1000px;height:${700 * ZS}px">${ZEROS.map(([a, b, c], i) => `<div class="row" id="zr${i}" style="top:${i * 172 * ZS}px;height:${150 * ZS}px;gap:${34 * ZS}px;border-left:12px solid ${c}"><b style="font-size:${120 * ZS}px;line-height:1;color:${c}">0</b><div style="font-size:${54 * ZS}px;font-weight:800;line-height:1.1">${a}<br><span style="font-size:${54 * ZS}px;color:${c};font-weight:800">${b}</span></div></div>`).join('')}</div>`;
+function zeroTick(root, t, M) {
+  ZEROS.forEach((_, i) => {
+    const el = root.querySelector('#zr' + i), p = M.prog(t, 0.2 + i * 2.2, 0.55, M.ease.outBack), cur = t >= 0.2 + i * 2.2 && t < 0.2 + (i + 1) * 2.2;
+    el.style.opacity = M.clamp(p) * (cur || t > 9.4 ? 1 : 0.6); el.style.transform = `translateX(${(1 - Math.min(1, p)) * 120}px) scale(${cur ? 1.03 : 1})`;
+  });
+}
 const BLOB1 = { type: 'blobs', colors: ['rgba(123,97,255,.40)', 'rgba(38,198,176,.25)', 'rgba(30,30,60,.5)'], base: '#090912' };
+const WORLD = '<svg viewBox="0 0 24 24" width="100%"><circle class="d" cx="12" cy="12" r="10"/><path class="d" d="M2 12 H22 M12 2 C7 7 7 17 12 22 C17 17 17 7 12 2"/></svg>';
+// the match CV of the Jobber app, as in the first film, after the widget
+window.SHOTS.splice(2, 0,
+  { seconds: 7, transition: { type: 'wipe', seconds: 0.55 }, bg: { type: 'gradient', colors: ['#1a1530', '#090912'], angle: 175, drift: true }, layers: [
+    { type: 'text', text: 'Un match CV\nrecruteur.', mode: 'lines', effect: 'mask', size: [10, 8], x: [50, 24], y: [13, 40], w: [90, 38], at: 0.3, stagger: 0.28, accent: { 'recruteur.': ORA } },
+    { type: 'image', src: 'jobber-match.png', frame: 'none', x: [50, 72], y: [54, 52], w: [50, 26], enter: 'rise', at: 0.2, dur: 0.8, cam: { from: { s: 1, y: 1.5 }, to: { s: 1.05, y: -1.5 } } },
+    { type: 'text', text: 'Sans serveur.', size: [5.2, 4], weight: 800, color: GRN, x: [50, 24], y: [90, 66], w: [90, 38], effect: 'rise', mode: 'words', at: 2.6 },
+  ] },
+);
 window.SHOTS.push(
-  // the bridge
-  { seconds: 6, transition: { type: 'fade', seconds: 0.7 }, bg: { type: 'blobs', colors: ['rgba(204,120,92,.40)', 'rgba(123,97,255,.40)', 'rgba(30,30,60,.5)'], base: '#090912' }, layers: [
-    { type: 'text', text: 'Aiwa,\nc\'est le socle.', mode: 'lines', effect: 'mask', size: [13, 10.5], y: [42, 42], at: 0.3, stagger: 0.35, accent: { 'socle.': ORA } },
-    { type: 'text', text: 'Voici ce qu\'on construit dessus.', size: [4.8, 3.8], weight: 600, color: MUT, y: [64, 64], effect: 'rise', mode: 'words', stagger: 0.08, at: 2.6 },
+  // the mantra
+  { seconds: 4.8, transition: { type: 'fade', seconds: 0.7 }, bg: { type: 'blobs', colors: ['rgba(204,120,92,.40)', 'rgba(123,97,255,.40)', 'rgba(30,30,60,.5)'], base: '#090912' }, layers: [
+    { type: 'text', text: 'An agent-centric\narchitecture.', mode: 'lines', effect: 'mask', size: [11, 8.6], y: [44, 44], at: 0.3, stagger: 0.4, accent: { 'architecture.': ORA } },
+  ] },
+  { seconds: 11.4, transition: { type: 'push-up', seconds: 0.5 }, bg: { type: 'gradient', colors: ['#17143a', '#090912'], angle: 185, drift: true }, layers: [
+    { type: 'html', id: 'zero', css: VCSS, markup: ZERO, design: [1000, 700 * ZS], w: [94, 64], x: [50, 50], y: [52, 50], at: 0.1, tick: zeroTick },
+  ] },
+  { seconds: 5.6, transition: { type: 'zoom', seconds: 0.6 }, bg: { type: 'blobs', colors: ['rgba(38,198,176,.40)', 'rgba(123,97,255,.40)', 'rgba(30,30,60,.5)'], base: '#090912' }, layers: [
+    { type: 'svg', markup: WORLD, x: 50, y: [26, 24], w: [22, 9], at: 0.2, dur: 1.6, stroke: '#26c6b0', width: 1.4 },
+    { type: 'text', text: 'Reality is\nthe network.', mode: 'lines', effect: 'mask', size: [13, 10.4], y: [58, 62], at: 1.0, stagger: 0.4, accent: { 'network.': TEA } },
+  ] },
+  // the glasses
+  { seconds: 7.6, transition: { type: 'wipe', seconds: 0.55 }, bg: { type: 'gradient', colors: ['#15152b', '#090912'], angle: 180, drift: true }, layers: [
+    { type: 'text', text: 'Après la voix,\nle regard.', mode: 'lines', effect: 'mask', size: [10, 8], x: [50, 23], y: [13, 40], w: [90, 36], at: 0.3, stagger: 0.3, accent: { 'regard.': TEA } },
+    { type: 'html', id: 'glasses', css: VCSS, markup: GLASSES, design: [1000, 560], w: [100, 58], x: [50, 71], y: [58, 52], at: 0.1, tick: glassesTick },
+    { type: 'text', text: 'Des lunettes. Un capteur optique.\nUn téléphone. Un réseau.', mode: 'lines', effect: 'rise', size: [4, 3.1], weight: 600, color: MUT, x: [50, 23], y: [86, 66], w: [90, 36], at: 3.6, stagger: 0.3 },
   ] },
   // look at someone
   { seconds: 7.5, transition: { type: 'zoom', seconds: 0.55 }, bg: { type: 'gradient', colors: ['#15152b', '#090912'], angle: 180, drift: true }, layers: [
-    { type: 'text', text: 'Tu regardes quelqu\'un.', mode: 'lines', effect: 'mask', size: [8.4, 6.2], x: [50, 23], y: [13, 36], w: [90, 36], at: 0.3, out: { at: 5.6, effect: 'mask' } },
+    { type: 'text', text: 'Tu regardes quelqu\'un.', mode: 'lines', effect: 'mask', size: [8.4, 6.2], x: [50, 23], y: [13, 36], w: [90, 36], at: 0.3 },
     { type: 'text', text: 'Son profil apparaît\nlà où il se tient.', mode: 'lines', effect: 'rise', size: [5.2, 4], weight: 700, color: TEA, x: [50, 23], y: [86, 62], w: [90, 36], at: 2.2, stagger: 0.3 },
     { type: 'html', id: 'look', css: VCSS, markup: LOOK, design: [1000, 640], w: [100, 56], x: [50, 71], y: [52, 52], at: 0.1, tick: lookTick },
   ] },
@@ -106,11 +155,6 @@ window.SHOTS.push(
     { type: 'text', text: 'Un intérêt commun.\nUne partie.', mode: 'lines', effect: 'mask', size: [9, 6.2], x: [50, 23], y: [13, 38], w: [90, 36], at: 0.3, stagger: 0.28, accent: { 'partie.': ORA } },
     { type: 'html', id: 'play', css: VCSS, markup: CHESS, design: [1000, 640], w: [100, 56], x: [50, 71], y: [60, 52], at: 0.1, tick: playTick },
     { type: 'text', text: 'Sans entrer dans un monde virtuel.', size: [4, 3.2], weight: 600, color: MUT, x: [50, 23], y: [90, 64], w: [90, 36], effect: 'rise', mode: 'words', stagger: 0.07, at: 4.4 },
-  ] },
-  // the five layers
-  { seconds: 8.5, transition: { type: 'push-up', seconds: 0.5 }, bg: { type: 'blobs', colors: ['rgba(38,198,176,.28)', 'rgba(123,97,255,.35)', 'rgba(204,120,92,.2)'], base: '#090912' }, layers: [
-    { type: 'text', text: 'Une infrastructure.', mode: 'lines', effect: 'mask', size: [9.4, 7.4], x: [50, 23], y: [10, 36], w: [90, 36], at: 0.25 },
-    { type: 'html', id: 'stack', css: VCSS, markup: STACK, design: [1000, 730], w: [90, 56], x: [50, 71], y: [54, 54], at: 0.1, tick: stackTick },
   ] },
   // the hard problem
   { seconds: 7, transition: { type: 'zoom', seconds: 0.5 }, bg: { type: 'gradient', colors: ['#171433', '#090912'], angle: 190, drift: true }, layers: [
