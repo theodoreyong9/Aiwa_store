@@ -1,11 +1,9 @@
 {
- "at": "2026-10-10T12:00:23.600Z",
- "new": 39,
+ "at": "2026-10-10T12:11:55.973Z",
+ "new": 70,
  "known": 0,
- "errors": [
-  "/campaigns/new: nothing readable (the page changed?)"
- ],
+ "errors": [],
  "listing": 2,
  "skipped_by_robots": 0,
- "total": 39
+ "total": 72
 }
