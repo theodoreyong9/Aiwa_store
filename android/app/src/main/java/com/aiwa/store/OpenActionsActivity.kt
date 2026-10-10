@@ -10,11 +10,6 @@ class OpenActionsActivity : ComponentActivity() {
         val state = AiwaRepository.state.value
         val repo = state.repo
         val registry = if (state.deploy == "aiwa") registryRepository(this) else null
-        if (state.ciHintTitle != null) {
-            startActivity(android.content.Intent(this, PagesHelpActivity::class.java).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
-            finish()
-            return
-        }
         if (registry != null) {
             // An Aiwa contract is not built in the person's repository: what checks it is the registry's workflow, on the pull request the Store opened.
             toastOnMain(this, "Le workflow du registre vérifie ta publication : cherche ta pull request dans la liste.")

@@ -287,7 +287,7 @@ private fun FullContent(state: AiwaState) {
             statusBold = refused
         }
         state.ask != null -> { status = "❓ Claude te pose une question — touche ici"; statusColor = alertText; statusBold = true }
-        state.ciHintTitle != null -> { status = "⚠ GitHub : un réglage à faire — touche 🌐"; statusColor = alertText; statusBold = true }
+        state.ciHintTitle != null -> { status = "⚠ GitHub : un réglage à faire — touche ⚠"; statusColor = alertText; statusBold = true }
         state.waiting -> { status = "● Claude attend ta réponse"; statusColor = alertText; statusBold = true }
         storeReady -> {
             status = "App prête : touche ▦ pour l'ouvrir dans le Store, </> montre son code"
@@ -393,6 +393,17 @@ private fun FullContent(state: AiwaState) {
         // work itself.
         if (hasRepo) {
             Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                if (state.ciHintTitle != null) {
+                    // A setting of GitHub to change by hand: its own button (the guide), instead of changing what the other buttons do.
+                    RoundButton(
+                        icon = R.drawable.ic_warning,
+                        description = "Un réglage de GitHub à faire : le guide",
+                        background = alertRed,
+                        action = actionStartActivity<PagesHelpActivity>(),
+                        diameter = chipH.dp,
+                    )
+                    Spacer(GlanceModifier.width(GAP.dp))
+                }
                 Chip(deployText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else if (state.deploy != "none") green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
                 if (showSite && site != null) {
                     Spacer(GlanceModifier.width(GAP.dp))
@@ -655,6 +666,17 @@ private fun CompactContent(state: AiwaState) {
                     Spacer(GlanceModifier.width(GAP.dp))
                     Chip(pushText, if (locked) (if (state.pushMain) GREEN_DIM else PILL_DIM) else if (state.pushMain) green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionRunCallback<TogglePushMainCallback>()))
                     Spacer(GlanceModifier.width(GAP.dp))
+                    if (state.ciHintTitle != null) {
+                        // A setting of GitHub to change by hand: its own button (the guide), instead of changing what the other buttons do.
+                        RoundButton(
+                            icon = R.drawable.ic_warning,
+                            description = "Un réglage de GitHub à faire : le guide",
+                            background = alertRed,
+                            action = actionStartActivity<PagesHelpActivity>(),
+                            diameter = chipH.dp,
+                        )
+                        Spacer(GlanceModifier.width(GAP.dp))
+                    }
                     Chip(deployText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else if (state.deploy != "none") green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()))
                     if (showSite && site != null) {
                         Spacer(GlanceModifier.width(GAP.dp))
