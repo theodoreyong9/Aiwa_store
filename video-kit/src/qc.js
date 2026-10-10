@@ -62,6 +62,19 @@ export function checkVideo(file, { seconds = null, width = null, height = null, 
   // frozen picture: the same image for more than 4 s
   const frozen = run(ffmpegPath(), ['-hide_banner', '-nostats', '-i', file, '-an', '-vf', 'freezedetect=n=-60dB:d=4', '-f', 'null', '-'], { allowFail: true }).stderr;
   for (const m of frozen.matchAll(/freeze_start: ([\d.]+)/g)) add('warning', 'frozen', `the picture does not move for 4 s or more from ${Number(m[1]).toFixed(1)} s`);
+  // motion: the share of half-seconds in which the picture barely changes. A slideshow (a still picture under a title, a fade, the next still)
+  // has about half of them still; a cut with motion in every shot has none. Measured on small, 15 fps frames, as the mean absolute difference of
+  // consecutive frames. This is a hint about the idea, not a technical error: it is never blocking.
+  const diff = run(ffmpegPath(), ['-hide_banner', '-nostats', '-i', file, '-an', '-vf', 'scale=320:-1,fps=15,tblend=all_mode=difference,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], { allowFail: true }).stdout || '';
+  const motion = [...diff.matchAll(/YAVG=([\d.]+)/g)].map((m) => Number(m[1]));
+  if (motion.length >= 30) {
+    const w = 7, windows = [];
+    for (let i = 0; i + w <= motion.length; i += w) windows.push(motion.slice(i, i + w).reduce((a, b) => a + b, 0) / w);
+    const still = windows.filter((x) => x < 0.15).length / windows.length;
+    const sorted = [...motion].sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)];
+    if (still > 0.4) add('warning', 'slideshow', `${Math.round(still * 100)}% of the half-seconds barely move (median motion ${median.toFixed(2)}): it looks like a slideshow. Give every shot a movement (camera, text, the page itself)`);
+    else if (still > 0.25) add('suggestion', 'slideshow', `${Math.round(still * 100)}% of the half-seconds barely move: more movement would help`);
+  }
   const blocking = findings.filter((f) => f.level === 'blocking').length;
   return { ok: blocking === 0, duration, width: video?.width, height: video?.height, megabytes: Math.round(megabytes * 10) / 10, findings };
 }

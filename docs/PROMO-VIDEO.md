@@ -47,16 +47,33 @@ Durations: 15, 30, 45, 60 s (a first one of 20 to 30 s). MP4, H.264, AAC. The la
 
 `video-kit check` reads the finished file and reports three levels: **blocking** (do not deliver: unreadable file, wrong size or duration, no audio track, silent audio, black screen), **warning** (codec, frame rate, size, clipping, a frozen picture), **suggestion** (a quiet level). Creative suggestions are never presented as certain technical errors. After the script check, look at frames of the video yourself (a contact sheet) for what a script cannot see: text cut off, a deformed logo, a medium unrelated to the product, a wrong transition. A blocking error stops the delivery until it is fixed or the user accepts it explicitly.
 
-## 6. Making it
+## 6. Making it: the production, in stages
+
+A good video is not one long generation, it is a chain of short decisions, each written down and each checked. The model matters less than the order: **do the stages in order, write each result to a file under `aiwa-videos/`, and re-read the previous file before starting the next** (that is what keeps a long job coherent).
+
+| # | Stage | The file | What it settles |
+|---|---|---|---|
+| 0 | **Facts** | `facts.md` | What is TRUE and usable: what the user gave, what the creation shows (read its code, open it, list what it does), real names, figures that are on the page. Capture the real material: `video-kit capture` for a tall picture of a page, Playwright screenshots, recorded interactions. |
+| 1 | **Brief** | `brief.md` | The audience, the ONE message, the tone, the art direction taken from the creation (palette, type, how it moves), the length and formats, the call to action. A short list of 2 or 3 reference videos or sites whose rhythm you borrow (the design catalogue has measured motion traits). |
+| 2 | **Script** | `script.md` | The logline, then five beats: hook (0 to 3 s: a promise or a question, never a logo), tension (what is wrong or missing), reveal (the creation, in use), proof (a real detail), call to action. The voice-over text with its seconds, and each on-screen text (7 words at most). |
+| 3 | **Shot list** | `video.html` (`SHOTS`) | One shot per beat or part of a beat: its purpose, its movement (camera, text, the real page scrolling), its transition, its sound cue. Start from `video-kit/template/cinematic.html`; the layers are in `cinematic.js`. |
+| 4 | **Sound** | `bed.wav`, `vo.wav` | `beat.py` for a pulse with an accent on every cut (`--cuts-file=frames/cuts.json`), a tempo that fits the tone; `voice.py` for a voice-over (the music ducks under it). Say which engine spoke: espeak-ng is robotic, piper with a French voice is much better. A licensed track replaces the placeholder when there is one. |
+| 5 | **Preview** | `preview/` | Render small and fast (`--width=480 --height=270 --fps=10`), assemble, and extract a contact sheet (`ffmpeg -i out.mp4 -vf "fps=1/2,scale=320:-1,tile=5x3" sheet.png`). Never render at full size before the preview has passed stage 6. |
+| 6 | **Critique** | `critique.md` | A separate pass, as a demanding creative director who has NOT seen the code, looking only at the contact sheet and the brief. Score 1 to 5: hook, clarity of the message, pace and variety, movement in every shot, legibility, art direction, sound and sync, honesty (nothing invented), call to action. Anything under 4 is fixed, then stages 5 and 6 are repeated, at most three rounds. If a sub-agent tool is available, give the critique to a fresh agent with the frames and the brief only. Report the final scores as they are. |
+| 7 | **Final** | `<name>-16x9.mp4` … | Full-size render, `video-kit check` (a `slideshow` warning means redo), then the release and a short summary: what was verified, what is a placeholder, what could not be done. |
+
+The commands:
 
 ```
-node video-kit/src/cli.js render page.html frames/ --seconds=25 --width=1080 --height=1920
-python3 video-kit/src/audio-bed.py bed.wav 25 0 3 7 …        # a placeholder bed with a tick at each scene start; use a licensed track when there is one
-node video-kit/src/cli.js assemble frames/ out-9x16.mp4 --audio=bed.wav
-node video-kit/src/cli.js check out-9x16.mp4 --seconds=25 --width=1080 --height=1920
+node video-kit/src/cli.js capture page.html page-full.png --width=1440 --height=810       # a page as one tall picture (for a "page" layer)
+node video-kit/src/cli.js render video.html frames/ --seconds=<total> --width=1920 --height=1080   # frames/cuts.json: where the shots change
+python3 video-kit/src/beat.py bed.wav <total> --bpm=108 --cuts-file=frames/cuts.json
+python3 video-kit/src/voice.py cues.json vo.wav <total> --lang=fr                           # optional: [{"at": 3.2, "text": "…"}, …]
+node video-kit/src/cli.js assemble frames/ out-16x9.mp4 --audio=bed.wav --voice=vo.wav
+node video-kit/src/cli.js check out-16x9.mp4 --seconds=<total> --width=1920 --height=1080
 ```
 
-The page defines `window.render(t)`, a pure function of t. Start from `video-kit/template/timeline.html`. The render is deterministic and can be redone for part of the frames when only one scene changed. ffmpeg and ffprobe are looked for in `FFMPEG` / `FFPROBE`, then in the PATH.
+The page defines `window.render(t)`, a pure function of t, so a frame can be redone alone. The cinematic engine (`template/cinematic.js`, on top of `template/motion.js`) gives: kinetic text (words, letters, lines; mask, rise, blur, scale, drop, typewriter), images and real pages in browser or phone frames with camera moves, shapes, counters, paths that draw themselves, animated backgrounds, eight transitions, grain and vignette. `template/timeline.html` (a title and a picture per scene) remains for the simplest cases, and is a slideshow engine: use it only when a slideshow is what is wanted.
 
 ## 7. Revisions in natural language
 

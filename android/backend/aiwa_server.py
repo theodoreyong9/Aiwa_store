@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 49
+BACKEND_VERSION = 50
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -542,20 +542,26 @@ def _ask_line(repo, work, topic):
 
 
 def _video_line(repo):
-    """The promotional video of a creation: where the standard and the tools are, where the file goes."""
+    """The promotional video of a creation: the standard (a production in stages, each written down and checked), the tools, where the file goes."""
     return (
-        "Vidéo : si je demande une vidéo promotionnelle de ma création, lis d'abord " + REFERENCE_RAW + "/docs/PROMO-VIDEO.md (le standard) et prends les outils de "
-        + REFERENCE_RAW + "/video-kit/ (rendu image par image avec Chromium, assemblage ffmpeg, contrôle automatique). N'invente aucune statistique, aucun témoignage, aucun résultat : "
-        "tout ce qui est affiché vient de ce que j'ai fourni ou de ce que tu vois dans ma création. "
-        "Une vidéo n'est PAS un diaporama : aucune capture ne reste posée au centre avec un titre au-dessus. Chaque scène bouge : texte qui s'anime (mot par mot, par masque, en mouvement), "
-        "captures recadrées en gros plan, zoom ou panoramique lent, vraie page qui défile (enregistre-la en mouvement avec Playwright plutôt que de la photographier), éléments qui entrent et sortent sur le tempo. "
-        "Une coupe ou un changement tous les 1,5 à 3 secondes, une accroche qui capte dans les 2 premières secondes, une seule direction artistique, et un son pensé (un rythme avec des accents sur les coupes, pas une nappe continue). "
+        "Vidéo : si je demande une vidéo promotionnelle de ma création, lis d'abord " + REFERENCE_RAW + "/docs/PROMO-VIDEO.md (le standard) et suis ses étapes DANS L'ORDRE, "
+        "en écrivant chacune dans un fichier sous `aiwa-videos/` et en relisant la précédente avant la suivante : 0 les faits (`facts.md` : ce qui est vrai, ce que ma création montre et fait, les vraies captures), "
+        "1 le brief (`brief.md` : le public, UN message, le ton, la direction artistique prise dans ma création, l'appel à l'action), "
+        "2 le script (`script.md` : accroche dans les 2 premières secondes, tension, révélation, preuve, appel à l'action, texte de la voix off avec ses secondes), "
+        "3 le plan de plans (`video.html`, depuis `video-kit/template/cinematic.html` : un plan par temps du script, avec son mouvement, sa transition et son son), "
+        "4 le son (rythme avec accents sur chaque coupe et voix off locale), 5 un aperçu en petit, 6 la critique, 7 le rendu final. "
+        "Les outils sont dans " + REFERENCE_RAW + "/video-kit/ (Chromium image par image, ffmpeg, `capture`, `beat.py`, `voice.py`, contrôle automatique). "
+        "N'invente aucune statistique, aucun témoignage, aucun résultat : tout ce qui est affiché vient de ce que j'ai fourni ou de ce que tu vois dans ma création. "
+        "Une vidéo n'est PAS un diaporama : aucune capture ne reste posée au centre avec un titre au-dessus. Chaque plan bouge : texte qui s'anime, captures en gros plan, "
+        "zoom ou panoramique lent, vraie page qui défile, éléments qui entrent et sortent sur le tempo. Un changement tous les 1,5 à 3 secondes, une seule direction artistique. "
         "Quand il y a peu de matière (une page presque vide), fabrique de la matière avec ce que la création fait : l'animer, la zoomer, en isoler un détail, en faire un graphisme ; n'étire pas du vide. "
-        "Avant de livrer, extrais au moins 8 images à intervalles réguliers (`ffmpeg -i video.mp4 -vf fps=1/3 f%02d.png`), regarde-les, et dis-moi franchement si cela ressemble à un diaporama ; si oui, refais-la. "
-        "Contrôle aussi le MP4 (durée, résolution, piste audio, images noires, texte coupé). "
+        "La critique (étape 6) se fait sur la planche-contact (au moins 8 images extraites à intervalles réguliers), comme un directeur artistique exigeant qui n'a pas vu le code : "
+        "note de 1 à 5 l'accroche, la clarté du message, le rythme, le mouvement de chaque plan, la lisibilité, la direction artistique, le son, l'honnêteté (rien d'inventé) et l'appel à l'action ; "
+        "corrige tout ce qui est sous 4 et recommence l'aperçu, jusqu'à trois tours ; si tu as un outil de sous-agent, confie la critique à un agent neuf qui ne voit que les images et le brief. "
+        "Donne-moi les notes finales telles quelles. Le contrôle `video-kit check` signale `slideshow` quand l'image bouge trop peu : refais alors le plan concerné. Dis aussi ce qui est provisoire (la voix de synthèse, la musique générée). "
         f"Dépose chaque vidéo comme fichier de la release GitHub `videos` du dépôt {repo} (crée-la si elle n'existe pas ; un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4`), "
-        "avec son script et son rapport de contrôle sous `aiwa-videos/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
-        "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg`, `npx playwright install chromium`, `gh release create` ou l'API GitHub avec le jeton de l'environnement) "
+        "avec ses fichiers d'étapes et son rapport de contrôle sous `aiwa-videos/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
+        "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg espeak-ng`, `npx playwright install chromium`, `gh release create` ou l'API GitHub avec le jeton de l'environnement) "
         "au lieu de t'arrêter. Si la release reste impossible, commite le MP4 sous `aiwa-videos/` sur ta branche et dis-moi en une phrase pourquoi, sans prétendre qu'il est dans la release."
     )
 

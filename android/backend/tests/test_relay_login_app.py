@@ -1621,6 +1621,11 @@ class CreativeBarTests(unittest.TestCase):
         for wanted in ("n'est PAS un diaporama", "zoom ou panoramique", "1,5 à 3 secondes", "au moins 8 images", "fabrique de la matière"):
             self.assertIn(wanted, text)
 
+    def test_the_video_instruction_is_a_production_in_stages_with_a_critique(self):
+        text = dict(srv._instruction_lines("o/r", "w", "main", True))["video"]
+        for wanted in ("DANS L'ORDRE", "`facts.md`", "`brief.md`", "`script.md`", "cinematic.html", "6 la critique", "note de 1 à 5", "jusqu'à trois tours", "`slideshow`", "voix off"):
+            self.assertIn(wanted, text)
+
 
 class PagesHintTests(unittest.TestCase):
     def test_a_branch_the_environment_refuses_is_said_with_its_steps_and_its_page(self):
