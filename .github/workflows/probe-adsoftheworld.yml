@@ -1,0 +1,48 @@
+name: Probe Ads of the World pages
+
+# One-off: how is a campaign page of adsoftheworld.com built (title, credits, description, video link)? Its robots.txt allows reading the home and campaign
+# pages (it only disallows pagination and admin paths); this reads ONE listing and TWO campaign pages, politely, and reports their structure as annotations.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe
+        shell: bash
+        run: |
+          set +e
+          UA='Mozilla/5.0 (compatible; aiwa-design-research; +https://github.com/theodoreyong9/Aiwa_store)'
+          emit() { local title="$1"; local body="$2"; body="${body//'%'/'%25'}"; body="${body//$'\r'/'%0D'}"; body="${body//$'\n'/'%0A'}"; echo "::notice title=${title}::${body:0:9000}"; }
+          curl -s -m 30 -A "$UA" -L -o home.html https://www.adsoftheworld.com/
+          grep -o -E 'href="/(campaign|campaigns)/[a-z0-9-]+"' home.html | sort -u | head -8 > links.txt
+          emit "listing links" "$(cat links.txt)"
+          n=0
+          for l in $(sed -E 's/href="(.*)"/\1/' links.txt | grep '^/campaign/' | head -2); do
+            sleep 3
+            curl -s -m 30 -A "$UA" -L -o c.html "https://www.adsoftheworld.com$l"
+            out="URL $l ($(wc -c < c.html) bytes)"$'\n'
+            out+="title: $(grep -o -i '<title>[^<]*</title>' c.html | head -1)"$'\n'
+            out+="$(grep -o -i '<meta [^>]*\(og:\|description\|twitter:\)[^>]*>' c.html | cut -c1-260 | head -14)"$'\n'
+            out+="json-ld: $(grep -c 'application/ld+json' c.html)"$'\n'
+            out+="media: $(grep -o -i -E '(youtube\.com/embed/[A-Za-z0-9_-]+|youtu\.be/[A-Za-z0-9_-]+|player\.vimeo\.com/video/[0-9]+|vimeo\.com/[0-9]+|youtube\.com/watch\?v=[A-Za-z0-9_-]+)' c.html | sort -u | head -5 | tr '\n' ' ')"$'\n'
+            out+="--- text (tags stripped, first 3000 chars of <main>/<article>):"$'\n'
+            out+="$(python3 - <<'PY'
+import re
+h=open('c.html',encoding='utf-8',errors='ignore').read()
+m=re.search(r'<main.*?</main>',h,re.S) or re.search(r'<article.*?</article>',h,re.S)
+body=m.group(0) if m else h
+body=re.sub(r'<(script|style)[^>]*>.*?</\1>','',body,flags=re.S)
+body=re.sub(r'<(br|/p|/div|/li|/h[1-6]|/dt|/dd|/tr)[^>]*>','\n',body)
+body=re.sub(r'<[^>]+>',' ',body)
+body=re.sub(r'[ \t]+',' ',body); body=re.sub(r'\n\s*\n+','\n',body)
+print(body.strip()[:3000])
+PY
+)"
+            emit "campaign $((++n))" "$out"
+          done
