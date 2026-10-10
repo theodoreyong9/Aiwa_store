@@ -134,6 +134,6 @@ window.SHOTS.push(
     { type: 'svg', markup: '<svg viewBox="0 0 24 24" width="100%"><path class="d" d="M4 20 L12 4 L20 20 M7.5 14 H16.5"/></svg>', x: 50, y: [62, 64], w: [14, 6], at: 5.2, dur: 1.2, stroke: '#f0f0f5', width: 1.6 },
     { type: 'text', text: 'AIWA · SOCIÉTÉ AUGMENTÉE', size: [4.6, 3.4], mode: 'chars', effect: 'mask', stagger: 0.04, at: 5.8, y: [72, 76], spacing: 0.08, weight: 800 },
     { type: 'text', text: 'theodoreyong9.github.io/Aiwa_store', size: [3.2, 2.5], weight: 600, color: TEA, spacing: 0.03, y: [80, 84], effect: 'blur', mode: 'chars', stagger: 0.02, at: 6.6 },
-    { type: 'text', text: 'Musique : The Complex, Kevin MacLeod (incompetech.com), CC BY 4.0', size: [2.1, 1.5], weight: 500, color: '#8c8ca0', y: [95, 95], effect: 'fade', at: 6.8 },
+    { type: 'text', text: 'Musique : The Complex, Kevin MacLeod (incompetech.com), CC BY 4.0', size: [2.9, 2.0], weight: 500, color: '#b4b4c6', y: [95, 94.5], effect: 'fade', at: 4.6 },
   ] },
 );
