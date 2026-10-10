@@ -4,10 +4,11 @@
   voice.py cues.json out.wav SECONDS [--lang=fr] [--speed=150] [--voice=NAME]
 
   cues.json: [ { "at": 3.2, "text": "Salut, je suis Yo." }, … ]    each line is spoken from its `at` second; the track is SECONDS long
-  Engines, in order: piper (PIPER_BIN and PIPER_MODEL set), kokoro (a neural voice, natural, French included: run `sh voice-setup.sh` once; the voice is
-  ff_siwis for French, af_heart for English, or --voice=NAME; --kspeed=1.0), espeak-ng (`apt-get install -y espeak-ng`: intelligible, robotic), flite.
+  Engines, in order: piper (PIPER_BIN and PIPER_MODEL set), sherpa (the Piper voice "siwis medium", French, natural: run `sh voice-setup.sh` once; the speed
+  is --kspeed=1.0), kokoro (`sh voice-setup.sh --with-kokoro`: another neural voice, French and English), espeak-ng (`apt-get install -y espeak-ng`:
+  intelligible, robotic), flite. Every voice goes through the same light mastering (equaliser, soft compression, a little room) so that it sits in a mix.
   The engine used and the duration of each line are printed as JSON, so that a line which runs into the next one can be seen and shortened.
-  Honest limit: espeak-ng is robotic; kokoro and piper are neural voices and far more natural. Say which engine spoke.
+  Honest limit: espeak-ng is robotic; the neural voices are far more natural, but they are not a studio narrator. Say which engine spoke.
 """
 import json, os, shutil, subprocess, sys, tempfile, wave
 
@@ -27,6 +28,26 @@ def load_kokoro():
         return None
 
 
+def load_sherpa():
+    """The Piper voice "siwis medium" through sherpa-onnx, or None (see voice-setup.sh; SHERPA_VOICE_DIR overrides the place)."""
+    d = os.environ.get('SHERPA_VOICE_DIR') or os.path.join(os.path.expanduser('~'), '.cache', 'aiwa-video', 'vits-piper-fr_FR-siwis-medium')
+    onnx = os.path.join(d, 'fr_FR-siwis-medium.onnx')
+    if not os.path.exists(onnx):
+        return None
+    try:
+        import soundfile  # noqa: F401
+        import sherpa_onnx as so
+        cfg = so.OfflineTtsConfig(model=so.OfflineTtsModelConfig(vits=so.OfflineTtsVitsModelConfig(
+            model=onnx, tokens=os.path.join(d, 'tokens.txt'), data_dir=os.path.join(d, 'espeak-ng-data')), num_threads=4), max_num_sentences=1)
+        return so.OfflineTts(cfg)
+    except Exception:
+        return None
+
+
+# light mastering: remove rumble, a little presence, tame the low-mids, even out the level, a short room
+MASTER = 'highpass=f=70,equalizer=f=3000:t=q:w=1.2:g=2.5,equalizer=f=200:t=q:w=1:g=-1.5,acompressor=threshold=-20dB:ratio=3:attack=8:release=120:makeup=3,aecho=0.85:0.4:35|70:0.12|0.06'
+
+
 def main():
     pos = [a for a in sys.argv[1:] if not a.startswith('--')]
     opt = dict(a[2:].partition('=')[::2] for a in sys.argv[1:] if a.startswith('--'))
@@ -35,13 +56,12 @@ def main():
     ffmpeg = os.environ.get('FFMPEG') or 'ffmpeg'
     cues = json.load(open(cues_file))
     tmp = tempfile.mkdtemp(prefix='vo-')
-    engine = None
-    kokoro = None
-    if not (os.environ.get('PIPER_BIN') and os.environ.get('PIPER_MODEL')):
-        kokoro = load_kokoro()
+    engine, kokoro, sherpa = None, None, None
     if os.environ.get('PIPER_BIN') and os.environ.get('PIPER_MODEL'):
         engine = 'piper'
-    elif kokoro:
+    elif lang == 'fr' and not voice and (sherpa := load_sherpa()):
+        engine = 'sherpa'
+    elif (kokoro := load_kokoro()):
         engine = 'kokoro'
     elif shutil.which('espeak-ng'):
         engine = 'espeak-ng'
@@ -56,6 +76,10 @@ def main():
         text = str(c['text'])
         if engine == 'piper':
             subprocess.run([os.environ['PIPER_BIN'], '--model', os.environ['PIPER_MODEL'], '--output_file', wav], input=text, text=True, check=True, capture_output=True)
+        elif engine == 'sherpa':
+            import soundfile as sf
+            audio = sherpa.generate(text, sid=0, speed=float(opt.get('kspeed', 1.0)))
+            sf.write(wav, audio.samples, audio.sample_rate)
         elif engine == 'kokoro':
             import soundfile as sf
             lang_code = {'fr': 'fr-fr', 'en': 'en-us'}.get(lang, lang)
@@ -75,7 +99,7 @@ def main():
     for _, wav in parts:
         cmd += ['-i', wav]
     filt = ''.join(f'[{i}:a]aresample=44100,aformat=channel_layouts=mono,adelay={int(at * 1000)}:all=1[a{i}];' for i, (at, _) in enumerate(parts))
-    filt += ''.join(f'[a{i}]' for i in range(len(parts))) + f'amix=inputs={len(parts)}:normalize=0,apad=whole_dur={seconds},atrim=0:{seconds},loudnorm=I=-16:TP=-1.5:LRA=7[v]'
+    filt += ''.join(f'[a{i}]' for i in range(len(parts))) + f'amix=inputs={len(parts)}:normalize=0,{MASTER},apad=whole_dur={seconds},atrim=0:{seconds},loudnorm=I=-16:TP=-1.5:LRA=7[v]'
     subprocess.run(cmd + ['-filter_complex', filt, '-map', '[v]', '-ar', '44100', '-ac', '1', out], check=True)
     overlaps = [(a['text'][:30], b['text'][:30]) for a, b in zip(report, report[1:]) if a['ends'] > b['at']]
     print(json.dumps({'ok': True, 'engine': engine, 'out': out, 'lines': report, 'overlaps': overlaps}, ensure_ascii=False))
