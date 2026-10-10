@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""One-off probe (to be deleted): how the three allowed music sources list their tracks. Read only, a few requests, polite user agent."""
-import re, sys, time, urllib.request, urllib.parse
+"""One-off probe (to be deleted): the track list of Incompetech and the page of an OpenGameArt track. Read only, a few requests, polite user agent."""
+import json, re, sys, time, urllib.request
 
 UA = 'Mozilla/5.0 (compatible; AiwaStoreProbe/1.0; +https://github.com/theodoreyong9/Aiwa_store)'
 
@@ -8,7 +8,7 @@ UA = 'Mozilla/5.0 (compatible; AiwaStoreProbe/1.0; +https://github.com/theodorey
 def get(url):
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': UA}), timeout=30) as r:
-            return r.status, r.read(600000).decode('utf-8', 'replace')
+            return r.status, r.read(3000000).decode('utf-8', 'replace')
     except Exception as e:
         return getattr(e, 'code', 0) or 0, f'ERR {e}'[:200]
 
@@ -21,38 +21,28 @@ def say(title, text):
     print(f'::notice title={title}::{esc(text[:3500])}')
 
 
-which = sys.argv[1]
-if which == 'incompetech':
-    st, body = get('https://incompetech.com/music/royalty-free/licenses/')
-    srcs = re.findall(r'src="([^"]+\.js[^"]*)"', body)
-    say('inc scripts', f'{st} ' + ' '.join(srcs))
-    urls = set(re.findall(r'["\'(]([^"\'()\s]*(?:catalog|json|index)[^"\'()\s]*)["\')]', body))
-    say('inc urls in page', ' '.join(sorted(urls))[:1500])
-    for s in srcs[:6]:
-        u = urllib.parse.urljoin('https://incompetech.com/music/royalty-free/licenses/', s)
-        st2, js = get(u)
-        found = sorted(set(re.findall(r'["\']([^"\']*(?:catalog|\.json|\.php|api)[^"\']*)["\']', js)))[:25]
-        say(f'inc js {st2} {u}', ' '.join(found))
-        time.sleep(1)
-elif which == 'archive':
-    q = 'mediatype:audio AND licenseurl:("http://creativecommons.org/publicdomain/zero/1.0/") AND format:MP3'
-    url = 'https://archive.org/advancedsearch.php?' + urllib.parse.urlencode({'q': q, 'fl[]': ['identifier', 'title', 'creator', 'licenseurl', 'downloads'], 'rows': 6, 'sort[]': 'downloads desc', 'output': 'json'}, doseq=True)
-    st, body = get(url)
-    say(f'archive search {st}', body[:2500])
-    m = re.search(r'"identifier":\s*"([^"]+)"', body)
-    if m:
-        st, body = get(f'https://archive.org/metadata/{m.group(1)}')
-        files = re.findall(r'"name":\s*"([^"]+\.mp3)"[^}]*?"size":\s*"?(\d+)', body)
-        say(f'archive metadata {st} {m.group(1)}', f'{len(body)} bytes; mp3: {files[:4]}; licenseurl: {re.findall(chr(34)+"licenseurl"+chr(34)+":.*?,", body)[:1]}')
-elif which == 'oga':
-    st, body = get('https://opengameart.org/art-search-advanced?keys=&field_art_type_tid%5B%5D=12&sort_by=count&sort_order=DESC')
-    links = re.findall(r'href="(/content/[^"#?]+)"', body)
-    say(f'oga list {st}', ' '.join(list(dict.fromkeys(links))[:15]))
-    lic = re.findall(r'<option value="(\d+)"[^>]*>([^<]*(?:CC|GPL|Public)[^<]*)</option>', body)
-    say('oga licence filter ids', str(lic[:12]))
-    time.sleep(10)
-    if links:
-        st, page = get('https://opengameart.org' + list(dict.fromkeys(links))[0])
-        mp3 = re.findall(r'href="([^"]+\.(?:mp3|ogg|wav))"', page)
-        lic = re.findall(r'(CC0|CC-BY[^<"]{0,12}|GPL[^<"]{0,8}|OGA-BY[^<"]{0,6})', page)
-        say(f'oga item {st}', f'files {mp3[:4]} licences {lic[:6]} tags {re.findall(chr(114)+"el=.tag.[^>]*>([^<]+)<", page)[:8]}')
+if sys.argv[1] == 'incompetech':
+    st, body = get('https://incompetech.com/music/royalty-free/pieces.json')
+    say(f'inc pieces {st} {len(body)} bytes', body[:1200])
+    try:
+        d = json.loads(body)
+        items = d if isinstance(d, list) else next(v for v in d.values() if isinstance(v, list))
+        say(f'inc count {len(items)}', json.dumps(items[0], ensure_ascii=False)[:900] + ' ... ' + json.dumps(items[len(items) // 2], ensure_ascii=False)[:900])
+        keys = sorted({k for it in items for k in it})
+        say('inc keys', ' '.join(keys))
+        feels = {}
+        for it in items:
+            feels[it.get('feel', it.get('Feel', '?'))] = feels.get(it.get('feel', it.get('Feel', '?')), 0) + 1
+        say('inc feels', str(sorted(feels.items(), key=lambda x: -x[1])[:25]))
+    except Exception as e:
+        say('inc parse', f'ERR {e}')
+else:
+    st, page = get('https://opengameart.org/content/battle-theme-a')
+    out = []
+    for m in re.finditer(r'(sites/default/files[^"\'<>\s]+)', page):
+        out.append(m.group(1))
+    say(f'oga files {st}', ' '.join(list(dict.fromkeys(out))[:8]))
+    i = page.find('field-name-field-art-licenses')
+    say('oga licence block', re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', page[i:i + 700])) if i >= 0 else 'none')
+    say('oga tags', ' '.join(re.findall(r'href="/art-search\?[^"]*keys=[^"]*"[^>]*>([^<]+)<', page)[:10]) + ' | ' + ' '.join(re.findall(r'taxonomy/term/\d+[^>]*>([^<]+)<', page)[:12]))
+    say('oga title/author', ' '.join(re.findall(r'<h1[^>]*>([^<]+)<', page)[:1]) + ' | ' + ' '.join(re.findall(r'href="/users/[^"]+"[^>]*>([^<]+)<', page)[:2]))

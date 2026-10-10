@@ -10,7 +10,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: incompetech
         run: python3 scripts/probe-music.py incompetech || true
-      - name: archive
-        run: python3 scripts/probe-music.py archive || true
       - name: oga
         run: python3 scripts/probe-music.py oga || true
