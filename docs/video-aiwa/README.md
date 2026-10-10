@@ -12,3 +12,5 @@ node $KIT/src/cli.js check out.mp4 --seconds=83.65 --width=1920 --height=1080
 ```
 
 The voice is a synthetic voice (robotic) and the music is generated: both are placeholders. The result is `docs/aiwa-promo-cine-16x9.mp4` and `docs/aiwa-promo-cine-9x16.mp4`, next to the longer `docs/aiwa-promo.mp4`, which they do not replace.
+
+A version with a real track (music register) and a few punchy voice lines is `docs/aiwa-promo-musique-16x9.mp4` / `-9x16.mp4`; the global film (Aiwa, then the vision) is in `docs/video-vision/`.

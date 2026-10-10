@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>html,body{margin:0;background:#000;overflow:hidden}</style></head>
+<body><div id="stage"></div>
+<script src="../../video-kit/template/motion.js"></script>
+<script>
+const P = innerHeight / innerWidth >= 1.2;                      // portrait
+const VIO = '#7b61ff', TEA = '#26c6b0', ORA = '#cc785c', GRN = '#58d39b', MUT = '#8c8ca0';
+window.THEME = { bg: '#090912', ink: '#f0f0f5', muted: MUT, accent: ORA, grain: 0.06, vignette: 0.5 };
+// ---- the widget, as it is on the phone (design size 1000 x 1140) ----------------------------------------------------------------------
+const WCSS = `
+.w{position:absolute;left:30px;top:20px;width:940px;border-radius:64px;background:linear-gradient(180deg,#1d1d26,#14141b);padding:30px;box-sizing:border-box;box-shadow:0 50px 140px rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.07);font-family:"Liberation Sans",Arial,sans-serif;color:#f0f0f5}
+.w .r{display:flex;align-items:center;gap:16px}.w .av{width:92px;height:92px;border-radius:50%;background:#2c2c36;color:#cc785c;font-size:48px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.w .ti{font-size:46px;font-weight:800;letter-spacing:-1px}.w .st{font-size:26px;color:#a4a4b4;margin-top:2px}
+.w .c{border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;position:relative}
+.w .p{height:104px;border-radius:52px;background:#2c2c36;display:flex;align-items:center;padding:0 26px;font-size:34px;font-weight:600;flex:1;white-space:nowrap;min-width:0}
+.w .p.g{background:#2e7d5a}.w .mic{height:124px;border-radius:62px;background:#54545e;flex:1;display:flex;align-items:center;justify-content:center;gap:20px;font-size:42px;font-weight:800}
+.w .rec{width:36px;height:36px;border-radius:50%;background:#d64541}.w .wave{display:flex;gap:7px;align-items:center;height:70px}.w .wave i{display:block;width:9px;border-radius:5px;background:#fff}
+.w .dot{position:absolute;top:-6px;right:-6px;width:30px;height:30px;border-radius:50%;background:#ff3b30;border:4px solid #14141b}
+.chip{position:absolute;padding:18px 36px;border-radius:60px;font-size:46px;font-weight:700;background:#fff;color:#151520;white-space:nowrap;box-shadow:0 20px 60px rgba(0,0,0,.5);font-family:"Liberation Sans",Arial,sans-serif}
+.chip.ok{background:#2e7d5a;color:#fff}.toast{position:absolute;padding:22px 44px;border-radius:60px;background:#e9fbf2;color:#0c3d28;font-size:52px;font-weight:800;white-space:nowrap;box-shadow:0 20px 80px rgba(46,125,90,.5);font-family:"Liberation Sans",Arial,sans-serif}`;
+const ic = (d, s = 50) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const GLOBE = '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>';
+const PLAY = '<path d="M8 5l11 7-11 7z" fill="#fff"/>';
+const CHAT = '<path d="M4 5h16v11H9l-5 4z"/>';
+const STAR = '<path d="M12 3v18M4.2 7.5l15.6 9M19.8 7.5l-15.6 9"/>';
+const WIDGET = `<div class="w" id="W">
+  <div class="r" style="margin-bottom:22px"><div class="av">A</div><div style="flex:1"><div class="ti">Refonte du widget Aiwa ▾</div><div class="st" id="wst">Prêt</div></div><div class="c" style="width:104px;height:104px;background:#cc785c">${ic(STAR)}</div></div>
+  <div class="r" style="margin-bottom:18px"><div class="p" id="pR">⎇ aiwa_store ▾</div><div class="p" id="pM">Opus 5.5 ▾</div></div>
+  <div class="r" style="margin-bottom:18px"><div class="p g" id="pP">Push main</div><div class="p g" id="pD">Pages ●</div><div class="c" style="width:104px;height:104px;background:#cc785c">${ic(GLOBE)}<div class="dot" id="rd" style="opacity:0"></div></div><div class="c" style="width:104px;height:104px;background:#2e7d5a">${ic(PLAY, 44)}</div></div>
+  <div class="r"><div class="c" style="width:124px;height:124px;background:#2c2c36">${ic(CHAT, 52)}</div><div class="mic"><span class="rec"></span><span id="mt">Dicter un message</span><span class="wave" id="wv" style="display:none">${'<i></i>'.repeat(9)}</span></div></div>
+</div>
+<div class="chip" id="k1" style="left:60px;top:640px">modèle Sonnet</div>
+<div class="chip" id="k2" style="left:500px;top:640px">push branche</div>
+<div class="chip" id="k3" style="left:60px;top:770px">déploiement Android</div>
+<div class="chip" id="k4" style="left:610px;top:770px">dépôt Jobber</div>
+<div class="chip ok" id="k5" style="left:230px;top:905px">« C'est bon vas-y »</div>
+<div class="toast" id="tr" style="left:290px;top:1020px">● C'est prêt.</div>`;
+function widgetTick(root, t, M) {
+  const $ = (id) => root.querySelector('#' + id);
+  const show = (el, at, dur = 0.45) => { const p = M.prog(t, at, dur, M.ease.outBack); el.style.opacity = M.clamp(p); el.style.transform = `translateY(${(1 - Math.min(1, p)) * 30}px) scale(${0.9 + 0.1 * Math.min(1, p)})`; };
+  const flash = (el, at) => { const k = Math.max(0, 1 - Math.abs(t - at - 0.3) / 0.45); el.style.boxShadow = k > 0 ? `0 0 0 ${6 * k}px rgba(255,255,255,${0.55 * k}), 0 0 ${60 * k}px rgba(255,255,255,${0.35 * k})` : 'none'; };
+  [['k1', 1.3, 'pM'], ['k2', 2.5, 'pP'], ['k3', 3.7, 'pD'], ['k4', 4.9, 'pR']].forEach(([k, at, pill]) => { show($(k), at); flash($(pill), at); });
+  show($('k5'), 6.1); show($('tr'), 7.3);
+  const listening = t > 0.6 && t < 6.9;
+  $('wst').textContent = t < 0.6 ? 'Prêt' : listening ? 'À l\'écoute' : 'C\'est fait.';
+  $('wst').style.color = t >= 6.9 ? '#58d39b' : '#a4a4b4';
+  $('mt').style.display = listening ? 'none' : 'inline'; $('wv').style.display = listening ? 'flex' : 'none';
+  [...$('wv').children].forEach((b, i) => { b.style.height = (14 + 50 * Math.abs(Math.sin(t * 7 + i * 0.9)) * (0.5 + 0.5 * Math.sin(t * 2.3 + i))) + 'px'; });
+  $('rd').style.opacity = t >= 7.3 ? 1 : 0;
+}
+
+// ---- cards ---------------------------------------------------------------------------------------------------------------------------
+const CCSS = `.cd{position:absolute;border-radius:48px;background:linear-gradient(180deg,#1d1d28,#15151d);border:1px solid rgba(255,255,255,.08);box-shadow:0 40px 100px rgba(0,0,0,.6);padding:36px 40px;box-sizing:border-box;font-family:"Liberation Sans",Arial,sans-serif;color:#f0f0f5;display:flex;align-items:center;gap:32px}
+.cd .ib{width:120px;height:120px;border-radius:34px;display:flex;align-items:center;justify-content:center;flex:none}.cd b{display:block;font-size:${P?58:44}px;letter-spacing:-1px}.cd span{display:block;font-size:${P?38:40}px;color:#a4a4bc;margin-top:8px;line-height:1.2}`;
+const card = (i, col, svg, title, sub, style) => `<div class="cd" id="cd${i}" style="${style}"><div class="ib" style="background:${col}">${ic(svg, 62)}</div><div><b>${title}</b><span>${sub}</span></div></div>`;
+const PHONE = '<rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M11 18.5h2"/>';
+const CHECK = '<path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M8.5 12l2.6 2.6L15.8 9.8"/>';
+const CARDS = P
+  ? card(0, VIO, GLOBE, 'Site web', 'en ligne sur GitHub Pages', 'left:0;top:0;width:1000px;height:260px')
+    + card(1, TEA, PHONE, 'Application Android', 'un APK construit pour toi', 'left:0;top:310px;width:1000px;height:260px')
+    + card(2, ORA, CHECK, 'Contrat Aiwa', 'des règles que chacun vérifie', 'left:0;top:620px;width:1000px;height:260px')
+  : card(0, VIO, GLOBE, 'Site web', 'en ligne sur<br>GitHub Pages', 'left:0;top:0;width:560px;height:340px;flex-direction:column;align-items:flex-start;justify-content:center')
+    + card(1, TEA, PHONE, 'Application Android', 'un APK construit<br>pour toi', 'left:570px;top:0;width:560px;height:340px;flex-direction:column;align-items:flex-start;justify-content:center')
+    + card(2, ORA, CHECK, 'Contrat Aiwa', 'des règles que<br>chacun vérifie', 'left:1140px;top:0;width:560px;height:340px;flex-direction:column;align-items:flex-start;justify-content:center');
+function cardsTick(root, t, M) {
+  for (let i = 0; i < 3; i++) { const el = root.querySelector('#cd' + i), p = M.prog(t, 0.7 + i * 0.5, 0.7, M.ease.outBack); el.style.opacity = M.clamp(p); el.style.transform = `translateY(${(1 - Math.min(1, p)) * 60}px) scale(${0.92 + 0.08 * Math.min(1, p)})`; }
+}
+// ---- agent rows ------------------------------------------------------------------------------------------------------------------------
+const row = (i, col, name, sub) => `<div class="cd" id="rw${i}" style="left:0;top:${i * 230}px;width:1000px;height:200px;gap:28px"><div style="width:14px;height:120px;border-radius:7px;background:${col};flex:none"></div><div><b style="font-size:64px">${name}</b><span style="font-size:${P?40:38}px">${sub}</span></div></div>`;
+const ROWS = row(0, VIO, 'Design', 'références mesurées, captures de contrôle') + row(1, TEA, 'Jeu', 'un process par étapes vérifiées, une partie jouée avant la livraison') + row(2, ORA, 'Vidéo', 'brief, script, rendu image par image, contrôle automatique');
+function rowsTick(root, t, M) {
+  for (let i = 0; i < 3; i++) { const el = root.querySelector('#rw' + i), p = M.prog(t, 0.6 + i * 0.55, 0.6, M.ease.outBack); el.style.opacity = M.clamp(p); el.style.transform = `translateX(${(1 - Math.min(1, p)) * 90}px)`; }
+}
+// ---- ranking bars ---------------------------------------------------------------------------------------------------------------------
+const BARS = [92, 74, 58, 41].map((w, i) => `<div style="position:absolute;left:0;top:${i * 150}px;display:flex;align-items:center;gap:30px;width:1000px"><div style="font-size:70px;font-weight:800;color:${VIO};width:80px;text-align:center;font-family:'Liberation Sans',Arial,sans-serif">${i + 1}</div><div id="br${i}" data-w="${w}" style="height:110px;border-radius:30px;background:linear-gradient(90deg,${VIO},${TEA});width:0;transform-origin:left"></div></div>`).join('');
+function barsTick(root, t, M) { for (let i = 0; i < 4; i++) { const el = root.querySelector('#br' + i); el.style.width = (M.prog(t, 0.5 + i * 0.35, 1.0, M.ease.outExpo) * Number(el.dataset.w) * 8.4) + 'px'; } }
+
+// ---- production of AIWA: four cards, then the example -------------------------------------------------------------------------------
+const crd = (i, icon, name, sub, badge, top) => `<div class="cd" id="pc${i}" style="left:0;top:${top}px;width:1000px;height:${i === 1 ? 190 : 170}px;gap:26px;padding:26px 34px"><div class="ib" style="width:92px;height:92px;border-radius:28px;background:#262636">${ic(icon, 46)}</div><div style="flex:1"><b style="font-size:46px">${name}</b><span style="font-size:30px">${sub}</span></div>${badge}</div>`;
+const LOCK = '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>';
+const HOUR = '<path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9"/>';
+const BOLT = '<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>';
+const INF = '<path d="M7 8c-3 0-5 2-5 4s2 4 5 4c5 0 5-8 10-8 3 0 5 2 5 4s-2 4-5 4c-5 0-5-8-10-8z"/>';
+const PROD = crd(0, LOCK, 'Engagement d\'origine', 'Tu t\'engages au départ. Sans retour.', '', 0)
+  + crd(1, HOUR, 'Taux de patience', 'Moins tu prends tout de suite,<br>plus tu reçois à la longue.', `<span id="pb1" style="background:${VIO};color:#fff;border-radius:30px;padding:10px 22px;font-size:32px;font-weight:700">−20 %</span>`, 190)
+  + crd(2, BOLT, 'Production immédiate', 'Le reste produit dès l\'engagement.', `<span style="background:#2e7d5a;color:#fff;border-radius:30px;padding:10px 22px;font-size:32px;font-weight:700">80 %</span>`, 380)
+  + crd(3, INF, 'Production perpétuelle', 'Sans date de fin, tant que l\'appli tourne.', '', 550)
+  + `<div id="pnum" style="position:absolute;left:0;top:760px;width:1000px;text-align:center;font-family:'Liberation Sans',Arial,sans-serif"><div id="pn1" style="font-size:112px;font-weight:800;color:${GRN};letter-spacing:-3px">0,15 AIWA</div><div id="pn2" style="font-size:40px;color:#c9c9d8;margin-top:4px">après 1 h</div></div>
+     <div id="ptl" style="position:absolute;left:60px;top:1010px;width:880px;height:60px;font-family:'Liberation Sans',Arial,sans-serif;color:#a4a4bc;font-size:26px"><div style="position:absolute;left:0;top:14px;width:880px;height:4px;border-radius:2px;background:#33334a"></div><div id="ptf" style="position:absolute;left:0;top:14px;width:0;height:4px;border-radius:2px;background:${GRN}"></div>${['1 h', '1 jour', '7 jours', '30 jours', '1 an'].map((x, k) => `<div style="position:absolute;left:${k * 220 - 40}px;top:34px;width:80px;text-align:center">${x}</div><div class="tk" style="position:absolute;left:${k * 220 - 9}px;top:6px;width:18px;height:18px;border-radius:50%;background:#1a1a22;border:3px solid #3a3a4c"></div>`).join('')}</div>
+     <div style="position:absolute;left:0;top:1095px;width:1000px;text-align:center;font-family:'Liberation Sans',Arial,sans-serif;font-size:26px;color:#7c7c92">exemple : patience 20 %, une époque toutes les 30 s</div>`;
+function prodTick(root, t, M) {
+  for (let i = 0; i < 4; i++) { const el = root.querySelector('#pc' + i), p = M.prog(t, 0.3 + i * 0.45, 0.6, M.ease.outBack); el.style.opacity = M.clamp(p); el.style.transform = `translateX(${(1 - Math.min(1, p)) * 80}px)`; }
+  const show = M.prog(t, 2.4, 0.5), end = M.prog(t, 5.2, 1.6, M.ease.inOutCubic);
+  root.querySelector('#pnum').style.opacity = show;
+  const val = end > 0 ? 0.15 + (231 - 0.15) * Math.pow(end, 3) : 0.15;
+  root.querySelector('#pn1').textContent = (val < 10 ? val.toFixed(2).replace('.', ',') : Math.round(val)) + ' AIWA';
+  root.querySelector('#pn2').textContent = end > 0.95 ? 'après 1 an' : end > 0.2 ? 'en route…' : 'après 1 h';
+  root.querySelector('#ptl').style.opacity = show;
+  root.querySelector('#ptf').style.width = (880 * end) + 'px';
+  root.querySelectorAll('.tk').forEach((k, i) => { const on = end >= i / 4 - 0.001 && show > 0.5; k.style.background = on ? GRN : '#1a1a22'; k.style.borderColor = on ? '#fff' : '#3a3a4c'; });
+}
+// ---- pay in session ---------------------------------------------------------------------------------------------------------------------
+const SESS = `<div class="cd" id="ss" style="left:0;top:0;width:1000px;height:640px;display:block;padding:44px 50px"><div style="font-size:28px;color:#a4a4bc;letter-spacing:2px">AUTORISATION</div><div id="sa" style="font-size:62px;font-weight:800;color:${GRN};margin:6px 0 24px">Signée une fois ✓</div><div style="font-size:28px;color:#a4a4bc;letter-spacing:2px">BLOQUÉ D'AVANCE</div><div style="font-size:62px;font-weight:800;color:${GRN};margin:6px 0 26px">0 AIWA</div><div style="font-size:28px;color:#a4a4bc;letter-spacing:2px;margin-bottom:14px">PAIEMENTS DE LA SESSION</div><div id="sd" style="display:flex;flex-wrap:wrap;gap:14px;width:900px">${'<i></i>'.repeat(16).replace(/<i><\/i>/g, '<i style="display:block;width:46px;height:46px;border-radius:50%;border:3px solid #3a3a4c"></i>')}</div><div style="display:flex;justify-content:space-between;margin-top:34px;font-size:26px;color:#a4a4bc"><div>PAYÉ<div id="sp" style="font-size:52px;font-weight:800;color:#fff;margin-top:4px">0 AIWA</div></div><div style="text-align:right">SOLDE<div id="sb" style="font-size:52px;font-weight:800;color:#fff;margin-top:4px">1 240 AIWA</div></div></div></div>`;
+function sessTick(root, t, M) {
+  const dots = [...root.querySelector('#sd').children]; let n = 0;
+  dots.forEach((d, i) => { const on = t > 0.9 + i * 0.22; if (on) n = i + 1; d.style.background = on ? GRN : 'transparent'; d.style.borderColor = on ? GRN : '#3a3a4c'; d.innerHTML = on ? '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#0c3d28" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="margin:3px"><path d="M6 12.5l4 4 8-9"/></svg>' : ''; });
+  root.querySelector('#sp').textContent = n * 5 + ' AIWA'; root.querySelector('#sb').textContent = (1240 - n * 5).toLocaleString('fr-FR').replace(/ | /g, ' ') + ' AIWA';
+}
+// ---- pay offline: two phones in airplane mode, a QR code -----------------------------------------------------------------------------
+const QR = Array.from({ length: 49 }, (_, i) => ((i * 7 + (i >> 3) * 3) % 5 < 2 || [0, 1, 7, 8, 5, 6, 12, 13, 35, 36, 42, 43].includes(i)) ? '#e8e8f2' : 'transparent').map((c, i) => `<i style="display:block;background:${c};width:100%;height:100%"></i>`).join('');
+const phone = (id, name, inner) => `<div id="${id}" style="position:absolute;top:0;width:330px;height:620px;border-radius:56px;border:8px solid #2b2b38;background:#101016;box-shadow:0 40px 100px rgba(0,0,0,.6);font-family:'Liberation Sans',Arial,sans-serif;color:#f0f0f5;text-align:center"><div style="font-size:23px;color:#a4a4bc;margin-top:28px">✈ Mode avion</div><div style="font-size:42px;font-weight:700;margin-top:6px">${name}</div>${inner}</div>`;
+const OFFL = phone('phA', 'Alice', `<div id="qr" style="margin:34px auto 0;width:210px;height:210px;display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);gap:4px;padding:16px;background:#2b2b38;border-radius:20px">${QR}</div><div style="position:absolute;bottom:34px;left:0;right:0;font-size:28px;font-weight:700">Payer 250 AIWA</div>`).replace('style="position:absolute;top:0;', 'style="position:absolute;left:30px;top:0;')
+  + phone('phB', 'Bob', `<div id="scan" style="margin:34px auto 0;width:210px;height:210px;border:4px dashed #4a4a60;border-radius:20px"></div><div id="rcv" style="position:absolute;left:0;right:0;top:150px;opacity:0"><div style="width:130px;height:130px;border-radius:50%;background:${GRN};margin:0 auto;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#0c3d28" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5 5 9-10"/></svg></div><div style="font-size:34px;font-weight:700;margin-top:18px">Reçu</div><div style="font-size:38px;font-weight:800;color:${GRN}">250 AIWA</div><div style="font-size:22px;color:#a4a4bc;margin-top:6px">vérifié sans réseau</div></div><div id="scl" style="position:absolute;bottom:34px;left:0;right:0;font-size:28px;font-weight:700">Scanner</div>`).replace('style="position:absolute;top:0;', 'style="position:absolute;left:640px;top:0;')
+  + `<div id="net" style="position:absolute;left:400px;top:230px;width:200px;text-align:center;font-family:'Liberation Sans',Arial,sans-serif;color:#a4a4bc;font-size:26px"><svg viewBox="0 0 80 80" width="110" height="110" fill="none" stroke="#a4a4bc" stroke-width="4" stroke-linecap="round"><path d="M14 56c0-14 12-26 26-26M24 56c0-8 7-15 16-15M34 56h6"/><path d="M12 12l56 56" stroke="${GRN}" id="strike"/></svg><div>aucun réseau</div></div><div id="fly" style="position:absolute;left:250px;top:210px;width:90px;height:90px;border-radius:14px;background:#e8e8f2;opacity:0"></div>`;
+function offlTick(root, t, M) {
+  const $ = (id) => root.querySelector('#' + id);
+  $('phA').style.opacity = M.prog(t, 0.1, 0.5); $('phB').style.opacity = M.prog(t, 0.3, 0.5);
+  $('net').style.opacity = M.prog(t, 0.9, 0.5);
+  const q = M.prog(t, 1.7, 1.2, M.ease.inOutCubic), fl = $('fly');
+  fl.style.opacity = t > 1.7 && t < 2.95 ? 1 : 0; fl.style.left = (250 + 390 * q) + 'px'; fl.style.top = (210 + 10 * Math.sin(q * Math.PI) * -1) + 'px'; fl.style.transform = `scale(${1 - 0.3 * q})`;
+  $('rcv').style.opacity = M.prog(t, 3.0, 0.5, M.ease.outBack); $('scan').style.opacity = t > 3.0 ? 0 : 1; $('scl').style.opacity = t > 3.0 ? 0 : 1;
+}
+const TRUST = [['Inconnu', 'Tu limites le montant accepté.', TEA], ['De confiance', 'Tu acceptes tout de suite.', GRN], ['Gros montant', 'Tu attends que les historiques se rejoignent.', VIO]].map(([n, s, c], i) => `<div class="cd" id="tr${i}" style="left:0;top:${i * 190}px;width:1000px;height:165px;gap:26px;padding:24px 36px"><div style="width:14px;height:96px;border-radius:7px;background:${c};flex:none"></div><div><b style="font-size:54px">${n}</b><span style="font-size:34px">${s}</span></div></div>`).join('');
+function trustTick(root, t, M) { for (let i = 0; i < 3; i++) { const el = root.querySelector('#tr' + i), p = M.prog(t, 0.5 + i * 0.6, 0.6, M.ease.outBack); el.style.opacity = M.clamp(p); el.style.transform = `translateX(${(1 - Math.min(1, p)) * 90}px)`; } }
+// ---- Earth, Mars ----------------------------------------------------------------------------------------------------------------------
+const node = (x, y, id, c) => `<g id="${id}" style="opacity:0"><circle cx="${x}" cy="${y}" r="30" fill="${c}" stroke="#fff" stroke-width="3"/><text x="${x}" y="${y + 9}" text-anchor="middle" font-size="26" font-weight="700" fill="#0c0c14" font-family="Liberation Sans,Arial">${id}</text></g>`;
+const EN = [330, 470, 610, 750, 890].map((x, i) => node(x, 150, 'e' + i, '#6c9cff')).join(''), MN = [330, 470, 610].map((x, i) => node(x, 520, 'm' + i, '#ff9a80')).join('');
+const MARS = `<svg viewBox="0 0 1000 700" width="1000" height="700"><g id="gE" style="opacity:0"><circle cx="130" cy="150" r="78" fill="#2f6fe0" stroke="#7aa8ff" stroke-width="6"/><path d="M95 120c20-12 38 4 30 22s-34 10-30-22zM140 165c16-6 30 8 22 22s-30 8-22-22z" fill="#4fc27d"/><text x="130" y="270" text-anchor="middle" font-size="34" font-weight="700" fill="#fff" font-family="Liberation Sans,Arial">Terre</text></g><g id="gM" style="opacity:0"><circle cx="130" cy="520" r="62" fill="#c8523a" stroke="#ff9a80" stroke-width="5"/><circle cx="108" cy="500" r="9" fill="#a8402c"/><circle cx="150" cy="545" r="7" fill="#a8402c"/><text x="130" y="620" text-anchor="middle" font-size="34" font-weight="700" fill="#fff" font-family="Liberation Sans,Arial">Mars</text></g><line id="ld" x1="130" y1="250" x2="130" y2="440" stroke="#5a5a72" stroke-width="3" stroke-dasharray="8 8" style="opacity:0"/><text id="lt" x="170" y="355" font-size="26" fill="#a4a4bc" font-family="Liberation Sans,Arial" style="opacity:0">3 à 22 minutes de lumière</text><g id="chE" stroke="#6c9cff" stroke-width="4"><line x1="330" y1="150" x2="890" y2="150"/></g><g id="chM" stroke="#ff9a80" stroke-width="4"><line x1="330" y1="520" x2="610" y2="520"/></g>${EN}${MN}<path id="rp" d="M610 520 H700 Q760 520 760 460 V190 H890" fill="none" stroke="#58d39b" stroke-width="6" stroke-linecap="round"/><g id="rg" style="opacity:0"><circle id="rd" cx="610" cy="520" r="22" fill="#58d39b"/></g><text id="rt" x="800" y="360" font-size="28" fill="#9fe3c4" font-family="Liberation Sans,Arial" style="opacity:0">« j'ai reçu ceci »</text></svg>`;
+function marsTick(root, t, M) {
+  const $ = (id) => root.querySelector('#' + id);
+  $('gE').style.opacity = M.prog(t, 0.1, 0.5); $('gM').style.opacity = M.prog(t, 0.3, 0.5); $('ld').style.opacity = M.prog(t, 0.7, 0.4); $('lt').style.opacity = M.prog(t, 0.9, 0.4);
+  ['e0', 'e1', 'e2', 'e3', 'e4'].forEach((id, i) => { $(id).style.opacity = M.prog(t, 0.8 + i * 0.25, 0.3); });
+  ['m0', 'm1', 'm2'].forEach((id, i) => { $(id).style.opacity = M.prog(t, 1.0 + i * 0.35, 0.3); });
+  const rp = $('rp'), len = rp.getTotalLength(), p = M.prog(t, 3.0, 1.6, M.ease.inOutCubic);
+  rp.style.strokeDasharray = String(len); rp.style.strokeDashoffset = String(len * (1 - p)); rp.style.opacity = t > 3.0 ? 1 : 0;
+  const pt = rp.getPointAtLength(len * p); $('rg').style.opacity = t > 3.0 && t < 4.7 ? 1 : 0; $('rd').setAttribute('cx', pt.x); $('rd').setAttribute('cy', pt.y);
+  $('rt').style.opacity = M.prog(t, 4.0, 0.5);
+}
+// ---- autonomous agents: groups of keys --------------------------------------------------------------------------------------------------
+const dotsAt = (pts, c, ring) => pts.map(([x, y]) => `<circle class="ag" cx="${x}" cy="${y}" r="20" fill="${ring}" stroke="${c}" stroke-width="9" style="opacity:0"/>`).join('');
+const AGENTS = `<svg viewBox="0 0 1000 600" width="1000" height="600"><circle id="ac" cx="250" cy="230" r="150" fill="none" stroke="${VIO}" stroke-width="3" stroke-dasharray="10 10" style="opacity:0"/>${dotsAt([[190, 170], [270, 160], [330, 230], [230, 250], [180, 300], [290, 300]], VIO, '#fff')}${dotsAt([[700, 120], [790, 150], [840, 230], [740, 220], [690, 280]], TEA, '#fff')}${dotsAt([[560, 400], [650, 430], [720, 380], [600, 500], [690, 520], [800, 470]], ORA, '#fff')}</svg>`;
+function agentsTick(root, t, M) {
+  root.querySelectorAll('.ag').forEach((d, i) => { const p = M.prog(t, 0.2 + i * 0.12, 0.5, M.ease.outBack); d.style.opacity = M.clamp(p); d.style.transform = `scale(${0.4 + 0.6 * Math.min(1, p)})`; d.style.transformOrigin = `${d.getAttribute('cx')}px ${d.getAttribute('cy')}px`; const bob = Math.sin(t * 1.4 + i) * 6; d.setAttribute('cy', String(Number(d.dataset.y || d.getAttribute('cy')) )); d.dataset.y = d.dataset.y || d.getAttribute('cy'); d.style.translate = `0 ${bob}px`; });
+  root.querySelector('#ac').style.opacity = M.prog(t, 1.6, 0.6);
+}
+// ---- the three guarantees --------------------------------------------------------------------------------------------------------------
+const CHK = (i, title, sub) => `<div id="ck${i}" style="position:absolute;left:0;top:${i * 360}px;width:1000px;text-align:center;font-family:'Liberation Sans',Arial,sans-serif;color:#f0f0f5"><div style="width:100px;height:100px;border-radius:50%;background:${GRN};margin:0 auto 18px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="62" height="62" fill="none" stroke="#0c3d28" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5 5 9-10"/></svg></div><div style="font-size:54px;font-weight:800;letter-spacing:-1px;line-height:1.05">${title}</div><div style="font-size:32px;color:#c0c0d2;margin-top:10px;line-height:1.25">${sub}</div></div>`;
+const CHECKS = CHK(0, 'Une valeur ne se compte<br>jamais deux fois.', 'Même gagnant pour tous les lecteurs.<br>La seconde dépense est refusée, preuve à l\'appui.') + CHK(1, 'Sybil amorti.', 'Chaque identité doit brûler pour produire de la valeur :<br>les faux profils ont un coût.') + CHK(2, '51 % : pas de chaîne<br>à renverser.', 'Pas de quorum. Le protocole ne suppose<br>aucune majorité honnête.');
+function checksTick(root, t, M) { for (let i = 0; i < 3; i++) { const el = root.querySelector('#ck' + i), p = M.prog(t, 0.3 + i * 1.8, 0.7, M.ease.outBack), q = M.prog(t, 1.6 + i * 1.8, 0.4); el.style.opacity = M.clamp(p) * (i < 2 ? 1 - q * 0.65 : 1); el.style.transform = `translateY(${(1 - Math.min(1, p)) * 50}px)`; } }
+
+// ---- the shots ---------------------------------------------------------------------------------------------------------------------------
+const panelRight = (extra) => Object.assign({ x: [50, 70], y: [60, 52] }, extra);
+window.SHOTS = [
+  // the voice
+  { seconds: 5.2, bg: { type: 'blobs', colors: ['rgba(204,120,92,.45)', 'rgba(123,97,255,.35)', 'rgba(30,30,60,.5)'], base: '#090912' }, layers: [
+    { type: 'text', text: 'Crée ce que tu veux,\noù tu veux.', mode: 'lines', effect: 'mask', size: [9.4, 7.4], y: 42, at: 0.3, stagger: 0.3, out: { at: 2.7, effect: 'mask' } },
+    { type: 'text', text: 'Sans toucher\nl\'écran.', mode: 'lines', effect: 'scale', size: [13.5, 10.5], y: 46, at: 3.1, stagger: 0.2, accent: { 'l\'écran.': ORA } },
+  ] },
+  // the widget
+  { seconds: 9.8, transition: { type: 'wipe', seconds: 0.6 }, bg: { type: 'gradient', colors: ['#1c1736', '#090912'], angle: 180, drift: true }, layers: [
+    { type: 'text', text: 'Dis-le.\nC\'est fait.', mode: 'lines', effect: 'mask', size: [13, 10.5], x: [50, 22], y: [13, 40], at: 0.3, stagger: 0.25, accent: { 'C\'est': GRN, 'fait.': GRN }, w: [90, 34] },
+    { type: 'html', id: 'widget', css: WCSS, markup: WIDGET, design: [1000, 1140], w: [92, 42], x: [50, 72], y: [60, 52], at: 0.2, dur: 0.9, enter: 'rise', tick: widgetTick, cam: { from: { s: 1, y: 1 }, to: { s: 1.04, y: -1 } } },
+  ] },
+  // formats
+  { seconds: 6.6, transition: { type: 'push', seconds: 0.55 }, bg: { type: 'blobs', colors: ['rgba(38,198,176,.30)', 'rgba(123,97,255,.35)', 'rgba(30,30,60,.5)'], base: '#090912' }, layers: [
+    { type: 'text', text: 'Un site. Une appli.\nUn contrat.', mode: 'lines', effect: 'mask', size: [8.4, 6.6], y: [13, 17], at: 0.2, stagger: 0.25 },
+    { type: 'html', id: 'cards', css: CCSS, markup: CARDS, design: P ? [1000, 880] : [1700, 340], w: [90, 84], y: [50, 55], at: 0.2, tick: cardsTick },
+    { type: 'text', text: 'Pas enfermé dans une plateforme.\nLe code reste dans son dépôt.', mode: 'lines', effect: 'rise', size: [3.8, 3.4], weight: 500, color: '#c9c9d8', y: [87, 87], at: 3.4, stagger: 0.25 },
+  ] },
+  // the agent
+  { seconds: 6.4, transition: { type: 'wipe', seconds: 0.55 }, bg: { type: 'gradient', colors: ['#12172b', '#090912'], angle: 170, drift: true }, layers: [
+    { type: 'text', text: 'Un agent\npuissant.', mode: 'lines', effect: 'mask', size: [11, 8.4], x: [50, 22], y: [17, 42], at: 0.25, stagger: 0.25, w: [90, 34] },
+    { type: 'html', id: 'rows', css: CCSS, markup: ROWS, design: [1000, 660], w: [90, 52], x: [50, 70], y: [52, 52], at: 0.2, tick: rowsTick },
+    { type: 'text', text: 'Un process, des outils, des contrôles.', size: [4.2, 3.6], weight: 700, color: GRN, x: [50, 22], y: [88, 66], w: [90, 34], effect: 'blur', mode: 'words', stagger: 0.06, at: 4.2 },
+  ] },
+  // the store
+  { seconds: 6.2, transition: { type: 'iris', seconds: 0.6 }, bg: { type: 'blobs', colors: ['rgba(123,97,255,.4)', 'rgba(38,198,176,.3)', 'rgba(30,30,70,.5)'], base: '#090912' }, layers: [
+    { type: 'text', text: 'Un store\nsans permission.', mode: 'lines', effect: 'mask', size: [11, 8.6], x: [50, 26], y: [15, 36], at: 0.3, stagger: 0.28, w: [90, 40] },
+    { type: 'text', text: 'Aucun comité ne valide.', size: [5, 4.2], weight: 600, color: '#c9c9d8', x: [50, 26], y: [34, 58], w: [90, 40], effect: 'rise', mode: 'words', at: 1.5 },
+    { type: 'html', id: 'bars', css: '', markup: BARS, design: [1000, 600], w: [86, 42], x: [50, 72], y: [60, 50], at: 0.5, tick: barsTick },
+    { type: 'text', text: 'Classé par ta production d\'AIWA,\npas par la pub.', mode: 'lines', size: [4.4, 3.6], weight: 700, color: TEA, x: [50, 26], y: [88, 74], w: [90, 40], effect: 'rise', at: 3.4, stagger: 0.2 },
+  ] },
+  // the production of AIWA
+  { seconds: 9.4, transition: { type: 'push-up', seconds: 0.55 }, bg: { type: 'blobs', colors: ['rgba(204,120,92,.35)', 'rgba(123,97,255,.4)', 'rgba(30,30,70,.5)'], base: '#090912' }, layers: [
+    { type: 'text', text: 'La production\nd\'AIWA.', mode: 'lines', effect: 'mask', size: [10, 8], x: [50, 22], y: [10, 40], w: [90, 34], at: 0.25, stagger: 0.25, accent: { 'd\'AIWA.': GRN } },
+    { type: 'html', id: 'prod', css: CCSS, markup: PROD, design: [1000, 1130], w: [90, 40], x: [50, 72], y: [57, 52], at: 0.1, tick: prodTick },
+  ] },
+  // pay in session
+  { seconds: 6.6, transition: { type: 'wipe', seconds: 0.55 }, bg: { type: 'gradient', colors: ['#0f1f26', '#090912'], angle: 200, drift: true }, layers: [
+    { type: 'text', text: 'Paie en\nsession.', mode: 'lines', effect: 'mask', size: [12, 9.6], x: [50, 24], y: [15, 30], w: [90, 40], at: 0.25, stagger: 0.25, accent: { 'session.': GRN } },
+    { type: 'html', id: 'sess', css: CCSS, markup: SESS, design: [1000, 640], w: [86, 42], x: [50, 72], y: [48, 52], at: 0.2, tick: sessTick },
+    { type: 'text', text: 'Signe une fois. Clique mille fois.\nRien de bloqué d\'avance.', mode: 'lines', effect: 'rise', size: [4.4, 3.6], weight: 700, color: '#f0f0f5', x: [50, 24], y: [80, 56], w: [90, 40], at: 3.0, stagger: 0.3 },
+    { type: 'text', text: 'montants de démonstration', size: [2.6, 2], weight: 500, color: '#7c7c92', x: [50, 72], y: [93, 88], w: [80, 40], at: 3.6, effect: 'fade', mode: 'lines' },
+  ] },
+  // pay offline
+  { seconds: 5.8, transition: { type: 'push', seconds: 0.5 }, bg: { type: 'blobs', colors: ['rgba(38,198,176,.3)', 'rgba(123,97,255,.35)', 'rgba(30,30,70,.5)'], base: '#090912' }, layers: [
+    { type: 'text', text: 'Paie\nhors ligne.', mode: 'lines', effect: 'mask', size: [12, 9.6], x: [50, 24], y: [14, 30], w: [90, 40], at: 0.25, stagger: 0.25, accent: { 'hors': GRN, 'ligne.': GRN } },
+    { type: 'html', id: 'offl', css: '', markup: OFFL, design: [1000, 640], w: [90, 44], x: [50, 72], y: [52, 52], at: 0.2, tick: offlTick },
+    { type: 'text', text: 'Un paiement, c\'est un fichier ou un QR code.\nIl se vérifie seul. Sans réseau.', mode: 'lines', effect: 'rise', size: [4, 3.4], weight: 600, color: '#c9c9d8', x: [50, 24], y: [84, 62], w: [90, 40], at: 3.2, stagger: 0.3 },
+  ] },
+  // trust
+  { seconds: 5.2, transition: { type: 'wipe', seconds: 0.5 }, bg: { type: 'gradient', colors: ['#14102a', '#090912'], angle: 160, drift: true }, layers: [
+    { type: 'text', text: 'Hors ligne, rien n\'empêche de tricher.', size: [3.8, 3.2], weight: 600, color: '#c9c9d8', x: [50, 24], y: [11, 26], w: [90, 40], at: 0.2, effect: 'rise', mode: 'lines' },
+    { type: 'text', text: 'Tu choisis ton niveau\nde confiance.', mode: 'lines', effect: 'mask', size: [8.6, 7.2], x: [50, 24], y: [24, 42], w: [90, 40], at: 0.5, stagger: 0.25, accent: { 'confiance.': ORA } },
+    { type: 'html', id: 'trust', css: CCSS, markup: TRUST, design: [1000, 560], w: [88, 42], x: [50, 72], y: [62, 50], at: 0.2, tick: trustTick },
+    { type: 'text', text: 'Une triche laisse une preuve, visible par tous.', size: [3.6, 3], weight: 500, color: '#c9c9d8', x: [50, 24], y: [92, 66], w: [90, 40], at: 3.6, effect: 'rise', mode: 'lines' },
+  ] },
+  // Earth, Mars
+  { seconds: 8.2, transition: { type: 'iris', seconds: 0.6 }, bg: { type: 'blobs', colors: ['rgba(123,97,255,.4)', 'rgba(204,120,92,.3)', 'rgba(30,30,70,.5)'], base: '#090912' }, layers: [
+    { type: 'text', text: 'Terre. Mars.\nEn même temps.', mode: 'lines', effect: 'mask', size: [10, 8.2], x: [50, 24], y: [11, 32], w: [90, 40], at: 0.25, stagger: 0.25, accent: { 'temps.': GRN, 'En': GRN, 'même': GRN } },
+    { type: 'html', id: 'mars', css: '', markup: MARS, design: [1000, 700], w: [90, 50], x: [50, 70], y: [48, 50], at: 0.2, tick: marsTick },
+    { type: 'text', text: 'Chacun avance seul.\nSans attendre l\'autre. Sans serveur au milieu.', mode: 'lines', effect: 'rise', size: [4.2, 3.4], weight: 600, color: '#f0f0f5', x: [50, 24], y: [76, 56], w: [90, 40], at: 2.2, stagger: 0.3 },
+    { type: 'text', text: 'Le lien revient : on vérifie,\nrien n\'est réécrit.', mode: 'lines', effect: 'rise', size: [4.2, 3.4], weight: 700, color: GRN, x: [50, 24], y: [88, 74], w: [90, 40], at: 4.6, stagger: 0.3 },
+  ] },
+  // autonomous agents
+  { seconds: 6.4, transition: { type: 'wipe', seconds: 0.55 }, bg: { type: 'gradient', colors: ['#171433', '#090912'], angle: 190, drift: true }, layers: [
+    { type: 'text', text: 'Prêt pour\ndes agents\nautonomes.', mode: 'lines', effect: 'mask', size: [10, 8], x: [50, 24], y: [14, 38], w: [90, 40], at: 0.25, stagger: 0.25, accent: { 'autonomes.': GRN } },
+    { type: 'html', id: 'agents', css: '', markup: AGENTS, design: [1000, 600], w: [92, 50], x: [50, 70], y: [58, 50], at: 0.2, tick: agentsTick },
+    { type: 'text', text: 'Une clé par agent.\nNi plateforme, ni modérateur central :\ndes règles que chacun vérifie.', mode: 'lines', effect: 'rise', size: [4.2, 3.4], weight: 600, color: '#f0f0f5', x: [50, 24], y: [86, 66], w: [90, 40], at: 2.0, stagger: 0.3 },
+  ] },
+  // guarantees
+  { seconds: 8.4, transition: { type: 'push-up', seconds: 0.5 }, bg: { type: 'blobs', colors: ['rgba(38,198,176,.30)', 'rgba(123,97,255,.35)', 'rgba(204,120,92,.2)'], base: '#090912' }, layers: [
+    { type: 'html', id: 'checks', css: '', markup: CHECKS, design: [1000, 1090], w: [88, 48], x: [50, 50], y: [50, 50], at: 0.1, tick: checksTick },
+  ] },
+];
+</script>
+<script src="vision.js"></script>
+<script src="../../video-kit/template/cinematic.js"></script>
+</body></html>
