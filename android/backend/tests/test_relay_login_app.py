@@ -1138,6 +1138,18 @@ class CiNewsTests(unittest.TestCase):
         self.assertEqual(verdict["state"], "failure")
         self.assertTrue(verdict["url"].endswith("/2"))
 
+    def test_a_later_run_of_the_same_workflow_replaces_its_earlier_failure_on_the_commit(self):
+        older = run(2, "S2", name="Pages", conclusion="failure")
+        older["workflow_id"] = 7
+        newer = run(3, "S2", name="Pages", event="workflow_dispatch")
+        newer["workflow_id"] = 7
+        FakeGithub.runs = [newer, older, run(1, "S1")]
+        self.assertEqual(gh.latest_run("o/r")["state"], "success")
+        other = run(4, "S2", name="Build", conclusion="failure")
+        other["workflow_id"] = 8
+        FakeGithub.runs = [other, newer, older]
+        self.assertEqual(gh.latest_run("o/r")["state"], "failure", "another workflow's failure still counts")
+
     def test_skipped_runs_do_not_spoil_a_green_commit(self):
         FakeGithub.runs = [run(2, "S2", conclusion="skipped"), run(1, "S2")]
         self.assertEqual(gh.latest_run("o/r")["state"], "success")

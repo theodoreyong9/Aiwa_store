@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **A re-run that succeeds clears the widget's Actions alert and Pages guide (backend 46).** The verdict on a commit counted every run of that commit, so a failed push run stayed the verdict even after a later run of the same workflow (a re-run, or a manual one) went green: on Yo the widget kept the red button and the Pages guide after the deployment worked. Now only the newest run of each workflow on the commit counts; another workflow's failure still does.
 - **The widget's video list also shows the MP4 files committed under `aiwa-videos/` (backend 45).** When a session cannot create the `videos` release (GitHub refused it on Yo), it commits the MP4 in the repository, as its instructions say; the list only read the release, so the video never showed up. It now reads both, release first.
 - **Everything is back in this repository; `theodoreyong9/public` is no longer used.** The access list (`access.json`, still off), the Termux line, the design references and the APK all come from `Aiwa_store` again, and the copy workflow and script are gone. What to make private, if anything, is to be decided later.
 - **The push instruction follows the repository's current default branch (backend 44) and never asks for a repository setting; a merge without conflict is integrated without a question (backend 43).**

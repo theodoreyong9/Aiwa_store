@@ -235,6 +235,14 @@ def latest_run(repo):
         return {"state": "none", "url": None}
     head = runs[0]  # the newest, by creation
     same = [r for r in runs if r.get("head_sha") == head.get("head_sha")]
+    # Of one workflow, only its newest run on this commit counts: a failed run that was started again (or that a later run of the same
+    # workflow replaced) is superseded by its successor; the older failure is not the verdict any more.
+    newest = {}
+    for r in same:
+        key = r.get("workflow_id") or r.get("name") or r.get("id")
+        if key not in newest or (r.get("created_at") or "", r.get("id") or 0) > (newest[key].get("created_at") or "", newest[key].get("id") or 0):
+            newest[key] = r
+    same = list(newest.values())
     shown, done = head, None
     if any(r.get("status") != "completed" for r in same):
         state = "running"
