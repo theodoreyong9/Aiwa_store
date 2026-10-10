@@ -1,47 +1,58 @@
 #!/usr/bin/env python3
-"""One-off probe (to be deleted): reads the robots.txt and the licence / terms pages of a music source and prints, as GitHub notices, what they say about robots,
-automation and commercial use. Read only, one request per page, polite user agent."""
-import re, sys, urllib.request
+"""One-off probe (to be deleted): how the three allowed music sources list their tracks. Read only, a few requests, polite user agent."""
+import re, sys, time, urllib.request, urllib.parse
 
 UA = 'Mozilla/5.0 (compatible; AiwaStoreProbe/1.0; +https://github.com/theodoreyong9/Aiwa_store)'
-SOURCES = {
-    'pixabay': ['https://pixabay.com/robots.txt', 'https://pixabay.com/service/license-summary/', 'https://pixabay.com/service/terms/'],
-    'incompetech': ['https://incompetech.com/robots.txt', 'https://incompetech.com/music/royalty-free/faq.html', 'https://incompetech.com/music/royalty-free/licenses/'],
-    'fma': ['https://freemusicarchive.org/robots.txt', 'https://freemusicarchive.org/terms-of-use/'],
-    'freesound': ['https://freesound.org/robots.txt', 'https://freesound.org/help/faq/', 'https://freesound.org/help/tos_web/'],
-    'archive': ['https://archive.org/robots.txt', 'https://archive.org/about/terms.php'],
-    'musopen': ['https://musopen.org/robots.txt', 'https://musopen.org/terms/'],
-    'ccmixter': ['https://ccmixter.org/robots.txt', 'https://ccmixter.org/terms'],
-    'opengameart': ['https://opengameart.org/robots.txt', 'https://opengameart.org/content/faq'],
-}
-KEY = re.compile(r'automat|scrap|crawl|\bbots?\b|spider|commercial|attribution|redistribut|api|download|content id|copyright claim|cc0|public domain|machine', re.I)
 
 
 def get(url):
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': UA}), timeout=25) as r:
-            return r.status, r.read(400000).decode('utf-8', 'replace')
+        with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': UA}), timeout=30) as r:
+            return r.status, r.read(600000).decode('utf-8', 'replace')
     except Exception as e:
-        code = getattr(e, 'code', None)
-        return code or 0, f'ERR {e}'[:200]
+        return getattr(e, 'code', 0) or 0, f'ERR {e}'[:200]
 
 
 def esc(s):
     return s.replace('%', '%25').replace('\r', '').replace('\n', '%0A')
 
 
-for url in SOURCES[sys.argv[1]]:
-    status, body = get(url)
-    if url.endswith('robots.txt') and status == 200:
-        lines = [l.strip() for l in body.splitlines() if l.strip() and not l.startswith('#')]
-        out = ' | '.join(lines[:40])
-    elif status == 200:
-        text = re.sub(r'<(script|style)[\s\S]*?</\1>', ' ', body)
-        text = re.sub(r'<[^>]+>', ' ', text)
-        text = re.sub(r'\s+', ' ', text)
-        sentences = re.split(r'(?<=[.!?])\s+', text)
-        hits = [s[:260] for s in sentences if KEY.search(s)]
-        out = ' || '.join(hits[:12])
-    else:
-        out = body[:200]
-    print(f'::notice title={sys.argv[1]} {status} {url}::{esc(out[:3500])}')
+def say(title, text):
+    print(f'::notice title={title}::{esc(text[:3500])}')
+
+
+which = sys.argv[1]
+if which == 'incompetech':
+    st, body = get('https://incompetech.com/music/royalty-free/licenses/')
+    srcs = re.findall(r'src="([^"]+\.js[^"]*)"', body)
+    say('inc scripts', f'{st} ' + ' '.join(srcs))
+    urls = set(re.findall(r'["\'(]([^"\'()\s]*(?:catalog|json|index)[^"\'()\s]*)["\')]', body))
+    say('inc urls in page', ' '.join(sorted(urls))[:1500])
+    for s in srcs[:6]:
+        u = urllib.parse.urljoin('https://incompetech.com/music/royalty-free/licenses/', s)
+        st2, js = get(u)
+        found = sorted(set(re.findall(r'["\']([^"\']*(?:catalog|\.json|\.php|api)[^"\']*)["\']', js)))[:25]
+        say(f'inc js {st2} {u}', ' '.join(found))
+        time.sleep(1)
+elif which == 'archive':
+    q = 'mediatype:audio AND licenseurl:("http://creativecommons.org/publicdomain/zero/1.0/") AND format:MP3'
+    url = 'https://archive.org/advancedsearch.php?' + urllib.parse.urlencode({'q': q, 'fl[]': ['identifier', 'title', 'creator', 'licenseurl', 'downloads'], 'rows': 6, 'sort[]': 'downloads desc', 'output': 'json'}, doseq=True)
+    st, body = get(url)
+    say(f'archive search {st}', body[:2500])
+    m = re.search(r'"identifier":\s*"([^"]+)"', body)
+    if m:
+        st, body = get(f'https://archive.org/metadata/{m.group(1)}')
+        files = re.findall(r'"name":\s*"([^"]+\.mp3)"[^}]*?"size":\s*"?(\d+)', body)
+        say(f'archive metadata {st} {m.group(1)}', f'{len(body)} bytes; mp3: {files[:4]}; licenseurl: {re.findall(chr(34)+"licenseurl"+chr(34)+":.*?,", body)[:1]}')
+elif which == 'oga':
+    st, body = get('https://opengameart.org/art-search-advanced?keys=&field_art_type_tid%5B%5D=12&sort_by=count&sort_order=DESC')
+    links = re.findall(r'href="(/content/[^"#?]+)"', body)
+    say(f'oga list {st}', ' '.join(list(dict.fromkeys(links))[:15]))
+    lic = re.findall(r'<option value="(\d+)"[^>]*>([^<]*(?:CC|GPL|Public)[^<]*)</option>', body)
+    say('oga licence filter ids', str(lic[:12]))
+    time.sleep(10)
+    if links:
+        st, page = get('https://opengameart.org' + list(dict.fromkeys(links))[0])
+        mp3 = re.findall(r'href="([^"]+\.(?:mp3|ogg|wav))"', page)
+        lic = re.findall(r'(CC0|CC-BY[^<"]{0,12}|GPL[^<"]{0,8}|OGA-BY[^<"]{0,6})', page)
+        say(f'oga item {st}', f'files {mp3[:4]} licences {lic[:6]} tags {re.findall(chr(114)+"el=.tag.[^>]*>([^<]+)<", page)[:8]}')
