@@ -134,3 +134,24 @@ test('the engine: a line that leaves a mask is gone (not left half-visible), an 
     }
   } finally { await browser.close(); }
 });
+
+test('the film analyzer finds the hard cuts of a film, their lengths and the rhythm, and writes a report with no picture in it', need, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'vk-analyze-'));
+  const out = join(dir, 'synth.mp4');
+  run(ffmpegPath(), ['-y', '-loglevel', 'error',
+    '-f', 'lavfi', '-i', 'testsrc2=s=320x180:r=25:d=1', '-f', 'lavfi', '-i', 'mandelbrot=s=320x180:r=25', '-f', 'lavfi', '-i', 'smptebars=s=320x180:r=25:d=0.8', '-f', 'lavfi', '-i', 'color=c=orange:s=320x180:r=25:d=2', '-f', 'lavfi', '-i', 'sine=f=330:d=5.8',
+    '-filter_complex', '[0:v]setpts=PTS-STARTPTS[a];[1:v]trim=duration=2,setpts=PTS-STARTPTS[b];[2:v]setpts=PTS-STARTPTS[c];[3:v]setpts=PTS-STARTPTS[d];[a][b][c][d]concat=n=4:v=1:a=0[v]',
+    '-map', '[v]', '-map', '4:a', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', out]);
+  const r = spawnSync('python3', [join(here, '..', 'src', 'analyze.py'), out, '--out', join(dir, 'r.json'), '--md', join(dir, 'r.md'), '--title', 'synthetic'], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const report = JSON.parse(readFileSync(join(dir, 'r.json'), 'utf8'));
+  const starts = report.shots.map((s) => s.start);
+  assert.equal(starts.length, 4, `four shots: ${JSON.stringify(starts)}`);
+  for (const [got, want] of starts.map((g, i) => [g, [0, 1, 3, 3.8][i]])) assert.ok(Math.abs(got - want) < 0.2, `a cut at ${want} s was found at ${got} s`);
+  assert.ok(Math.abs(report.stats.first_cut - 1) < 0.2);
+  assert.equal(report.title, 'synthetic');
+  assert.equal(report.transcript, null, 'no transcript is guessed');
+  assert.ok(report.reading.length >= 4);
+  assert.match(readFileSync(join(dir, 'r.md'), 'utf8'), /^# synthetic/);
+  assert.ok(!/png|jpg|base64/i.test(JSON.stringify(report)), 'a report holds measurements, never a picture');
+});

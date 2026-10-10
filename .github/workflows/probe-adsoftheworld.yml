@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v4
       - name: Probe
         shell: bash
         run: |
@@ -32,17 +33,7 @@ jobs:
             out+="json-ld: $(grep -c 'application/ld+json' c.html)"$'\n'
             out+="media: $(grep -o -i -E '(youtube\.com/embed/[A-Za-z0-9_-]+|youtu\.be/[A-Za-z0-9_-]+|player\.vimeo\.com/video/[0-9]+|vimeo\.com/[0-9]+|youtube\.com/watch\?v=[A-Za-z0-9_-]+)' c.html | sort -u | head -5 | tr '\n' ' ')"$'\n'
             out+="--- text (tags stripped, first 3000 chars of <main>/<article>):"$'\n'
-            out+="$(python3 - <<'PY'
-import re
-h=open('c.html',encoding='utf-8',errors='ignore').read()
-m=re.search(r'<main.*?</main>',h,re.S) or re.search(r'<article.*?</article>',h,re.S)
-body=m.group(0) if m else h
-body=re.sub(r'<(script|style)[^>]*>.*?</\1>','',body,flags=re.S)
-body=re.sub(r'<(br|/p|/div|/li|/h[1-6]|/dt|/dd|/tr)[^>]*>','\n',body)
-body=re.sub(r'<[^>]+>',' ',body)
-body=re.sub(r'[ \t]+',' ',body); body=re.sub(r'\n\s*\n+','\n',body)
-print(body.strip()[:3000])
-PY
-)"
+            out+="$(python3 scripts/probe-strip.py c.html 3000)"
+
             emit "campaign $((++n))" "$out"
           done
