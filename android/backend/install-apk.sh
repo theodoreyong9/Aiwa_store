@@ -11,9 +11,7 @@
 #  - it prints one last line saying where the file is.
 set -uo pipefail
 
-# The public repository carries a copy of each build (the main repository can be private); the main one is the fallback until it is.
-APK_URL="${AIWA_APK_URL:-https://github.com/theodoreyong9/public/releases/download/android-latest/Aiwa_store.apk}"
-APK_FALLBACK="https://github.com/theodoreyong9/Aiwa_store/releases/download/android-latest/Aiwa_store.apk"
+APK_URL="${AIWA_APK_URL:-https://github.com/theodoreyong9/Aiwa_store/releases/download/android-latest/Aiwa_store.apk}"
 APK_PATH="$HOME/aiwa-debug.apk"
 PART="$APK_PATH.part"
 MIN_BYTES=1000000
@@ -21,13 +19,9 @@ MIN_BYTES=1000000
 rm -f "$PART"
 echo "APK: downloading…"
 got=0
-for url in "$APK_URL" "$APK_FALLBACK"; do
-  if curl -fsSL --retry 3 --connect-timeout 20 -o "$PART" "$url" && [ "$(wc -c < "$PART" 2>/dev/null || echo 0)" -ge "$MIN_BYTES" ]; then
-    got=1
-    break
-  fi
-  [ -n "${AIWA_APK_URL:-}" ] && break
-done
+if curl -fsSL --retry 3 --connect-timeout 20 -o "$PART" "$APK_URL" && [ "$(wc -c < "$PART" 2>/dev/null || echo 0)" -ge "$MIN_BYTES" ]; then
+  got=1
+fi
 if [ "$got" -ne 1 ]; then
   rm -f "$PART"
   echo "APK: NOT downloaded (network, or GitHub did not answer). Try again, or open this address in the phone's browser:"

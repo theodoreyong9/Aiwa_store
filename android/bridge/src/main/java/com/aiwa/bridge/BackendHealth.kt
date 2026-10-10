@@ -7,7 +7,7 @@ package com.aiwa.bridge
  */
 
 /** The one line that installs (and later updates) the backend, run in Termux. */
-const val BOOTSTRAP_COMMAND = "curl -fsSL https://raw.githubusercontent.com/theodoreyong9/public/main/android/backend/bootstrap.sh | bash"
+const val BOOTSTRAP_COMMAND = "curl -fsSL https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh | bash"
 
 /** Where Termux comes from: F-Droid or GitHub are its only official sources; the Play Store copy is an old unofficial one without RUN_COMMAND, which the widget needs. */
 const val TERMUX_DOWNLOAD_URL = "https://f-droid.org/packages/com.termux/"

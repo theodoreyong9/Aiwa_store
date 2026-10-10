@@ -304,7 +304,7 @@ class SentAppTests(Base):
                        # the app runs in an isolated frame: what that means for the file
                        'sandbox="allow-scripts"', "512 Ko", "URL ABSOLUE", "localStorage", "store-app-example.html", "bouton ▦"):
             self.assertIn(wanted, text)
-        self.assertIn("raw.githubusercontent.com/theodoreyong9/public/main/", text)
+        self.assertIn("raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/", text)
         for mode in ("none", "pages", "android"):
             srv.deploy_mode = mode
             joined = " ".join(t for _, t in srv._instruction_lines("o/r", "w", "main", True))
@@ -513,7 +513,7 @@ class MailboxTests(Base):
         # The Aiwa app needs Termux: the widget's download button, on this very repository, copies this line and opens Termux.
         declared = json.loads((Path(__file__).resolve().parents[3] / "aiwa-android.json").read_text(encoding="utf-8"))
         self.assertTrue(srv.TERMUX_LINE_RE.fullmatch(declared["termux"]))
-        self.assertIn("raw.githubusercontent.com/theodoreyong9/public/main/android/backend/bootstrap.sh", declared["termux"])
+        self.assertIn("raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh", declared["termux"])
 
     def test_the_android_instruction_asks_for_the_declaration_only_when_termux_is_needed(self):
         srv.deploy_mode = "android"
@@ -712,7 +712,7 @@ class InstructionTests(Base):
                 self.assertNotIn("sources", dict(srv._instruction_lines(repo, "w", "main", True)), f"repo={repo} mode={mode}")
         srv.deploy_mode = "store"
         text = dict(srv._instruction_lines(None, None, None, True))["sources"]
-        for wanted in ("FACULTATIVE", "ignore cette ligne", "lecture seule", "theodoreyong9/public",
+        for wanted in ("FACULTATIVE", "ignore cette ligne", "lecture seule", "theodoreyong9/Aiwa_store",
                        "docs/YELLOWPAPER.md", "docs/EXPLAINED.md"):
             self.assertIn(wanted, text)
         # read-only: it must not contradict the rule that only the session's repositories are touched

@@ -72,7 +72,7 @@ needed for the Store or the wallet. It runs only once it has been turned on — 
 Install the backend in Termux (one command, also for updates):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/theodoreyong9/public/main/android/backend/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh | bash
 ```
 
 **Why the person pastes it.** An app can neither install another app nor write into it, and Termux refuses commands from other apps until

@@ -21,7 +21,7 @@ import java.net.URL
  * of the official build. The code is public, and anyone can compile a build without it.
  */
 object AccessGate {
-    const val ACCESS_URL = "https://raw.githubusercontent.com/theodoreyong9/public/main/access.json"
+    const val ACCESS_URL = "https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/access.json"
     private const val PREFS = "aiwa_access"
     private const val TOKEN_KEY = "github-token"
     private const val RECHECK_MS = 30 * 60 * 1000L
