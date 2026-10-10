@@ -655,6 +655,36 @@ class AskAndVideoTests(Base):
         self.assertEqual([v["name"] for v in got["videos"]], ["demo-16x9.mp4", "yo-16x9.mp4"])
         self.assertEqual(got["videos"][1]["url"], "https://github.com/o/r/raw/HEAD/aiwa-videos/yo-16x9.mp4")
 
+    def test_when_github_cannot_answer_the_known_videos_stay_listed(self):
+        def down(url):
+            raise srv.GithubUnavailable("HTTP 403")
+        known = [{"name": "yo-16x9.mp4", "size": 5, "url": "https://github.com/o/r/raw/HEAD/aiwa-videos/yo-16x9.mp4", "ts": ""}]
+        with unittest.mock.patch.object(srv, "current_repo", "o/r"), unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None), \
+                unittest.mock.patch.object(srv, "_github_json", down):
+            srv.video_cache.update(key="o/r", items=list(known), at=0.0)
+            got = srv._videos_snapshot()
+        self.assertEqual(got["videos"], known, "the limit of requests without a token must not empty the list")
+
+    def test_a_304_answer_returns_what_was_known_and_a_404_means_nothing_there(self):
+        import io
+        import urllib.error
+        url = "https://api.github.com/repos/o/r/contents/aiwa-videos"
+        srv._etags[url] = ('"abc"', [{"name": "x.mp4"}])
+        def fake(request, timeout=0):
+            self.assertEqual(request.get_header("If-none-match"), '"abc"')
+            raise urllib.error.HTTPError(url, 304, "Not Modified", {}, io.BytesIO(b""))
+        with unittest.mock.patch.object(srv.urllib.request, "urlopen", fake):
+            self.assertEqual(srv._github_json(url), [{"name": "x.mp4"}])
+        def gone(request, timeout=0):
+            raise urllib.error.HTTPError(url, 404, "Not Found", {}, io.BytesIO(b""))
+        with unittest.mock.patch.object(srv.urllib.request, "urlopen", gone):
+            self.assertIsNone(srv._github_json(url))
+        def limited(request, timeout=0):
+            raise urllib.error.HTTPError(url, 403, "rate limit", {}, io.BytesIO(b""))
+        with unittest.mock.patch.object(srv.urllib.request, "urlopen", limited):
+            with self.assertRaises(srv.GithubUnavailable):
+                srv._github_json(url)
+
     def test_a_session_on_a_repository_is_told_where_the_videos_go(self):
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["video"]
         self.assertIn("release GitHub `videos` du dépôt o/r", text)

@@ -34,6 +34,7 @@ import subprocess
 import termios
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -50,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 46
+BACKEND_VERSION = 47
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -1780,16 +1781,41 @@ def _sent_app_code():
 VIDEO_TAG = "videos"
 VIDEO_EXT = (".mp4", ".webm", ".mov")
 video_cache = {"key": None, "items": [], "at": 0.0}
+VIDEO_STORE = Path.home() / ".aiwa_videos.json"    # the last list that GitHub gave, per repository: it survives a restart and a spent request limit
+
+
+class GithubUnavailable(Exception):
+    """GitHub did not answer (network, rate limit): not the same as 'there is nothing there'."""
+
+
+_etags = {}    # url -> (etag, answer): a 304 does not count against GitHub's hourly limit for requests without a token
 
 
 def _github_json(url):
-    """A public GitHub API answer (no token: Aiwa never asks for one), or None."""
+    """A public GitHub API answer (no token: Aiwa never asks for one); None when there is nothing there (404);
+    GithubUnavailable when GitHub could not answer (network, the hourly limit of requests without a token)."""
+    headers = {"User-Agent": "aiwa", "Accept": "application/vnd.github+json"}
+    known = _etags.get(url)
+    if known:
+        headers["If-None-Match"] = known[0]
     try:
-        request = urllib.request.Request(url, headers={"User-Agent": "aiwa", "Accept": "application/vnd.github+json"})
-        with urllib.request.urlopen(request, timeout=15) as reply:
-            return json.loads(reply.read(2_000_000))
-    except (OSError, ValueError):
-        return None
+        with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=15) as reply:
+            data = json.loads(reply.read(2_000_000))
+            etag = reply.headers.get("ETag")
+        if etag:
+            _etags[url] = (etag, data)
+        return data
+    except urllib.error.HTTPError as err:
+        if err.code == 304 and known:
+            return known[1]
+        if err.code == 404:
+            _etags.pop(url, None)
+            return None
+        print(f"[{_ts()}] github {url.split('github.com')[-1]}: HTTP {err.code}", flush=True)
+        raise GithubUnavailable(f"HTTP {err.code}")
+    except (OSError, ValueError) as err:
+        print(f"[{_ts()}] github {url.split('github.com')[-1]}: {err}", flush=True)
+        raise GithubUnavailable(str(err))
 
 
 def _videos_snapshot():
@@ -1805,7 +1831,20 @@ def _videos_snapshot():
     with lock:
         if video_cache["key"] == repo and now - video_cache["at"] < 60:
             return {"repo": repo, "videos": list(video_cache["items"])}
-    release = _github_json(f"https://api.github.com/repos/{repo}/releases/tags/{VIDEO_TAG}")
+    try:
+        release = _github_json(f"https://api.github.com/repos/{repo}/releases/tags/{VIDEO_TAG}")
+        folder = _github_json(f"https://api.github.com/repos/{repo}/contents/aiwa-videos")
+    except GithubUnavailable:
+        # GitHub could not answer: what was known stays on the screen (an empty list would say the videos are gone), and it is tried again in a minute.
+        with lock:
+            kept = list(video_cache["items"]) if video_cache["key"] == repo else []
+            if not kept:
+                try:
+                    kept = [v for v in json.loads(VIDEO_STORE.read_text(encoding="utf-8")).get(repo, []) if isinstance(v, dict)]
+                except (OSError, ValueError, AttributeError):
+                    kept = []
+            video_cache.update(key=repo, items=kept, at=now)
+        return {"repo": repo, "videos": kept}
     items = []
     for asset in (release or {}).get("assets", []) if isinstance(release, dict) else []:
         name = str(asset.get("name") or "")
@@ -1815,7 +1854,6 @@ def _videos_snapshot():
     items.sort(key=lambda v: v["ts"], reverse=True)
     # A session that could not create the release commits the MP4 under aiwa-videos/ instead (its instructions say so): those are listed too,
     # after the release's, from the repository's default branch.
-    folder = _github_json(f"https://api.github.com/repos/{repo}/contents/aiwa-videos")
     known = {v["name"] for v in items}
     for entry in folder if isinstance(folder, list) else []:
         name = str(entry.get("name") or "") if isinstance(entry, dict) else ""
@@ -1823,6 +1861,17 @@ def _videos_snapshot():
             items.append({"name": name, "size": int(entry.get("size") or 0), "url": f"https://github.com/{repo}/raw/HEAD/aiwa-videos/{urllib.parse.quote(name)}", "ts": ""})
     with lock:
         video_cache.update(key=repo, items=items, at=now)
+    with store_lock:
+        try:
+            try:
+                saved = json.loads(VIDEO_STORE.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                saved = {}
+            saved = saved if isinstance(saved, dict) else {}
+            saved[repo] = items
+            VIDEO_STORE.write_text(json.dumps(saved), encoding="utf-8")
+        except OSError:
+            pass
     return {"repo": repo, "videos": items}
 
 
