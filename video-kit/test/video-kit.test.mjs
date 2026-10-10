@@ -97,3 +97,40 @@ test('the voice-over tool reports its engine and lines, or says plainly that no 
   assert.equal(said.lines.length, 2);
   assert.ok(existsSync(join(dir, 'vo.wav')));
 });
+
+test('the engine: a line that leaves a mask is gone (not left half-visible), an html layer is animated by its tick, and x, y, w can differ by format', need, async () => {
+  const { chromium } = await import('playwright');
+  const tpl = join(here, '..', 'template');
+  const dir = mkdtempSync(join(tmpdir(), 'vk-engine-'));
+  for (const f of ['motion.js', 'cinematic.js']) writeFileSync(join(dir, f), readFileSync(join(tpl, f)));
+  writeFileSync(join(dir, 'v.html'), `<!doctype html><html><body style="margin:0"><div id="stage"></div><script src="motion.js"></script><script>
+    window.SHOTS = [{ seconds: 5, layers: [
+      { type: 'text', text: 'Une\\nligne', mode: 'lines', effect: 'mask', at: 0.2, out: { at: 2, effect: 'mask' }, size: 8 },
+      { type: 'html', id: 't', markup: '<div id="b" style="width:100px;height:10px;background:red"></div>', design: [200, 40], w: 20, x: [10, 90], y: 50, tick: (root, t) => { root.querySelector('#b').style.opacity = String(t / 5); } },
+    ] }];
+  </script><script src="cinematic.js"></script></body></html>`);
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+  try {
+    for (const [w, h, left] of [[480, 270, '90%'], [270, 480, '10%']]) {
+      const page = await browser.newPage({ viewport: { width: w, height: h } });
+      const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+      await page.goto(`file://${dir}/v.html`);
+      await page.evaluate(() => window.READY);
+      const seen = await page.evaluate(() => {
+        const out = {};
+        window.render(1.5); out.before = Number(document.querySelector('#stage > div > div:nth-child(2) > div > div:last-child > div').style.opacity || 1);
+        window.render(3.5); out.after = Number(document.querySelector('#stage > div > div:nth-child(2) > div > div:last-child > div').style.opacity);
+        window.render(2.5); out.tick = Number(document.querySelector('#b').style.opacity);
+        let el = document.querySelector('#b'); while (el && !String(el.style.left).endsWith('%')) el = el.parentElement;
+        out.left = el.style.left;
+        return out;
+      });
+      assert.deepEqual(errors, []);
+      assert.ok(seen.before > 0.9, `visible before it leaves (${seen.before})`);
+      assert.equal(seen.after, 0, 'gone after it left');
+      assert.ok(Math.abs(seen.tick - 0.5) < 0.01, 'the tick of an html layer runs with the local time');
+      assert.equal(seen.left, left, `x follows the format (${w}x${h})`);
+      await page.close();
+    }
+  } finally { await browser.close(); }
+});
