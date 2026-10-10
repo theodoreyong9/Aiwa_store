@@ -4,11 +4,27 @@
   voice.py cues.json out.wav SECONDS [--lang=fr] [--speed=150] [--voice=NAME]
 
   cues.json: [ { "at": 3.2, "text": "Salut, je suis Yo." }, … ]    each line is spoken from its `at` second; the track is SECONDS long
-  Engines, in order: piper (PIPER_BIN and PIPER_MODEL set: a neural voice, much better), espeak-ng (`apt-get install -y espeak-ng`), flite.
+  Engines, in order: piper (PIPER_BIN and PIPER_MODEL set), kokoro (a neural voice, natural, French included: run `sh voice-setup.sh` once; the voice is
+  ff_siwis for French, af_heart for English, or --voice=NAME; --kspeed=1.0), espeak-ng (`apt-get install -y espeak-ng`: intelligible, robotic), flite.
   The engine used and the duration of each line are printed as JSON, so that a line which runs into the next one can be seen and shortened.
-  Honest limit: espeak-ng is intelligible but robotic. With piper and a French voice it is far better; say which one was used.
+  Honest limit: espeak-ng is robotic; kokoro and piper are neural voices and far more natural. Say which engine spoke.
 """
 import json, os, shutil, subprocess, sys, tempfile, wave
+
+
+def load_kokoro():
+    """The kokoro engine, or None: the python package and its two model files (see voice-setup.sh; KOKORO_MODEL and KOKORO_VOICES override the places)."""
+    cache = os.path.join(os.path.expanduser('~'), '.cache', 'aiwa-video')
+    model = os.environ.get('KOKORO_MODEL') or os.path.join(cache, 'kokoro-v1.0.onnx')
+    voices = os.environ.get('KOKORO_VOICES') or os.path.join(cache, 'voices-v1.0.bin')
+    if not (os.path.exists(model) and os.path.exists(voices)):
+        return None
+    try:
+        import soundfile  # noqa: F401
+        from kokoro_onnx import Kokoro
+        return Kokoro(model, voices)
+    except Exception:
+        return None
 
 
 def main():
@@ -20,8 +36,13 @@ def main():
     cues = json.load(open(cues_file))
     tmp = tempfile.mkdtemp(prefix='vo-')
     engine = None
+    kokoro = None
+    if not (os.environ.get('PIPER_BIN') and os.environ.get('PIPER_MODEL')):
+        kokoro = load_kokoro()
     if os.environ.get('PIPER_BIN') and os.environ.get('PIPER_MODEL'):
         engine = 'piper'
+    elif kokoro:
+        engine = 'kokoro'
     elif shutil.which('espeak-ng'):
         engine = 'espeak-ng'
     elif shutil.which('flite'):
@@ -35,6 +56,12 @@ def main():
         text = str(c['text'])
         if engine == 'piper':
             subprocess.run([os.environ['PIPER_BIN'], '--model', os.environ['PIPER_MODEL'], '--output_file', wav], input=text, text=True, check=True, capture_output=True)
+        elif engine == 'kokoro':
+            import soundfile as sf
+            lang_code = {'fr': 'fr-fr', 'en': 'en-us'}.get(lang, lang)
+            name = voice or {'fr': 'ff_siwis', 'en': 'af_heart'}.get(lang, 'ff_siwis')
+            samples, rate = kokoro.create(text, voice=name, speed=float(opt.get('kspeed', 1.0)), lang=lang_code)
+            sf.write(wav, samples, rate)
         elif engine == 'espeak-ng':
             subprocess.run(['espeak-ng', '-v', voice or lang, '-s', speed, '-p', '45', '-w', wav, text], check=True, capture_output=True)
         else:

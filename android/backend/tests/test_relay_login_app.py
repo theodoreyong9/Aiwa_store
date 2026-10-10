@@ -1623,7 +1623,7 @@ class CreativeBarTests(unittest.TestCase):
 
     def test_the_video_instruction_is_a_production_in_stages_with_a_critique(self):
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["video"]
-        for wanted in ("DIRECTOR-PLAYBOOK.md", "video-research/src/cli.js research", "VR_CATALOG_URL", "`analyze.py`", "DANS L'ORDRE", "`facts.md`", "`brief.md`", "`script.md`", "cinematic.html", "6 la critique", "note de 1 à 5", "jusqu'à trois tours", "`slideshow`", "voix off"):
+        for wanted in ("DIRECTOR-PLAYBOOK.md", "video-research/src/cli.js research", "VR_CATALOG_URL", "`analyze.py`", "voice-setup.sh", "DANS L'ORDRE", "`facts.md`", "`brief.md`", "`script.md`", "cinematic.html", "6 la critique", "note de 1 à 5", "jusqu'à trois tours", "`slideshow`", "voix off"):
             self.assertIn(wanted, text)
 
 

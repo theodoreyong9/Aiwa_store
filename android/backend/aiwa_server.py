@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 51
+BACKEND_VERSION = 52
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -564,7 +564,7 @@ def _video_line(repo):
         "Donne-moi les notes finales telles quelles. Le contrôle `video-kit check` signale `slideshow` quand l'image bouge trop peu : refais alors le plan concerné. Dis aussi ce qui est provisoire (la voix de synthèse, la musique générée). "
         f"Dépose chaque vidéo comme fichier de la release GitHub `videos` du dépôt {repo} (crée-la si elle n'existe pas ; un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4`), "
         "avec ses fichiers d'étapes et son rapport de contrôle sous `aiwa-videos/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
-        "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg espeak-ng`, `npx playwright install chromium`, `gh release create` ou l'API GitHub avec le jeton de l'environnement) "
+        "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg espeak-ng`, `npx playwright install chromium`, `sh video-kit/src/voice-setup.sh` pour la voix naturelle de la voix off, `gh release create` ou l'API GitHub avec le jeton de l'environnement) "
         "au lieu de t'arrêter. Si la release reste impossible, commite le MP4 sous `aiwa-videos/` sur ta branche et dis-moi en une phrase pourquoi, sans prétendre qu'il est dans la release."
     )
 
