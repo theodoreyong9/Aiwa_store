@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // music-research search "<brief>" [--credit=ok|none --bpm=100-130 --energy=4 --min=20 --max=120 --source=incompetech|opengameart --limit=5]
 // music-research credit <id>                       the credit line to show (or "none")
-// music-research fetch <id> <out-file>             downloads that one track from its source and prints its credit
+// music-research fetch <id> <out-file>             downloads that one track (from its source, else from the release `music`) and prints its credit
 // music-research stats | sync --source=incompetech|opengameart [--max=30 --pages=2]
 // The register is read from catalog/tracks.jsonl, or from MR_CATALOG_URL (the raw address of that file) when the repository is not cloned.
 import { writeFileSync } from 'node:fs';
@@ -11,6 +11,7 @@ import { creditLine, sourceLine, usable } from './track.js';
 import { search, stats } from './search.js';
 import { loadCatalog, syncIncompetech, syncOga, USER_AGENT } from './sync.js';
 
+const MIRROR = 'https://github.com/theodoreyong9/Aiwa_store/releases/download/music';
 const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'catalog');
 const args = process.argv.slice(2);
 const flags = Object.fromEntries(args.filter((a) => a.startsWith('--')).map((a) => { const [k, v] = a.slice(2).split('='); return [k, v ?? true]; }));
@@ -37,10 +38,19 @@ try {
   } else if (command === 'fetch') {
     const t = (await rows()).find((r) => r.id === a);
     if (!t || !usable(t.licence)) throw new Error(`no usable track ${a}`);
-    const res = await fetch(t.file, { headers: { 'User-Agent': USER_AGENT } });
-    if (!res.ok) throw new Error(`${t.file} answers ${res.status}: the source cannot be reached from here; say so and take another track or the generated bed (beat.py)`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length < 50000) throw new Error(`${t.file}: only ${buf.length} bytes, not a track`);
+    // the source first, then the copy in the release `music` of this repository (made on request by the "Music mirror" workflow), unless MR_NO_MIRROR is set
+    const tries = [t.file, ...(process.env.MR_NO_MIRROR ? [] : [`${MIRROR}/${t.id}.mp3`])];
+    let buf = null, failure = '';
+    for (const url of tries) {
+      try {
+        const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, redirect: 'follow' });
+        if (!res.ok) { failure += `${url} answers ${res.status}; `; continue; }
+        const got = Buffer.from(await res.arrayBuffer());
+        if (got.length < 50000) { failure += `${url}: only ${got.length} bytes; `; continue; }
+        buf = got; break;
+      } catch (err) { failure += `${url}: ${err.message}; `; }
+    }
+    if (!buf) throw new Error(`${failure}the track cannot be reached from here: say so, and take another track or the generated bed (beat.py)`);
     writeFileSync(b, buf);
     console.log(JSON.stringify({ id: t.id, out: b, bytes: buf.length, credit: creditLine(t), source: sourceLine(t) }));
   } else if (command === 'stats') console.log(JSON.stringify(stats(await rows()), null, 1));

@@ -26,6 +26,6 @@ Left out on purpose: anything NC (non-commercial), ND (no derivatives), SA (shar
 
 ## What is measured and what is not
 
-The tempo of an Incompetech track is **declared by its author**, not measured here (`bpm_basis: "declared"`). OpenGameArt pages give no tempo: `bpm` is empty there until a measurement is added. The energy is a rough reading of the tags and the tempo (`energy_basis`), good enough to rank, not an ear. No audio is stored in this repository: the register keeps the address of each file, and `fetch` downloads one track from its source. If the source cannot be reached from the session, say so and use the generated bed (`video-kit/src/beat.py`).
+The tempo of an Incompetech track is **declared by its author**, not measured here (`bpm_basis: "declared"`). OpenGameArt pages give no tempo: `bpm` is empty there until a measurement is added. The energy is a rough reading of the tags and the tempo (`energy_basis`), good enough to rank, not an ear. No audio is stored in this repository: the register keeps the address of each file, and `fetch` downloads one track from its source. `fetch` tries the source, then the copy in the release `music` of this repository (made on request by the workflow *Music mirror*, only for tracks of the register). If neither can be reached from the session, say so and use the generated bed (`video-kit/src/beat.py`).
 
 Weekly sync: `.github/workflows/music-catalog-sync.yml`. Tests: `npm test` in this folder.
