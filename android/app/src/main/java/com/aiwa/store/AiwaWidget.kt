@@ -673,7 +673,6 @@ private fun CompactContent(state: AiwaState) {
                             description = "Un réglage de GitHub à faire : le guide",
                             background = alertRed,
                             action = actionStartActivity<PagesHelpActivity>(),
-                            diameter = chipH.dp,
                         )
                         Spacer(GlanceModifier.width(GAP.dp))
                     }
