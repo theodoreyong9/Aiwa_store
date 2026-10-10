@@ -13,6 +13,7 @@ export function textOf(html) {
   return decode(body).replace(/[ \t ]+/g, ' ').split('\n').map((l) => l.trim()).filter(Boolean);
 }
 
+const MEDIA = new Set(['film', 'print', 'outdoor', 'digital', 'social', 'integrated', 'design', 'audio', 'radio', 'direct', 'pr', 'ambient', 'mobile', 'experiential', 'promo', 'innovation', 'craft', 'tv', 'television', 'cinema', 'out of home', 'social media', 'branded content', 'activation', 'event', 'packaging', 'press']);
 const meta = (html, key) => {
   const m = html.match(new RegExp(`<meta[^>]*(?:property|name)=['"]${key}['"][^>]*content=['"]([^'"]*)['"]`, 'i')) || html.match(new RegExp(`<meta[^>]*content=['"]([^'"]*)['"][^>]*(?:property|name)=['"]${key}['"]`, 'i'));
   return m ? decode(m[1]) : null;
@@ -40,6 +41,8 @@ export function parseCampaign(html, slug) {
   const pub = facts.match(/published in (.+?) in ([A-Z][a-z]+),? (\d{4})/);
   const kind = facts.match(/This (.+?) campaign titled/i);
   const work = facts.match(/This ((?:(?!This ).)+?) media campaign is related to the (.+?) industry and contains (\d+) media asset/i);
+  const industryOnly = facts.match(/related to the (.+?) industry/i);
+  const assetsOnly = facts.match(/contains (\d+) media asset/i);
   const icat = at(/^Categories$/i);
   const categories = [];
   if (icat >= 0) for (const l of lines.slice(icat + 1)) { if (/^(Share|Newer|Older)$/i.test(l)) break; categories.push(l); if (categories.length >= 14) break; }
@@ -51,15 +54,17 @@ export function parseCampaign(html, slug) {
     title, brand: colon > 0 ? title.slice(0, colon) : null, campaign: colon > 0 ? title.slice(colon + 2) : title,
     agency, country: pub ? pub[1] : null, month: pub ? pub[2] : null, year: pub ? Number(pub[3]) : null,
     tier: /student campaign/i.test(facts) ? 'student' : 'professional',
-    media: work ? work[1].split(/\s+and\s+|,\s*/).map((x) => x.trim()).filter(Boolean) : (kind ? [kind[1]] : []),
-    industry: work ? work[2] : null, assets: work ? Number(work[3]) : null,
+    media: work ? work[1].split(/\s+and\s+|,\s*/).map((x) => x.trim()).filter(Boolean) : categories.filter((c) => MEDIA.has(c.toLowerCase())),
+    industry: work ? work[2] : (industryOnly ? industryOnly[1] : null), assets: work ? Number(work[3]) : (assetsOnly ? Number(assetsOnly[1]) : null),
+    facts: facts ? excerpt(facts, 420) : '',
     categories, idea: description ? excerpt(description) : null,
     video: { youtube: youtube.slice(0, 3), vimeo: vimeo.slice(0, 3) },
     image: meta(html, 'og:image'),
   };
 }
 
-/** The campaign slugs a listing page links to, in order of appearance. */
+const NOT_CAMPAIGNS = new Set(['new', 'latest', 'popular', 'trending', 'top', 'featured', 'highlighted', 'professional', 'student']);
+/** The campaign slugs a listing page links to, in order of appearance (the section links like /campaigns/new are not campaigns). */
 export function listingSlugs(html) {
-  return [...new Set([...html.matchAll(/href=["']\/campaigns\/([a-z0-9][a-z0-9-]*)["']/gi)].map((m) => m[1]))];
+  return [...new Set([...html.matchAll(/href=["']\/campaigns\/([a-z0-9][a-z0-9-]*)["']/gi)].map((m) => m[1]))].filter((s) => !NOT_CAMPAIGNS.has(s));
 }

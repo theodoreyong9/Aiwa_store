@@ -24,7 +24,7 @@ async function rows() {
 }
 
 try {
-  if (command === 'sync') console.log(JSON.stringify(await sync({ dir, max: Number(flags.max ?? 40) }), null, 1));
+  if (command === 'sync') console.log(JSON.stringify(await sync({ dir, max: Number(flags.max ?? 40), log: (m) => console.error(m) }), null, 1));
   else if (command === 'research') {
     const found = research(await rows(), brief || '', { limit: Number(flags.limit ?? 8), industry: flags.industry || null, medium: flags.medium || null });
     const out = join(process.cwd(), '.video-research', 'latest'); mkdirSync(out, { recursive: true });

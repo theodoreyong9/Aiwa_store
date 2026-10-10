@@ -31,7 +31,10 @@ export async function sync({ dir, base = BASE, listings = ['/', '/campaigns'], m
     robots = parseRobots(await res.text());
   } catch (err) { summary.errors.push(`robots.txt unreadable, nothing fetched: ${err.message}`); return summary; }
   const wait = Math.max(delayMs, (crawlDelay(robots) ?? 0) * 1000);
-  const rows = loadCatalog(dir), known = new Set(rows.map((r) => r.slug));
+  let rows = loadCatalog(dir);
+  // a record written before the page text was kept ("facts") is read again, a few per run, to be completed
+  const stale = new Set(rows.filter((r) => !('facts' in r)).map((r) => r.slug));
+  const known = new Set(rows.filter((r) => !stale.has(r.slug)).map((r) => r.slug));
   const slugs = [];
   for (const path of listings) {
     if (!allowed(robots, path)) { summary.skipped_by_robots++; continue; }
@@ -44,7 +47,8 @@ export async function sync({ dir, base = BASE, listings = ['/', '/campaigns'], m
     await sleep(wait);
   }
   summary.known = slugs.filter((s) => known.has(s)).length;
-  for (const slug of slugs.filter((s) => !known.has(s)).slice(0, max)) {
+  const todo = [...slugs.filter((s) => !known.has(s) && !stale.has(s)), ...[...stale]].slice(0, max);
+  for (const slug of todo) {
     const path = `/campaigns/${slug}`;
     if (!allowed(robots, path)) { summary.skipped_by_robots++; continue; }
     try {
@@ -52,6 +56,7 @@ export async function sync({ dir, base = BASE, listings = ['/', '/campaigns'], m
       if (!res.ok) throw new Error(`${path} answers ${res.status}`);
       const record = parseCampaign(await res.text(), slug);
       if (!record.title || (!record.idea && !record.agency)) throw new Error(`${path}: nothing readable (the page changed?)`);
+      rows = rows.filter((r) => r.slug !== slug);
       rows.push({ ...record, seen: new Date().toISOString().slice(0, 10) });
       summary.new++;
       log(`+ ${record.title}`);

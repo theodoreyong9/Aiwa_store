@@ -47,6 +47,14 @@ test('a campaign page becomes a record: credits, kind of work, an excerpt of the
   assert.deepEqual(s.video.youtube, ['EXrtXB_u_60', 'TiTuSU3ynfc']);
 });
 
+test('a page whose facts are worded differently still gives the sector and the kind of work; section links are not campaigns', () => {
+  const html = PAGE('Brand: Name', 'Brand', 'Name', 'Agency X', 'An idea.', 'This professional campaign titled \'Name\' was published in France in September, 2026. It is related to the Banking industry and contains 2 media assets.', ['Brand', 'Agency X', 'France', 'Print', 'Outdoor', 'Banking']);
+  const r = parseCampaign(html, 'name');
+  assert.equal(r.industry, 'Banking'); assert.equal(r.assets, 2); assert.deepEqual(r.media, ['Print', 'Outdoor']);
+  assert.ok(r.facts.includes('published in France'));
+  assert.deepEqual(listingSlugs('<a href="/campaigns/new">n</a><a href="/campaigns/real-one">r</a>'), ['real-one']);
+});
+
 test('the excerpt of an idea is short, cut at a word, and says so', () => {
   const long = 'word '.repeat(200).trim();
   assert.ok(excerpt(long, 100).length <= 101 && excerpt(long, 100).endsWith('…'));
@@ -99,6 +107,11 @@ test('sync reads the listings, then only the campaigns it has not seen, politely
   const second = await sync({ dir, fetchFn: site.fetchFn, delayMs: 0, log: () => {} });
   assert.equal(second.new, 0); assert.equal(second.known, 2);
   assert.equal(site.asked.slice(asked).filter((p) => p.startsWith('/campaigns/')).length, 0, 'a known campaign is not fetched again');
+  // a record without its "facts" (written by an earlier version) is read again, to be completed
+  const { writeFileSync } = await import('node:fs');
+  writeFileSync(join(dir, 'campaigns.jsonl'), loadCatalog(dir).map((r) => { const { facts, ...old } = r; return JSON.stringify(old); }).join('\n') + '\n');
+  const refreshed = await sync({ dir, fetchFn: site.fetchFn, delayMs: 0, log: () => {} });
+  assert.equal(refreshed.new, 2); assert.equal(loadCatalog(dir).length, 2); assert.ok(loadCatalog(dir).every((r) => 'facts' in r));
   const limited = await sync({ dir: mkdtempSync(join(tmpdir(), 'vr-')), fetchFn: site.fetchFn, delayMs: 0, max: 1, log: () => {} });
   assert.equal(limited.new, 1, 'at most max new campaigns per run');
 });
