@@ -1603,6 +1603,12 @@ class CreativeBarTests(unittest.TestCase):
         self.assertIn("pour les fondamentaux", lines["design"], "the shared patterns are for the basics only, the risk is taken elsewhere")
         self.assertIn("creative", srv._INSTRUCTION_LABELS)
 
+    def test_the_design_line_asks_for_references_linked_to_their_screenshots_and_catalogue_entry(self):
+        text = dict(srv._instruction_lines("o/r", "w", "main", True))["design"]
+        for wanted in ("aiwa-design/references.md", "design-research/catalog/sites.jsonl", "design-research/screenshots/<id>/<fichier>",
+                       "Ne cite pas une référence que tu n'as pas vraiment regardée"):
+            self.assertIn(wanted, text)
+
     def test_the_creative_line_follows_the_design_line_without_a_repository_for_store_apps(self):
         srv.deploy_mode = "store"
         try:

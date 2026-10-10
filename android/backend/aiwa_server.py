@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 48
+BACKEND_VERSION = 49
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -500,7 +500,11 @@ def _design_line():
         "et ne recopie ni l'identité, ni la mise en page, ni le contenu, ni les assets, ni l'implémentation distinctive d'un site. "
         "Une fois l'interface construite, ouvre-la dans Chromium avec Playwright (`npx playwright install chromium` si besoin) en 390 px et en 1440 px, regarde les captures, et corrige les débordements, "
         "les contrastes faibles, les textes coupés, les images cassées et les erreurs de console avant de me dire que c'est fini. "
-        "Si le clone ou le catalogue est inaccessible ou vide, dis-le-moi en une phrase et conçois sans. N'ajoute pas `.research/` au dépôt."
+        "Traçabilité : écris `aiwa-design/references.md` dans le dépôt (commite-le avec le reste) avec 2 ou 3 références RETENUES, et pour chacune : son nom et son adresse, son `id` dans le catalogue "
+        f"(la ligne de {REFERENCE_RAW}/design-research/catalog/sites.jsonl), les captures que tu as regardées (adresses `{REFERENCE_RAW}/design-research/screenshots/<id>/<fichier>`), "
+        "les mesures du catalogue que tu en as tirées (typographie, couleurs, mouvement, composition, bibliothèques), ce que tu as vu sur les captures et que les mesures ne disent pas, "
+        "et ce que tu en as pris, avec où cela se voit dans ma création. Ne cite pas une référence que tu n'as pas vraiment regardée. Résume-moi cela en trois lignes dans ta réponse. "
+        "Si le clone ou le catalogue est inaccessible ou vide, dis-le-moi en une phrase et conçois sans (sans références.md). N'ajoute pas `.research/` au dépôt."
     )
 
 
