@@ -24,7 +24,7 @@ jobs:
           grep -o -E 'href="/(campaign|campaigns)/[a-z0-9-]+"' home.html | sort -u | head -8 > links.txt
           emit "listing links" "$(cat links.txt)"
           n=0
-          for l in $(sed -E 's/href="(.*)"/\1/' links.txt | grep '^/campaign/' | head -2); do
+          for l in $(sed -E 's/href="(.*)"/\1/' links.txt | grep '^/campaigns/' | head -2); do
             sleep 3
             curl -s -m 30 -A "$UA" -L -o c.html "https://www.adsoftheworld.com$l"
             out="URL $l ($(wc -c < c.html) bytes)"$'\n'
