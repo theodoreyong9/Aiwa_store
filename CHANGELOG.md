@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The widget's video list also shows the MP4 files committed under `aiwa-videos/` (backend 45).** When a session cannot create the `videos` release (GitHub refused it on Yo), it commits the MP4 in the repository, as its instructions say; the list only read the release, so the video never showed up. It now reads both, release first.
 - **Everything is back in this repository; `theodoreyong9/public` is no longer used.** The access list (`access.json`, still off), the Termux line, the design references and the APK all come from `Aiwa_store` again, and the copy workflow and script are gone. What to make private, if anything, is to be decided later.
 - **The push instruction follows the repository's current default branch (backend 44) and never asks for a repository setting; a merge without conflict is integrated without a question (backend 43).**
 - **The widget's Actions button follows a fix quickly.** After a failed run the backend looked again every two and a half minutes (the quick pace of 30 s was kept for a run in progress, or for a message sent through Aiwa), so a fix pushed by another way took a long time to turn the red button green. For ten minutes after a failure is first seen, the lookups now stay at the quick pace. Backend 42.

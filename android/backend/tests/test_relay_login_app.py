@@ -632,13 +632,28 @@ class AskAndVideoTests(Base):
         ]}
         asked = []
         with unittest.mock.patch.object(srv, "current_repo", "o/r"), unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None), \
-                unittest.mock.patch.object(srv, "_github_json", lambda url: (asked.append(url), release)[1]):
+                unittest.mock.patch.object(srv, "_github_json", lambda url: (asked.append(url), release if "/releases/" in url else None)[1]):
             srv.video_cache.update(key=None, items=[], at=0.0)
             got = srv._videos_snapshot()
             again = srv._videos_snapshot()
         self.assertEqual([v["name"] for v in got["videos"]], ["demo-16x9.mp4", "demo-9x16.mp4"])
-        self.assertEqual(asked, ["https://api.github.com/repos/o/r/releases/tags/videos"], "one look a minute")
+        self.assertEqual(asked, ["https://api.github.com/repos/o/r/releases/tags/videos", "https://api.github.com/repos/o/r/contents/aiwa-videos"], "one look a minute")
         self.assertEqual(again, got)
+
+    def test_videos_committed_under_aiwa_videos_are_listed_after_the_release_ones(self):
+        folder = [
+            {"name": "yo-16x9.mp4", "type": "file", "size": 5},
+            {"name": "demo-16x9.mp4", "type": "file", "size": 6},
+            {"name": "media", "type": "dir", "size": 0},
+            {"name": "notes.md", "type": "file", "size": 1},
+        ]
+        release = {"assets": [{"name": "demo-16x9.mp4", "size": 20, "browser_download_url": "https://github.com/o/r/releases/download/videos/demo-16x9.mp4", "updated_at": "2026-10-02T00:00:00Z"}]}
+        with unittest.mock.patch.object(srv, "current_repo", "o/r"), unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None), \
+                unittest.mock.patch.object(srv, "_github_json", lambda url: release if "/releases/" in url else folder):
+            srv.video_cache.update(key=None, items=[], at=0.0)
+            got = srv._videos_snapshot()
+        self.assertEqual([v["name"] for v in got["videos"]], ["demo-16x9.mp4", "yo-16x9.mp4"])
+        self.assertEqual(got["videos"][1]["url"], "https://github.com/o/r/raw/HEAD/aiwa-videos/yo-16x9.mp4")
 
     def test_a_session_on_a_repository_is_told_where_the_videos_go(self):
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["video"]

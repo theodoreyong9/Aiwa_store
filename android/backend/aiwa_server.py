@@ -34,6 +34,7 @@ import subprocess
 import termios
 import threading
 import time
+import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -49,7 +50,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 44
+BACKEND_VERSION = 45
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -1812,6 +1813,14 @@ def _videos_snapshot():
         if name.lower().endswith(VIDEO_EXT) and url.startswith("https://github.com/"):
             items.append({"name": name, "size": int(asset.get("size") or 0), "url": url, "ts": str(asset.get("updated_at") or "")})
     items.sort(key=lambda v: v["ts"], reverse=True)
+    # A session that could not create the release commits the MP4 under aiwa-videos/ instead (its instructions say so): those are listed too,
+    # after the release's, from the repository's default branch.
+    folder = _github_json(f"https://api.github.com/repos/{repo}/contents/aiwa-videos")
+    known = {v["name"] for v in items}
+    for entry in folder if isinstance(folder, list) else []:
+        name = str(entry.get("name") or "") if isinstance(entry, dict) else ""
+        if entry.get("type") == "file" and name.lower().endswith(VIDEO_EXT) and name not in known and "/" not in name:
+            items.append({"name": name, "size": int(entry.get("size") or 0), "url": f"https://github.com/{repo}/raw/HEAD/aiwa-videos/{urllib.parse.quote(name)}", "ts": ""})
     with lock:
         video_cache.update(key=repo, items=items, at=now)
     return {"repo": repo, "videos": items}
