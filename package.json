@@ -11,7 +11,8 @@
     "apps/*",
     "design-research",
     "video-kit",
-    "video-research"
+    "video-research",
+    "music-research"
   ],
   "scripts": {
     "test": "npm test --workspaces --if-present",

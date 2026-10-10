@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 53
+BACKEND_VERSION = 54
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -549,7 +549,13 @@ def _video_line(repo):
         "1 le brief (`brief.md` : le public, UN message, le ton, la direction artistique prise dans ma création, l'appel à l'action), "
         "2 le script (`script.md` : accroche dans les 2 premières secondes, tension, révélation, preuve, appel à l'action, texte de la voix off avec ses secondes), "
         "3 le plan de plans (`video.html`, depuis `video-kit/template/cinematic.html` : un plan par temps du script, avec son mouvement, sa transition et son son), "
-        "4 le son (rythme avec accents sur chaque coupe et voix off locale), 5 un aperçu en petit, 6 la critique, 7 le rendu final. "
+        "4 le son : une vraie musique forte qui porte le rythme, et une voix courte et percutante par-dessus, seulement sur les temps forts. "
+        "Cherche la musique dans le registre : `node music-research/src/cli.js search \"<l'ambiance voulue>\" --bpm=100-130 --energy=4 --credit=ok` depuis le dépôt de référence cloné "
+        "(sinon `MR_CATALOG_URL=" + REFERENCE_RAW + "/music-research/catalog/tracks.jsonl`), `--credit=none` pour une musique sans crédit à afficher ; écoute ou compare 2 ou 3 candidats, "
+        "télécharge UNIQUEMENT celle que tu retiens (`music-research fetch <id> musique.mp3`), place les coupes et les phrases sur ses temps forts, assemble avec `video-kit assemble ... --audio=musique.mp3 --voice=vo.wav --duck=light`, "
+        "et écris dans `brief.md` le titre, l'auteur, la licence et la source ; si le registre donne un crédit, affiche-le en tout petit dans la vidéo ou donne-le-moi pour la description. "
+        "Si la source est injoignable ou si rien ne convient, prends le rythme généré (`beat.py`) et dis-le. "
+        "5 un aperçu en petit, 6 la critique, 7 le rendu final. "
         "Au stade 1, lis aussi " + REFERENCE_RAW + "/docs/DIRECTOR-PLAYBOOK.md (les règles du métier et la fiche de critique) et cherche des idées dans de vraies campagnes : "
         "`node video-research/src/cli.js research \"<ma demande>\"` depuis le dépôt de référence cloné (sinon `VR_CATALOG_URL=" + REFERENCE_RAW + "/video-research/catalog/campaigns.jsonl`) ; "
         "prends-en 2 ou 3 et cite-les dans `brief.md` (titre, lien, ce que tu en retiens), sans rien copier. "
@@ -562,6 +568,7 @@ def _video_line(repo):
         "note de 1 à 5 l'accroche, la clarté du message, le rythme, le mouvement de chaque plan, la lisibilité, la direction artistique, le son, l'honnêteté (rien d'inventé) et l'appel à l'action ; "
         "corrige tout ce qui est sous 4 et recommence l'aperçu, jusqu'à trois tours ; si tu as un outil de sous-agent, confie la critique à un agent neuf qui ne voit que les images et le brief. "
         "Donne-moi les notes finales telles quelles. Le contrôle `video-kit check` signale `slideshow` quand l'image bouge trop peu : refais alors le plan concerné. Dis aussi ce qui est provisoire (la voix de synthèse, la musique générée). "
+        f"Termine toujours par le lien direct vers chaque fichier vidéo (`https://raw.githubusercontent.com/{repo}/main/aiwa-videos/nom-9x16.mp4` ou celui de la release), pour que je le trouve même si la release est refusée. "
         f"Dépose chaque vidéo comme fichier de la release GitHub `videos` du dépôt {repo} (crée-la si elle n'existe pas ; un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4`), "
         "avec ses fichiers d'étapes et son rapport de contrôle sous `aiwa-videos/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
         "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg espeak-ng`, `npx playwright install chromium`, `sh video-kit/src/voice-setup.sh` pour la voix naturelle de la voix off, `gh release create` ou l'API GitHub avec le jeton de l'environnement) "

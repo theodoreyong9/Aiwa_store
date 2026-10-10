@@ -32,7 +32,7 @@ Write the logline first: *"For [who], [creation] [does what], unlike [what they 
 
 ## 5. Sound
 - Music is **a tempo** (90 to 128 bpm), not a pad: kick or pulse on the beat, an **accent on every cut**, a riser into the reveal, **a silence just before the line that matters**.
-- Voice-over: short sentences, one idea each, started **after** the picture has shown it (the eye leads). Music goes down about 9 dB under the voice (ducking).
+- Voice-over: a few short, punchy lines, one idea each, started **after** the picture has shown it (the eye leads), placed on the strong beats of the track. A real track, loud and in front, carries the rhythm; the voice does not narrate all along. Between the lines the music is full; under a line it goes down a little (`--duck=light`), about 4 to 5 dB, not out of the mix. A film that talks from the first second to the last with a faint pad under it is a lecture, not a film.
 - Level for social: about -14 LUFS, true peak under -1 dB. No clipping.
 - A synthetic voice and generated music are placeholders: say so, and replace them when better ones exist.
 
