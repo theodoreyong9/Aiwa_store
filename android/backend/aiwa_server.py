@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 50
+BACKEND_VERSION = 51
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -550,7 +550,10 @@ def _video_line(repo):
         "2 le script (`script.md` : accroche dans les 2 premières secondes, tension, révélation, preuve, appel à l'action, texte de la voix off avec ses secondes), "
         "3 le plan de plans (`video.html`, depuis `video-kit/template/cinematic.html` : un plan par temps du script, avec son mouvement, sa transition et son son), "
         "4 le son (rythme avec accents sur chaque coupe et voix off locale), 5 un aperçu en petit, 6 la critique, 7 le rendu final. "
-        "Les outils sont dans " + REFERENCE_RAW + "/video-kit/ (Chromium image par image, ffmpeg, `capture`, `beat.py`, `voice.py`, contrôle automatique). "
+        "Au stade 1, lis aussi " + REFERENCE_RAW + "/docs/DIRECTOR-PLAYBOOK.md (les règles du métier et la fiche de critique) et cherche des idées dans de vraies campagnes : "
+        "`node video-research/src/cli.js research \"<ma demande>\"` depuis le dépôt de référence cloné (sinon `VR_CATALOG_URL=" + REFERENCE_RAW + "/video-research/catalog/campaigns.jsonl`) ; "
+        "prends-en 2 ou 3 et cite-les dans `brief.md` (titre, lien, ce que tu en retiens), sans rien copier. "
+        "Les outils sont dans " + REFERENCE_RAW + "/video-kit/ (Chromium image par image, ffmpeg, `capture`, `beat.py`, `voice.py`, `analyze.py` pour lire un film que tu as le droit de lire, contrôle automatique). "
         "N'invente aucune statistique, aucun témoignage, aucun résultat : tout ce qui est affiché vient de ce que j'ai fourni ou de ce que tu vois dans ma création. "
         "Une vidéo n'est PAS un diaporama : aucune capture ne reste posée au centre avec un titre au-dessus. Chaque plan bouge : texte qui s'anime, captures en gros plan, "
         "zoom ou panoramique lent, vraie page qui défile, éléments qui entrent et sortent sur le tempo. Un changement tous les 1,5 à 3 secondes, une seule direction artistique. "
