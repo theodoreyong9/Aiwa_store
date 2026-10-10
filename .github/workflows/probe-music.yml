@@ -1,0 +1,26 @@
+name: probe-music
+on:
+  push:
+    branches: [clean]
+    paths: ['.github/workflows/probe-music.yml', 'scripts/probe-music.py']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: pixabay
+        run: python3 scripts/probe-music.py pixabay || true
+      - name: incompetech
+        run: python3 scripts/probe-music.py incompetech || true
+      - name: fma
+        run: python3 scripts/probe-music.py fma || true
+      - name: freesound
+        run: python3 scripts/probe-music.py freesound || true
+      - name: archive
+        run: python3 scripts/probe-music.py archive || true
+      - name: musopen
+        run: python3 scripts/probe-music.py musopen || true
+      - name: ccmixter
+        run: python3 scripts/probe-music.py ccmixter || true
+      - name: opengameart
+        run: python3 scripts/probe-music.py opengameart || true
