@@ -41,3 +41,15 @@ jobs:
           echo "vimeo oembed:" ; code=$(curl -s -m 25 -A "$UA" -o oembed.json -w '%{http_code}' 'https://vimeo.com/api/oembed.json?url=https://vimeo.com/76979871'); emit "Vimeo oEmbed" "http $code"$'\n'"$(head -c 1500 oembed.json)"
           probe "The One Show" "https://www.oneclub.org" "https://www.oneclub.org/ https://www.oneclub.org/awards/theoneshow/ https://www.oneclub.org/awards/theoneshow/-winners" 'href="[^"]*(winners|work|entry)[^"]*"' "https://www.oneclub.org/terms-of-use https://www.oneclub.org/terms"
           probe "LBB" "https://lbbonline.com" "https://lbbonline.com/ https://lbbonline.com/work" 'href="/(work|news)/[0-9]+[^"]*"' "https://lbbonline.com/terms-and-conditions https://lbbonline.com/terms"
+      - name: Can a film be fetched, one at a time?
+        shell: bash
+        run: |
+          emit() { local title="$1"; local body="$2"; body="${body//'%'/'%25'}"; body="${body//$'\r'/'%0D'}"; body="${body//$'\n'/'%0A'}"; echo "::notice title=${title}::${body:0:4000}"; }
+          pip install -q yt-dlp 2>&1 | tail -1
+          for u in "https://vimeo.com/76979871" "https://www.youtube.com/watch?v=jNQXAC9IVRw"; do
+            out=$(timeout 120 yt-dlp -F --no-warnings "$u" 2>&1 | tail -8)
+            emit "yt-dlp $u" "$out"
+          done
+          timeout 200 yt-dlp -f 'best[height<=480]/worst' -o clip.%(ext)s --no-warnings "https://vimeo.com/76979871" 2>&1 | tail -3 > dl.txt; ls -la clip.* 2>/dev/null >> dl.txt
+          emit "download test (vimeo)" "$(cat dl.txt)"
+          sudo apt-get install -y -qq tesseract-ocr ffmpeg >/dev/null 2>&1 && emit "tools" "ffmpeg: $(ffmpeg -version | head -1) / tesseract: $(tesseract --version 2>&1 | head -1)"
