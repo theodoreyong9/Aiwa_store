@@ -7,7 +7,7 @@
 //   bg: { type: 'solid', color } | { type: 'gradient', colors: [a, b], angle, drift } | { type: 'blobs', colors: [a, b, c] }
 //   transition.type: fade push push-up wipe zoom iris slice flash        shots overlap during the transition
 //
-// LAYER (x, y = centre in % of the frame, w = width in % of the frame, at = seconds from the start of the shot):
+// LAYER (x, y = centre in % of the frame, w = width in % of the frame, each one number or [portrait, landscape]; at = seconds from the start of the shot):
 //   { type: 'text',  text, x, y, w, size (vmin, or [portrait, landscape]), weight, color, align, font, upper, spacing, leading,
 //                    mode: 'words'|'chars'|'lines', effect: 'mask'|'rise'|'blur'|'scale'|'drop'|'type'|'fade', at, dur, stagger,
 //                    out: { at, effect }, accent: { word: colour } }
@@ -15,6 +15,7 @@
 //                    cam: { from: { x, y, s, r }, to: { … }, at, dur }, out: { at } }
 //   { type: 'page',  src (a tall picture from `video-kit capture`), pageW, viewH, scroll: [fromPx, toPx], scrollAt, scrollDur, frame, x, y, w, enter, at, dur, cam }
 //                    (the real page, scrolled as a function of time)
+//   { type: 'html',  markup, css, id, design: [w, h] px, x, y, w, enter, at, dur, cam, out, tick(root, t, M) }   (any HTML at a design size, scaled; tick animates it)
 //   { type: 'shape', kind: 'bar'|'circle'|'rect', x, y, w, h (vmin), color, radius, at, dur, from: { s, o, w }, out: { at } }
 //   { type: 'counter', from, to, at, dur, decimals, prefix, suffix, sep, x, y, size, weight, color }
 //   { type: 'svg', markup, x, y, w, at, dur, stroke, width }       (paths with class "d" draw themselves)
@@ -26,12 +27,13 @@
   const stage = document.getElementById('stage');
   stage.style.cssText += `;position:relative;width:100vw;height:100vh;overflow:hidden;background:${THEME.bg};color:${THEME.ink};font-family:${THEME.font}`;
   const loading = [];
-  const size = (s, d) => (Array.isArray(s) ? (portrait ? s[0] : s[1]) : s ?? d) * vmin;
+  const pick = (v, d) => (Array.isArray(v) ? (portrait ? v[0] : v[1]) : v ?? d);       // [portrait, landscape] or one value for both
+  const size = (s, d) => pick(s, d) * vmin;
   const px = (v) => `${v}px`;
 
   function pos(l, extra = '') {
     const d = document.createElement('div');
-    d.style.cssText = `position:absolute;left:${l.x ?? 50}%;top:${l.y ?? 50}%;transform:translate(-50%,-50%);${l.w ? `width:${l.w}%;` : ''}${extra}`;
+    d.style.cssText = `position:absolute;left:${pick(l.x, 50)}%;top:${pick(l.y, 50)}%;transform:translate(-50%,-50%);${l.w ? `width:${pick(l.w)}%;` : ''}${extra}`;
     return d;
   }
   function enterStyle(el, kind, p) {
@@ -120,9 +122,33 @@
         },
       };
     },
+    html(l, shot) {
+      // Any HTML, drawn at a design size [width, height] in pixels and scaled to the layer's width: a widget, a card, a list. `css` is added to the page
+      // once; `tick(root, t, M)` runs at every frame with the local time, to animate what is inside (a pure function of t). Avoid emoji (a session may
+      // have no emoji font): draw icons as inline SVG.
+      const [dw, dh] = l.design || [1000, 600];
+      const wPx = pick(l.w, 50) / 100 * W, sc = wPx / dw;
+      const outer = pos(l); outer.style.width = px(wPx); outer.style.height = px(dh * sc);
+      const anim = document.createElement('div'); anim.style.cssText = 'position:absolute;inset:0';
+      const box = document.createElement('div'); box.style.cssText = 'position:absolute;inset:0';
+      const inner = document.createElement('div'); inner.style.cssText = `position:absolute;left:0;top:0;width:${dw}px;height:${dh}px;transform-origin:0 0;transform:scale(${sc})`;
+      inner.innerHTML = l.markup;
+      if (l.css && !document.getElementById('css-' + (l.id || l.css.length))) { const st = document.createElement('style'); st.id = 'css-' + (l.id || l.css.length); st.textContent = l.css; document.head.append(st); }
+      box.append(inner); anim.append(box); outer.append(anim);
+      const ct = camTimes(l, shot.seconds);
+      return {
+        el: outer,
+        update(t) {
+          enterStyle(anim, l.enter || 'rise', M.prog(t, l.at ?? 0, l.dur ?? 0.7, M.ease.outExpo));
+          if (ct) M.cam(box, l.cam.from, l.cam.to, M.prog(t, ct.at, ct.dur, M.ease.inOutSine));
+          if (l.out) anim.style.opacity = Math.min(Number(anim.style.opacity), 1 - M.prog(t, l.out.at, 0.35, M.ease.inOutCubic));
+          if (l.tick) l.tick(inner, t, M);
+        },
+      };
+    },
     shape(l) {
       const outer = pos(l); const d = document.createElement('div'); outer.append(d);
-      const w = (l.w ?? 30) * vmin, h = (l.h ?? 0.6) * vmin;
+      const w = pick(l.w, 30) * vmin, h = pick(l.h, 0.6) * vmin;
       d.style.cssText = `width:${l.kind === 'circle' ? h : w}px;height:${h}px;background:${l.color || THEME.accent};border-radius:${l.kind === 'circle' ? '50%' : px((l.radius ?? 0.3) * vmin)};transform-origin:${l.origin || 'left center'}`;
       if (l.kind === 'circle') outer.style.transformOrigin = 'center';
       return {

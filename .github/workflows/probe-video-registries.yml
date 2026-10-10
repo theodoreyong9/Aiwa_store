@@ -17,6 +17,7 @@ jobs:
       - name: Probe
         shell: bash
         run: |
+          set +e
           UA='Mozilla/5.0 (compatible; aiwa-design-research; +https://github.com/theodoreyong9/Aiwa_store)'
           emit() { local title="$1"; local body="$2"; body="${body//'%'/'%25'}"; body="${body//$'\r'/'%0D'}"; body="${body//$'\n'/'%0A'}"; echo "::notice title=${title}::${body:0:6000}"; }
           probe() {
@@ -44,6 +45,7 @@ jobs:
       - name: Can a film be fetched, one at a time?
         shell: bash
         run: |
+          set +e
           emit() { local title="$1"; local body="$2"; body="${body//'%'/'%25'}"; body="${body//$'\r'/'%0D'}"; body="${body//$'\n'/'%0A'}"; echo "::notice title=${title}::${body:0:4000}"; }
           pip install -q yt-dlp 2>&1 | tail -1
           for u in "https://vimeo.com/76979871" "https://www.youtube.com/watch?v=jNQXAC9IVRw"; do

@@ -34,27 +34,29 @@
     const accent = o.accent || {};
     const units = [];
     const lines = String(text).split('\n');
+    const lineUnits = [];
     lines.forEach((line, li) => {
-      const row = document.createElement('div'); row.style.cssText = 'display:block;white-space:pre-wrap';
+      // a line is a row; in 'lines' mode the row's inner box is what moves (and a row clips it when the effect is a mask)
+      const row = document.createElement('div'); row.style.cssText = 'display:block;white-space:pre-wrap' + (mode === 'lines' && effect === 'mask' ? ';overflow:hidden;padding:0.12em 0.04em 0.18em;margin:-0.12em -0.04em -0.18em' : '');
+      const inner = document.createElement('div'); inner.style.cssText = 'will-change:transform';
       const words = line.split(' ');
       words.forEach((word, wi) => {
         const w = document.createElement('span');
-        w.style.cssText = 'display:inline-block;white-space:pre;' + (effect === 'mask' ? 'overflow:hidden;vertical-align:top;padding:0.12em 0.04em 0.18em;margin:-0.12em -0.04em -0.18em' : '');
+        w.style.cssText = 'display:inline-block;white-space:pre;' + (effect === 'mask' && mode !== 'lines' ? 'overflow:hidden;vertical-align:top;padding:0.12em 0.04em 0.18em;margin:-0.12em -0.04em -0.18em' : '');
         const parts = mode === 'chars' ? [...word] : [word];
         parts.forEach((p) => {
           const i = document.createElement('span'); i.textContent = p; i.style.cssText = 'display:inline-block;will-change:transform';
           const key = word.replace(/[.,;:!?…]/g, '');
-          if (accent[key]) i.style.color = accent[key];
+          const col = accent[word] || accent[key];
+          if (col) i.style.color = col;
           w.append(i); units.push({ el: i, line: li });
         });
-        row.append(w);
-        if (wi < words.length - 1) row.append(document.createTextNode(' '));
+        inner.append(w);
+        if (wi < words.length - 1) inner.append(document.createTextNode(' '));
       });
-      host.append(row);
+      row.append(inner); host.append(row); lineUnits.push({ el: inner, line: li });
     });
-    // in 'lines' mode the units are the lines, not the words
-    let anim = units;
-    if (mode === 'lines') anim = [...host.children].map((row, li) => ({ el: row, line: li }));
+    const anim = mode === 'lines' ? lineUnits : units;
     function apply(u, p, q) {
       const el = u.el, inP = p, outP = q;
       const k = 1 - inP;
@@ -70,7 +72,7 @@
       }
       if (outP > 0) {
         const oe = (o.out && o.out.effect) || 'rise';
-        if (oe === 'mask') tf += ` translateY(${-outP * 115}%)`;
+        if (oe === 'mask') { tf += ` translateY(${-outP * 115}%)`; op *= 1 - outP; }
         else if (oe === 'blur') { fl = `blur(${outP * 0.3}em)`; op *= 1 - outP; }
         else { tf += ` translateY(${-outP * 0.5}em)`; op *= 1 - outP; }
       }
