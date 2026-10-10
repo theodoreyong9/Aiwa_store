@@ -1,12 +1,12 @@
 {
   "registries": {
     "awwwards": {
-      "last_sync": "2026-10-10T09:01:04.788Z",
-      "found": 30,
+      "last_sync": "2026-10-10T09:38:27.363Z",
+      "found": 60,
       "errors": 0
     },
     "csswinner": {
-      "last_sync": "2026-10-10T09:01:52.279Z",
+      "last_sync": "2026-10-10T09:39:39.717Z",
       "found": 18,
       "errors": 0
     }
