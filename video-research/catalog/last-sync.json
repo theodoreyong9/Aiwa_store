@@ -1,0 +1,11 @@
+{
+ "at": "2026-10-10T12:00:23.600Z",
+ "new": 39,
+ "known": 0,
+ "errors": [
+  "/campaigns/new: nothing readable (the page changed?)"
+ ],
+ "listing": 2,
+ "skipped_by_robots": 0,
+ "total": 39
+}
