@@ -1,7 +1,9 @@
 package com.aiwa.store
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -32,6 +35,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import com.aiwa.bridge.LocalClaudeBridge
 import com.aiwa.bridge.VideoList
 import kotlinx.coroutines.launch
@@ -49,6 +55,30 @@ class VideosActivity : ComponentActivity() {
     }
 }
 
+/** A document I hand over: its name and its text (a text file only: the phone cannot read a PDF or a Word file here, and says so). */
+private class PickedDocument(val name: String, val text: String)
+
+private const val DOCUMENT_MAX_CHARS = 40_000
+
+private fun readDocument(context: Context, uri: Uri): PickedDocument? {
+    val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+        if (c.moveToFirst()) c.getString(0) else null
+    } ?: "document"
+    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes().take(DOCUMENT_MAX_CHARS * 4).toByteArray() } ?: return null
+    val text = String(bytes, Charsets.UTF_8)
+    // A binary file (PDF, Word, image…) decodes into replacement characters and control codes: not readable here.
+    val odd = text.count { it == '\uFFFD' || (it.code < 32 && it != '\n' && it != '\r' && it != '\t') }
+    if (text.isBlank() || odd * 50 > text.length) return null
+    return PickedDocument(name, text.take(DOCUMENT_MAX_CHARS))
+}
+
+/** The request for a video made from a document; my GitHub projects are named only when the box was ticked (the instruction says the same). */
+private fun documentRequest(doc: PickedDocument, format: String, withGithub: Boolean): String =
+    "Fais une vidéo à partir de ce document (fichier « ${doc.name} »), au format $format. " +
+        (if (withGithub) "J'ai coché : ajoute mes réalisations GitHub publiques au bon moment de la vidéo. "
+        else "Je n'ai PAS coché les réalisations GitHub : le fichier seul compte. ") +
+        "Si un choix ne t'appartient pas, demande-le moi par la question du widget.\n\nDocument :\n<<<\n${doc.text}\n>>>"
+
 private fun sizeLabel(bytes: Long) = if (bytes >= 1_000_000) "%.1f Mo".format(bytes / 1_000_000.0) else "${bytes / 1000} Ko"
 
 @Composable
@@ -59,6 +89,15 @@ private fun VideosWindow(onClose: () -> Unit) {
     var list by remember { mutableStateOf<VideoList?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var document by remember { mutableStateOf<PickedDocument?>(null) }
+    var withGithub by remember { mutableStateOf(false) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            val picked = try { readDocument(context, uri) } catch (err: Exception) { null }
+            if (picked == null) toastOnMain(context, "Ce fichier n'est pas lisible ici : donne un fichier texte (.txt, .md, .html, .csv, .json). Un PDF ou un Word, copie-en le texte dans un .txt.")
+            else document = picked
+        }
+    }
 
     LaunchedEffect(Unit) {
         try { list = bridge.videos() } catch (err: Exception) { error = err.message ?: "Liste indisponible." }
@@ -68,9 +107,11 @@ private fun VideosWindow(onClose: () -> Unit) {
         if (busy) return
         busy = true
         scope.launch {
+            val doc = document
             val sent = sendAndTrack(
                 context, bridge,
-                "Fais une vidéo promotionnelle de ma création, au format $format. Si un choix ne t'appartient pas, demande-le moi par la question du widget.",
+                if (doc != null) documentRequest(doc, format, withGithub)
+                else "Fais une vidéo promotionnelle de ma création, au format $format. Si un choix ne t'appartient pas, demande-le moi par la question du widget.",
                 toastErrors = true,
             )
             busy = false
@@ -113,6 +154,17 @@ private fun VideosWindow(onClose: () -> Unit) {
                     }
                     if (current?.repo != null) {
                         Text("Nouvelle vidéo", style = MaterialTheme.typography.labelLarge)
+                        val doc = document
+                        OutlinedButton(onClick = { picker.launch(arrayOf("text/*", "application/json", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (doc == null) "À partir d'un fichier (CV, argumentaire…)" else "Fichier : ${doc.name} · changer")
+                        }
+                        if (doc != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { withGithub = !withGithub }) {
+                                Checkbox(checked = withGithub, onCheckedChange = { withGithub = it })
+                                Text("Ajouter mes réalisations GitHub (dépôts publics)")
+                            }
+                            Text("Claude reconnaît le type du document et adapte la vidéo. Sans la case, seul le fichier compte.", style = MaterialTheme.typography.bodySmall)
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = { ask("9:16 (vertical)") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("9:16") }
                             Button(onClick = { ask("16:9 (horizontal)") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("16:9") }
