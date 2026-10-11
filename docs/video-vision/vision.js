@@ -233,3 +233,17 @@ if (new URLSearchParams(location.search).get('overlay')) {
   document.documentElement.style.background = 'transparent'; document.body.style.background = 'transparent';
   window.SHOTS.forEach((shot) => { shot.bg = { type: 'solid', color: 'rgba(0,0,0,0)' }; });
 }
+
+// ?screen=locked|wake: the screen of the phone alone (600 x 1180, transparent around it), for a 3D phone whose screen is an image sequence (video-kit/shots/blender/kit.py: phone)
+{
+  const which = new URLSearchParams(location.search).get('screen');
+  if (which) {
+    const T = which === 'wake' ? { id: 'wake', markup: WAKEPHONE, tick: wakeTick } : { id: 'locked', markup: LOCKED, tick: lockedTick };
+    window.THEME = Object.assign({}, window.THEME, { bg: 'transparent', grain: 0, vignette: 0 });
+    document.documentElement.style.background = 'transparent'; document.body.style.background = 'transparent';
+    window.SHOTS.length = 0;
+    window.SHOTS.push({ seconds: 6, bg: { type: 'solid', color: 'rgba(0,0,0,0)' }, layers: [
+      { type: 'html', id: T.id, css: VCSS, markup: T.markup, design: [600, 1180], w: [100, 100], x: [50, 50], y: [50, 50], at: 0, tick: T.tick },
+    ] });
+  }
+}

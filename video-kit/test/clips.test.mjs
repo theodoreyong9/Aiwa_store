@@ -97,3 +97,13 @@ test('a clip and a voice-over with a music track assemble together (the labels o
   assemble({ framesDir: join(d, 'f'), out, fps: 10, crf: 18, audio: join(d, 'm.wav'), voice: join(d, 'v.wav'), duck: 'light', clips: [{ file: join(d, 'a', '%05d.png'), start: 1, end: 2, fade: 0 }] });
   assert.ok(pixel(out, 1.5)[1] > 40, 'the clip is there');
 });
+
+test('a look on the whole film is applied in the same encode (a vignette darkens the corners, the centre stays)', need, () => {
+  const d = fixture();
+  const plain = join(d, 'p.mp4'), looked = join(d, 'l.mp4');
+  assemble({ framesDir: join(d, 'f'), out: plain, fps: 10, crf: 18 });
+  assemble({ framesDir: join(d, 'f'), out: looked, fps: 10, crf: 18, look: { grade: 'mono', vignette: 0.9 } });
+  const a = pixel(plain, 1.0), b = pixel(looked, 1.0);
+  assert.ok(a[0] > 150 && a[1] < 60, `the frames are red: ${a}`);
+  assert.ok(Math.abs(b[0] - b[1]) < 40, `mono: no more colour: ${b}`);
+});

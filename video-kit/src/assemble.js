@@ -3,6 +3,7 @@
 //   audio   the music (a generated bed or a real track: it is looped if shorter than the film, faded in and out, and cut at the end of the film)
 //   voice   a voice-over: the music goes down while it speaks. duck 'strong' (default) lets the voice lead; 'light' keeps the music forward, for a film
 //           of a few punchy lines over a loud track (the voice is a little louder than the music and still clear).
+//   look    { grade, bloom, grain, vignette }: one look on the whole film, in the same encode (see transform.js for the values)
 //   clips   shots that are not drawn by the page: a list of { file, start, end?, fps?, fit?, fade? }, laid over the frames between `start` and `end` (seconds).
 //           file: a video (mp4, mov…) or an image sequence (a pattern like shots/glasses/%05d.png, played at `fps`, 30 by default); a clip with an alpha channel
 //           (PNG frames rendered with `render --transparent`) is laid over the picture, an opaque one replaces it. fit: 'cover' (default, fills the frame) or 'contain'.
@@ -10,6 +11,7 @@
 //           (an overlay rendered for a range of the film starts at its own frame number: `start` is then startNumber / fps).
 import { readdirSync, readFileSync, openSync, readSync, closeSync, existsSync } from 'node:fs';
 import { ffmpegPath, run } from './ffmpeg.js';
+import { transformFilter } from './transform.js';
 
 // the width and height of a JPEG or a PNG file, from its header (no tool needed)
 export function imageSize(file) {
@@ -43,7 +45,7 @@ export function clipFilters(clips, base, W, H, fps) {
   return { inputs, parts, last };
 }
 
-export function assemble({ framesDir, audio = null, voice = null, out, fps = 30, crf = 23, audioBitrate = '128k', duck = 'strong', fade = 1.5, clips = [] }) {
+export function assemble({ framesDir, audio = null, voice = null, out, fps = 30, crf = 23, audioBitrate = '128k', duck = 'strong', fade = 1.5, clips = [], look = null }) {
   const names = readdirSync(framesDir).filter((f) => /\.(jpg|png)$/.test(f)).sort();
   const frames = names.length;
   const ext = names[0].endsWith('.png') ? 'png' : 'jpg';
@@ -68,11 +70,13 @@ export function assemble({ framesDir, audio = null, voice = null, out, fps = 30,
     graph.push(`[${vlabel}][c${k}]overlay=${enable}eof_action=pass:format=auto[v${k}]`);
     vlabel = `v${k}`;
   });
+  // look: the same grade, bloom, vignette and grain on the WHOLE film (drawn pages, 3D shots and footage alike), in the one encode: a film of pieces of different origin reads as one picture
+  if (look) { graph.push(`[${vlabel}]${transformFilter({ ...look, fps: null, scale: null })}[vlook]`); vlabel = 'vlook'; }
   if (audio && voice) graph.push(`${music}[mus];[2:a]asplit[vox1][vox2];[mus][vox2]${mix}`);
   else if (audio) graph.push(`${music},alimiter=limit=0.5:level=disabled[m]`);
   const useGraph = graph.length > 0;
   const args = [...input, ...audioArgs, ...voiceArgs, ...cf.inputs, ...(useGraph ? ['-filter_complex', graph.join(';')] : []),
-    '-map', cf.parts.length ? `[${vlabel}]` : '0:v', '-map', audio ? '[m]' : '1:a', '-c:v', 'libx264', '-preset', 'medium', '-crf', String(crf), '-pix_fmt', 'yuv420p',
+    '-map', vlabel !== '0:v' ? `[${vlabel}]` : '0:v', '-map', audio ? '[m]' : '1:a', '-c:v', 'libx264', '-preset', 'medium', '-crf', String(crf), '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', audioBitrate, '-t', seconds.toFixed(3), '-movflags', '+faststart', out];
   run(ffmpegPath(), args);
   return out;

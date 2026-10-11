@@ -36,13 +36,15 @@ def rgba(hex_or_tuple, a=1.0):
 _state = {'frames': 1, 'fps': 30}
 
 
-def reset(width=None, height=None, samples=None, fps=30):
+def reset(width=None, height=None, samples=None, fps=30, transparent=None):
     width, height, samples = width or args('width', 1920, int), height or args('height', 1080, int), samples or args('samples', 48, int)
     bpy.ops.wm.read_factory_settings(use_empty=True)
     s = bpy.context.scene
     s.render.engine = 'CYCLES'; s.cycles.device = 'CPU'; s.cycles.samples = samples; s.cycles.use_denoising = True
     s.render.resolution_x, s.render.resolution_y, s.render.resolution_percentage, s.render.fps = width, height, 100, fps
     s.render.image_settings.file_format = 'PNG'
+    transparent = args('transparent', 0, int) == 1 if transparent is None else transparent
+    s.render.film_transparent = transparent; s.render.image_settings.color_mode = 'RGBA' if transparent else 'RGB'   # a shot laid over a page (assemble --clips) keeps its alpha
     names = [t.identifier for t in bpy.types.ColorManagedViewSettings.bl_rna.properties['view_transform'].enum_items]
     s.view_settings.view_transform = 'AgX' if 'AgX' in names else 'Filmic'
     world = bpy.data.worlds.new('w'); s.world = world; world.use_nodes = True
@@ -231,6 +233,50 @@ def signal(src, dst, color='#26c6b0', count=26, size=0.04, cycles=2.0, frames=No
             b.scale = (size * (0.5 + 1.8 * u),) * 3
             b.keyframe_insert('location', frame=f); b.keyframe_insert('scale', frame=f)
     return beads
+
+
+def _rounded_rect(w, h, r, seg=8):
+    pts = []
+    for (cx, cy), a0 in zip([(w / 2 - r, h / 2 - r), (-w / 2 + r, h / 2 - r), (-w / 2 + r, -h / 2 + r), (w / 2 - r, -h / 2 + r)], [0, 90, 180, 270]):
+        for k in range(seg + 1):
+            a = math.radians(a0 + 90 * k / seg); pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
+def phone(screen, frames=None, width=0.075, height=0.1475, depth=0.0085, corner=0.0105, color='#14141c', location=(0, 0, 0), yaw=0.0):
+    """A phone standing up, its screen an IMAGE SEQUENCE: the screen of an interface drawn elsewhere (a page rendered with Chromium frame by frame) on a body of rounded
+    metal and glass, lit by the scene, reflecting the HDRI. `screen` is a pattern of numbered files that go with the frames of THIS render (screen % 4d.png: the image of
+    frame 0 first, one image for each frame rendered: make that list by taking the page's frames at the render's own rate). The screen faces -Y. Sizes in metres. Returns the object."""
+    import bmesh
+    frames = frames or _state['frames']
+    bm = bmesh.new()
+    pts = _rounded_rect(width, height, corner)
+    face = bm.faces.new([bm.verts.new((x, -depth / 2, z)) for x, z in pts])
+    if face.normal.y > 0: face.normal_flip()
+    ext = bmesh.ops.extrude_face_region(bm, geom=[face])
+    moved = [v for v in ext['geom'] if isinstance(v, bmesh.types.BMVert)]
+    bmesh.ops.translate(bm, vec=(0, depth, 0), verts=moved)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    uv = bm.loops.layers.uv.new('uv')
+    for f in bm.faces:
+        front = f.normal.y < -0.9 and abs(f.calc_center_median().y + depth / 2) < 1e-6
+        f.material_index = 0 if front else 1
+        if front:
+            for l in f.loops: l[uv].uv = ((l.vert.co.x + width / 2) / width, (l.vert.co.z + height / 2) / height)
+    mesh = bpy.data.meshes.new('phone'); bm.to_mesh(mesh); bm.free()
+    obj = bpy.data.objects.new('phone', mesh); bpy.context.collection.objects.link(obj)
+    for f in mesh.polygons: f.use_smooth = True
+    obj.location = location; obj.rotation_euler = (0, 0, math.radians(yaw))
+    mat = bpy.data.materials.new('screen'); mat.use_nodes = True
+    nt = mat.node_tree; p = nt.nodes['Principled BSDF']
+    p.inputs['Base Color'].default_value = (0, 0, 0, 1); p.inputs['Roughness'].default_value = 0.12; p.inputs['Metallic'].default_value = 0.0
+    tex = nt.nodes.new('ShaderNodeTexImage')
+    first = screen % 1 if '%' in screen else screen
+    img = bpy.data.images.load(first); img.source = 'SEQUENCE'
+    tex.image = img; tex.image_user.frame_duration = frames; tex.image_user.frame_start = 0; tex.image_user.frame_offset = 0; tex.image_user.use_auto_refresh = True
+    nt.links.new(tex.outputs['Color'], p.inputs['Emission Color']); p.inputs['Emission Strength'].default_value = 1.0
+    obj.data.materials.append(mat); obj.data.materials.append(material('phone-body', color, metallic=0.85, rough=0.28))
+    return obj
 
 
 def render(out_dir, frames=None):
