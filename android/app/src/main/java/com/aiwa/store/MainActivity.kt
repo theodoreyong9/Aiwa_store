@@ -218,6 +218,7 @@ Text("Le téléphone écoute « mon agent » ou « instruction », puis tu donne
 }
 Switch(checked=listening,onCheckedChange={turnListening(it)})
 }
+TextButton(onClick={context.startActivity(Intent(context,WakeWordEnrollActivity::class.java))}){Text("Mon mot d'éveil : le choisir ou le changer (dis-le, même « Aiwa »)")}
 TextButton(onClick={context.startActivity(Intent(context,HealthActivity::class.java))}){Text("État d'Aiwa (Claude, alertes, permissions)")}
 OutlinedTextField(
 value=input,

@@ -321,14 +321,16 @@ fun statusReport(repo: String?, modelLabel: String, pushMain: Boolean, deploy: S
 enum class WakeKind { AGENT, INSTRUCTION, STOP }
 
 /**
- * The wake word, as the detector hears it. "Aiwa" cannot be listened for (it is not in the small French model's vocabulary), so the words
- * are French ones: "mon agent", and "instruction".
+ * The wake word, as the detector hears it. "Aiwa" is not in the small French model's vocabulary, so it cannot be written in the grammar: the words of origin are French ones
+ * ("mon agent", "instruction"), and a word of the person's own is SAID to the phone, which keeps how the engine hears it (WakeWords): `custom` holds those spellings.
  */
-fun wakeKind(heard: String): WakeKind? {
+fun wakeKind(heard: String, custom: List<String> = emptyList()): WakeKind? {
     val list = words(heard)
     // "stop Claude" / "arrête Claude": said at any moment, it is not a dictation: it stops Claude (see StopClaude)
     for (i in 1 until list.size) if (list[i].plain == "claude" && list[i - 1].plain in STOP_WORDS) return WakeKind.STOP
     for (i in 1 until list.size) if (list[i].plain == "agent" && list[i - 1].plain == "mon") return WakeKind.AGENT
+    // the word the person chose (WakeWords): it wakes like "mon agent"
+    if (custom.isNotEmpty() && WakeWords.heardCustom(heard, custom)) return WakeKind.AGENT
     return if (list.any { it.plain in TRIGGER }) WakeKind.INSTRUCTION else null
 }
 

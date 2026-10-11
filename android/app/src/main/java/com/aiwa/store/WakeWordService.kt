@@ -36,6 +36,18 @@ object ListenSettings {
     fun setEnabled(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("on", on).apply() }
 }
 
+/** The wake word the person chose (WakeWordEnrollActivity): a name for the screen, and the spellings the engine heard (com.aiwa.bridge.WakeWords). Empty = only the words of origin. */
+object WakeWordSettings {
+    private const val PREFS = "aiwa_listen"
+    fun variants(context: Context): List<String> =
+        (context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("custom", "") ?: "").split('|').map { it.trim() }.filter { it.isNotEmpty() }
+    fun name(context: Context): String = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("custom_name", "") ?: ""
+    fun save(context: Context, name: String, variants: List<String>) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("custom", variants.joinToString("|")).putString("custom_name", name.trim()).apply()
+    }
+    fun clear(context: Context) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("custom").remove("custom_name").apply() }
+}
+
 /**
  * Listens for "mon agent" and "instruction" all the time (a foreground service of the microphone type: the phone shows its green microphone dot for as
  * long as it runs), and when one is heard opens a dictation as if the mic of the widget had been touched, with the words that follow read as
@@ -130,10 +142,12 @@ class WakeWordService : Service() {
     private fun listen() {
         val current = model ?: return
         if (paused || dictation != null) return
-        say("À l'écoute : dis « mon agent » (t'es sur quoi ?), « instruction » ou « stop Claude »")
+        val own = WakeWordSettings.name(this)
+        say("À l'écoute : dis « " + (if (own.isNotEmpty()) own else "mon agent") + " » (t'es sur quoi ?), « instruction » ou « stop Claude »")
         holdCpu(true)
         detector = WakeWordDetector(
             model = current,
+            custom = WakeWordSettings.variants(this),
             onWake = { kind -> main.post { heardWakeWord(kind) } },
             onFailure = { reason -> main.post { fail("Écoute permanente arrêtée : $reason") } },
         ).also { it.start() }

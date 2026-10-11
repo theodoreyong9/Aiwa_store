@@ -3,6 +3,7 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import com.aiwa.bridge.WakeKind
+import com.aiwa.bridge.WakeWords
 import com.aiwa.bridge.wakeKind
 import org.json.JSONObject
 import org.vosk.Model
@@ -14,10 +15,13 @@ import org.vosk.Recognizer
  * released at once and onWake is called (on this detector's thread: post it where it must run), because the dictation that follows needs
  * the microphone.
  *
- * The word "Aiwa" cannot be listened for: it is not in the small French model's vocabulary, which is why the phrases are French ones.
+ * A word of the person's own is listened for through the spellings the engine heard when it was said to the phone (WakeWords): "Aiwa" is not in the small French model's
+ * vocabulary and cannot be written in the grammar, but what the engine writes when it hears it can.
  */
 class WakeWordDetector(
     private val model: Model,
+    /** The spellings of the word the person chose (WakeWordSettings), as the engine heard them; empty = only the words of origin. */
+    private val custom: List<String> = emptyList(),
     private val onWake: (WakeKind) -> Unit,
     private val onFailure: (String) -> Unit,
 ) {
@@ -56,7 +60,7 @@ class WakeWordDetector(
         }
         var woken: WakeKind? = null
         try {
-            Recognizer(model, sampleRate.toFloat(), "[\"mon agent\", \"instruction\", \"stop claude\", \"arrête claude\", \"[unk]\"]").use { recognizer ->
+            Recognizer(model, sampleRate.toFloat(), WakeWords.grammar(custom)).use { recognizer ->
                 record.startRecording()
                 val buffer = ShortArray(2048)
                 while (running) {
@@ -64,7 +68,7 @@ class WakeWordDetector(
                     if (n < 0) { onFailure("lecture du micro interrompue (code $n)"); running = false; break }
                     if (n == 0) continue
                     val heard = if (recognizer.acceptWaveForm(buffer, n)) JSONObject(recognizer.result).optString("text") else JSONObject(recognizer.partialResult).optString("partial")
-                    val kind = if (heard.isEmpty()) null else wakeKind(heard)
+                    val kind = if (heard.isEmpty()) null else wakeKind(heard, custom)
                     if (kind != null) { woken = kind; running = false }
                 }
             }

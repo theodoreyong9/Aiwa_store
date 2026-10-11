@@ -88,6 +88,8 @@
              DictateActivity; not exported — the widget reaches them
              through a PendingIntent created by this app. -->
         <!-- "Installation manquante" (InstallHelpActivity.kt): copies the line that installs the backend in Termux. -->
+        <!-- "Mon mot d'éveil" (WakeWordEnrollActivity.kt): the person says the word that wakes the listening; a normal window, the listening is put aside while it is open. -->
+        <activity android:name=".WakeWordEnrollActivity" android:exported="false" />
         <activity android:name=".InstallHelpActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
