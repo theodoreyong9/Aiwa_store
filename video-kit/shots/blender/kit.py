@@ -1,0 +1,219 @@
+"""Building blocks for the 3D shot of a film. NOT scenes: functions. The shot is a short script written for the film (shots/blender/examples/ shows two), that imports an asset
+(from asset-research) or makes a shape, changes it to the look of the film, stages it, moves the camera, and renders PNG frames. Blender runs headless, on the CPU (Cycles).
+
+  import kit
+  kit.reset(width=1920, height=1080, samples=48)
+  obj = kit.import_asset('assets/chair/ArmChair_01_2k.gltf', height=1.0)      # a glTF / GLB / OBJ / FBX, set on the floor, centred, scaled to a height in metres
+  kit.recolor(obj, '#26c6b0', mode='tint', strength=0.35)                       # to the palette of the film: tint, replace or emission
+  kit.floor('gloss')                                                              # 'gloss' (dark reflective) · 'cyc' (white studio) · 'none'
+  kit.light_rig('rim', target=obj, accent='#26c6b0')                              # 'studio' · 'rim' · 'daylight' · 'neon' · 'moody'   (or kit.hdri('lights/dawn_2k.hdr'))
+  cam = kit.camera(lens=42, target=obj, fstop=2.6)
+  kit.move(cam, 'orbit', frames=120, radius=(6, 4.5), arc=(-50, -10))             # 'dolly-in' · 'dolly-out' · 'orbit' · 'crane-up' · 'static' · 'handheld'
+  kit.render('frames/', frames=120)                                               # PNG 00000.png …   (--still 40 renders only that frame, to look at it first)
+
+Run:  python3.13 shot.py -- --out frames/ [--frames 120 --width 1920 --height 1080 --samples 48 --still 40]      (needs `pip install bpy`, Python 3.13: sh video-kit/src/shots-setup.sh)
+The grade (look of the film) and the bloom are NOT done here: they are the same for every shot of the film and are applied after, by `video-kit transform`.
+"""
+import math, os, sys
+import bpy
+import mathutils
+
+
+def args(name, default=None, cast=str):
+    a = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
+    return cast(a[a.index(f'--{name}') + 1]) if f'--{name}' in a else default
+
+
+def rgba(hex_or_tuple, a=1.0):
+    if isinstance(hex_or_tuple, str):
+        h = hex_or_tuple.lstrip('#')
+        lin = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        lin = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in lin]      # sRGB to linear, as Blender wants it
+        return (*lin, a)
+    return tuple(hex_or_tuple) if len(hex_or_tuple) == 4 else (*hex_or_tuple, a)
+
+
+_state = {'frames': 1, 'fps': 30}
+
+
+def reset(width=None, height=None, samples=None, fps=30):
+    width, height, samples = width or args('width', 1920, int), height or args('height', 1080, int), samples or args('samples', 48, int)
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    s = bpy.context.scene
+    s.render.engine = 'CYCLES'; s.cycles.device = 'CPU'; s.cycles.samples = samples; s.cycles.use_denoising = True
+    s.render.resolution_x, s.render.resolution_y, s.render.resolution_percentage, s.render.fps = width, height, 100, fps
+    s.render.image_settings.file_format = 'PNG'
+    names = [t.identifier for t in bpy.types.ColorManagedViewSettings.bl_rna.properties['view_transform'].enum_items]
+    s.view_settings.view_transform = 'AgX' if 'AgX' in names else 'Filmic'
+    world = bpy.data.worlds.new('w'); s.world = world; world.use_nodes = True
+    bg = world.node_tree.nodes['Background']; bg.inputs['Color'].default_value = (0.008, 0.008, 0.02, 1); bg.inputs['Strength'].default_value = 1.0
+    _state.update(frames=args('frames', 120, int), fps=fps)
+    return s
+
+
+def bounds(root):
+    pts = []
+    for o in [root, *root.children_recursive]:
+        if o.type == 'MESH':
+            pts += [o.matrix_world @ mathutils.Vector(c) for c in o.bound_box]
+    if not pts:
+        raise RuntimeError('the asset has no mesh')
+    lo = mathutils.Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+    hi = mathutils.Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+    return lo, hi
+
+
+def import_asset(path, height=None, location=(0, 0, 0), yaw=0.0):
+    """Import an asset, parent it to one empty, set it on the floor (z = 0), centred, scaled to `height` metres (the largest dimension if None is kept as it is)."""
+    before = set(bpy.data.objects)
+    ext = os.path.splitext(path)[1].lower()
+    if ext in ('.gltf', '.glb'): bpy.ops.import_scene.gltf(filepath=path)
+    elif ext == '.obj': bpy.ops.wm.obj_import(filepath=path)
+    elif ext == '.fbx': bpy.ops.import_scene.fbx(filepath=path)
+    elif ext in ('.usd', '.usdc', '.usda'): bpy.ops.wm.usd_import(filepath=path)
+    else: raise ValueError(f'cannot import {ext}')
+    new = [o for o in bpy.data.objects if o not in before]
+    root = bpy.data.objects.new('asset', None); bpy.context.collection.objects.link(root)
+    for o in new:
+        if o.parent is None: o.parent = root
+    bpy.context.view_layer.update()
+    lo, hi = bounds(root)
+    size = hi - lo
+    k = (height / size.z) if height and size.z > 1e-6 else 1.0
+    centre = (lo + hi) / 2
+    root.scale = (k, k, k)
+    root.location = (location[0] - centre.x * k, location[1] - centre.y * k, location[2] - lo.z * k)
+    root.rotation_euler = (0, 0, yaw)
+    bpy.context.view_layer.update()
+    return root
+
+
+def material(name, color, metallic=0.0, rough=0.5, emit=None, glass=False, emit_strength=6.0):
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    p = m.node_tree.nodes['Principled BSDF']
+    p.inputs['Base Color'].default_value = rgba(color); p.inputs['Metallic'].default_value = metallic; p.inputs['Roughness'].default_value = rough
+    if glass:
+        p.inputs['Transmission Weight'].default_value = 1.0; p.inputs['IOR'].default_value = 1.45; p.inputs['Roughness'].default_value = 0.02
+    if emit:
+        p.inputs['Emission Color'].default_value = rgba(emit); p.inputs['Emission Strength'].default_value = emit_strength
+    return m
+
+
+def recolor(root, color, mode='tint', strength=0.4, only=None):
+    """Bring an asset to the palette of the film. mode: 'tint' (mix the colour into what is there), 'replace' (the colour only), 'emission' (it glows).
+    only: a word that the name of the material must contain (e.g. 'metal', 'wood'); None = all the materials of the asset."""
+    c = rgba(color)
+    for o in [root, *root.children_recursive]:
+        if o.type != 'MESH': continue
+        for slot in o.material_slots:
+            m = slot.material
+            if not m or not m.use_nodes or (only and only.lower() not in m.name.lower()): continue
+            m.node_tree.nodes  # the shader nodes are changed in place: textures stay, the colour is mixed in
+            p = next((n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+            if not p: continue
+            if mode == 'emission':
+                p.inputs['Emission Color'].default_value = c; p.inputs['Emission Strength'].default_value = 4.0 * max(0.2, strength)
+            elif mode == 'replace' or not p.inputs['Base Color'].links:
+                base = p.inputs['Base Color'].default_value
+                p.inputs['Base Color'].default_value = c if mode == 'replace' else tuple(base[i] * (1 - strength) + c[i] * strength for i in range(3)) + (1.0,)
+            else:
+                mix = m.node_tree.nodes.new('ShaderNodeMix'); mix.data_type = 'RGBA'; mix.blend_type = 'MIX'; mix.inputs['Factor'].default_value = strength; mix.inputs['B'].default_value = c
+                src = p.inputs['Base Color'].links[0].from_socket
+                m.node_tree.links.new(src, mix.inputs['A']); m.node_tree.links.new(mix.outputs['Result'], p.inputs['Base Color'])
+
+
+def floor(kind='gloss', size=60, z=0.0):
+    if kind == 'none': return None
+    bpy.ops.mesh.primitive_plane_add(size=size); f = bpy.context.active_object
+    f.location = (0, 0, z - 0.001)
+    f.data.materials.append(material('floor', (0.02, 0.02, 0.03) if kind == 'gloss' else (0.92, 0.92, 0.94), rough=0.12 if kind == 'gloss' else 0.8))
+    return f
+
+
+def _area(name, loc, energy, color, size, target):
+    bpy.ops.object.light_add(type='AREA', location=loc)
+    l = bpy.context.active_object; l.name = name; l.data.energy, l.data.color, l.data.size = energy, color[:3], size
+    c = l.constraints.new('TRACK_TO'); c.target = target; c.track_axis = 'TRACK_NEGATIVE_Z'; c.up_axis = 'UP_Y'
+    return l
+
+
+def _focus(target):
+    if target is None: return None
+    if target.type == 'EMPTY' and target.name.startswith('asset'):
+        lo, hi = bounds(target); f = bpy.data.objects.new('focus', None); bpy.context.collection.objects.link(f); f.location = (lo + hi) / 2; return f
+    return target
+
+
+def light_rig(style='studio', target=None, accent='#26c6b0', scale=1.0):
+    t = _focus(target) or bpy.data.objects.new('t', None)
+    if t.users == 0: bpy.context.collection.objects.link(t)
+    a = rgba(accent); k = scale
+    if style == 'studio':   _area('key', (-4 * k, -5 * k, 4.5 * k), 650, (1, .95, .9), 3 * k, t); _area('fill', (4 * k, -4 * k, 2 * k), 160, (.7, .75, 1), 4 * k, t); _area('top', (0, 0, 6 * k), 200, (1, 1, 1), 4 * k, t)
+    elif style == 'rim':    _area('key', (-4 * k, -5 * k, 4.5 * k), 500, (1, .95, .9), 3 * k, t); _area('rim', (4 * k, 4 * k, 3 * k), 380, a, 2.5 * k, t); _area('fill', (3 * k, -5 * k, 1.5 * k), 140, (.6, .65, 1), 4 * k, t)
+    elif style == 'daylight': _area('sun', (6 * k, -4 * k, 7 * k), 1800, (1, .93, .82), 2 * k, t); _area('sky', (-3 * k, -3 * k, 5 * k), 500, (.7, .8, 1), 8 * k, t)
+    elif style == 'neon':   _area('l1', (-4 * k, -3 * k, 2 * k), 700, a, 2 * k, t); _area('l2', (4 * k, -3 * k, 2 * k), 700, (1, .25, .6), 2 * k, t); _area('back', (0, 5 * k, 3 * k), 300, (.4, .5, 1), 3 * k, t)
+    elif style == 'moody':  _area('key', (-5 * k, -4 * k, 3 * k), 420, (1, .8, .6), 1.5 * k, t); _area('rim', (4 * k, 5 * k, 2 * k), 250, a, 2 * k, t)
+    else: raise ValueError(f'unknown light style {style}')
+
+
+def hdri(path, strength=1.0, rotation=0.0):
+    w = bpy.context.scene.world; nt = w.node_tree
+    env = nt.nodes.new('ShaderNodeTexEnvironment'); env.image = bpy.data.images.load(path)
+    m = nt.nodes.new('ShaderNodeMapping'); m.inputs['Rotation'].default_value[2] = rotation
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    nt.links.new(tc.outputs['Generated'], m.inputs['Vector']); nt.links.new(m.outputs['Vector'], env.inputs['Vector'])
+    bg = nt.nodes['Background']; bg.inputs['Strength'].default_value = strength; nt.links.new(env.outputs['Color'], bg.inputs['Color'])
+
+
+def camera(lens=42, target=None, fstop=2.8):
+    bpy.ops.object.camera_add(); cam = bpy.context.active_object; bpy.context.scene.camera = cam
+    cam.data.lens = lens
+    f = _focus(target)
+    if f is not None:
+        cam.data.dof.use_dof = fstop is not None and fstop > 0; cam.data.dof.focus_object = f; cam.data.dof.aperture_fstop = fstop or 8
+        c = cam.constraints.new('TRACK_TO'); c.target = f; c.track_axis = 'TRACK_NEGATIVE_Z'; c.up_axis = 'UP_Y'
+        cam['focus'] = f.name
+    return cam
+
+
+def move(cam, kind='orbit', frames=None, radius=(6, 4.5), arc=(-45, -10), height=(1.4, 1.0), amount=0.02, seed=1):
+    """Keyframe the camera around its target. orbit: an arc (degrees) at a distance; dolly-in/out: along the line to the target; crane-up: rises; handheld: small drift on top of a static camera."""
+    frames = frames or _state['frames']
+    f = bpy.data.objects[cam['focus']].location if 'focus' in cam else mathutils.Vector((0, 0, 0))
+    rnd = __import__('random').Random(seed)
+    for i in range(frames):
+        t = i / max(1, frames - 1); e = t * t * (3 - 2 * t)
+        lerp = lambda p, q, k: p + (q - p) * k
+        mid = math.radians((arc[0] + arc[1]) / 2)
+        if kind == 'orbit': a, r = math.radians(lerp(arc[0], arc[1], e)), lerp(radius[0], radius[1], e)
+        elif kind == 'dolly-in': a, r = mid, lerp(radius[0], radius[1], e)
+        elif kind == 'dolly-out': a, r = mid, lerp(radius[1], radius[0], e)
+        elif kind in ('static', 'handheld', 'crane-up'): a, r = mid, radius[0]
+        else: raise ValueError(f'unknown move {kind}')
+        h = lerp(height[0], height[1], e) if kind != 'static' and kind != 'handheld' else height[0]
+        x = f.x + math.sin(a) * r; y = f.y - math.cos(a) * r; z = f.z + h
+        if kind == 'handheld': x += (rnd.random() - .5) * amount * 4; z += (rnd.random() - .5) * amount * 4
+        cam.location = (x, y, z); cam.keyframe_insert('location', frame=i)
+
+
+def beam(src, dst, color='#26c6b0', radius=0.3, strength=0.9):
+    """A soft cone of light from a point to another (a signal, a scan, a projector). Nearly transparent, brighter toward the far end."""
+    src, dst = mathutils.Vector(src), mathutils.Vector(dst); d = dst - src
+    bpy.ops.mesh.primitive_cone_add(vertices=48, radius1=0.015, radius2=radius, depth=d.length); b = bpy.context.active_object
+    m = bpy.data.materials.new('beam'); m.use_nodes = True; nt = m.node_tree; nt.nodes.clear()
+    em = nt.nodes.new('ShaderNodeEmission'); em.inputs['Color'].default_value = rgba(color); em.inputs['Strength'].default_value = strength
+    tr = nt.nodes.new('ShaderNodeBsdfTransparent'); mix = nt.nodes.new('ShaderNodeMixShader'); mix.inputs['Fac'].default_value = 0.93; out = nt.nodes.new('ShaderNodeOutputMaterial')
+    nt.links.new(tr.outputs[0], mix.inputs[1]); nt.links.new(em.outputs[0], mix.inputs[2]); nt.links.new(mix.outputs[0], out.inputs['Surface'])
+    b.data.materials.append(m); b.location = src + d / 2; b.rotation_mode = 'QUATERNION'; b.rotation_quaternion = d.to_track_quat('Z', 'Y'); b.visible_shadow = False
+    return b
+
+
+def render(out_dir, frames=None):
+    frames = frames or _state['frames']
+    os.makedirs(out_dir, exist_ok=True)
+    s = bpy.context.scene; s.frame_start, s.frame_end = 0, frames - 1
+    still = args('still', None, int)
+    rng = [still] if still is not None else range(frames)
+    for f in rng:
+        s.frame_set(f); s.render.filepath = os.path.join(out_dir, '%05d.png' % f); bpy.ops.render.render(write_still=True)
+    print('frames', len(list(rng)), 'in', out_dir)

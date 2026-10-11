@@ -12,7 +12,8 @@
     "design-research",
     "video-kit",
     "video-research",
-    "music-research"
+    "music-research",
+    "asset-research"
   ],
   "scripts": {
     "test": "npm test --workspaces --if-present",
