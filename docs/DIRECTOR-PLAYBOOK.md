@@ -45,6 +45,9 @@ Write the logline first: *"For [who], [creation] [does what], unlike [what they 
 ## 7. Honesty
 Nothing invented: no figure, testimonial, result or "before / after" that is not on the page, in the brief or in the creation. Say the assumptions.
 
+## 7b. Real, rendered, generated, drawn
+A film that asks to be believed (a product, a person meeting another) is stronger with a **real picture** somewhere: a 3D product shot, a real footage with the elements laid over it, a generated scene of the user's. A film made only of cards and diagrams reads as a presentation. But the picture must be what it says it is: label a drawing as an illustration, a render as a render, a generated scene as generated, and keep the source and the licence of a real footage. The tools and their limits are in `video-kit/shots/README.md`.
+
 ## 8. The critique, in one sheet
 Score 1 to 5, as a demanding creative director who has not seen the code:
 1. **Hook**: would I stop for this in 2 s? 2. **Message**: can I say it back in one sentence? 3. **Pace**: do shot lengths vary, does it accelerate and breathe? 4. **Movement**: does every shot move? 5. **Legibility**: can every card be read in its time? 6. **Art direction**: one palette, one type, one motion language? 7. **Sound and sync**: accents on the cuts, silence before the line, voice not covered? 8. **Honesty**: is every statement true? 9. **Call to action**: one action, clear, long enough?

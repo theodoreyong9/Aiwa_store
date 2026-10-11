@@ -1,0 +1,79 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { assemble, imageSize } from '../src/assemble.js';
+import { hasFfmpeg, ffmpegPath, run } from '../src/ffmpeg.js';
+
+const need = { skip: hasFfmpeg() ? false : 'ffmpeg is not installed here' };
+const ff = (...a) => run(ffmpegPath(), ['-y', '-loglevel', 'error', ...a]);
+const pixel = (file, t) => { const r = spawnSync(ffmpegPath(), ['-loglevel', 'error', '-ss', String(t), '-i', file, '-frames:v', '1', '-vf', 'scale=1:1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { maxBuffer: 1e6 }); return [...r.stdout.subarray(0, 3)]; };
+
+function fixture() {
+  const dir = mkdtempSync(join(tmpdir(), 'vk-clips-'));
+  mkdirSync(join(dir, 'f')); mkdirSync(join(dir, 'a'));
+  ff('-f', 'lavfi', '-i', 'color=c=red:s=160x90:r=10', '-t', '4', join(dir, 'f', '%05d.jpg'));                         // 4 s of red frames
+  ff('-f', 'lavfi', '-i', 'color=c=blue:s=320x180:r=10', '-t', '1', '-pix_fmt', 'yuv420p', join(dir, 'blue.mp4'));  // a 1 s blue video, another size
+  ff('-f', 'lavfi', '-i', 'color=c=lime@0.6:s=80x45:r=10,format=rgba', '-t', '1', join(dir, 'a', '%05d.png'));      // a translucent green image sequence
+  return dir;
+}
+
+test('imageSize reads JPEG and PNG headers', need, () => {
+  const d = fixture();
+  assert.deepEqual(imageSize(join(d, 'f', '00001.jpg')), { w: 160, h: 90 });
+  assert.deepEqual(imageSize(join(d, 'a', '00001.png')), { w: 80, h: 45 });
+});
+
+test('an opaque clip replaces the frames between start and end, and only there', need, () => {
+  const d = fixture();
+  const out = join(d, 'o.mp4');
+  assemble({ framesDir: join(d, 'f'), out, fps: 10, crf: 18, clips: [{ file: join(d, 'blue.mp4'), start: 1.5, end: 2.5, fade: 0 }] });
+  const before = pixel(out, 0.5), inside = pixel(out, 2.0), after = pixel(out, 3.3);
+  assert.ok(before[0] > 150 && before[2] < 90, `before ${before}`);       // red
+  assert.ok(inside[2] > 150 && inside[0] < 90, `inside ${inside}`);        // blue, whatever its size was (cut to the frame)
+  assert.ok(after[0] > 150 && after[2] < 90, `after ${after}`);
+});
+
+test('an image sequence with an alpha channel is laid over the picture, not instead of it', need, () => {
+  const d = fixture();
+  const out = join(d, 'o2.mp4');
+  assemble({ framesDir: join(d, 'f'), out, fps: 10, crf: 18, clips: [{ file: join(d, 'a', '%05d.png'), start: 1, end: 2, fade: 0, fit: 'cover' }] });
+  const inside = pixel(out, 1.5);
+  assert.ok(inside[0] > 40 && inside[1] > 40, `a mix of red and green: ${inside}`);   // neither pure red nor pure green
+  assert.ok(inside[0] > 60, `the red picture still shows: ${inside}`);
+});
+
+test('a missing clip is refused with its name', need, () => {
+  const d = fixture();
+  assert.throws(() => assemble({ framesDir: join(d, 'f'), out: join(d, 'x.mp4'), fps: 10, clips: [{ file: join(d, 'nope.mp4'), start: 0 }] }), /nope\.mp4 does not exist/);
+});
+
+test('render --transparent writes PNG frames with an alpha channel: the page background stays empty', need, async () => {
+  const { renderFrames } = await import('../src/render.js');
+  const { writeFileSync, readdirSync } = await import('node:fs');
+  const dir = mkdtempSync(join(tmpdir(), 'vk-alpha-'));
+  const page = join(dir, 'p.html');
+  writeFileSync(page, '<!doctype html><html><body style="margin:0;background:transparent"><div style="position:absolute;left:40px;top:20px;width:30px;height:30px;background:#f00"></div><script>window.render=(t)=>{}</script></body></html>');
+  const r = await renderFrames({ page, outDir: join(dir, 'o'), width: 160, height: 90, fps: 10, seconds: 0.2, workers: 1, transparent: true });
+  assert.equal(r.frames, 2);
+  const files = readdirSync(join(dir, 'o')).filter((f) => f.endsWith('.png'));
+  assert.equal(files.length, 2);
+  const px = (x, y) => { const o = spawnSync(ffmpegPath(), ['-loglevel', 'error', '-i', join(dir, 'o', files[0]), '-vf', `crop=1:1:${x}:${y},format=rgba`, '-f', 'rawvideo', '-'], { maxBuffer: 1e6 }); return [...o.stdout.subarray(0, 4)]; };
+  assert.equal(px(5, 5)[3], 0, 'the empty corner is transparent');
+  assert.equal(px(50, 30)[3], 255, 'the square is opaque');
+});
+
+test('the shotlist command writes the files and exits 1 when something is missing', need, async () => {
+  const { writeFileSync, readFileSync } = await import('node:fs');
+  const dir = mkdtempSync(join(tmpdir(), 'vk-sl-'));
+  writeFileSync(join(dir, 's.json'), JSON.stringify({ title: 'T', scenes: [{ id: 'a', seconds: 3, tool: 'html' }, { id: 'b', seconds: 2, tool: 'footage' }] }));
+  const cli = join(dirname(new URL(import.meta.url).pathname), '..', 'src', 'cli.js');
+  const bad = spawnSync('node', [cli, 'shotlist', join(dir, 's.json'), join(dir, 'out')], { encoding: 'utf8' });
+  assert.equal(bad.status, 1); assert.match(bad.stdout, /licence/);
+  writeFileSync(join(dir, 's.json'), JSON.stringify({ title: 'T', scenes: [{ id: 'a', seconds: 3, tool: 'html' }, { id: 'b', seconds: 2, tool: 'footage', licence: 'CC0, archive.org' }] }));
+  const ok = spawnSync('node', [cli, 'shotlist', join(dir, 's.json'), join(dir, 'out')], { encoding: 'utf8' });
+  assert.equal(ok.status, 0, ok.stderr + ok.stdout);
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'out', 'clips.json'), 'utf8')).map((c) => c.shot), ['b']);
+});

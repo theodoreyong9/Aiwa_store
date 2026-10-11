@@ -1,11 +1,11 @@
-// Renders a timeline page frame by frame. The page defines window.render(t) (t in seconds, a pure function of t: the same t draws the
+// Renders a timeline page frame by frame. With `transparent`, PNG files with an alpha channel (the page must have a transparent background: THEME.bg 'transparent', grain 0, vignette 0), to be laid over a real footage. The page defines window.render(t) (t in seconds, a pure function of t: the same t draws the
 // same picture) and a <meta name="duration"> is not needed: the caller says how long. Frames are JPEG files 00000.jpg, 00001.jpg, …
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export async function renderFrames({ page: pageFile, outDir, width = 1080, height = 1920, fps = 30, seconds, quality = 90, workers = 4, from = 0, to, executablePath = process.env.CHROMIUM_PATH || undefined }) {
+export async function renderFrames({ page: pageFile, outDir, width = 1080, height = 1920, fps = 30, seconds, quality = 90, workers = 4, from = 0, to, transparent = false, executablePath = process.env.CHROMIUM_PATH || undefined }) {
   if (!(seconds > 0)) throw new Error('seconds must be positive');
   mkdirSync(outDir, { recursive: true });
   const total = Math.round(seconds * fps);
@@ -27,7 +27,7 @@ export async function renderFrames({ page: pageFile, outDir, width = 1080, heigh
       if (w === 0) { const meta = await page.evaluate(() => ({ cuts: window.CUTS || [], total: window.TOTAL_SECONDS || null })); writeFileSync(`${outDir}/cuts.json`, JSON.stringify(meta)); }
       for (let i = a; i < b; i++) {
         await page.evaluate((t) => window.render(t), i / fps);
-        await page.screenshot({ path: `${outDir}/${String(i).padStart(5, '0')}.jpg`, type: 'jpeg', quality });
+        await (transparent ? page.screenshot({ path: `${outDir}/${String(i).padStart(5, '0')}.png`, type: 'png', omitBackground: true }) : page.screenshot({ path: `${outDir}/${String(i).padStart(5, '0')}.jpg`, type: 'jpeg', quality }));
       }
       await page.close();
       if (errors.length) throw new Error(`the page raised: ${errors[0]}`);

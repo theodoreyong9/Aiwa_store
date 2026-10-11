@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 54
+BACKEND_VERSION = 55
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -564,6 +564,9 @@ def _video_line(repo):
         "Une vidéo n'est PAS un diaporama : aucune capture ne reste posée au centre avec un titre au-dessus. Chaque plan bouge : texte qui s'anime, captures en gros plan, "
         "zoom ou panoramique lent, vraie page qui défile, éléments qui entrent et sortent sur le tempo. Un changement tous les 1,5 à 3 secondes, une seule direction artistique. "
         "Quand il y a peu de matière (une page presque vide), fabrique de la matière avec ce que la création fait : l'animer, la zoomer, en isoler un détail, en faire un graphisme ; n'étire pas du vide. "
+        "Quand un plan doit avoir l'air RÉEL (un objet, une personne, un lieu), lis " + REFERENCE_RAW + "/video-kit/shots/README.md et choisis l'outil du plan : une 3D faite avec Blender (`sh video-kit/src/shots-setup.sh`), "
+        "une vraie séquence libre de droits avec nos éléments par-dessus (`track.py`, `render --transparent`), le clip d'un générateur vidéo à moi (écris les prompts avec `video-kit shotlist` et demande-moi le fichier par la question du widget), "
+        "ou le moteur ; pose les clips avec `assemble --clips`. Un plan dessiné, rendu en 3D ou généré n'est jamais présenté comme un enregistrement : dis dans ton rapport lequel est quoi, et garde la source et la licence d'une vraie séquence. "
         "La critique (étape 6) se fait sur la planche-contact (au moins 8 images extraites à intervalles réguliers), comme un directeur artistique exigeant qui n'a pas vu le code : "
         "note de 1 à 5 l'accroche, la clarté du message, le rythme, le mouvement de chaque plan, la lisibilité, la direction artistique, le son, l'honnêteté (rien d'inventé) et l'appel à l'action ; "
         "corrige tout ce qui est sous 4 et recommence l'aperçu, jusqu'à trois tours ; si tu as un outil de sous-agent, confie la critique à un agent neuf qui ne voit que les images et le brief. "

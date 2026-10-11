@@ -111,6 +111,30 @@ function zeroTick(root, t, M) {
     el.style.opacity = M.clamp(p) * (cur || t > 9.4 ? 1 : 0.6); el.style.transform = `translateX(${(1 - Math.min(1, p)) * 120}px) scale(${cur ? 1.03 : 1})`;
   });
 }
+// ---- the opening: the phone locked, the screen dark, the agent listening (the feature works with the screen off) -----------------------------------------
+const LOCKED = `<div class="v" style="width:600px;height:1180px"><div id="lp" style="position:absolute;left:0;top:0;width:600px;height:1180px;border-radius:84px;border:10px solid #2b2b38;background:linear-gradient(180deg,#07070c,#0b0b12);box-shadow:0 50px 140px rgba(0,0,0,.7);overflow:hidden">
+<div style="position:absolute;left:0;right:0;top:120px;text-align:center"><div style="font-size:150px;font-weight:300;letter-spacing:-4px;color:#8c8ca0" id="lc">02:14</div><div style="font-size:30px;color:#5c5c70;margin-top:4px">mardi 6 octobre</div></div>
+<div id="ln" style="position:absolute;left:34px;right:34px;top:520px;border-radius:30px;background:#171722;border:2px solid #2d2d42;padding:26px 28px;opacity:0"><div style="display:flex;align-items:center;gap:16px"><i style="width:18px;height:18px;border-radius:50%;background:${GRN};display:block"></i><span style="font-size:26px;letter-spacing:2px;color:#a4a4bc">AIWA · MAINTENANT</span></div><div style="font-size:42px;font-weight:800;margin-top:12px">À l'écoute</div>
+<div id="lw" style="display:flex;gap:8px;align-items:center;height:80px;margin-top:10px">${Array.from({ length: 22 }, () => '<i style="display:block;width:10px;border-radius:5px;background:#26c6b0;height:8px"></i>').join('')}</div></div>
+<div id="lb" style="position:absolute;left:34px;right:34px;top:850px;border-radius:30px;background:${ORA};color:#090912;padding:26px 30px;font-size:35px;font-weight:700;line-height:1.25;opacity:0;min-height:140px"></div></div></div>`;
+const SAID = 'Mon agent, crée un match CV recruteur, sans serveur.';
+function lockedTick(root, t, M) {
+  const $ = (id) => root.querySelector('#' + id);
+  $('ln').style.opacity = M.prog(t, 0.5, 0.6); $('ln').style.transform = `translateY(${(1 - M.prog(t, 0.5, 0.6)) * 30}px)`;
+  const talk = t > 1.3 && t < 4.4;
+  [...$('lw').children].forEach((b, i) => { b.style.height = (talk ? 10 + 62 * Math.abs(Math.sin(t * 9 + i * 0.7)) * (0.5 + 0.5 * Math.sin(t * 3 + i)) : 8) + 'px'; });
+  const n = Math.floor(M.clamp((t - 1.7) / 2.4) * SAID.length);
+  $('lb').style.opacity = n > 0 ? 1 : 0; $('lb').textContent = SAID.slice(0, n);
+  $('lc').style.color = t > 1.3 ? '#a4a4bc' : '#8c8ca0';
+}
+// the first shot keeps its two lines; the phone comes under (portrait) or beside (landscape) them
+(function () {
+  const first = window.SHOTS[0];
+  first.layers.forEach((l) => { if (l.type === 'text') { l.x = [50, 24]; l.w = [90, 38]; l.y = [11, 38]; l.size = [8.6, 6.6]; } });
+  first.layers[1].size = [10.5, 8]; first.layers[1].y = [12, 38];
+  first.layers.push({ type: 'html', id: 'locked', css: VCSS, markup: LOCKED, design: [600, 1180], w: [46, 24], x: [50, 72], y: [62, 54], at: 0.15, tick: lockedTick, enter: 'rise', dur: 0.8 });
+  first.layers.push({ type: 'text', text: 'Même écran éteint.', size: [4.4, 3.4], weight: 700, color: GRN, x: [50, 24], y: [93, 66], w: [90, 38], effect: 'rise', mode: 'words', at: 3.5 });
+})();
 const BLOB1 = { type: 'blobs', colors: ['rgba(123,97,255,.40)', 'rgba(38,198,176,.25)', 'rgba(30,30,60,.5)'], base: '#090912' };
 const WORLD = '<svg viewBox="0 0 24 24" width="100%"><circle class="d" cx="12" cy="12" r="10"/><path class="d" d="M2 12 H22 M12 2 C7 7 7 17 12 22 C17 17 17 7 12 2"/></svg>';
 // the match CV of the Jobber app, as in the first film, after the widget
