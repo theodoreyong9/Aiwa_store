@@ -240,5 +240,10 @@ def render(out_dir, frames=None):
     still = args('still', None, int)
     rng = [still] if still is not None else range(frames)
     for f in rng:
-        s.frame_set(f); s.render.filepath = os.path.join(out_dir, '%05d.png' % f); bpy.ops.render.render(write_still=True)
+        path = os.path.join(out_dir, '%05d.png' % f)
+        if still is None and os.path.exists(path) and os.path.getsize(path) > 0 and not os.path.exists(path + '.part'):
+            continue   # a render that was cut short starts again where it stopped
+        open(path + '.part', 'w').close()
+        s.frame_set(f); s.render.filepath = path; bpy.ops.render.render(write_still=True)
+        os.remove(path + '.part')
     print('frames', len(list(rng)), 'in', out_dir)
