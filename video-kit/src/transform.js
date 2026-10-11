@@ -23,7 +23,7 @@ export function transformFilter({ grade = 'clean', bloom = 0, grain = 0, vignett
   if (fps) chain.push(`fps=${fps}`);
   chain.push('format=yuv420p');
   let g = chain.join(',');
-  if (bloom > 0) g += `,split[a][b];[b]curves=all='0/0 0.62/0 1/1',gblur=sigma=22[h];[a][h]blend=all_mode=screen:all_opacity=${Math.min(1, bloom)}`;
+  if (bloom > 0) g += `,split[a][b];[b]curves=all='0/0 0.78/0 1/1',gblur=sigma=22[h];[a][h]blend=all_mode=screen:all_opacity=${Math.min(1, bloom)}`;
   const post = [];
   if (vignette > 0) post.push(`vignette=angle=PI/${(5 / Math.max(0.1, vignette) / 1.75).toFixed(2)}`);
   if (grain > 0) post.push(`noise=alls=${Math.round(grain * 200)}:allf=t`);

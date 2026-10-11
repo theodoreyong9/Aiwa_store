@@ -3,7 +3,8 @@
 // asset-research fetch <id> <out-dir> [--res=2k]      downloads that one asset (from Poly Haven, else from the release `assets` of this repository, made on request)
 // asset-research stats | sync
 // The register is read from catalog/assets.jsonl, or from AR_CATALOG_URL (the raw address of that file) when the repository is not cloned.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { search, stats } from './search.js';
@@ -35,7 +36,9 @@ try {
       failure = String(err.message ?? err);
       if (process.env.AR_NO_MIRROR) throw err;
       // the copy in the release `assets`: one zip per asset
-      try { const zip = join(b, `${r.id}.zip`); writeFileSync(zip, Buffer.from(await (await get(`${MIRROR}/${r.id}.zip`)).arrayBuffer())); wrote = -1; console.error(`from the release: ${zip} (unzip it)`); }
+      try { const zip = join(b, `${r.id}.zip`); writeFileSync(zip, Buffer.from(await (await get(`${MIRROR}/${r.id}.zip`)).arrayBuffer())); const un = spawnSync('unzip', ['-qo', zip, '-d', b]).status === 0 || spawnSync('python3', ['-c', 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])', zip, b]).status === 0;
+        if (!un) throw new Error(`${zip} is downloaded but cannot be unzipped here (unzip or python3 are missing)`);
+        rmSync(zip); wrote = readdirSync(b).length; console.error('from the release (the copy made on request), unzipped'); }
       catch (err2) { throw new Error(`${failure}; the copy ${MIRROR}/${r.id}.zip: ${err2.message}. The source cannot be reached from here: say so and use a shape made in the shot instead`); }
     }
     console.log(JSON.stringify({ id: r.id, name: r.name, kind: r.kind, out: b, files: wrote, licence: 'CC0 (no credit asked; a line « Poly Haven » is appreciated)', page: r.page }));
