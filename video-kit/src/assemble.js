@@ -57,8 +57,8 @@ export function assemble({ framesDir, audio = null, voice = null, out, fps = 30,
   const cf = clipFilters(clips, '[0:v]', W, H, fps);
   const music = `[1:a]afade=t=in:d=0.3,afade=t=out:st=${Math.max(0, seconds - fade).toFixed(2)}:d=${fade}`;
   const mix = duck === 'light'
-    ? 'sidechaincompress=threshold=0.05:ratio=3.5:attack=10:release=300:makeup=1[d];[d][v1]amix=inputs=2:normalize=0:weights=1 1.15,alimiter=limit=0.5:level=disabled[m]'
-    : 'sidechaincompress=threshold=0.02:ratio=9:attack=15:release=450:makeup=1[d];[d][v1]amix=inputs=2:normalize=0:weights=0.8 1.25,alimiter=limit=0.5:level=disabled[m]';
+    ? 'sidechaincompress=threshold=0.05:ratio=3.5:attack=10:release=300:makeup=1[d];[d][vox1]amix=inputs=2:normalize=0:weights=1 1.15,alimiter=limit=0.5:level=disabled[m]'
+    : 'sidechaincompress=threshold=0.02:ratio=9:attack=15:release=450:makeup=1[d];[d][vox1]amix=inputs=2:normalize=0:weights=0.8 1.25,alimiter=limit=0.5:level=disabled[m]';
   const graph = [];
   let vlabel = '0:v';
   cf.parts.forEach((p, k) => {
@@ -68,7 +68,7 @@ export function assemble({ framesDir, audio = null, voice = null, out, fps = 30,
     graph.push(`[${vlabel}][c${k}]overlay=${enable}eof_action=pass:format=auto[v${k}]`);
     vlabel = `v${k}`;
   });
-  if (audio && voice) graph.push(`${music}[mus];[2:a]asplit[v1][v2];[mus][v2]${mix}`);
+  if (audio && voice) graph.push(`${music}[mus];[2:a]asplit[vox1][vox2];[mus][vox2]${mix}`);
   else if (audio) graph.push(`${music},alimiter=limit=0.5:level=disabled[m]`);
   const useGraph = graph.length > 0;
   const args = [...input, ...audioArgs, ...voiceArgs, ...cf.inputs, ...(useGraph ? ['-filter_complex', graph.join(';')] : []),

@@ -21,7 +21,7 @@ for (const link of document.querySelectorAll('#view-papers a[data-doc]')) link.h
 $('papers-video').src = $('papers-video-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-promo.mp4`;
 $('papers-video-short').src = $('papers-video-short-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-promo-cine-16x9.mp4`;
 // ?v= changes with the film: a phone that kept the previous file in its cache asks for the new one (raise it when docs/aiwa-global-16x9.mp4 is replaced)
-$('papers-video-vision').src = $('papers-video-vision-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-global-16x9.mp4?v=3`;
+$('papers-video-vision').src = $('papers-video-vision-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-global-16x9.mp4?v=4`;
 
 initPublish();
 initStore();

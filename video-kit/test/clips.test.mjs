@@ -88,3 +88,12 @@ test('an image sequence that starts at its own frame number is laid at the insta
   assert.ok(before[1] < 60, `red before: ${before}`);
   assert.ok(inside[1] > 40, `green mixed in: ${inside}`);
 });
+
+test('a clip and a voice-over with a music track assemble together (the labels of the two graphs do not clash)', need, () => {
+  const d = fixture();
+  const out = join(d, 'o4.mp4');
+  run(ffmpegPath(), ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=f=220:d=4', join(d, 'm.wav')]);
+  run(ffmpegPath(), ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=f=440:d=2', join(d, 'v.wav')]);
+  assemble({ framesDir: join(d, 'f'), out, fps: 10, crf: 18, audio: join(d, 'm.wav'), voice: join(d, 'v.wav'), duck: 'light', clips: [{ file: join(d, 'a', '%05d.png'), start: 1, end: 2, fade: 0 }] });
+  assert.ok(pixel(out, 1.5)[1] > 40, 'the clip is there');
+});
