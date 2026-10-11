@@ -20,6 +20,7 @@
     <button type="button" class="active" data-view="store">Store</button>
     <button type="button" data-view="wallet">Wallet</button>
     <button type="button" data-view="papers">Papers</button>
+    <button type="button" data-view="aiwa">Aiwa</button>
   </nav>
 </header>
 
@@ -238,6 +239,19 @@
 </div>
 
 <!-- ============ PAPERS ============ -->
+<main class="view" id="view-aiwa" data-view="aiwa" hidden>
+  <section>
+    <h2>Aiwa : la voix et l'agent</h2>
+    <p class="hint" id="aiwa-host-hint">Ces réglages sont dans l'application Android.</p>
+    <div id="aiwa-actions" style="display:flex;flex-direction:column;gap:10px">
+      <button type="button" class="primary" data-screen="wake-word">Mon mot d'éveil : le choisir, même « Aiwa »</button>
+      <button type="button" class="primary" data-screen="dictation">Écoute, dictée et réglages de la voix</button>
+      <button type="button" class="primary" data-screen="videos">Vidéos de ma création (et à partir d'un fichier)</button>
+      <button type="button" class="primary" data-screen="proposals">Propositions à valider (mails préparés)</button>
+    </div>
+    <p class="hint">La qualité des vidéos (simple, moyenne, extra) se règle dans le widget : bouton du type de projet.</p>
+  </section>
+</main>
 <main class="view" id="view-papers" data-view="papers" hidden>
   <section class="card">
     <h2>The video</h2>

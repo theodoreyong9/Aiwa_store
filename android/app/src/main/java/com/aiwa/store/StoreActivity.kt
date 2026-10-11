@@ -266,6 +266,13 @@ class StoreActivity : ComponentActivity() {
         when (json.optString("cmd")) {
             "save" -> saveToDownloads(json.optString("name"), json.optString("mime", "application/json"), json.optString("text"))
             "dictation" -> startActivity(Intent(this, MainActivity::class.java))
+            // The « Aiwa » tab of the Store: the screens of the app, by name (nothing else can be opened from the page).
+            "open" -> when (json.optString("screen")) {
+                "wake-word" -> startActivity(Intent(this, WakeWordEnrollActivity::class.java))
+                "dictation" -> startActivity(Intent(this, MainActivity::class.java))
+                "videos" -> startActivity(Intent(this, VideosActivity::class.java))
+                "proposals" -> startActivity(Intent(this, ProposalsActivity::class.java))
+            }
             "secret-get" -> respond(reply, id) { JSONObject().put("value", secrets.get(secretName(json)) ?: JSONObject.NULL) }
             "secret-set" -> respond(reply, id) { secrets.set(secretName(json), json.getString("value")); JSONObject() }
             "secret-delete" -> respond(reply, id) { secrets.delete(secretName(json)); JSONObject() }

@@ -4,7 +4,7 @@ import { initStore } from './store-ui.js';
 import { initWallet } from './wallet-ui.js';
 import { initPublish, sheetIsOpen, closeSheet } from './publish-ui.js';
 import { closeViewer } from './viewer.js';
-import { setBackHandler } from './host.js';
+import { setBackHandler, hostAvailable, hostPost } from './host.js';
 
 // An error nobody caught (a handler without its own try/catch, a timer tick) is shown, never silent.
 window.addEventListener('unhandledrejection', (event) => {
@@ -22,6 +22,13 @@ $('papers-video').src = $('papers-video-link').href = `https://github.com/${conf
 $('papers-video-short').src = $('papers-video-short-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-promo-cine-16x9.mp4`;
 // ?v= changes with the film: a phone that kept the previous file in its cache asks for the new one (raise it when docs/aiwa-global-16x9.mp4 is replaced)
 $('papers-video-vision').src = $('papers-video-vision-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-global-16x9.mp4?v=4`;
+
+// The « Aiwa » tab: the screens of the Android app (wake word, dictation, videos, proposals), one tap from the Store.
+$('aiwa-host-hint').hidden = hostAvailable();
+for (const btn of document.querySelectorAll('#aiwa-actions button[data-screen]')) {
+  btn.disabled = !hostAvailable();
+  btn.addEventListener('click', () => hostPost({ cmd: 'open', screen: btn.dataset.screen }));
+}
 
 initPublish();
 initStore();
