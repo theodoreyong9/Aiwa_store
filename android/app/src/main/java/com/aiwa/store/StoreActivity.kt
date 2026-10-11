@@ -270,6 +270,13 @@ class StoreActivity : ComponentActivity() {
             "app-info" -> respond(reply, id) {
                 val info = packageManager.getPackageInfo(packageName, 0)
                 JSONObject().put("version", info.versionName ?: "?").put("code", info.longVersionCode)
+                    .put("backend", AiwaRepository.state.value.backendVersion).put("expected", EXPECTED_BACKEND_VERSION)
+            }
+            // Updates the « brain » (the backend in Termux): the same start the app does by itself, with a restart: it pulls the code and restarts the server.
+            "update-backend" -> respond(reply, id) {
+                val started = startAiwaBackendViaTermux(applicationContext, forceRestart = true)
+                started.exceptionOrNull()?.let { throw it }
+                JSONObject()
             }
             // The « Aiwa » tab of the Store: the screens of the app, by name (nothing else can be opened from the page).
             "open" -> when (json.optString("screen")) {

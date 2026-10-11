@@ -34,9 +34,28 @@ for (const btn of document.querySelectorAll('#aiwa-actions button[data-screen]')
 $('aiwa-apk-link').href = `https://github.com/${config.repository}/releases/download/android-latest/Aiwa_store.apk`;
 if (hostAvailable()) {
   hostCall('app-info', {}, { timeoutMs: 4000 })
-    .then((info) => { $('aiwa-app-info').textContent = `Application installée : version ${info.version} (build n° ${info.code}).`; })
+    .then((info) => {
+      $('aiwa-app-info').textContent = `Application installée : version ${info.version} (build n° ${info.code}).`;
+      $('aiwa-backend-info').textContent = info.backend > 0
+        ? `Cerveau (Termux) : version ${info.backend}${info.backend < info.expected ? `, la ${info.expected} est attendue : touche « Mettre à jour le cerveau ».` : ' : à jour.'}`
+        : "Cerveau (Termux) : ne répond pas. Touche « Mettre à jour le cerveau » ; s'il ne démarre pas, la commande à coller une fois dans Termux est dans le guide d'installation.";
+    })
     .catch(() => { $('aiwa-app-info').textContent = "L'application installée est plus ancienne que cette page : elle ne connaît pas ces écrans. Installe le dernier APK (lien ci-dessous), puis rouvre le Store."; $('aiwa-apk-link').hidden = false; });
 }
+
+$('aiwa-update-backend').disabled = !hostAvailable();
+$('aiwa-update-backend').addEventListener('click', async () => {
+  const note = $('aiwa-backend-info');
+  note.textContent = 'Mise à jour demandée à Termux… (environ 30 secondes)';
+  try {
+    await hostCall('update-backend', {}, { timeoutMs: 10_000 });
+    setTimeout(() => hostCall('app-info', {}, { timeoutMs: 4000 }).then((info) => {
+      note.textContent = info.backend >= info.expected ? `Cerveau à jour (version ${info.backend}).` : `Cerveau en version ${info.backend || '?'} (attendue : ${info.expected}). Réessaie dans un moment.`;
+    }).catch(() => { note.textContent = 'Demande envoyée. Rouvre cet onglet dans une minute pour voir la version.'; }), 30_000);
+  } catch (err) {
+    note.textContent = `Termux n'a pas pu être lancé : ${err.message}. Il faut une fois : l'autorisation « exécuter des commandes » pour Aiwa, et allow-external-apps=true dans Termux (guide d'installation).`;
+  }
+});
 
 initPublish();
 initStore();
