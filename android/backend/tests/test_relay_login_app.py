@@ -311,6 +311,40 @@ class SentAppTests(Base):
             self.assertNotIn("aiwa-app", joined)
 
 
+class VideoQualityTests(unittest.TestCase):
+    """The three qualities of a video: simple (quick), moyen (the standard, no catalogue shots), extra (everything)."""
+
+    def test_each_quality_changes_how_far_the_video_goes(self):
+        simple = srv._video_line("o/r", "simple")
+        mid = srv._video_line("o/r", "moyen")
+        extra = srv._video_line("o/r", "extra")
+        self.assertIn("SIMPLE", simple)
+        self.assertNotIn("asset-research", simple)
+        self.assertNotIn("music-research", simple)
+        self.assertIn("MOYENNE", mid)
+        self.assertIn("music-research", mid)
+        self.assertNotIn("asset-research", mid)
+        self.assertNotIn("video-research", mid)
+        self.assertIn("un seul tour", mid)
+        self.assertIn("EXTRA", extra)
+        for wanted in ("asset-research", "video-research", "video-kit transform", "jusqu'à trois tours"):
+            self.assertIn(wanted, extra)
+        self.assertLess(len(simple), len(mid))
+        self.assertLess(len(mid), len(extra))
+
+    def test_the_choice_is_kept_and_sent_in_the_instructions(self):
+        srv.video_quality = "extra"
+        srv._save_state()
+        srv.video_quality = "moyen"
+        srv._load_state()
+        self.assertEqual(srv.video_quality, "extra")
+        self.assertIn("EXTRA", dict(srv._instruction_lines("o/r", "w", "main", True))["video"])
+        srv.video_quality = "simple"
+        self.assertIn("SIMPLE", dict(srv._instruction_lines("o/r", "w", "main", True))["video"])
+        srv.video_quality = "moyen"
+        srv._save_state()
+
+
 class MailboxTests(Base):
     """The GitHub mailbox: with the relay blocked, Claude pushes one line, aiwa-out/SIGNAL (and for an app the app), to its own branch of the
     attached repository, and the phone reads it from raw.githubusercontent.com for a while after a message: an app, the alert, the relay test."""
@@ -1622,6 +1656,8 @@ class CreativeBarTests(unittest.TestCase):
             self.assertIn(wanted, text)
 
     def test_the_video_instruction_is_a_production_in_stages_with_a_critique(self):
+        srv.video_quality = "extra"
+        self.addCleanup(setattr, srv, "video_quality", "moyen")
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["video"]
         for wanted in ("DIRECTOR-PLAYBOOK.md", "video-research/src/cli.js research", "VR_CATALOG_URL", "`analyze.py`", "voice-setup.sh", "DANS L'ORDRE", "`facts.md`", "`brief.md`", "`script.md`", "cinematic.html", "6 la critique", "note de 1 à 5", "jusqu'à trois tours", "`slideshow`", "voix off"):
             self.assertIn(wanted, text)

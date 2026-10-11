@@ -67,6 +67,7 @@ object BackendSync {
                     extraRepos = status.extraRepos,
                     pushMain = status.pushMain,
                     deploy = status.deploy,
+                    videoQuality = status.videoQuality,
                     extra = status.extra,
                     waiting = status.waiting,
                     alertAt = status.alertLast,

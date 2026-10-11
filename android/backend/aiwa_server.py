@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 57
+BACKEND_VERSION = 58
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -144,6 +144,7 @@ current_repo = None
 push_main = True
 DEPLOY_MODES = ("none", "pages", "android", "store", "aiwa")
 deploy_mode = "pages"
+video_quality = "moyen"   # simple, moyen, extra: how far a video goes (see _video_line)
 # Other repositories Claude may ALSO work on (checked in the widget's picker):
 # told to it in the instructions; the platform decides whether it can reach them.
 extra_repos = []
@@ -205,7 +206,7 @@ followup_lock = threading.Lock()
 
 
 def _load_state():
-    global current_model, current_cloud, current_repo, push_main, deploy_mode, extra
+    global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, video_quality
     global current_effort, waiting_topic, last_cloud, sent_app, ask, last_message_at, repo_access_missing
     try:
         data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
@@ -226,6 +227,8 @@ def _load_state():
     # Older state files only knew a yes/no: yes was GitHub Pages.
     # "none" is no longer offered (the default is GitHub Pages): a state saved with it becomes Pages.
     deploy_mode = mode if mode in DEPLOY_MODES and mode != "none" else "pages"
+    quality = data.get("video_quality")
+    video_quality = quality if quality in VIDEO_QUALITIES else "moyen"
     sources = data.get("source_repos")
     source_repos[:] = [r for r in sources if isinstance(r, str) and github.REPO_RE.fullmatch(r)][:SOURCE_REPOS_MAX] if isinstance(sources, list) else []
     listed = data.get("extra_repos")
@@ -273,7 +276,7 @@ def _save_state():
     try:
         STATE_FILE.write_text(json.dumps({
             "model": current_model, "cloud": current_cloud, "repo": current_repo,
-            "push_main": push_main, "deploy": deploy_mode, "extra": extra, "extra_repos": extra_repos, "source_repos": source_repos,
+            "push_main": push_main, "deploy": deploy_mode, "video_quality": video_quality, "extra": extra, "extra_repos": extra_repos, "source_repos": source_repos,
             "effort": current_effort, "topic": waiting_topic, "last_cloud": last_cloud, "ci_seen": ci_seen,
             "relay_cloud": relay_cloud, "sent_app": sent_app, "ask": ask, "relay_seen": relay_seen, "last_message": last_message_at,
             "repo_access_missing": repo_access_missing,
@@ -554,7 +557,7 @@ def _document_line(repo):
     )
 
 
-def _video_line(repo):
+def _video_full(repo):
     """The promotional video of a creation: the standard (a production in stages, each written down and checked), the tools, where the file goes."""
     return (
         "Vidéo : si je demande une vidéo promotionnelle de ma création, lis d'abord " + REFERENCE_RAW + "/docs/PROMO-VIDEO.md (le standard) et suis ses étapes DANS L'ORDRE, "
@@ -591,6 +594,38 @@ def _video_line(repo):
         "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg espeak-ng`, `npx playwright install chromium`, `sh video-kit/src/voice-setup.sh` pour la voix naturelle de la voix off, `gh release create` ou l'API GitHub avec le jeton de l'environnement) "
         "au lieu de t'arrêter. Si la release reste impossible, commite le MP4 sous `aiwa-videos/` sur ta branche et dis-moi en une phrase pourquoi, sans prétendre qu'il est dans la release."
     )
+
+
+VIDEO_QUALITIES = ("simple", "moyen", "extra")
+
+
+def _cut(text, start, end):
+    """text without the part from `start` up to and including `end` (both must be there: a changed sentence must break the test, not pass silently)."""
+    a = text.index(start)
+    b = text.index(end, a) + len(end)
+    return text[:a] + text[b:]
+
+
+def _video_line(repo, quality="moyen"):
+    """The video instruction at the quality I chose. extra = all of the standard (inspiration campaigns, real shots from a catalogue and a transformation, up to three critique rounds);
+    moyen = the stages with a real track and a voice, one critique round, no catalogue shots; simple = a short sequence of animated pages, quick, one pass."""
+    if quality == "simple":
+        return (
+            "Vidéo, qualité SIMPLE (rapide, quelques minutes) : si je demande une vidéo de ma création, fais court. Écris `brief.md` (le public, UN message, l'appel à l'action) et `script.md` (6 à 10 plans, texte de la voix off), "
+            "puis `video.html` depuis " + REFERENCE_RAW + "/video-kit/template/cinematic.html (des pages animées : texte qui entre et sort, captures de ma création en gros plan, un changement toutes les 2 à 3 secondes), "
+            "le rythme généré (`beat.py`, pas de recherche de musique) et une voix de synthèse courte (`voice.py`), assemble avec `video-kit assemble`, contrôle avec `video-kit check` et corrige UNE fois ce qu'il signale. "
+            "Pas de recherche de campagnes, pas de plans 3D ni de catalogue, pas de critique en plusieurs tours. N'invente rien : tout ce qui est affiché vient de ce que j'ai fourni ou de ma création. "
+            "Dis-moi que c'est la qualité simple, et ce qui est provisoire (voix de synthèse, rythme généré). "
+            f"Termine par le lien direct vers le fichier (`https://raw.githubusercontent.com/{repo}/main/aiwa-videos/nom-9x16.mp4`), dépose-le sous `aiwa-videos/` dans le dépôt et dans la release `videos` si elle est possible."
+        )
+    full = _video_full(repo)
+    if quality == "extra":
+        return "Vidéo, qualité EXTRA (cinématographique, plus longue à produire : prends le temps qu'il faut, rien n'est sauté). " + full
+    # moyen: the stages and the real track, without the campaign research or the shots of the catalogue
+    mid = _cut(full, "Au stade 1, lis aussi ", "sans rien copier. ")
+    mid = _cut(mid, "Quand un plan doit avoir l'air RÉEL", "garde la source et la licence de ce que tu prends dans un catalogue. ")
+    mid = mid.replace("jusqu'à trois tours", "un seul tour", 1)
+    return "Vidéo, qualité MOYENNE (le standard, sans plans de catalogue ni 3D : des pages animées, une vraie musique, une voix courte). " + mid
 
 
 def _sources_line():
@@ -647,7 +682,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
     origin: the repository the session was started on, when it now works on another one (the user changed repository in the middle of
     the session: a session's instructions change like its model does, the session stays); "" = it was started on none."""
     with lock:
-        deploy, topic, more, sources = deploy_mode, waiting_topic, list(extra_repos), list(source_repos)
+        deploy, topic, more, sources, video_quality = deploy_mode, waiting_topic, list(extra_repos), list(source_repos), globals()["video_quality"]
     lines = []
     moved = repo and origin is not None and origin != repo
     if repo:
@@ -805,7 +840,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
         lines.append(("creative", _creative_line()))
         lines.append(("game", _game_line()))
     if repo:
-        lines.append(("video", _video_line(repo)))
+        lines.append(("video", _video_line(repo, video_quality)))
         lines.append(("document", _document_line(repo)))
     lines.append(("ask", _ask_line(repo, work, topic)))
     # Mandatory, not a switch: it is how the widget learns that Claude is
@@ -2083,7 +2118,7 @@ class Handler(BaseHTTPRequestHandler):
                 model, cloud_session = current_model, current_cloud
                 repo, direct, problem = current_repo, push_main, github_error
                 missing_access = repo_access_missing if repo_access_missing == current_repo else None
-                deploy, own, effort = deploy_mode, extra, current_effort
+                deploy, own, effort, vquality = deploy_mode, extra, current_effort, video_quality
                 more = list(extra_repos)
                 inspiration = list(source_repos)
             with waiting_lock:
@@ -2093,7 +2128,7 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json({
                 "version": BACKEND_VERSION, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
-                "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "extra": own, "extra_repos": more, "source_repos": inspiration,
+                "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "video_quality": vquality, "extra": own, "extra_repos": more, "source_repos": inspiration,
                 "waiting": is_waiting, "alert_last": last_ping,
                 "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
                 "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(), "ask": _ask_snapshot(),
@@ -2116,7 +2151,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
 
     def do_POST(self):
-        global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, current_effort, last_cloud, repo_access_missing
+        global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, video_quality, current_effort, last_cloud, repo_access_missing
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -2355,6 +2390,8 @@ class Handler(BaseHTTPRequestHandler):
                     deploy_mode = options["deploy"]
                 elif isinstance(options.get("autodeploy"), bool):
                     deploy_mode = "pages" if options["autodeploy"] else "none"
+                if options.get("video_quality") in VIDEO_QUALITIES:
+                    video_quality = options["video_quality"]
                 if isinstance(options.get("extra"), str):
                     extra = options["extra"].strip()[:EXTRA_MAX]
                 _save_state()

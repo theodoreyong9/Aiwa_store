@@ -636,6 +636,10 @@ class DeployPickerActivity : ComponentActivity() {
                 DEPLOY_CHOICES.filter { state.accessLevel >= 2 || !deliversApp(it.id.orEmpty()) }.forEach { choice ->
                     add(PickerEntry(choice.label, choice.id == state.deploy, lines = 3) { pick(choice.id) })
                 }
+                add(PickerEntry("Qualité des vidéos (dès le prochain message)", false, header = true) { })
+                VIDEO_QUALITY_CHOICES.forEach { choice ->
+                    add(PickerEntry(choice.label, choice.id == state.videoQuality, lines = 3) { pickQuality(choice.id) })
+                }
             }
             PickerSheet(entries) { finish() }
         }
@@ -645,5 +649,11 @@ class DeployPickerActivity : ComponentActivity() {
         val app = applicationContext
         finish()
         CoroutineScope(Dispatchers.Default).launch { switchOptions(app, LocalClaudeBridge(), deploy = mode) }
+    }
+
+    private fun pickQuality(level: String?) {
+        val app = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch { switchOptions(app, LocalClaudeBridge(), videoQuality = level) }
     }
 }

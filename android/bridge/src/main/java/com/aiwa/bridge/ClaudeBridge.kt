@@ -50,6 +50,8 @@ data class BackendStatus(
     val pushMain: Boolean = true,
     // none / pages (GitHub Pages) / android (the APK as a GitHub release) / store (an app for the Store).
     val deploy: String = "none",
+    // simple / moyen / extra: how far a video goes (and how long it takes).
+    val videoQuality: String = "moyen",
     val extra: String = "",
     // Claude pinged the relay: it is waiting for an answer. alertLast: epoch
     // seconds of the last ping ever received (null = never).
@@ -103,7 +105,7 @@ interface ClaudeBridge {
 
     // The instructions integrated into the conversation. Only the ones that
     // are not null are changed.
-    suspend fun setOptions(pushMain: Boolean?, deploy: String?, extra: String?)
+    suspend fun setOptions(pushMain: Boolean?, deploy: String?, extra: String?, videoQuality: String? = null)
 
     // The user went to look at the latest Actions run: it is no longer news.
     suspend fun ciSeen()

@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 57
+const val EXPECTED_BACKEND_VERSION = 58
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -53,6 +53,13 @@ val DEPLOY_CHOICES = listOf(
     ModelChoice("aiwa", "App Aiwa — un contrat publié par Aiwa : GitHub n'en garde qu'un pointeur immuable"),
 )
 
+// How far a video goes: the time it takes grows with the quality.
+val VIDEO_QUALITY_CHOICES = listOf(
+    ModelChoice("simple", "Vidéo simple — quelques minutes : pages animées, rythme et voix de synthèse"),
+    ModelChoice("moyen", "Vidéo moyenne — vraie musique, voix, un tour de critique"),
+    ModelChoice("extra", "Vidéo extra (cinématographique) — plans 3D et catalogues, critique poussée : bien plus long"),
+)
+
 // The two modes that end with an app Claude sends to the phone, to be opened in the Store.
 fun deliversApp(deploy: String) = deploy == "store" || deploy == "aiwa"
 
@@ -91,6 +98,8 @@ data class AiwaState(
     // none / pages (GitHub Pages) / android (the APK as a GitHub release) / store (an
     // app for the Store sent to the phone, no GitHub).
     val deploy: String = "pages",
+    // simple / moyen / extra: how far a video goes.
+    val videoQuality: String = "moyen",
     val extra: String = "",
     // Claude pinged the relay: it waits for an answer (the widget shows it).
     // alertAt: epoch seconds of the last ping ever received, null = never.
@@ -215,6 +224,7 @@ object AiwaRepository {
                     extraRepos = json.optJSONArray("extraRepos")?.let { list -> (0 until list.length()).map { list.getString(it) } } ?: emptyList(),
                     pushMain = json.optBoolean("pushMain", true),
                     deploy = text("deploy")?.takeIf { it != "none" } ?: "pages",
+                    videoQuality = text("videoQuality") ?: "moyen",
                     extra = text("extra") ?: "",
                     siteUrl = text("siteUrl"),
                     siteState = text("siteState") ?: "off",
@@ -234,7 +244,7 @@ object AiwaRepository {
         val json = JSONObject()
             .put("session", s.session).put("cloud", s.cloudSessionId).put("last", s.lastSessionId)
             .put("model", s.model).put("effort", s.effort).put("repo", s.repo).put("extraRepos", JSONArray(s.extraRepos))
-            .put("pushMain", s.pushMain).put("deploy", s.deploy).put("extra", s.extra)
+            .put("pushMain", s.pushMain).put("deploy", s.deploy).put("videoQuality", s.videoQuality).put("extra", s.extra)
             .put("siteUrl", s.siteUrl).put("siteState", s.siteState).put("siteKind", s.siteKind).put("ciState", s.ciState).put("ciUrl", s.ciUrl)
         val sessions = JSONArray()
         s.cloudSessions.forEach { c ->
