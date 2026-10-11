@@ -113,6 +113,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                         Text("Test : le mail s'ouvre sans destinataire (écris ta propre adresse)")
                     }
                     val current = list
+                    val repoName = current?.repo ?: ""
                     stamp.value
                     when {
                         error != null -> Text(error ?: "", color = MaterialTheme.colorScheme.error)
@@ -122,8 +123,8 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                         }
                         current.repo == null -> Text("Choisis d'abord un dépôt (le bouton ⎇ du widget).")
                         current.proposals.isEmpty() -> Text("Aucune proposition préparée dans ${current.repo}. Demande à Claude d'en préparer pour une liste de destinataires ; elles apparaîtront ici.")
-                        else -> current.proposals.filter { !marked(context, current.repo, it.id, "dismissed") }.forEach { p ->
-                            val done = marked(context, current.repo, p.id, "opened")
+                        else -> current.proposals.filter { !marked(context, repoName, it.id, "dismissed") }.forEach { p ->
+                            val done = marked(context, repoName, p.id, "opened")
                             Surface(shape = RoundedCornerShape(14.dp), tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(p.name.ifBlank { p.id }, style = MaterialTheme.typography.titleSmall)
@@ -140,10 +141,10 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Button(onClick = {
                                             if (openMail(context, p, prices[p.id] ?: "", test)) {
-                                                if (!test) { mark(context, current.repo, p.id, "opened", true); stamp.value++ }
+                                                if (!test) { mark(context, repoName, p.id, "opened", true); stamp.value++ }
                                             } else toastOnMain(context, "Aucune messagerie trouvée sur ce téléphone.")
                                         }, modifier = Modifier.weight(1f)) { Text(if (done) "Rouvrir le mail" else if (test) "Envoyer (test)" else "Envoyer") }
-                                        OutlinedButton(onClick = { mark(context, current.repo, p.id, "dismissed", true); stamp.value++ }, modifier = Modifier.weight(1f)) { Text("Écarter") }
+                                        OutlinedButton(onClick = { mark(context, repoName, p.id, "dismissed", true); stamp.value++ }, modifier = Modifier.weight(1f)) { Text("Écarter") }
                                     }
                                     if (done) Text("Mail ouvert dans ta messagerie (c'est toi qui l'envoies).", style = MaterialTheme.typography.bodySmall)
                                 }
