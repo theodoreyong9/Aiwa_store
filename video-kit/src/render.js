@@ -12,7 +12,8 @@ export async function renderFrames({ page: pageFile, outDir, width = 1080, heigh
   const end = to ?? total;
   const browser = await chromium.launch({ executablePath });
   try {
-    const url = pathToFileURL(resolve(pageFile)).href;
+    const [file, query] = String(pageFile).split('?');                 // video.html?overlay=1: the page may take a query
+    const url = pathToFileURL(resolve(file)).href + (query ? `?${query}` : '');
     const chunk = Math.ceil((end - from) / workers);
     await Promise.all(Array.from({ length: workers }, async (_, w) => {
       const a = from + w * chunk, b = Math.min(end, a + chunk);

@@ -137,8 +137,29 @@ function lockedTick(root, t, M) {
 })();
 const BLOB1 = { type: 'blobs', colors: ['rgba(123,97,255,.40)', 'rgba(38,198,176,.25)', 'rgba(30,30,60,.5)'], base: '#090912' };
 const WORLD = '<svg viewBox="0 0 24 24" width="100%"><circle class="d" cx="12" cy="12" r="10"/><path class="d" d="M2 12 H22 M12 2 C7 7 7 17 12 22 C17 17 17 7 12 2"/></svg>';
-// the match CV of the Jobber app, as in the first film, after the widget
-window.SHOTS.splice(2, 0,
+// ---- « Tu choisis ton mot d'éveil »: the window where the word is said three times (an illustration of the interface: what the engine hears is made up) ------------------------
+const WAKEPHONE = `<div class="v" style="width:600px;height:1180px"><div style="position:absolute;left:0;top:0;width:600px;height:1180px;border-radius:84px;border:10px solid #2b2b38;background:linear-gradient(180deg,#0d0d14,#12121b);box-shadow:0 50px 140px rgba(0,0,0,.7);overflow:hidden">
+<div style="position:absolute;left:40px;right:40px;top:110px"><div style="font-size:50px;font-weight:800;letter-spacing:-1px">Mon mot d'éveil</div><div style="font-size:27px;color:#8c8ca0;margin-top:10px">Dis ton mot trois fois</div></div>
+<div id="wr0" class="row" style="left:34px;width:532px;top:290px;height:104px;font-size:30px;opacity:0"><span style="font-size:24px;color:#8c8ca0">1</span><b style="font-size:32px">« ail oua »</b></div>
+<div id="wr1" class="row" style="left:34px;width:532px;top:414px;height:104px;font-size:30px;opacity:0"><span style="font-size:24px;color:#8c8ca0">2</span><b style="font-size:32px">« ai oua »</b></div>
+<div id="wr2" class="row" style="left:34px;width:532px;top:538px;height:104px;font-size:30px;opacity:0"><span style="font-size:24px;color:#8c8ca0">3</span><b style="font-size:32px">« ail oua »</b></div>
+<div id="wok" style="position:absolute;left:34px;right:34px;top:700px;border-radius:30px;background:#173a2c;border:2px solid ${GRN};padding:26px 30px;opacity:0"><div style="font-size:24px;letter-spacing:2px;color:#9fe3c2">ENREGISTRÉ</div><div style="font-size:64px;font-weight:800;color:${GRN};margin-top:6px">Aiwa ✓</div></div>
+<div id="wtest" style="position:absolute;left:34px;right:34px;top:960px;font-size:30px;color:#a4a4bc;opacity:0">Test : <span style="color:${GRN};font-weight:800">reconnu ✓</span></div></div></div>`;
+function wakeTick(root, t, M) {
+  const $ = (id) => root.querySelector('#' + id);
+  for (let i = 0; i < 3; i++) { const el = $('wr' + i), p = M.prog(t, 0.7 + i * 0.55, 0.45, M.ease.outBack); el.style.opacity = M.clamp(p); el.style.transform = `translateX(${(1 - Math.min(1, p)) * 60}px)`; }
+  const ok = M.prog(t, 2.6, 0.5, M.ease.outBack); $('wok').style.opacity = M.clamp(ok); $('wok').style.transform = `scale(${0.9 + 0.1 * Math.min(1, ok)})`;
+  $('wtest').style.opacity = M.prog(t, 3.5, 0.4);
+}
+window.SHOTS.splice(1, 0,
+  { seconds: 4.8, transition: { type: 'wipe', seconds: 0.55 }, bg: { type: 'gradient', colors: ['#1a1530', '#090912'], angle: 170, drift: true }, layers: [
+    { type: 'text', text: 'Tu choisis\nton mot d\'éveil.', mode: 'lines', effect: 'mask', size: [10.4, 8], x: [50, 23], y: [11, 38], w: [90, 36], at: 0.3, stagger: 0.3, accent: { 'éveil.': TEA } },
+    { type: 'html', id: 'wake', css: VCSS, markup: WAKEPHONE, design: [600, 1180], w: [46, 24], x: [50, 72], y: [62, 54], at: 0.1, tick: wakeTick, enter: 'rise', dur: 0.7 },
+    { type: 'text', text: 'Même « Aiwa ».', size: [4.6, 3.6], weight: 800, color: ORA, x: [50, 23], y: [93, 66], w: [90, 36], effect: 'rise', mode: 'words', at: 1.8 },
+  ] },
+);
+// the match CV of the Jobber app, as in the first film, after the widget (the widget is now the third shot)
+window.SHOTS.splice(3, 0,
   { seconds: 7, transition: { type: 'wipe', seconds: 0.55 }, bg: { type: 'gradient', colors: ['#1a1530', '#090912'], angle: 175, drift: true }, layers: [
     { type: 'text', text: 'Un match CV\nrecruteur.', mode: 'lines', effect: 'mask', size: [10, 8], x: [50, 24], y: [13, 40], w: [90, 38], at: 0.3, stagger: 0.28, accent: { 'recruteur.': ORA } },
     { type: 'image', src: 'jobber-match.png', frame: 'none', x: [50, 72], y: [54, 52], w: [50, 26], enter: 'rise', at: 0.2, dur: 0.8, cam: { from: { s: 1, y: 1.5 }, to: { s: 1.05, y: -1.5 } } },
@@ -160,7 +181,7 @@ window.SHOTS.push(
   // the glasses
   { seconds: 7.6, transition: { type: 'wipe', seconds: 0.55 }, bg: { type: 'gradient', colors: ['#15152b', '#090912'], angle: 180, drift: true }, layers: [
     { type: 'text', text: 'Après la voix,\nle regard.', mode: 'lines', effect: 'mask', size: [10, 8], x: [50, 23], y: [13, 40], w: [90, 36], at: 0.3, stagger: 0.3, accent: { 'regard.': TEA } },
-    { type: 'html', id: 'glasses', css: VCSS, markup: GLASSES, design: [1000, 560], w: [100, 58], x: [50, 71], y: [58, 52], at: 0.1, tick: glassesTick },
+    { type: 'text', text: 'Rendu 3D · illustration de la vision', size: [2.6, 1.9], weight: 600, color: '#8c8ca0', x: [50, 23], y: [97, 94], w: [90, 36], effect: 'fade', at: 1.2 },
     { type: 'text', text: 'Des lunettes. Un capteur optique.\nUn téléphone. Un réseau.', mode: 'lines', effect: 'rise', size: [4, 3.1], weight: 600, color: MUT, x: [50, 23], y: [86, 66], w: [90, 36], at: 3.6, stagger: 0.3 },
   ] },
   // look at someone
@@ -205,3 +226,10 @@ window.SHOTS.push(
     { type: 'text', text: 'Musique : The Complex, Kevin MacLeod (incompetech.com), CC BY 4.0', size: [2.9, 2.0], weight: 500, color: '#b4b4c6', y: [95, 94.5], effect: 'fade', at: 4.6 },
   ] },
 );
+
+// ?overlay=1: the page without backgrounds, grain or vignette, for `render --transparent` (the texts of a shot, laid over a clip made elsewhere, by assemble --clips)
+if (new URLSearchParams(location.search).get('overlay')) {
+  window.THEME = Object.assign({}, window.THEME, { bg: 'transparent', grain: 0, vignette: 0 });
+  document.documentElement.style.background = 'transparent'; document.body.style.background = 'transparent';
+  window.SHOTS.forEach((shot) => { shot.bg = { type: 'solid', color: 'rgba(0,0,0,0)' }; });
+}

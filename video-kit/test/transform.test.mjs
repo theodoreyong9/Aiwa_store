@@ -34,3 +34,13 @@ test('speed, crop and grade really change the picture', need, () => {
   transform({ input: join(d, 'in.mp4'), out: join(d, 'full.mp4'), grade: 'teal-orange', bloom: 0.3, grain: 0.04, vignette: 0.3, fps: 10 });
   assert.ok(existsSync(join(d, 'full.mp4')) && dur(join(d, 'full.mp4')) > 1.5);
 });
+
+test('a render made at 12 images a second is smoothed to 30 and brought to the size of the film', need, () => {
+  const d = mkdtempSync(join(tmpdir(), 'vk-tr2-'));
+  run(ffmpegPath(), ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=s=160x90:r=12', '-t', '2', join(d, '%05d.png')]);
+  transform({ input: join(d, '%05d.png'), out: join(d, 'o.mp4'), inputFps: 12, fps: 30, interpolate: true, scale: '320x180' });
+  const info = spawnSync(ffmpegPath(), ['-hide_banner', '-i', join(d, 'o.mp4')], { encoding: 'utf8' }).stderr;
+  assert.match(info, /320x180/); assert.match(info, /30 fps/);
+  assert.ok(Math.abs(dur(join(d, 'o.mp4')) - 2) < 0.2, String(dur(join(d, 'o.mp4'))));
+  assert.throws(() => transformFilter({ scale: 'big' }), /bad scale/);
+});

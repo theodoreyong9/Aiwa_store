@@ -6,7 +6,8 @@
 //   clips   shots that are not drawn by the page: a list of { file, start, end?, fps?, fit?, fade? }, laid over the frames between `start` and `end` (seconds).
 //           file: a video (mp4, mov…) or an image sequence (a pattern like shots/glasses/%05d.png, played at `fps`, 30 by default); a clip with an alpha channel
 //           (PNG frames rendered with `render --transparent`) is laid over the picture, an opaque one replaces it. fit: 'cover' (default, fills the frame) or 'contain'.
-//           fade: seconds of cross-fade at each end (default 0.25). A clip is cut to the frame, never stretched.
+//           fade: seconds of cross-fade at each end (default 0.25). A clip is cut to the frame, never stretched. startNumber: the number of the first image of a sequence
+//           (an overlay rendered for a range of the film starts at its own frame number: `start` is then startNumber / fps).
 import { readdirSync, readFileSync, openSync, readSync, closeSync, existsSync } from 'node:fs';
 import { ffmpegPath, run } from './ffmpeg.js';
 
@@ -32,7 +33,7 @@ export function clipFilters(clips, base, W, H, fps) {
     const start = Number(c.start ?? 0), fade = c.fade ?? 0.25, cfps = c.fps || fps;
     const isSeq = /%0?\d*d/.test(c.file);
     if (!isSeq && !existsSync(c.file)) throw new Error(`clip ${c.file} does not exist`);
-    inputs.push(...(isSeq ? ['-framerate', String(cfps), '-i', c.file] : ['-i', c.file]));
+    inputs.push(...(isSeq ? [...(c.startNumber != null ? ['-start_number', String(c.startNumber)] : []), '-framerate', String(cfps), '-i', c.file] : ['-i', c.file]));
     const fit = c.fit === 'contain' ? `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black@0` : `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}`;
     const end = c.end == null ? null : Number(c.end);
     let chain = `${fit},format=rgba,setpts=PTS-STARTPTS+${start}/TB`;

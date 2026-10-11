@@ -77,3 +77,14 @@ test('the shotlist command writes the files and exits 1 when something is missin
   assert.equal(ok.status, 0, ok.stderr + ok.stdout);
   assert.deepEqual(JSON.parse(readFileSync(join(dir, 'out', 'clips.json'), 'utf8')).map((c) => c.shot), ['b']);
 });
+
+test('an image sequence that starts at its own frame number is laid at the instant given', need, () => {
+  const d = fixture();
+  const out = join(d, 'o3.mp4');
+  // the green frames are numbered 00000…, the clip says they start at 5 (a render of a range of the film numbers its images from the frame of the range)
+  run(ffmpegPath(), ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=lime@0.6:s=80x45:r=10,format=rgba', '-t', '1', '-start_number', '20', join(d, 'a', 'n%05d.png')]);
+  assemble({ framesDir: join(d, 'f'), out, fps: 10, crf: 18, clips: [{ file: join(d, 'a', 'n%05d.png'), startNumber: 20, fps: 10, start: 2, end: 3, fade: 0 }] });
+  const before = pixel(out, 1.0), inside = pixel(out, 2.5);
+  assert.ok(before[1] < 60, `red before: ${before}`);
+  assert.ok(inside[1] > 40, `green mixed in: ${inside}`);
+});

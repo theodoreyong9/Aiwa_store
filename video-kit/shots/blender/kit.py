@@ -122,11 +122,11 @@ def recolor(root, color, mode='tint', strength=0.4, only=None):
                 m.node_tree.links.new(src, mix.inputs['A']); m.node_tree.links.new(mix.outputs['Result'], p.inputs['Base Color'])
 
 
-def floor(kind='gloss', size=60, z=0.0):
+def floor(kind='gloss', size=60, z=0.0, rough=None):
     if kind == 'none': return None
     bpy.ops.mesh.primitive_plane_add(size=size); f = bpy.context.active_object
     f.location = (0, 0, z - 0.001)
-    f.data.materials.append(material('floor', (0.02, 0.02, 0.03) if kind == 'gloss' else (0.92, 0.92, 0.94), rough=0.12 if kind == 'gloss' else 0.8))
+    f.data.materials.append(material('floor', (0.02, 0.02, 0.03) if kind == 'gloss' else (0.92, 0.92, 0.94), rough=(rough if rough is not None else (0.12 if kind == 'gloss' else 0.8))))
     return f
 
 
@@ -156,13 +156,20 @@ def light_rig(style='studio', target=None, accent='#26c6b0', scale=1.0):
     else: raise ValueError(f'unknown light style {style}')
 
 
-def hdri(path, strength=1.0, rotation=0.0):
+def hdri(path, strength=1.0, rotation=0.0, visible=True, backdrop='#050509'):
+    """The light and the reflections of a real place or studio (an HDRI). visible=False: the camera does not see it, it sees a plain dark backdrop (the picture of the studio stays out of the shot)."""
     w = bpy.context.scene.world; nt = w.node_tree
     env = nt.nodes.new('ShaderNodeTexEnvironment'); env.image = bpy.data.images.load(path)
     m = nt.nodes.new('ShaderNodeMapping'); m.inputs['Rotation'].default_value[2] = rotation
     tc = nt.nodes.new('ShaderNodeTexCoord')
     nt.links.new(tc.outputs['Generated'], m.inputs['Vector']); nt.links.new(m.outputs['Vector'], env.inputs['Vector'])
     bg = nt.nodes['Background']; bg.inputs['Strength'].default_value = strength; nt.links.new(env.outputs['Color'], bg.inputs['Color'])
+    if not visible:
+        out = nt.nodes['World Output']
+        dark = nt.nodes.new('ShaderNodeBackground'); dark.inputs['Color'].default_value = rgba(backdrop); dark.inputs['Strength'].default_value = 1.0
+        ray = nt.nodes.new('ShaderNodeLightPath'); mix = nt.nodes.new('ShaderNodeMixShader')
+        nt.links.new(ray.outputs['Is Camera Ray'], mix.inputs['Fac']); nt.links.new(bg.outputs['Background'], mix.inputs[1]); nt.links.new(dark.outputs['Background'], mix.inputs[2])
+        nt.links.new(mix.outputs['Shader'], out.inputs['Surface'])
 
 
 def camera(lens=42, target=None, fstop=2.8):
@@ -196,16 +203,34 @@ def move(cam, kind='orbit', frames=None, radius=(6, 4.5), arc=(-45, -10), height
         cam.location = (x, y, z); cam.keyframe_insert('location', frame=i)
 
 
-def beam(src, dst, color='#26c6b0', radius=0.3, strength=0.9):
+def beam(src, dst, color='#26c6b0', radius=0.3, strength=7.0):
     """A soft cone of light from a point to another (a signal, a scan, a projector). Nearly transparent, brighter toward the far end."""
     src, dst = mathutils.Vector(src), mathutils.Vector(dst); d = dst - src
     bpy.ops.mesh.primitive_cone_add(vertices=48, radius1=0.015, radius2=radius, depth=d.length); b = bpy.context.active_object
     m = bpy.data.materials.new('beam'); m.use_nodes = True; nt = m.node_tree; nt.nodes.clear()
     em = nt.nodes.new('ShaderNodeEmission'); em.inputs['Color'].default_value = rgba(color); em.inputs['Strength'].default_value = strength
-    tr = nt.nodes.new('ShaderNodeBsdfTransparent'); mix = nt.nodes.new('ShaderNodeMixShader'); mix.inputs['Fac'].default_value = 0.93; out = nt.nodes.new('ShaderNodeOutputMaterial')
+    tr = nt.nodes.new('ShaderNodeBsdfTransparent'); mix = nt.nodes.new('ShaderNodeMixShader'); mix.inputs['Fac'].default_value = 0.07; out = nt.nodes.new('ShaderNodeOutputMaterial')      # Fac = the share of the second shader (the light): 7 %, the rest lets the picture through
     nt.links.new(tr.outputs[0], mix.inputs[1]); nt.links.new(em.outputs[0], mix.inputs[2]); nt.links.new(mix.outputs[0], out.inputs['Surface'])
     b.data.materials.append(m); b.location = src + d / 2; b.rotation_mode = 'QUATERNION'; b.rotation_quaternion = d.to_track_quat('Z', 'Y'); b.visible_shadow = False
     return b
+
+
+def signal(src, dst, color='#26c6b0', count=26, size=0.04, cycles=2.0, frames=None, strength=14.0):
+    """A signal travelling from a point to another: small glowing beads that run along the line, growing as they go (an optical signal, a message, a scan). Opaque and cheap: no transparency to tune."""
+    frames = frames or _state['frames']
+    src, dst = mathutils.Vector(src), mathutils.Vector(dst)
+    mat = material('signal', color, emit=color, emit_strength=strength)
+    beads = []
+    for i in range(count):
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=16, ring_count=8); b = bpy.context.active_object
+        b.data.materials.append(mat); b.visible_shadow = False; beads.append(b)
+    for f in range(frames):
+        for i, b in enumerate(beads):
+            u = ((i / count) + cycles * f / max(1, frames - 1)) % 1.0
+            b.location = src + (dst - src) * u
+            b.scale = (size * (0.5 + 1.8 * u),) * 3
+            b.keyframe_insert('location', frame=f); b.keyframe_insert('scale', frame=f)
+    return beads
 
 
 def render(out_dir, frames=None):
