@@ -171,6 +171,7 @@ private fun VideosWindow(onClose: () -> Unit) {
                             Button(onClick = { ask("1:1 (carré)") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("1:1") }
                         }
                     }
+                    OutlinedButton(onClick = { context.startActivity(android.content.Intent(context, ProposalsActivity::class.java)); onClose() }, modifier = Modifier.fillMaxWidth()) { Text("Propositions à valider") }
                     OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
                 }
             }

@@ -347,6 +347,44 @@ class VideoQualityTests(unittest.TestCase):
         srv._save_state()
 
 
+class ProposalsTests(unittest.TestCase):
+    """The proposals a session prepared are read, cleaned and listed; nothing is ever sent by the backend."""
+
+    def snapshot(self, payload):
+        raw = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
+        with unittest.mock.patch.object(srv, "_raw_get", return_value=raw), unittest.mock.patch.object(srv, "current_repo", "o/r"), \
+                unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None):
+            return srv._proposals_snapshot()
+
+    def test_a_proposal_is_cleaned(self):
+        got = self.snapshot([
+            {"id": "Café Du Port!", "name": "Café du Port", "email": "contact@cafe.ch", "subject": "Une maquette", "body": "Bonjour", "price": "900 CHF",
+             "videoUrl": "https://github.com/o/r/releases/download/videos/a.mp4", "demoUrl": "http://insecure.example/x"},
+            {"name": "Sans adresse", "email": "pas une adresse", "videoUrl": "javascript:alert(1)"},
+            "not an object",
+        ])
+        self.assertEqual(got["repo"], "o/r")
+        first, second = got["proposals"]
+        self.assertEqual(first["id"], "Caf--Du-Port-")
+        self.assertEqual(first["email"], "contact@cafe.ch")
+        self.assertTrue(first["videoUrl"].startswith("https://"))
+        self.assertEqual(first["demoUrl"], "")        # only https links
+        self.assertEqual(second["email"], "")         # not an address: left empty, the person types it
+        self.assertEqual(second["videoUrl"], "")
+        self.assertEqual(second["id"], "p2")
+
+    def test_nothing_or_garbage_gives_an_empty_list_and_the_list_is_bounded(self):
+        self.assertEqual(self.snapshot(b"not json")["proposals"], [])
+        self.assertEqual(self.snapshot({"a": 1})["proposals"], [])
+        many = [{"id": f"c{i}", "name": "x"} for i in range(srv.PROPOSAL_MAX + 20)]
+        self.assertEqual(len(self.snapshot(many)["proposals"]), srv.PROPOSAL_MAX)
+
+    def test_the_instruction_prepares_and_never_sends(self):
+        text = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
+        for wanted in ("n'ENVOIES JAMAIS", "aiwa-proposals/proposals.json", "Maquette de démonstration, pas le site officiel", "au plus 20 cibles", "n'invente rien"):
+            self.assertIn(wanted, text)
+
+
 class MailboxTests(Base):
     """The GitHub mailbox: with the relay blocked, Claude pushes one line, aiwa-out/SIGNAL (and for an app the app), to its own branch of the
     attached repository, and the phone reads it from raw.githubusercontent.com for a while after a message: an app, the alert, the relay test."""

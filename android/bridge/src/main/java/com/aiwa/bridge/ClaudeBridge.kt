@@ -152,4 +152,6 @@ interface ClaudeBridge {
     suspend fun askAnswer(id: String, answer: String) { throw UnsupportedOperationException("askAnswer") }
 
     suspend fun videos(): VideoList { throw UnsupportedOperationException("videos") }
+    // The proposals a session prepared (`aiwa-proposals/proposals.json` of the repository): to read, validate and send by hand.
+    suspend fun proposals(): ProposalList { throw UnsupportedOperationException("proposals") }
 }

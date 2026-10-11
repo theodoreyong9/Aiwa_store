@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 59
+BACKEND_VERSION = 60
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -487,7 +487,7 @@ def _known_repos():
     return [r for r in known if isinstance(r, str) and github.REPO_RE.fullmatch(r)]
 
 
-_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "creative": "direction créative", "game": "jeu", "ask": "questions", "video": "vidéo", "document": "fichier"}
+_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "creative": "direction créative", "game": "jeu", "ask": "questions", "video": "vidéo", "document": "fichier", "proposals": "propositions"}
 
 
 def _design_line():
@@ -593,6 +593,20 @@ def _video_full(repo):
         "avec ses fichiers d'étapes et son rapport de contrôle sous `aiwa-videos/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
         "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg espeak-ng`, `npx playwright install chromium`, `sh video-kit/src/voice-setup.sh` pour la voix naturelle de la voix off, `gh release create` ou l'API GitHub avec le jeton de l'environnement) "
         "au lieu de t'arrêter. Si la release reste impossible, commite le MP4 sous `aiwa-videos/` sur ta branche et dis-moi en une phrase pourquoi, sans prétendre qu'il est dans la release."
+    )
+
+
+def _proposals_line(repo):
+    """Proposals to a list of people: the session prepares them and writes them down; it never sends anything, I validate each one in the app."""
+    return (
+        "Propositions : si je te demande de préparer une proposition (commerciale, invitation, candidature…) pour plusieurs personnes ou entreprises, tu PRÉPARES, tu n'ENVOIES JAMAIS. "
+        "Établis d'abord la liste d'après ma demande (au plus 20 cibles par lot ; seulement des coordonnées professionnelles publiques ou que je t'ai données, jamais de données privées) et écris-la dans `aiwa-proposals/liste.md` avec, pour chaque cible, pourquoi elle est retenue. "
+        "Pour chaque cible, fabrique ce que ma demande décrit (par exemple une maquette de site et une vidéo de présentation) sous `aiwa-proposals/<cible>/` du dépôt en cours, dans le même site : "
+        "la maquette porte en haut, bien visible, « Maquette de démonstration, pas le site officiel de <cible> », n'utilise de la cible que ce qu'elle publie elle-même, ne copie ni logo ni photo sans droit, et n'invente rien (ni chiffre, ni client, ni avis). "
+        "Puis écris `aiwa-proposals/proposals.json` : une liste d'objets "
+        "`{\"id\":\"cible\",\"name\":\"nom de la cible\",\"email\":\"adresse\",\"subject\":\"…\",\"body\":\"le message, court, signé de mon nom, sans lien (les liens sont ajoutés à part)\",\"price\":\"prix proposé\",\"videoUrl\":\"https://…\",\"demoUrl\":\"https://<utilisateur>.github.io/<dépôt>/aiwa-proposals/<cible>/\"}` "
+        "(videoUrl et demoUrl en https, prix justifié en une phrase dans la liste ; si tu n'as pas d'adresse sûre, laisse `email` vide). "
+        "Pousse le tout sur la branche principale, puis dis-moi en une phrase combien de propositions sont prêtes : je les relis et je les envoie moi-même, une par une, depuis l'application (Vidéos → Propositions)."
     )
 
 
@@ -846,6 +860,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
     if repo:
         lines.append(("video", _video_line(repo, video_quality)))
         lines.append(("document", _document_line(repo)))
+        lines.append(("proposals", _proposals_line(repo)))
     lines.append(("ask", _ask_line(repo, work, topic)))
     # Mandatory, not a switch: it is how the widget learns that Claude is
     # waiting (the CLI can't read a cloud reply back). A public relay, a
@@ -1918,6 +1933,41 @@ def _github_json(url):
         raise GithubUnavailable(str(err))
 
 
+PROPOSAL_MAX = 50
+_EMAIL_RE = re.compile(r"^[^@\s<>,;]{1,64}@[^@\s<>,;]{1,255}\.[A-Za-z]{2,}$")
+
+
+def _proposals_snapshot():
+    """The proposals a session prepared for the session's repository (`aiwa-proposals/proposals.json`, read from the public repository: no token). Everything
+    that comes back is cleaned: text of bounded size, a valid e-mail address or none, links in https only."""
+    with lock:
+        session = current_cloud or last_cloud
+        repo = (_session_entry(session) or {}).get("repo") if session else None
+        repo = repo or current_repo
+    if not repo or not github.REPO_RE.fullmatch(repo):
+        return {"repo": None, "proposals": []}
+    raw = _raw_get(f"{RAW_BASE}/{repo}/HEAD/aiwa-proposals/proposals.json?t={int(time.time())}", 400_000)
+    try:
+        data = json.loads(raw.decode("utf-8")) if raw else []
+    except (ValueError, UnicodeDecodeError):
+        data = []
+    items = []
+    for entry in data[:PROPOSAL_MAX] if isinstance(data, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        def text(key, size):
+            value = entry.get(key)
+            return value.strip()[:size] if isinstance(value, str) else ""
+        def link(key):
+            value = text(key, 500)
+            return value if value.startswith("https://") and " " not in value else ""
+        ident = re.sub(r"[^A-Za-z0-9._-]", "-", text("id", 80)) or f"p{len(items) + 1}"
+        email = text("email", 320)
+        items.append({"id": ident, "name": text("name", 120), "email": email if _EMAIL_RE.match(email) else "", "subject": text("subject", 200),
+                      "body": text("body", 4000), "price": text("price", 120), "videoUrl": link("videoUrl"), "demoUrl": link("demoUrl")})
+    return {"repo": repo, "proposals": items}
+
+
 def _videos_snapshot():
     """The promotional videos of the session's repository: the files of its GitHub release `videos`, newest first. Only a public repository can say
     (nothing is read with a token); for a private one the list is empty and the session sends the link."""
@@ -2149,6 +2199,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json({"sent_app": _sent_app_snapshot()})
         elif self.path == "/api/videos":
             self.reply_json(_videos_snapshot())
+        elif self.path == "/api/proposals":
+            self.reply_json(_proposals_snapshot())
         elif self.path == "/api/sent-app/code":
             self.reply_json(_sent_app_code())
         else:
