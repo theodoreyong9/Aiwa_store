@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 56
+BACKEND_VERSION = 57
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -484,7 +484,7 @@ def _known_repos():
     return [r for r in known if isinstance(r, str) and github.REPO_RE.fullmatch(r)]
 
 
-_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "creative": "direction créative", "game": "jeu", "ask": "questions", "video": "vidéo"}
+_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "creative": "direction créative", "game": "jeu", "ask": "questions", "video": "vidéo", "document": "fichier"}
 
 
 def _design_line():
@@ -538,6 +538,19 @@ def _ask_line(repo, work, topic):
         "`curl -s -m 10 -d '{\"question\":\"…\",\"options\":[\"…\",\"…\"]}' -H 'Title: aiwa-ask' " + f"{NTFY_SERVER}/{topic}" + "` "
         "(une seule question, de trois à quatre choix courts : je choisis ou j'écris ma réponse dans le widget, et elle te revient comme mon message suivant). "
         "Ne t'arrête pas pour l'attendre : continue sur ton hypothèse, et ajuste quand ma réponse arrive." + fallback
+    )
+
+
+def _document_line(repo):
+    """A file I hand over (CV, letter, sales pitch, brochure, notes): the session recognises what it is and the video adapts; GitHub projects only if I ticked it."""
+    return (
+        "Fichier : si je te donne un document (CV, lettre, argumentaire commercial, brochure, présentation, notes…), lis-le en entier, dis-moi en une phrase de quel type il est, "
+        "puis adapte la vidéo à ce type : un CV donne un parcours (qui je suis, ce que je sais faire, la preuve, comment me joindre) ; un argumentaire commercial donne une vente "
+        "(le problème, la solution, la preuve, le prix, l'appel à l'action) ; pour tout autre type, choisis la forme qui sert le propos, et si tu hésites vraiment pose-moi UNE question par le widget. "
+        "N'utilise que ce que le fichier dit : n'invente aucun poste, chiffre, client ni prix, et dans `facts.md` sépare ce qui vient du fichier de ce que tu ajoutes. "
+        "Mes réalisations GitHub ne sont utilisées QUE si ma demande dit que je l'ai coché : alors prends parmi mes dépôts PUBLICS ceux qui servent le propos, "
+        "montre-les au bon moment de la vidéo (vraies captures ou pages), liste ceux que tu retiens dans `brief.md`, jamais un dépôt privé que je n'ai pas nommé. "
+        "Sans cette mention, le fichier seul compte. Mets la vidéo dans `aiwa-videos/` du dépôt en cours : l'appli montre la liste de toutes les vidéos de ce dépôt."
     )
 
 
@@ -793,6 +806,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
         lines.append(("game", _game_line()))
     if repo:
         lines.append(("video", _video_line(repo)))
+        lines.append(("document", _document_line(repo)))
     lines.append(("ask", _ask_line(repo, work, topic)))
     # Mandatory, not a switch: it is how the widget learns that Claude is
     # waiting (the CLI can't read a cloud reply back). A public relay, a
