@@ -10,8 +10,9 @@ android {
         applicationId = "com.aiwa.store"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // The CI numbers every build (run number, commit): the person can SEE in the Store which build is installed. A local build stays 1 / "local".
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionName = "0.1." + (System.getenv("GITHUB_SHA")?.take(7) ?: "local")
         // The speech model's native library (Vosk) only for the phones that exist: it keeps the APK from growing for x86 builds nobody installs.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }

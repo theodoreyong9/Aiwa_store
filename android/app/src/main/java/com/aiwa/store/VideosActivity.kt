@@ -152,7 +152,7 @@ private fun VideosWindow(onClose: () -> Unit) {
                             }
                         }
                     }
-                    if (current?.repo != null) {
+                    run {
                         Text("Nouvelle vidéo", style = MaterialTheme.typography.labelLarge)
                         val doc = document
                         OutlinedButton(onClick = { picker.launch(arrayOf("text/*", "application/json", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) {

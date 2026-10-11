@@ -4,7 +4,7 @@ import { initStore } from './store-ui.js';
 import { initWallet } from './wallet-ui.js';
 import { initPublish, sheetIsOpen, closeSheet } from './publish-ui.js';
 import { closeViewer } from './viewer.js';
-import { setBackHandler, hostAvailable, hostPost } from './host.js';
+import { setBackHandler, hostAvailable, hostPost, hostCall } from './host.js';
 
 // An error nobody caught (a handler without its own try/catch, a timer tick) is shown, never silent.
 window.addEventListener('unhandledrejection', (event) => {
@@ -28,6 +28,14 @@ $('aiwa-host-hint').hidden = hostAvailable();
 for (const btn of document.querySelectorAll('#aiwa-actions button[data-screen]')) {
   btn.disabled = !hostAvailable();
   btn.addEventListener('click', () => hostPost({ cmd: 'open', screen: btn.dataset.screen }));
+}
+
+// Which build of the app is installed: an app older than this page does not know the screens above, and says so instead of doing nothing.
+$('aiwa-apk-link').href = `https://github.com/${config.repository}/releases/download/android-latest/Aiwa_store.apk`;
+if (hostAvailable()) {
+  hostCall('app-info', {}, { timeoutMs: 4000 })
+    .then((info) => { $('aiwa-app-info').textContent = `Application installée : version ${info.version} (build n° ${info.code}).`; })
+    .catch(() => { $('aiwa-app-info').textContent = "L'application installée est plus ancienne que cette page : elle ne connaît pas ces écrans. Installe le dernier APK (lien ci-dessous), puis rouvre le Store."; $('aiwa-apk-link').hidden = false; });
 }
 
 initPublish();
