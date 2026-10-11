@@ -20,6 +20,7 @@ for (const link of document.querySelectorAll('#view-papers a[data-doc]')) link.h
 // the video is a file of the repository (docs/aiwa-promo.mp4); it is only fetched when played (preload="none")
 $('papers-video').src = $('papers-video-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-promo.mp4`;
 $('papers-video-short').src = $('papers-video-short-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-promo-cine-16x9.mp4`;
+$('papers-video-vision').src = $('papers-video-vision-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-global-16x9.mp4`;
 
 initPublish();
 initStore();
