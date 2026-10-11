@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 60
+BACKEND_VERSION = 61
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -583,7 +583,7 @@ def _video_full(repo):
         "Quand un plan doit avoir l'air RÉEL (un objet, un lieu, une matière, une lumière, une personne), lis " + REFERENCE_RAW + "/video-kit/shots/README.md : une base prise dans un catalogue (`node asset-research/src/cli.js search \"…\"` : modèles 3D, lumières HDRI et textures libres de droits, tu ne télécharges que ce que tu gardes), "
         "TRANSFORMÉE pour le film (un script Blender écrit pour ce plan avec les fonctions de `video-kit/shots/blender/kit.py` ; `sh video-kit/src/shots-setup.sh` d'abord ; regarde UNE image avant de rendre tout), ou fabriquée de toutes pièces si rien n'existe ; "
         "puis `video-kit transform` donne le même look à tous les plans, quelle que soit leur origine ; une vraie séquence libre de droits reçoit nos éléments par-dessus (`track.py`, `render --transparent`) ; une personne ou un lieu photographique demande une vraie séquence ou le générateur vidéo à moi (écris les prompts avec `video-kit shotlist` et demande-moi le fichier par la question du widget). "
-        "Pose les clips avec `assemble --clips`. Ne fabrique pas de scène standard réutilisée d'un film à l'autre. Un plan dessiné, rendu en 3D ou généré n'est jamais présenté comme un enregistrement : dis dans ton rapport lequel est quoi, et garde la source et la licence de ce que tu prends dans un catalogue. "
+        "Pose la question à CHAQUE scène du script, pas à une seule : quelle chose réelle la rendrait plus forte, et le temps le permet-il ? un appareil devient un appareil en 3D avec l'interface sur son écran (`kit.phone` et une page rendue seule, `?screen=`), un lieu ou une planète une sphère éclairée, un objet l'objet du catalogue ; un schéma, un chiffre ou une phrase reste sur la page, et tu le notes dans `script.md` avec la raison. Un seul `assemble --grade=cinematic --bloom=0.15 --vignette=0.25` donne le même look à tout le film (regarde des images avant et après : un grade trop fort change l'identité). Compte le temps (une image 3D prend 10 à 25 s, 4 s de 3D font une dizaine de minutes) avant de promettre. Pose les clips avec `assemble --clips`. Ne fabrique pas de scène standard réutilisée d'un film à l'autre. Un plan dessiné, rendu en 3D ou généré n'est jamais présenté comme un enregistrement : dis dans ton rapport lequel est quoi, et garde la source et la licence de ce que tu prends dans un catalogue. "
         "La critique (étape 6) se fait sur la planche-contact (au moins 8 images extraites à intervalles réguliers), comme un directeur artistique exigeant qui n'a pas vu le code : "
         "note de 1 à 5 l'accroche, la clarté du message, le rythme, le mouvement de chaque plan, la lisibilité, la direction artistique, le son, l'honnêteté (rien d'inventé) et l'appel à l'action ; "
         "corrige tout ce qui est sous 4 et recommence l'aperçu, jusqu'à trois tours ; si tu as un outil de sous-agent, confie la critique à un agent neuf qui ne voit que les images et le brief. "

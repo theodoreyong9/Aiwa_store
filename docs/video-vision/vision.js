@@ -247,3 +247,8 @@ if (new URLSearchParams(location.search).get('overlay')) {
     ] });
   }
 }
+
+// ?nophone=1: the first two shots without their drawn phone (the phone is then a 3D clip laid over, assemble --clips)
+if (new URLSearchParams(location.search).get('nophone')) {
+  window.SHOTS.forEach((shot) => { shot.layers = shot.layers.filter((l) => l.id !== 'locked' && l.id !== 'wake'); });
+}
