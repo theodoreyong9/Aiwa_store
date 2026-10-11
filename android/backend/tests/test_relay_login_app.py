@@ -327,6 +327,8 @@ class VideoQualityTests(unittest.TestCase):
         self.assertNotIn("video-research", mid)
         self.assertIn("un seul tour", mid)
         self.assertIn("EXTRA", extra)
+        self.assertIn("plusieurs heures", extra)
+        self.assertNotIn("plusieurs heures", mid)
         for wanted in ("asset-research", "video-research", "video-kit transform", "jusqu'à trois tours"):
             self.assertIn(wanted, extra)
         self.assertLess(len(simple), len(mid))

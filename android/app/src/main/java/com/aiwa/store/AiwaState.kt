@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 58
+const val EXPECTED_BACKEND_VERSION = 59
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -57,7 +57,7 @@ val DEPLOY_CHOICES = listOf(
 val VIDEO_QUALITY_CHOICES = listOf(
     ModelChoice("simple", "Vidéo simple — quelques minutes : pages animées, rythme et voix de synthèse"),
     ModelChoice("moyen", "Vidéo moyenne — vraie musique, voix, un tour de critique"),
-    ModelChoice("extra", "Vidéo extra (cinématographique) — plans 3D et catalogues, critique poussée : bien plus long"),
+    ModelChoice("extra", "Vidéo extra (cinématographique) — plans 3D et catalogues, critique poussée : TRÈS long, plusieurs heures"),
 )
 
 // The two modes that end with an app Claude sends to the phone, to be opened in the Store.

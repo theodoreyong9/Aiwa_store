@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 58
+BACKEND_VERSION = 59
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -620,7 +620,11 @@ def _video_line(repo, quality="moyen"):
         )
     full = _video_full(repo)
     if quality == "extra":
-        return "Vidéo, qualité EXTRA (cinématographique, plus longue à produire : prends le temps qu'il faut, rien n'est sauté). " + full
+        return (
+            "Vidéo, qualité EXTRA (cinématographique, très longue à produire : prends le temps qu'il faut, rien n'est sauté). "
+            "AVANT de commencer, préviens-moi en une phrase, dans ta première réponse : la qualité extra prend très longtemps (plusieurs heures, les plans 3D et les rendus étant lents), "
+            "et dis-moi que je peux la remplacer par la qualité moyenne ou simple si je suis pressé ; puis travaille sans attendre ma réponse, et donne-moi l'avancement à chaque étape terminée. "
+        ) + full
     # moyen: the stages and the real track, without the campaign research or the shots of the catalogue
     mid = _cut(full, "Au stade 1, lis aussi ", "sans rien copier. ")
     mid = _cut(mid, "Quand un plan doit avoir l'air RÉEL", "garde la source et la licence de ce que tu prends dans un catalogue. ")
