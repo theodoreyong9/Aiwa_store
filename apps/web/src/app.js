@@ -19,8 +19,8 @@ for (const link of document.querySelectorAll('#view-papers a[data-doc]')) link.h
 // the video is a file of the repository (docs/aiwa-promo.mp4); it is only fetched when played (preload="none")
 $('papers-video').src = $('papers-video-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-promo.mp4`;
 $('papers-video-short').src = $('papers-video-short-link').href = `https://github.com/${config.repository}/raw/main/docs/aiwa-promo-cine-16x9.mp4`;
-// The film's file name carries its version (docs/aiwa-global-v7-16x9.mp4): a new film is a new name, so a phone never shows an old copy from its cache. Read straight from raw.githubusercontent.com (no redirect).
-$('papers-video-vision').src = $('papers-video-vision-link').href = `https://raw.githubusercontent.com/${config.repository}/main/docs/aiwa-global-v7-16x9.mp4`;
+// The film's file name carries its version (docs/aiwa-global-v8-16x9.mp4): a new film is a new name, so a phone never shows an old copy from its cache. Read straight from raw.githubusercontent.com (no redirect).
+$('papers-video-vision').src = $('papers-video-vision-link').href = `https://raw.githubusercontent.com/${config.repository}/main/docs/aiwa-global-v8-16x9.mp4`;
 
 initPublish();
 initStore();

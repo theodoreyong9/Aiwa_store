@@ -14,4 +14,4 @@ node $KIT/src/cli.js assemble frames/ film.mp4 --audio=music.wav --voice=vo.wav 
 node $KIT/src/cli.js check film.mp4 --seconds=139.55 --width=1920 --height=1080
 ```
 
-Music: « The Complex », Kevin MacLeod (incompetech.com), CC BY 4.0 (credit shown at the end of the film).
+Music: « The Complex », Kevin MacLeod (incompetech.com), CC BY 4.0 (credit in small type at the bottom of the whole film).
