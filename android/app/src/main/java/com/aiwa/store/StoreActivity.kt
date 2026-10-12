@@ -115,6 +115,8 @@ class StoreActivity : ComponentActivity() {
         val root = FrameLayout(this)
         root.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(root)
+        // The widget: asked for once, at the first opening (the system's window, one tap on « Ajouter »)
+        root.post { WidgetPin.offerOnce(this) }
         // Edge-to-edge is the default from Android 15: keep the page out of the status and navigation bars.
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
