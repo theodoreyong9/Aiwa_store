@@ -40,14 +40,14 @@ function widgetTick(root, t, M) {
   const $ = (id) => root.querySelector('#' + id);
   const show = (el, at, dur = 0.45) => { const p = M.prog(t, at, dur, M.ease.outBack); el.style.opacity = M.clamp(p); el.style.transform = `translateY(${(1 - Math.min(1, p)) * 30}px) scale(${0.9 + 0.1 * Math.min(1, p)})`; };
   const flash = (el, at) => { const k = Math.max(0, 1 - Math.abs(t - at - 0.3) / 0.45); el.style.boxShadow = k > 0 ? `0 0 0 ${6 * k}px rgba(255,255,255,${0.55 * k}), 0 0 ${60 * k}px rgba(255,255,255,${0.35 * k})` : 'none'; };
-  [['k1', 1.3, 'pM'], ['k2', 2.5, 'pP'], ['k3', 3.7, 'pD'], ['k4', 4.9, 'pR']].forEach(([k, at, pill]) => { show($(k), at); flash($(pill), at); });
-  show($('k5'), 6.1); show($('tr'), 7.3);
-  const listening = t > 0.6 && t < 6.9;
-  $('wst').textContent = t < 0.6 ? 'Prêt' : listening ? 'À l\'écoute' : 'C\'est fait.';
-  $('wst').style.color = t >= 6.9 ? '#58d39b' : '#a4a4b4';
+  [['k1', 0.8, 'pM'], ['k2', 1.45, 'pP'], ['k3', 2.1, 'pD'], ['k4', 2.75, 'pR']].forEach(([k, at, pill]) => { show($(k), at); flash($(pill), at); });
+  show($('k5'), 3.4); show($('tr'), 4.1);
+  const listening = t > 0.4 && t < 3.9;
+  $('wst').textContent = t < 0.4 ? 'Prêt' : listening ? 'À l\'écoute' : 'C\'est fait.';
+  $('wst').style.color = t >= 3.9 ? '#58d39b' : '#a4a4b4';
   $('mt').style.display = listening ? 'none' : 'inline'; $('wv').style.display = listening ? 'flex' : 'none';
   [...$('wv').children].forEach((b, i) => { b.style.height = (14 + 50 * Math.abs(Math.sin(t * 7 + i * 0.9)) * (0.5 + 0.5 * Math.sin(t * 2.3 + i))) + 'px'; });
-  $('rd').style.opacity = t >= 7.3 ? 1 : 0;
+  $('rd').style.opacity = t >= 4.1 ? 1 : 0;
 }
 
 // ---- cards ---------------------------------------------------------------------------------------------------------------------------
@@ -226,5 +226,6 @@ window.SHOTS = [
 ];
 </script>
 <script src="vision.js"></script>
+<script src="v8.js"></script>
 <script src="../../video-kit/template/cinematic.js"></script>
 </body></html>

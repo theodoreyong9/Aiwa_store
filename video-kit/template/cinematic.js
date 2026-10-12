@@ -204,6 +204,7 @@
     return { s, el, bg, layers, t0: start, t1: start + s.seconds, tr };
   });
   const total = shots.length ? shots[shots.length - 1].t1 : 0;
+  window.TIMELINE = shots.map((x, i) => ({ i, t0: x.t0, t1: x.t1, seconds: x.s.seconds }));   // when each shot starts and ends: the clips laid over the page (3D shots) are placed with it
 
   const vignette = document.createElement('div'); vignette.style.cssText = `position:absolute;inset:0;z-index:900;pointer-events:none;background:radial-gradient(120% 100% at 50% 50%, transparent 55%, rgba(0,0,0,${THEME.vignette}) 100%)`;
   const grain = document.createElement('canvas'); grain.width = 320; grain.height = Math.round(320 * H / W);

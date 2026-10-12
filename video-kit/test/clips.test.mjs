@@ -107,3 +107,12 @@ test('a look on the whole film is applied in the same encode (a vignette darkens
   assert.ok(a[0] > 150 && a[1] < 60, `the frames are red: ${a}`);
   assert.ok(Math.abs(b[0] - b[1]) < 40, `mono: no more colour: ${b}`);
 });
+
+test('a single picture can be held over the film from a start to an end (loop): a credit line, a logo', need, () => {
+  const d = fixture();
+  const out = join(d, 'o5.mp4');
+  run(ffmpegPath(), ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=lime@0.6:s=80x45,format=rgba', '-frames:v', '1', join(d, 'one.png')]);
+  assemble({ framesDir: join(d, 'f'), out, fps: 10, crf: 18, clips: [{ file: join(d, 'one.png'), loop: true, start: 1, end: 3, fade: 0 }] });
+  assert.ok(pixel(out, 2.5)[1] > 40, 'the picture is still there at 2.5 s');
+  assert.ok(pixel(out, 0.5)[1] < 60, 'and not before it starts');
+});

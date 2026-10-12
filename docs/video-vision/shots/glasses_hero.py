@@ -76,6 +76,7 @@ focus.location = (src.x * 0.55 + (lo2.x + hi2.x) / 2 * 0.45, src.y * 0.55 + (lo2
 cam = kit.camera(lens=42, target=focus, fstop=2.4)
 r = (12.0, 9.8) if not portrait else (19.5, 16.0)
 kit.move(cam, 'orbit', radius=r, arc=(-52, -14), height=(1.5, 1.0))
+cam.data.shift_x = kit.args('shiftx', 0.0, float)      # the frame slides: a negative value puts the glasses further right, where the film leaves room (the texts are on the left)
 for i in range(kit._state['frames']):              # the module breathes
     t = i / max(1, kit._state['frames'] - 1)
     mat = module.data.materials[0]; sock = mat.node_tree.nodes['Principled BSDF'].inputs['Emission Strength']
