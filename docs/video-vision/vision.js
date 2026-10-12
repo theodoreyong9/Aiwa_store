@@ -252,3 +252,12 @@ if (new URLSearchParams(location.search).get('overlay')) {
 if (new URLSearchParams(location.search).get('nophone')) {
   window.SHOTS.forEach((shot) => { shot.layers = shot.layers.filter((l) => l.id !== 'locked' && l.id !== 'wake'); });
 }
+
+// ?noplanets=1: the Earth and Mars shot without its two drawn discs (the planets are then a 3D clip laid over, shots/planets_hero.py)
+if (new URLSearchParams(location.search).get('noplanets')) {
+  window.SHOTS.forEach((shot) => shot.layers.forEach((l) => {
+    if (l.id === 'mars') l.markup = l.markup
+      .replace(/<circle cx="130" cy="150" r="78"[^>]*\/>/, '').replace(/<path d="M95 120c20-12[^>]*\/>/, '')
+      .replace(/<circle cx="130" cy="520" r="62"[^>]*\/>/, '').replace(/<circle cx="108" cy="500" r="9"[^>]*\/>/, '').replace(/<circle cx="150" cy="545" r="7"[^>]*\/>/, '');
+  }));
+}

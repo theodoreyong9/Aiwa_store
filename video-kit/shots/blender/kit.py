@@ -279,6 +279,80 @@ def phone(screen, frames=None, width=0.075, height=0.1475, depth=0.0085, corner=
     return obj
 
 
+def _ramp(nt, stops, fac):
+    """A colour ramp node fed by `fac` (a socket): stops = [(position, '#hex'), ...]."""
+    r = nt.nodes.new('ShaderNodeValToRGB')
+    while len(r.color_ramp.elements) < len(stops): r.color_ramp.elements.new(1.0)
+    for e, (pos, col) in zip(r.color_ramp.elements, stops): e.position = pos; e.color = rgba(col)
+    nt.links.new(fac, r.inputs['Fac'])
+    return r
+
+
+def _noise(nt, scale, detail=8.0, rough=0.55):
+    tc = nt.nodes.new('ShaderNodeTexCoord'); n = nt.nodes.new('ShaderNodeTexNoise')
+    n.inputs['Scale'].default_value = scale; n.inputs['Detail'].default_value = detail; n.inputs['Roughness'].default_value = rough
+    nt.links.new(tc.outputs['Object'], n.inputs['Vector'])
+    return n
+
+
+def planet(kind='earth', radius=1.0, location=(0, 0, 0), spin=(25, 0), tilt=20, frames=None, seed=0.0):
+    """A planet made of nothing but procedural textures (no image of any real planet): 'earth' (oceans, continents, clouds that turn faster, a thin atmosphere) or 'mars' (rust, dark plains, relief).
+    It turns `spin[0]` degrees over the shot (from the left side to the right) around its tilted axis. Light it with a sun lamp (`kit.sun`). Returns the object. A rendered illustration, never presented as a photograph."""
+    frames = frames or _state['frames']
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=radius, segments=96, ring_count=48, location=location); o = bpy.context.active_object; o.name = 'planet-' + kind
+    bpy.ops.object.shade_smooth()
+    m = bpy.data.materials.new(kind); m.use_nodes = True; nt = m.node_tree; p = nt.nodes['Principled BSDF']
+    if kind == 'earth':
+        n = _noise(nt, 4.2 + seed, 7.0, 0.5)
+        col = _ramp(nt, [(0.0, '#04153f'), (0.42, '#0d3f94'), (0.5, '#1c63bd'), (0.52, '#3b7f3f'), (0.6, '#6f8a45'), (0.68, '#a58f5a'), (0.76, '#e4e1d6')], n.outputs['Fac'])
+        rough = _ramp(nt, [(0.0, '#303030'), (0.5, '#303030'), (0.52, '#d8d8d8'), (1.0, '#d8d8d8')], n.outputs['Fac'])
+        nt.links.new(col.outputs['Color'], p.inputs['Base Color']); nt.links.new(rough.outputs['Color'], p.inputs['Roughness'])
+        p.inputs['Specular IOR Level'].default_value = 0.6
+    elif kind == 'mars':
+        n = _noise(nt, 2.2 + seed, 10.0, 0.6)
+        col = _ramp(nt, [(0.0, '#5a2418'), (0.4, '#9a3f2a'), (0.55, '#c8603f'), (0.8, '#e0a070')], n.outputs['Fac'])
+        nt.links.new(col.outputs['Color'], p.inputs['Base Color']); p.inputs['Roughness'].default_value = 0.95
+        b = nt.nodes.new('ShaderNodeBump'); b.inputs['Strength'].default_value = 0.5; b.inputs['Distance'].default_value = 0.04
+        nt.links.new(n.outputs['Fac'], b.inputs['Height']); nt.links.new(b.outputs['Normal'], p.inputs['Normal'])
+    else:
+        raise ValueError(f'unknown planet {kind}')
+    o.data.materials.append(m)
+    layers = [o]
+    if kind == 'earth':
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=radius * 1.012, segments=96, ring_count=48, location=location); c = bpy.context.active_object; c.name = 'clouds'; bpy.ops.object.shade_smooth()
+        cm = bpy.data.materials.new('clouds'); cm.use_nodes = True; cn = cm.node_tree; cn.nodes.clear()
+        nz = _noise(cn, 3.4 + seed, 6.0, 0.62); mask = _ramp(cn, [(0.0, '#000000'), (0.52, '#000000'), (0.66, '#ffffff')], nz.outputs['Fac'])
+        tr = cn.nodes.new('ShaderNodeBsdfTransparent'); df = cn.nodes.new('ShaderNodeBsdfDiffuse'); df.inputs['Color'].default_value = (1, 1, 1, 1)
+        mx = cn.nodes.new('ShaderNodeMixShader'); out = cn.nodes.new('ShaderNodeOutputMaterial')
+        cn.links.new(mask.outputs['Color'], mx.inputs['Fac']); cn.links.new(tr.outputs[0], mx.inputs[1]); cn.links.new(df.outputs[0], mx.inputs[2]); cn.links.new(mx.outputs[0], out.inputs['Surface'])
+        c.data.materials.append(cm)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=radius * 1.05, segments=96, ring_count=48, location=location); a = bpy.context.active_object; a.name = 'atmosphere'; bpy.ops.object.shade_smooth()
+        am = bpy.data.materials.new('atmosphere'); am.use_nodes = True; an = am.node_tree; an.nodes.clear()
+        lw = an.nodes.new('ShaderNodeLayerWeight'); lw.inputs['Blend'].default_value = 0.35
+        rim = _ramp(an, [(0.5, '#000000'), (0.95, '#ffffff')], lw.outputs['Fresnel'])   # Fresnel is bright at the rim, dark at the centre: a thin glow at the edge only
+        em = an.nodes.new('ShaderNodeEmission'); em.inputs['Color'].default_value = rgba('#6aa8ff'); em.inputs['Strength'].default_value = 1.4
+        tr2 = an.nodes.new('ShaderNodeBsdfTransparent'); mx2 = an.nodes.new('ShaderNodeMixShader'); out2 = an.nodes.new('ShaderNodeOutputMaterial')
+        an.links.new(rim.outputs['Color'], mx2.inputs['Fac']); an.links.new(tr2.outputs[0], mx2.inputs[1]); an.links.new(em.outputs[0], mx2.inputs[2]); an.links.new(mx2.outputs[0], out2.inputs['Surface'])
+        a.data.materials.append(am)
+        layers += [c, a]
+    for ob in layers:
+        ob.rotation_euler = (math.radians(tilt), 0, 0)
+    for i in range(frames):
+        t = i / max(1, frames - 1)
+        for ob in layers:
+            k = 1.7 if ob.name == 'clouds' else 1.0
+            ob.rotation_euler = (math.radians(tilt), math.radians(spin[1]), math.radians(spin[0] * t * k))
+            ob.keyframe_insert('rotation_euler', frame=i)
+    return o
+
+
+def sun(direction=(-0.6, 0.5, -0.6), strength=4.5, color=(1, .96, .9)):
+    """A sun lamp that shines along `direction` (from the upper left and the front by default: the phase of a planet seen from the camera at -Y)."""
+    bpy.ops.object.light_add(type='SUN'); l = bpy.context.active_object; l.data.energy = strength; l.data.color = color; l.data.angle = math.radians(1.5)
+    l.rotation_euler = mathutils.Vector(direction).to_track_quat('-Z', 'Y').to_euler()
+    return l
+
+
 def render(out_dir, frames=None):
     frames = frames or _state['frames']
     os.makedirs(out_dir, exist_ok=True)
