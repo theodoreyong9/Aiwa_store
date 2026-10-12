@@ -133,6 +133,7 @@ function lockedTick(root, t, M) {
   first.layers.forEach((l) => { if (l.type === 'text') { l.x = [50, 24]; l.w = [90, 38]; l.y = [11, 38]; l.size = [8.6, 6.6]; } });
   first.layers[1].size = [10.5, 8]; first.layers[1].y = [12, 38];
   first.layers.push({ type: 'html', id: 'locked', css: VCSS, markup: LOCKED, design: [600, 1180], w: [46, 24], x: [50, 72], y: [62, 54], at: 0.15, tick: lockedTick, enter: 'rise', dur: 0.8 });
+  first.layers.push({ type: 'text', text: 'Un widget Android pour Claude Code.\nIl faut un téléphone Android et Claude Code.', mode: 'lines', effect: 'rise', size: [3.0, 2.3], weight: 600, color: '#c9c9d8', x: [50, 24], y: [97, 80], w: [90, 40], at: 0.6, stagger: 0.2 });
   first.layers.push({ type: 'text', text: 'Même écran éteint.', size: [4.4, 3.4], weight: 700, color: GRN, x: [50, 24], y: [93, 66], w: [90, 38], effect: 'rise', mode: 'words', at: 3.5 });
 })();
 const BLOB1 = { type: 'blobs', colors: ['rgba(123,97,255,.40)', 'rgba(38,198,176,.25)', 'rgba(30,30,60,.5)'], base: '#090912' };
@@ -234,11 +235,84 @@ if (new URLSearchParams(location.search).get('overlay')) {
   window.SHOTS.forEach((shot) => { shot.bg = { type: 'solid', color: 'rgba(0,0,0,0)' }; });
 }
 
+// ---- v7: the new functions of Aiwa (a file becomes a video, three qualities, a campaign prepared by the agent and validated one by one). Every name below is an invented example. ----
+const FILES = `<div class="v" style="width:1000px;height:640px">
+<div class="pill" id="fa0" style="left:0;top:0;width:430px;height:96px;font-size:40px;justify-content:flex-start;padding-left:34px;gap:18px"><span style="color:${TEA}">▤</span>cv.txt</div>
+<div class="pill" id="fa1" style="left:0;top:116px;width:430px;height:96px;font-size:40px;justify-content:flex-start;padding-left:34px;gap:18px"><span style="color:${ORA}">▤</span>argumentaire.md</div>
+<div class="pill" id="fa2" style="left:0;top:232px;width:430px;height:96px;font-size:40px;justify-content:flex-start;padding-left:34px;gap:18px"><span style="color:${VIO}">▤</span>brochure.html</div>
+<svg width="1000" height="360" viewBox="0 0 1000 360" style="position:absolute;left:0;top:0;overflow:visible"><path id="fa-arrow" d="M450 164 H560" stroke="${GRN}" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="110" stroke-dashoffset="110"/><path id="fa-head" d="M545 140 L572 164 L545 188" stroke="${GRN}" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0"/></svg>
+<div id="fa-out" style="position:absolute;left:600px;top:0;width:400px"><div class="row" id="fo0" style="left:0;top:0;width:400px;height:96px;padding:0 26px"><b style="font-size:38px">un parcours</b></div><div class="row" id="fo1" style="left:0;top:116px;width:400px;height:96px;padding:0 26px"><b style="font-size:38px">une vente</b></div><div class="row" id="fo2" style="left:0;top:232px;width:400px;height:96px;padding:0 26px"><b style="font-size:38px">la forme qui sert</b></div></div>
+<div id="fa-gh" style="position:absolute;left:0;top:372px;font-size:34px;color:#a4a4bc;opacity:0"><span id="fa-box" style="display:inline-block;width:38px;height:38px;border-radius:9px;border:3px solid #4a4a60;vertical-align:-8px;margin-right:16px;text-align:center;line-height:34px;font-size:30px;color:#090912"></span>Mes réalisations GitHub (publiques) : si je le veux</div>
+<div id="fa-q" style="position:absolute;left:0;top:470px;width:1000px;height:150px">
+<div class="pill" id="fq0" style="left:0;top:0;width:290px;height:96px;font-size:38px">Simple</div>
+<div class="pill" id="fq1" style="left:310px;top:0;width:290px;height:96px;font-size:38px">Moyen</div>
+<div class="pill" id="fq2" style="left:620px;top:0;width:380px;height:96px;font-size:38px">Extra · cinéma</div>
+<div id="fq-note" style="position:absolute;left:0;top:112px;font-size:30px;color:#a4a4bc;opacity:0">plus la qualité monte, plus c'est long : l'extra prend des heures</div></div></div>`;
+function filesTick(root, t, M) {
+  const $ = (id) => root.querySelector('#' + id);
+  for (let i = 0; i < 3; i++) { const p = M.prog(t, 0.2 + i * 0.28, 0.45, M.ease.outBack); $('fa' + i).style.opacity = M.clamp(p); $('fa' + i).style.transform = `translateX(${(1 - Math.min(1, p)) * -60}px)`; }
+  const a = M.prog(t, 1.2, 0.5); $('fa-arrow').style.strokeDashoffset = String(110 * (1 - a)); $('fa-head').style.opacity = a > 0.9 ? 1 : 0;
+  for (let i = 0; i < 3; i++) { const p = M.prog(t, 1.6 + i * 0.25, 0.45, M.ease.outBack); $('fo' + i).style.opacity = M.clamp(p); $('fo' + i).style.transform = `translateX(${(1 - Math.min(1, p)) * 60}px)`; }
+  const g = M.prog(t, 2.6, 0.4); $('fa-gh').style.opacity = g; const on = t > 3.1; $('fa-box').style.background = on ? GRN : 'transparent'; $('fa-box').style.borderColor = on ? GRN : '#4a4a60'; $('fa-box').textContent = on ? '✓' : '';
+  const q = M.prog(t, 3.4, 0.4); $('fa-q').style.opacity = q;
+  const sel = t < 4.0 ? -1 : t < 4.6 ? 0 : t < 5.2 ? 1 : 2;
+  ['fq0', 'fq1', 'fq2'].forEach((id, i) => { const el = $(id); el.style.background = i === sel ? (i === 2 ? ORA : '#2e7d5a') : '#1b1b26'; el.style.borderColor = i === sel ? '#fff' : '#34344a'; el.style.transform = `scale(${i === sel ? 1.05 : 1})`; });
+  $('fq-note').style.opacity = M.prog(t, 5.0, 0.4);
+}
+const TARGETS_V7 = ['Café du Port', 'Atelier Rive', 'Studio Nord', 'Boulangerie Lac'];
+const CAMPAIGN = `<div class="v" style="width:1000px;height:640px">${TARGETS_V7.map((n, i) => `<div class="row" id="cp${i}" style="left:0;top:${i * 138}px;height:118px;gap:20px;padding:0 28px"><b style="font-size:42px;width:330px;flex:none">${n}</b>
+<span id="cpa${i}" style="font-size:27px;padding:6px 16px;border-radius:30px;background:#26263a;color:#c9c9d8;opacity:0">maquette</span><span id="cpb${i}" style="font-size:27px;padding:6px 16px;border-radius:30px;background:#26263a;color:#c9c9d8;opacity:0">vidéo</span><span id="cpc${i}" style="font-size:27px;padding:6px 16px;border-radius:30px;background:#26263a;color:#c9c9d8;opacity:0">prix</span></div>`).join('')}
+<div id="cp-note" style="position:absolute;left:0;top:568px;font-size:30px;color:#a4a4bc;opacity:0">noms inventés · « maquette de démonstration, pas le site officiel »</div></div>`;
+function campaignTick(root, t, M) {
+  const $ = (id) => root.querySelector('#' + id);
+  for (let i = 0; i < 4; i++) {
+    const p = M.prog(t, 0.2 + i * 0.22, 0.45, M.ease.outBack); $('cp' + i).style.opacity = M.clamp(p); $('cp' + i).style.transform = `translateX(${(1 - Math.min(1, p)) * 70}px)`;
+    ['a', 'b', 'c'].forEach((k, j) => { const on = M.prog(t, 1.3 + i * 0.5 + j * 0.28, 0.3); const el = $('cp' + k + i); el.style.opacity = on; el.style.background = on > 0.95 ? '#173a2c' : '#26263a'; el.style.color = on > 0.95 ? '#9fe3c2' : '#c9c9d8'; });
+  }
+  $('cp-note').style.opacity = M.prog(t, 4.2, 0.4);
+}
+const PROPOSALS = `<div class="v" style="width:600px;height:1180px"><div style="position:absolute;left:0;top:0;width:600px;height:1180px;border-radius:84px;border:10px solid #2b2b38;background:linear-gradient(180deg,#0d0d14,#12121b);box-shadow:0 50px 140px rgba(0,0,0,.7);overflow:hidden">
+<div style="position:absolute;left:40px;right:40px;top:100px"><div style="font-size:42px;font-weight:800;letter-spacing:-1px">Propositions à valider</div><div style="font-size:23px;color:#8c8ca0;margin-top:10px">Rien n'est envoyé d'ici</div></div>
+<div id="pr-test" style="position:absolute;left:40px;top:216px;font-size:24px;color:#a4a4bc;opacity:0"><span style="display:inline-block;width:28px;height:28px;border-radius:7px;background:${GRN};vertical-align:-6px;margin-right:12px;text-align:center;line-height:26px;font-size:22px;color:#090912">✓</span>Test : mail sans destinataire</div>
+<div id="pr-c0" style="position:absolute;left:34px;right:34px;top:268px;height:430px;border-radius:30px;background:#171722;border:2px solid #2d2d42;padding:26px 28px;box-sizing:border-box;opacity:0">
+<div style="font-size:34px;font-weight:800">Café du Port</div><div style="font-size:22px;color:#a4a4bc;margin-top:6px">exemple inventé · contact@exemple.ch</div>
+<div style="font-size:24px;color:#c9c9d8;margin-top:16px;line-height:1.3">Bonjour, voici une maquette de votre site et une vidéo de présentation…</div>
+<div style="margin-top:20px;border-radius:16px;border:2px solid #34344a;padding:12px 18px;font-size:26px"><span style="color:#8c8ca0;font-size:19px;display:block">Prix proposé</span><span id="pr-price">900 CHF</span></div>
+<div style="display:flex;gap:14px;margin-top:20px"><div id="pr-send" class="pill" style="position:relative;flex:1;height:70px;font-size:28px;background:${VIO};border-color:${VIO}">Envoyer</div><div class="pill" style="position:relative;flex:1;height:70px;font-size:28px">Écarter</div></div></div>
+<div id="pr-c1" style="position:absolute;left:34px;right:34px;top:722px;height:130px;border-radius:30px;background:#171722;border:2px solid #2d2d42;padding:22px 28px;box-sizing:border-box;opacity:0"><div style="font-size:30px;font-weight:800">Atelier Rive</div><div style="font-size:21px;color:#a4a4bc;margin-top:6px">maquette · vidéo · prix prêts</div></div>
+<div id="pr-mail" style="position:absolute;left:34px;right:34px;top:880px;border-radius:30px;background:#173a2c;border:2px solid ${GRN};padding:22px 28px;box-sizing:border-box;opacity:0"><div style="font-size:21px;letter-spacing:2px;color:#9fe3c2">DANS TA MESSAGERIE</div><div style="font-size:28px;font-weight:800;margin-top:6px">Mail rempli : tu l'envoies <span style="color:${GRN}">✓</span></div></div></div></div>`;
+function proposalsTick(root, t, M) {
+  const $ = (id) => root.querySelector('#' + id);
+  $('pr-test').style.opacity = M.prog(t, 0.3, 0.4);
+  const c0 = M.prog(t, 0.6, 0.5, M.ease.outBack); $('pr-c0').style.opacity = M.clamp(c0); $('pr-c0').style.transform = `translateY(${(1 - Math.min(1, c0)) * 40}px)`;
+  const c1 = M.prog(t, 1.0, 0.5, M.ease.outBack); $('pr-c1').style.opacity = M.clamp(c1); $('pr-c1').style.transform = `translateY(${(1 - Math.min(1, c1)) * 40}px)`;
+  $('pr-price').textContent = t < 2.4 ? '900 CHF' : t < 2.8 ? '85' : '850 CHF';
+  $('pr-send').style.transform = `scale(${t > 3.6 && t < 3.9 ? 0.94 : 1})`;
+  $('pr-mail').style.opacity = M.prog(t, 4.0, 0.4);
+}
+window.SHOTS.splice(5, 0,
+  { seconds: 6.4, transition: { type: 'push', seconds: 0.55 }, bg: { type: 'gradient', colors: ['#14102a', '#090912'], angle: 175, drift: true }, layers: [
+    { type: 'text', text: 'Un fichier.\nUne vidéo.', mode: 'lines', effect: 'mask', size: [11, 8.6], x: [50, 22], y: [15, 36], w: [90, 34], at: 0.25, stagger: 0.3, accent: { 'vidéo.': TEA } },
+    { type: 'html', id: 'files', css: VCSS, markup: FILES, design: [1000, 640], w: [92, 56], x: [50, 70], y: [56, 52], at: 0.15, tick: filesTick },
+    { type: 'text', text: 'Il reconnaît le type du document\net adapte la vidéo.', mode: 'lines', effect: 'rise', size: [4.2, 3.4], weight: 600, color: '#f0f0f5', x: [50, 22], y: [88, 66], w: [90, 34], at: 1.8, stagger: 0.3 },
+  ] },
+  { seconds: 6.6, transition: { type: 'wipe', seconds: 0.55 }, bg: { type: 'blobs', colors: ['rgba(38,198,176,.30)', 'rgba(123,97,255,.35)', 'rgba(30,30,60,.5)'], base: '#090912' }, layers: [
+    { type: 'text', text: 'Une liste.\nUne proposition\npar cible.', mode: 'lines', effect: 'mask', size: [9.6, 7.6], x: [50, 22], y: [16, 34], w: [90, 36], at: 0.25, stagger: 0.28, accent: { 'cible.': GRN } },
+    { type: 'html', id: 'campaign', css: VCSS, markup: CAMPAIGN, design: [1000, 640], w: [92, 56], x: [50, 70], y: [58, 52], at: 0.15, tick: campaignTick },
+    { type: 'text', text: 'L\'agent prépare. Rien n\'est envoyé.', size: [4.2, 3.6], weight: 700, color: GRN, x: [50, 22], y: [90, 70], w: [90, 34], effect: 'blur', mode: 'words', stagger: 0.06, at: 3.6 },
+  ] },
+  { seconds: 7.1167, transition: { type: 'wipe', seconds: 0.55 }, bg: { type: 'gradient', colors: ['#1a1530', '#090912'], angle: 170, drift: true }, layers: [
+    { type: 'text', text: 'Tu valides.\nUne par une.', mode: 'lines', effect: 'mask', size: [10.4, 8], x: [50, 22], y: [13, 36], w: [90, 36], at: 0.3, stagger: 0.3, accent: { 'une.': TEA } },
+    { type: 'html', id: 'prop', css: VCSS, markup: PROPOSALS, design: [600, 1180], w: [46, 24], x: [50, 72], y: [62, 54], at: 0.1, tick: proposalsTick, enter: 'rise', dur: 0.7 },
+    { type: 'text', text: 'Tu restes l\'expéditeur.\nRien ne part sans toi.', mode: 'lines', effect: 'rise', size: [4.4, 3.6], weight: 700, color: ORA, x: [50, 22], y: [90, 66], w: [90, 36], at: 2.4, stagger: 0.3 },
+  ] },
+);
+
 // ?screen=locked|wake: the screen of the phone alone (600 x 1180, transparent around it), for a 3D phone whose screen is an image sequence (video-kit/shots/blender/kit.py: phone)
 {
   const which = new URLSearchParams(location.search).get('screen');
   if (which) {
-    const T = which === 'wake' ? { id: 'wake', markup: WAKEPHONE, tick: wakeTick } : { id: 'locked', markup: LOCKED, tick: lockedTick };
+    const T = which === 'wake' ? { id: 'wake', markup: WAKEPHONE, tick: wakeTick } : which === 'proposals' ? { id: 'prop', markup: PROPOSALS, tick: proposalsTick } : { id: 'locked', markup: LOCKED, tick: lockedTick };
     window.THEME = Object.assign({}, window.THEME, { bg: 'transparent', grain: 0, vignette: 0 });
     document.documentElement.style.background = 'transparent'; document.body.style.background = 'transparent';
     window.SHOTS.length = 0;
@@ -250,7 +324,7 @@ if (new URLSearchParams(location.search).get('overlay')) {
 
 // ?nophone=1: the first two shots without their drawn phone (the phone is then a 3D clip laid over, assemble --clips)
 if (new URLSearchParams(location.search).get('nophone')) {
-  window.SHOTS.forEach((shot) => { shot.layers = shot.layers.filter((l) => l.id !== 'locked' && l.id !== 'wake'); });
+  window.SHOTS.forEach((shot) => { shot.layers = shot.layers.filter((l) => l.id !== 'locked' && l.id !== 'wake' && l.id !== 'prop'); });
 }
 
 // ?noplanets=1: the Earth and Mars shot without its two drawn discs (the planets are then a 3D clip laid over, shots/planets_hero.py)
