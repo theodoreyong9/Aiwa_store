@@ -261,3 +261,8 @@ if (new URLSearchParams(location.search).get('noplanets')) {
       .replace(/<circle cx="130" cy="520" r="62"[^>]*\/>/, '').replace(/<circle cx="108" cy="500" r="9"[^>]*\/>/, '').replace(/<circle cx="150" cy="545" r="7"[^>]*\/>/, '');
   }));
 }
+
+// ?noimage=1: the CV match shot without its flat screenshot (the screenshot is then on a 3D phone laid over, shots/phone_hero.py)
+if (new URLSearchParams(location.search).get('noimage')) {
+  window.SHOTS.forEach((shot) => { shot.layers = shot.layers.filter((l) => !(l.type === 'image' && String(l.src).includes('jobber-match'))); });
+}
