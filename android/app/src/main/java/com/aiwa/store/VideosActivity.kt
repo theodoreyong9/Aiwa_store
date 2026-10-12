@@ -126,6 +126,12 @@ private fun VideosWindow(onClose: () -> Unit) {
                                     },
                                     modifier = Modifier.weight(1f),
                                 ) { Text("▶  " + video.name + " · " + sizeLabel(video.size), maxLines = 2) }
+                                OutlinedButton(onClick = {
+                                    context.startActivity(
+                                        android.content.Intent(context, CastActivity::class.java)
+                                            .putExtra(CastActivity.EXTRA_URL, video.url).putExtra(CastActivity.EXTRA_TITLE, video.name),
+                                    )
+                                }) { Text("📺") }
                                 OutlinedButton(onClick = { openUrl(context, video.url) }) { Text("⇩") }
                             }
                         }

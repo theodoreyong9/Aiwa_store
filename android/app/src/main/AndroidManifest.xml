@@ -49,6 +49,9 @@
     <!-- The always-on listening for "instruction" (WakeWordService.kt): off until the person turns it on. The CPU is held while it listens. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- « Envoyer à la TV » (CastActivity.kt): finding the televisions of the Wi-Fi (DLNA / UPnP) needs a multicast lock. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- « Mettre à jour l'application » (AppUpdater.kt): opens the system installer on the latest build; the person still taps « Installer ». -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Automatic backup is on, so that the wallet's history (the WebView's storage) follows its owner to a new phone; the secrets are
@@ -186,6 +189,11 @@
         <activity android:name=".VideoPlayerActivity" android:exported="false"
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
             android:configChanges="orientation|screenSize|keyboardHidden"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
+        <!-- Casting a video to a television (CastActivity.kt). -->
+        <activity android:name=".CastActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
         <activity android:name=".VideosActivity" android:exported="false"

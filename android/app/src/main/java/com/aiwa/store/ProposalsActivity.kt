@@ -196,6 +196,14 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                     }
                                     if (p.videoUrl.isNotBlank()) {
                                         OutlinedButton(
+                                            onClick = {
+                                                context.startActivity(
+                                                    Intent(context, CastActivity::class.java).putExtra(CastActivity.EXTRA_URL, p.videoUrl).putExtra(CastActivity.EXTRA_TITLE, p.name.ifBlank { p.id }),
+                                                )
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) { Text("📺  Envoyer la vidéo à la TV") }
+                                        OutlinedButton(
                                             onClick = { VideoSharing.share(context, p.videoUrl, p.name.ifBlank { p.id }, ProposalShare.videoDescription(p, prices[p.id] ?: "")) },
                                             modifier = Modifier.fillMaxWidth(),
                                         ) { Text("Partager la vidéo (YouTube, Instagram…)") }
