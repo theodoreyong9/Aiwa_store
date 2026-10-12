@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **The Store has two tabs: Aiwa and Library.** The Library was a folded block under the ranked list, so the Store looked as if it only searched links. Now « Aiwa » (the ranked contracts of the registry, with its ＋ to publish) and « Library » (the GitHub accounts followed and their apps) are tabs of their own, each with its search. A ▦ from a Store-mode app opens the Library tab.
+
 - **README and picker texts brought in line.** The README's table and steps told that every app is signed, submitted and ranked: they now say it is the Aiwa contracts, that the Store mode has a Library (no registry), and that the widget has five modes and makes videos. The project-type list says what the Store and Aiwa modes now are (it still described the Store mode as a publication from the sheet and the Aiwa one as a pointer). The widget has five modes in its list, not six: the plain-discussion mode is gone.
 
 - **Widget: the project type no longer waits for a repository.** The chip that says what Claude produces (Pages, Android, Store, Aiwa, Campaign) and, in the Store and campaign modes, the buttons ▦, `</>` and the proposals envelope, were hidden until a repository was chosen, though those modes need none (and the campaign's GitHub box is off by default): a campaign started without a repository showed no way to see its proposals. They now show at once, in both layouts; the push chip, the site, video and GitHub Actions buttons still wait for a repository. Compiled by CI, **not tried on a phone**.

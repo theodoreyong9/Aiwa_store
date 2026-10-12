@@ -252,7 +252,22 @@ export function followAccount(text) {
   return true;
 }
 
+/** The Store has two tabs: the Aiwa apps (ranked, from the registry) and the Library (the GitHub accounts followed). */
+export function showStoreTab(name) {
+  const library = name === 'library';
+  $('pane-aiwa').hidden = library;
+  $('pane-library').hidden = !library;
+  $('tab-aiwa').classList.toggle('active', !library);
+  $('tab-library').classList.toggle('active', library);
+  $('tab-aiwa').setAttribute('aria-selected', String(!library));
+  $('tab-library').setAttribute('aria-selected', String(library));
+  $('store-publish').hidden = library;       // publishing through the registry is the Aiwa tab's
+  $('store-search').placeholder = library ? 'Search the library' : 'Search Aiwa apps';
+}
+
 export function initLibrary() {
+  $('tab-aiwa').addEventListener('click', () => showStoreTab('aiwa'));
+  $('tab-library').addEventListener('click', () => showStoreTab('library'));
   const add = () => {
     if (followAccount($('library-add').value)) $('library-add').value = '';
     else $('library-status').textContent = 'A GitHub login, or login/repo.';

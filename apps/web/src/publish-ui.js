@@ -11,7 +11,7 @@ import { filesProblem, BUNDLE_LIMITS } from 'aiwa-registry/bundle';
 import { config } from './config.js';
 import { session, onSession, connected, catalog } from './session.js';
 import { $, flash, switchView } from './ui.js';
-import { followAccount } from './store-ui.js';
+import { followAccount, showStoreTab } from './store-ui.js';
 import { openViewer } from './viewer.js';
 import { assembleHtml } from './assemble.js';
 import { hostAvailable, hostPost } from './host.js';
@@ -245,7 +245,7 @@ async function handoff() {
       // The app is already in its author's GitHub: nothing to publish, no wallet. The Store follows that account and lists the app in its library.
       if (!match[4]) throw new Error('the link has no repository');
       const [owner, repo] = match[4].split('/');
-      $('library').open = true;
+      showStoreTab('library');
       if (!followAccount(repo === 'aiwa-apps' ? owner : match[4])) throw new Error('the repository is not a GitHub one');
       $('store-status').textContent = `"${match[2]}" is in your GitHub (${match[4]}): the Store now follows that account and lists it in its library.`;
       return;
