@@ -106,7 +106,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Propositions à valider", style = MaterialTheme.typography.titleMedium)
+                    Text("Propositions et gestion de la campagne", style = MaterialTheme.typography.titleMedium)
                     Text("Rien n'est envoyé d'ici : « Envoyer » ouvre ta messagerie avec le mail rempli, tu le relis et tu l'envoies toi-même.", style = MaterialTheme.typography.bodySmall)
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { test = !test }) {
                         Checkbox(checked = test, onCheckedChange = { test = it })
@@ -151,6 +151,10 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                             }
                         }
                     }
+                    OutlinedButton(
+                        onClick = { context.startActivity(Intent(context, FileCreationActivity::class.java).putExtra("campaign", true)); onClose() },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Nouvelle campagne à partir d'un fichier") }
                     OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
                 }
             }

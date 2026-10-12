@@ -344,13 +344,15 @@ private fun FullContent(state: AiwaState) {
     // The address is known as soon as a repository is chosen
     // (https://<owner>.github.io/<repo>/): the globe is there once deployment is
     // asked for, or as soon as the address answers.
-    val showSite = hasRepo && site != null && (state.deploy != "none" || live)
+    val campaignMode = state.deploy == "campaign"
+    val showSite = hasRepo && site != null && (state.deploy != "none" || live) && !campaignMode
+    val showProposals = hasRepo && campaignMode      // in the campaign mode the site button gives way to « Propositions et gestion »
     val showStore = hasRepo && storeMode
     // In the Store mode nothing is published through GitHub: the round "GitHub Actions" button (the build of this
     // repository) has no meaning there, and gives way to a button that shows the code Claude sent.
     val showCode = showStore
-    val showActions = (hasRepo && !storeMode && (publishesFromGithub(state.deploy) || state.ciState != null)) || state.deploy == "aiwa"
-    val fixed = (if (showSite) GAP + chipH else 0f) + (if (showStore) GAP + chipH else 0f) + (if (showCode) GAP + chipH else 0f) + (if (showActions) GAP + chipH else 0f) + (if (hasRepo) GAP + chipH else 0f)
+    val showActions = (hasRepo && ((!storeMode && publishesFromGithub(state.deploy)) || state.ciState != null)) || state.deploy == "aiwa"
+    val fixed = (if (showSite || showProposals) GAP + chipH else 0f) + (if (showStore) GAP + chipH else 0f) + (if (showCode) GAP + chipH else 0f) + (if (showActions) GAP + chipH else 0f) + (if (hasRepo) GAP + chipH else 0f)
     val each = avail - fixed - 20f
     val deployText = fitLabel(deployLabel(state.deploy), each, fontScale)
 
@@ -406,6 +408,16 @@ private fun FullContent(state: AiwaState) {
                     Spacer(GlanceModifier.width(GAP.dp))
                 }
                 Chip(deployText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else if (state.deploy != "none") green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
+                if (showProposals) {
+                    Spacer(GlanceModifier.width(GAP.dp))
+                    RoundButton(
+                        icon = R.drawable.ic_proposals,
+                        description = "Propositions et gestion de la campagne",
+                        background = claudeOrange,
+                        action = actionStartActivity<ProposalsActivity>(),
+                        diameter = chipH.dp,
+                    )
+                }
                 if (showSite && site != null) {
                     Spacer(GlanceModifier.width(GAP.dp))
                     // Orange = the address answers; grey = not (yet) — it still opens.
@@ -642,15 +654,17 @@ private fun CompactContent(state: AiwaState) {
             // The address is known as soon as a repository is chosen
             // (https://<owner>.github.io/<repo>/): the globe is there once
             // deployment is asked for, or as soon as the address answers.
-            val showSite = hasRepo && site != null && (state.deploy != "none" || live)
+            val campaignMode = state.deploy == "campaign"
+            val showSite = hasRepo && site != null && (state.deploy != "none" || live) && !campaignMode
+            val showProposals = hasRepo && campaignMode
             val showStore = hasRepo && storeMode
             // In the Store mode nothing is published through GitHub: the round "GitHub Actions" button (the build of this
             // repository) has no meaning there, and gives way to a button that shows the code Claude sent.
             val showCode = showStore
-            val showActions = (hasRepo && !storeMode && (publishesFromGithub(state.deploy) || state.ciState != null)) || state.deploy == "aiwa"
+            val showActions = (hasRepo && ((!storeMode && publishesFromGithub(state.deploy)) || state.ciState != null)) || state.deploy == "aiwa"
             var others = 0f
             if (hasRepo) others += GAP + chipWidth(pushText, fontScale) + GAP + chipWidth(deployText, fontScale)
-            if (showSite) others += GAP + 34f
+            if (showSite || showProposals) others += GAP + 34f
             if (showStore) others += GAP + 34f
             if (showCode) others += GAP + 34f
             if (showActions) others += GAP + 34f
@@ -678,6 +692,15 @@ private fun CompactContent(state: AiwaState) {
                         Spacer(GlanceModifier.width(GAP.dp))
                     }
                     Chip(deployText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else if (state.deploy != "none") green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()))
+                    if (showProposals) {
+                        Spacer(GlanceModifier.width(GAP.dp))
+                        RoundButton(
+                            icon = R.drawable.ic_proposals,
+                            description = "Propositions et gestion de la campagne",
+                            background = claudeOrange,
+                            action = actionStartActivity<ProposalsActivity>(),
+                        )
+                    }
                     if (showSite && site != null) {
                         Spacer(GlanceModifier.width(GAP.dp))
                         // Orange = the address answers; grey = not (yet) — it still opens.

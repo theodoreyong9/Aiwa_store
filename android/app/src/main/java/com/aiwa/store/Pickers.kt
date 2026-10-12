@@ -518,8 +518,6 @@ class VoiceHelpActivity : ComponentActivity() {
                 add(PickerEntry("Mon mot d'éveil : le choisir ou le changer, même « Aiwa »", false, lines = 2) { open(WakeWordEnrollActivity::class.java) })
                 add(PickerEntry("État d'Aiwa : Claude, alertes, permissions", false, lines = 2) { open(HealthActivity::class.java) })
                 add(PickerEntry("Mettre à jour le cerveau d'Aiwa (Termux)", false, lines = 2) { updateBrain() })
-                add(PickerEntry("Créer à partir d'un fichier : une vidéo ou une campagne", false, lines = 2) { open(FileCreationActivity::class.java) })
-                add(PickerEntry("Propositions à valider (la campagne en cours)", false, lines = 2) { open(ProposalsActivity::class.java) })
 
                 add(PickerEntry("Écoute permanente", false, header = true) { })
                 add(PickerEntry(if (wanted) "✓  Allumée : le téléphone écoute « mon agent », « instruction » et « stop Claude » — toucher pour l'éteindre" else "Éteinte — toucher pour l'allumer", wanted, lines = 3) { toggle() })
