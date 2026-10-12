@@ -49,9 +49,14 @@
     <!-- The always-on listening for "instruction" (WakeWordService.kt): off until the person turns it on. The CPU is held while it listens. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- « Mettre à jour l'application » (AppUpdater.kt): opens the system installer on the latest build; the person still taps « Installer ». -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Automatic backup is on, so that the wallet's history (the WebView's storage) follows its owner to a new phone; the secrets are
          left out (res/xml/data_extraction_rules.xml): the 12 words are typed once there. -->
     <application android:name=".AiwaApp" android:allowBackup="true" android:dataExtractionRules="@xml/data_extraction_rules" android:fullBackupContent="@xml/backup_rules" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:label="Aiwa Store" android:supportsRtl="true" android:theme="@style/Theme.Aiwa" android:networkSecurityConfig="@xml/network_security_config">
+        <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.updates" android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_paths" />
+        </provider>
         <!-- The Store: the app's front door (StoreActivity.kt hosts the web app). -->
         <activity android:name=".StoreActivity" android:exported="true" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize">
             <intent-filter>
