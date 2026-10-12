@@ -259,7 +259,7 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
                     if (partial.size == 1) { picked = partial[0].first; used = len; break }
                     if (partial.size > 1) state = "many"
                 }
-                if (picked == null && state != "many") {
+                if (picked == null) {
                     // Heard badly (« ai oie store » for aiwa_store): the closest name, if it is clearly the closest. The repository is read back and confirmed anyway.
                     var bestName: String? = null
                     var bestScore = 0.0
