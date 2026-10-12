@@ -99,7 +99,7 @@ Four bands, from the top: the title and status (the logo opens the app), the **r
 | Site / APK button | Pages and Android modes (the address of the site or of the APK); hidden in the campaign mode | `AiwaWidget.kt` |
 | Proposals button (envelope) | **in the campaign mode, instead of the site button**: the proposals, to be sent from the person's mail application | `ProposalsActivity.kt` |
 | ▦ and `</>` | Store and Aiwa modes: open the Store on the app Claude sent (to read, try, add) and on its code | `OpenStoreActivity.kt`, `StoreActivity.kt` |
-| Video button | the promotional videos of the creation; the **quality** (simple, medium, extra) is chosen where a video is asked for | `VideosActivity.kt` |
+| Video button (at the left of the mode chip) | the promotional videos of the creation; the **quality** (simple, medium, extra) is chosen where a video is asked for | `VideosActivity.kt` |
 | GitHub Actions button | the last run of the repository: the build (Android), the deployment (Pages, campaign), the check of the app (Store), the registry's check of the pull request (Aiwa) | `OpenActionsActivity.kt`, `aiwa_server.py` (`_ci_snapshot`) |
 | Create from a file | menu d'Aiwa: a text file becomes a video **or a campaign**; GitHub is an accessory (off by default) | `DocumentCreation.kt` |
 

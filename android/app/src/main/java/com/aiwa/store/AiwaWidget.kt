@@ -407,6 +407,17 @@ private fun FullContent(state: AiwaState) {
                     )
                     Spacer(GlanceModifier.width(GAP.dp))
                 }
+                // The promotional videos of the creation (VideosActivity): list them, or ask Claude for a new one. At the left of the mode chip.
+                if (hasRepo) {
+                    RoundButton(
+                        icon = R.drawable.ic_video,
+                        description = "Vidéos promotionnelles de la création",
+                        background = pill,
+                        action = actionStartActivity<VideosActivity>(),
+                        diameter = chipH.dp,
+                    )
+                    Spacer(GlanceModifier.width(GAP.dp))
+                }
                 Chip(deployText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else if (state.deploy != "none") green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
                 if (showProposals) {
                     Spacer(GlanceModifier.width(GAP.dp))
@@ -450,17 +461,6 @@ private fun FullContent(state: AiwaState) {
                         description = if (state.sentApp?.github != null) "Voir le code sur GitHub" else "Voir le code reçu de Claude",
                         background = if (storeReady) claudeOrange else pill,
                         action = codeAction,
-                        diameter = chipH.dp,
-                    )
-                }
-                // The promotional videos of the creation (VideosActivity): list them, or ask Claude for a new one.
-                if (hasRepo) {
-                    Spacer(GlanceModifier.width(GAP.dp))
-                    RoundButton(
-                        icon = R.drawable.ic_video,
-                        description = "Vidéos promotionnelles de la création",
-                        background = pill,
-                        action = actionStartActivity<VideosActivity>(),
                         diameter = chipH.dp,
                     )
                 }
