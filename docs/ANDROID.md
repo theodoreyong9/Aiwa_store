@@ -88,26 +88,33 @@ When it is not there, the widget says what is missing instead of "starting":
 While it is missing the app stops restarting it; once the line has been pasted and the backend answers, the widget goes back to normal
 by itself. (`BackendHealth.kt`, tested on a JVM; the widget and the activity are compiled in CI, never run on a phone.)
 
-### The Store and Aiwa modes
+### The widget: what each part is
 
-The widget's Deploy chip offers two modes, both ending with an app sent to the phone through a public relay (ntfy.sh):
+Four bands, from the top: the title and status (the logo opens the app), the **repository**, **model** and **push** chips, the **project type** chip with its round buttons, and the voice row. Everything it does is an instruction sent into the conversation with Claude Code; the widget itself builds, signs and publishes nothing.
 
-- `store`: ONE app for the Store, a self-contained `nom.app.html` (the constraints are in the instruction and in
-  [`store-app-example.html`](store-app-example.html)). Its code travels in the package on GitHub when it is published.
-- `aiwa`: the same kind of file, `nom.aiwa.html`, whose logic is an Aiwa **contract**: rules that anyone replays from the signed events they hold
-  ([`aiwa-app-example.html`](aiwa-app-example.html)). It imports the SDK as one module, `lib/aiwa.js`, served with the Store's site. The Store publishes it through Aiwa;
-  The registry on GitHub keeps two files for it: a package that is only a pointer (the number of the signed manifest) and the signed bundle that carries the files.
+| Part | What it is | Source |
+|---|---|---|
+| Voice button (before the mic) | the **menu d'Aiwa**: wake word, state of Aiwa (Claude, alerts, permissions), *update the brain* (Termux), *update the application*, the always-on listening, the voice commands | `Pickers.kt` (`VoiceHelpActivity`) |
+| Project type chip | what Claude must produce, from the next message: *none*, *Pages*, *Android*, *Store*, *Aiwa*, *Campaign* (see below) | `Pickers.kt` (`DeployPicker`), `aiwa_server.py` (`DEPLOY_MODES`, `_instruction_lines`) |
+| Site / APK button | Pages and Android modes (the address of the site or of the APK); hidden in the campaign mode | `AiwaWidget.kt` |
+| Proposals button (envelope) | **in the campaign mode, instead of the site button**: the proposals, to be sent from the person's mail application | `ProposalsActivity.kt` |
+| ▦ and `</>` | Store and Aiwa modes: open the Store on the app Claude sent (to read, try, add) and on its code | `OpenStoreActivity.kt`, `StoreActivity.kt` |
+| Video button | the promotional videos of the creation; the **quality** (simple, medium, extra) is chosen where a video is asked for | `VideosActivity.kt` |
+| GitHub Actions button | the last run of the repository: the build (Android), the deployment (Pages, campaign), the check of the app (Store), the registry's check of the pull request (Aiwa) | `OpenActionsActivity.kt`, `aiwa_server.py` (`_ci_snapshot`) |
+| Create from a file | menu d'Aiwa: a text file becomes a video **or a campaign**; GitHub is an accessory (off by default) | `DocumentCreation.kt` |
 
-Both put the same two buttons next to the Deploy chip: ▦ opens the Store on the publish sheet with the app in it (and the draft's code, to be read there
-before anything is signed), and `</>` opens the Store on the app's **published** code: the version the registry lists, checked again before it is shown (the
-author's signature, and for an Aiwa contract every file against the signed manifest). It is for finding the real code afterwards; before the app is published the
-Store says so and the draft is in the sheet. In the `aiwa` mode a third button, next to them, opens the registry's workflow (the check of the pull request the
-Store opened). Claude is also asked to put the file in the chosen repository, as `aiwa-apps/nom.app.html` (or `.aiwa.html`), with the Push instruction (its
-own branch, and the base branch when the integration is direct): a working copy besides the phone's.
-The globe of the Store's own repository opens the app, not a browser: the site is the page the app serves, and a browser would be a second copy of it with a
-wallet of its own. Only the `aiwa` mode
-adds the documents button next to the mic (the yellow paper, the plain-words explanation, the ontology of the sustainable residue and the 16-slide
-carousel as PDFs in `docs/`, the plan, the business model): a contract has to follow the protocol, a plain app does not.
+The repository chip is always there; **the whole project-type band (the chip and its buttons, the proposals button included) appears only once a repository is chosen**, even for the Store, Aiwa and campaign modes, which do not need one. That is a known gap, not a design: the campaign's GitHub box is off by default, so a campaign started without a repository leaves the band hidden.
+
+**The modes.** All of them end, except *none*, with something sent to the phone or built by GitHub:
+
+- `pages`: a site published by GitHub Pages. `android`: the APK built by GitHub Actions and published to the rolling release.
+- `store` (**without permission**): ONE app, a self-contained `nom.app.html` ([`store-app-example.html`](store-app-example.html)). Claude puts it in the person's **own public repository**, `aiwa-apps/nom.app.html`, with a small check workflow (`.github/workflows/aiwa-app-check.yml`). There is **no registry, no wallet, no signature, no ranking**: the Store's *Library* lists the GitHub accounts the person follows (`login` → its repository `aiwa-apps`, `login/repo` → the `aiwa-apps/` folder) and reads the code from GitHub as it is, so its author edits it freely (`apps/web/src/library.js`). ▦ adds the account to that list.
+- `aiwa`: the same kind of file, `nom.aiwa.html`, whose logic is an Aiwa **contract** ([`aiwa-app-example.html`](aiwa-app-example.html)): frozen, signed, pinned by hash, published through the registry (a package that is only a pointer to the signed manifest, and the signed bundle), **ranked by mining**. It is the only mode that uses the wallet. The GitHub Actions button follows the registry's check of the pull request.
+- `campaign`: from ONE file, the agent proposes the list of targets and waits for the answer, then prepares for each a mock-up site (a tree published by Pages, `aiwa-proposals/<target>/`), a video and a price, and writes `aiwa-proposals/proposals.json`; the person validates and sends each proposal from their own mail application. Nothing is sent by Aiwa and no reply is followed.
+
+The globe of the Store's own repository opens the app, not a browser: the site is the page the app serves, and a browser would be a second copy of it with a wallet of its own.
+
+**Two updates, two entries of the menu.** *The brain* is the backend in Termux (`bootstrap.sh`, a `git pull` and a restart). *The application* (`AppUpdater.kt`) reads the rolling release `android-latest`, compares its commit with the installed `0.1.<commit>`, downloads the APK and opens the system installer: the person still taps « Installer » (Android never installs silently), after allowing Aiwa to install applications once. The first APK with this entry must be installed by hand.
 
 While a message is on its way (creating a session takes a while) the widget says how long it has lasted and what it is doing (a step of the backend's, then the last line the CLI printed, such as the progress of an upload), and the settings (repository, model,
 Push, Deploy, the session name) and the mic are dimmed and say why when tapped; what only looks (the site, the app, the code, Actions, Claude)
@@ -151,9 +158,9 @@ reads it from `raw.githubusercontent.com` (a public repository only, every 2 min
 Termux (or the page it is downloaded from): nothing is run, the person pastes it and validates. No declaration, no line, and the button downloads the APK as before;
 a private repository never shows one. This repository declares its own (`aiwa-android.json`: the line of `bootstrap.sh`), so the button does it on `Aiwa_store` too.
 
-The ▦ button opens the Store's publish sheet with the app in it; the user reads it, tries it and presses **Publish**: the Store signs it
-with the wallet and opens the pull request on the user's GitHub account. Nothing is signed or published by the widget. What Claude pushes to
-the chosen repository is the app's source, for reading; publishing in the Store is the user's act, from the sheet.
+In the `aiwa` mode the ▦ button opens the Store's publish sheet with the app in it; the user reads it, tries it and presses **Publish**: the Store signs it
+with the wallet and opens the pull request on the user's GitHub account. Nothing is signed or published by the widget. In the `store` mode ▦ only adds the
+person's GitHub account to the Library: the app is already where it lives.
 
 ## Build
 
