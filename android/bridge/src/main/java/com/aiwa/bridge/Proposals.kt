@@ -77,4 +77,21 @@ object ProposalShare {
         val url = encode(p.demoUrl.ifBlank { "https://github.com" })
         return "https://t.me/share/url?url=$url&text=$text"
     }
+
+    /**
+     * X: the compose window of a POST on the person's own wall (x.com/intent/post), not a private message: the text is short (280 characters, a link counting for 23),
+     * with the mock-up and the video as links. The person reads it and presses « Post » there. Nothing is sent from here.
+     */
+    fun x(p: Proposal, price: String, test: Boolean): String {
+        val links = listOf(p.demoUrl, p.videoUrl).filter { it.isNotBlank() }
+        val tail = (if (price.isNotBlank()) " Prix : ${price.trim()}." else "")
+        val head = (if (test) "[TEST] " else "") + p.subject.ifBlank { "Proposition pour ${p.name}" }
+        val room = 280 - links.size * 24 - tail.length - 1
+        val cut = if (head.length <= room) head else head.take(maxOf(0, room - 1)).trimEnd() + "…"
+        val text = (cut + tail + (if (links.isEmpty()) "" else " " + links.joinToString(" "))).trim()
+        return "https://x.com/intent/post?text=" + encode(text)
+    }
+
+    /** The title and description that go with the video shared to YouTube or another application (the person pastes them there). */
+    fun videoDescription(p: Proposal, price: String): String = message(p, price, false).take(4800)
 }

@@ -81,6 +81,7 @@ private fun openMail(context: Context, p: Proposal, price: String, test: Boolean
 private fun openChat(context: Context, kind: String, p: Proposal, price: String, test: Boolean): Boolean {
     val intent = when (kind) {
         "whatsapp" -> ProposalShare.whatsapp(p, price, test)?.let { Intent(Intent.ACTION_VIEW, Uri.parse(it)) }
+        "x" -> Intent(Intent.ACTION_VIEW, Uri.parse(ProposalShare.x(p, price, test)))
         "sms" -> ProposalShare.smsAddress(p, test)?.let { Intent(Intent.ACTION_SENDTO, Uri.parse(it)).putExtra("sms_body", ProposalShare.message(p, price, test)) }
         else -> Intent(Intent.ACTION_VIEW, Uri.parse(ProposalShare.telegram(p, price, test)))
     } ?: return false
@@ -159,8 +160,8 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                     }
                                     // The other doors, each an application of the person's own phone (nothing is sent from here)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        listOf("whatsapp" to "WhatsApp", "sms" to "SMS", "telegram" to "Telegram").forEach { (kind, label) ->
-                                            val usable = kind == "telegram" || test || ProposalShare.digits(p.phone) != null
+                                        listOf("whatsapp" to "WhatsApp", "sms" to "SMS", "telegram" to "Telegram", "x" to "X").forEach { (kind, label) ->
+                                            val usable = kind == "telegram" || kind == "x" || test || ProposalShare.digits(p.phone) != null
                                             OutlinedButton(
                                                 enabled = usable,
                                                 onClick = {
@@ -171,6 +172,12 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                                 modifier = Modifier.weight(1f),
                                             ) { Text(label) }
                                         }
+                                    }
+                                    if (p.videoUrl.isNotBlank()) {
+                                        OutlinedButton(
+                                            onClick = { VideoSharing.share(context, p.videoUrl, p.name.ifBlank { p.id }, ProposalShare.videoDescription(p, prices[p.id] ?: "")) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) { Text("Partager la vidéo (YouTube, Instagram…)") }
                                     }
                                     if (done) Text("Mail ouvert dans ta messagerie (c'est toi qui l'envoies).", style = MaterialTheme.typography.bodySmall)
                                 }

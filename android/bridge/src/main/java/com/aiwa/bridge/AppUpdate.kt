@@ -14,3 +14,7 @@ fun isUpToDate(versionName: String?, releaseSha: String): Boolean {
 
 /** An APK starts like any zip file, with "PK" and is far bigger than an error page. */
 fun looksLikeApk(firstBytes: ByteArray, size: Long): Boolean = size > 1_000_000 && firstBytes.size >= 2 && firstBytes[0] == 'P'.code.toByte() && firstBytes[1] == 'K'.code.toByte()
+
+/** An mp4 or a mov starts with a box whose type, "ftyp", sits at bytes 4 to 8; a web page or an error is not that. */
+fun looksLikeVideo(firstBytes: ByteArray, size: Long): Boolean =
+    size > 10_000 && firstBytes.size >= 8 && String(firstBytes, 4, 4, Charsets.ISO_8859_1) == "ftyp"

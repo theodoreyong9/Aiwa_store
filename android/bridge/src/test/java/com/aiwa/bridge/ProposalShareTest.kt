@@ -34,4 +34,21 @@ class ProposalShareTest {
     @Test fun telegramOpensItsShareWindow() {
         assertTrue(ProposalShare.telegram(p, "", test = false).startsWith("https://t.me/share/url?url=https%3A%2F%2Fo.github.io"))
     }
+
+    @Test fun xOpensAPostOnTheWallWithTheLinks() {
+        val url = ProposalShare.x(p, "850 CHF", test = false)
+        assertTrue(url, url.startsWith("https://x.com/intent/post?text=Une%20maquette"))
+        assertTrue(url, url.contains(java.net.URLEncoder.encode("https://o.github.io/r/aiwa-proposals/cafe/", "UTF-8")))
+        assertTrue(url, url.contains(java.net.URLEncoder.encode("https://x.test/v.mp4", "UTF-8")))
+    }
+
+    @Test fun anXPostIsCutToItsLengthAndAlwaysKeepsItsLinks() {
+        val long = p.copy(subject = "mot ".repeat(200))
+        val url = ProposalShare.x(long, "", test = false)
+        val text = java.net.URLDecoder.decode(url.substringAfter("text="), "UTF-8")
+        val counted = text.replace(Regex("https://\\S+"), "x".repeat(23)).length
+        assertTrue("$counted characters", counted <= 280)
+        assertTrue(text.endsWith("https://x.test/v.mp4"))
+        assertTrue(text.contains("…"))
+    }
 }

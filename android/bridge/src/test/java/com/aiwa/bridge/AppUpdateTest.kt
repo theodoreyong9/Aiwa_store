@@ -26,4 +26,12 @@ class AppUpdateTest {
         assertFalse(looksLikeApk("<h".toByteArray(), 40_000_000))
         assertFalse(looksLikeApk(byteArrayOf('P'.code.toByte(), 'K'.code.toByte()), 500))
     }
+
+    @Test
+    fun onlyAVideoIsShared() {
+        val mp4 = byteArrayOf(0, 0, 0, 24, 'f'.code.toByte(), 't'.code.toByte(), 'y'.code.toByte(), 'p'.code.toByte(), 0, 0, 0, 0)
+        assertTrue(looksLikeVideo(mp4, 5_000_000))
+        assertFalse(looksLikeVideo("<!doctype html>".toByteArray(), 5_000_000))
+        assertFalse(looksLikeVideo(mp4, 100))
+    }
 }
