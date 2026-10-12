@@ -307,3 +307,9 @@ details.plain > * + * { margin-top: 8px; }
 
 .plainlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .plainlist a { font-weight: 600; }
+
+.library { margin-top: 16px; }
+.library summary { cursor: pointer; font-weight: 600; }
+.library .chip { display: inline-flex; align-items: center; gap: 6px; margin: 4px 6px 0 0; padding: 4px 10px; border-radius: 999px; border: 1px solid currentColor; opacity: .85; }
+.library .chip button { all: unset; cursor: pointer; }
+#library-list > * + * { margin-top: 8px; }

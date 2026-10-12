@@ -1469,7 +1469,7 @@ flowchart LR
 | Kind | The package carries | What the author signs | Who verifies the code, and how |
 |---|---|---|---|
 | **`code`** | the app's one HTML file (≤ 512 KB; it loads what it needs from the network itself) | the hash of `[id, name, version, description, kind, html]` | anyone, by recomputing that hash |
-| *(link)* | not a package: a submission `{ kind:'link', id, name, description, repo, path, ref }`, no wallet and no signature; the code stays in the author's own repository, the registry lists where it is (library, not ranked), the pull request must come from the account that owns the repository | — | nothing is frozen; immutability and ranking are the `aiwa` kind |
+| *(library)* | not an app of the registry: the Store lists the `name.app.html` files of the GitHub accounts the user follows, and reads them from GitHub as they are; no wallet, no signature, no ranking | — | nothing is frozen; immutability and ranking are the `aiwa` kind |
 | **`aiwa`** | no code: a **pointer**, the id of a signed `bundle.manifest` | the hash of `[id, name, version, description, kind, manifestId]` | the registry and the Store, each on its own: the bundle's events pass an event log (id, signature, parents), then are checked against the pin |
 
 For an `aiwa` entry, the check against the pin is: the manifest is signed by the author's domain, names exactly this app and

@@ -435,7 +435,7 @@ An app is **one HTML file** (or a small set of files) that its author *signed*. 
 |---|---|---|
 | **`code`** | the file itself, in the submission | anyone, by recomputing its fingerprint |
 | **`aiwa`** | two files: the **package**, whose content is only a **pointer** (the number of a signed manifest published through Aiwa, which pins every file by its fingerprint), and the **bundle**, the signed events that carry the files themselves | the registry and the Store, each on its own, so whoever served the files, they are exactly what the author published |
-| **`link`** (Store without permission, **not a package**) | a plain submission `{ kind: 'link', id, name, description, repo, path, ref }` with **no wallet, no signature, no mining**. The code stays in the author's own public GitHub repository; the registry lists where it is, in the Store's **library** (not ranked: the ranking is the mining of a wallet, which only the Aiwa mode uses), filtered by GitHub account. Nothing is frozen: the author edits the file whenever they like. The only permission is GitHub's: the pull request must come from the account that owns the repository | the registry's workflow checks the owner; the Store reads the code live; if the repository is deleted or private the app no longer opens |
+| *(library, not a package)* | **no registry, no wallet, no signature, no ranking.** The user lists GitHub accounts in the Store; it reads what they publish (`login` → the repository `login/aiwa-apps`; `login/repo` → the folder `aiwa-apps/` of a repository: the `name.app.html` files) and opens the code straight from GitHub. The author edits it whenever they like; nothing is frozen (the frozen, ranked mode is `aiwa`) | — |
 
 ### 6.2 Publishing
 

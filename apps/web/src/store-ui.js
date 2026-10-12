@@ -1,19 +1,19 @@
-import { loadIndex, loadApp, loadLink, filterApps, filterLinks, shortAddress, figureOf } from './store.js';
+import { loadIndex, loadApp, filterApps, shortAddress, figureOf } from './store.js';
 import { openCache } from './kv.js';
 import { config } from './config.js';
 import { $, switchView } from './ui.js';
 import { setCatalog } from './session.js';
 import { openViewer } from './viewer.js';
+import { parseAccount, accountKey, loadLibrary, filterLibrary, loadLink, savedAccounts, saveAccounts, localStore } from './library.js';
 
 const cache = openCache('aiwa-store-cache');
 let apps = [];
-let links = [];
 
 function render() {
   const shown = filterApps(apps, $('store-search').value);
   const list = $('store-list');
   list.replaceChildren();
-  $('store-empty').hidden = apps.length > 0 || links.length > 0;
+  $('store-empty').hidden = apps.length > 0;
   for (const app of shown.slice(0, 200)) {
     const row = document.createElement('div');
     row.className = 'app';
@@ -57,84 +57,6 @@ function render() {
 
     row.append(rank, body, open, code);
     list.append(row);
-  }
-  renderLibrary(list);
-}
-
-// The library: apps that live in their authors' own GitHub, listed without a wallet. Not ranked (the ranking is mining), filtered by account.
-function renderLibrary(list) {
-  const shown = filterLinks(links, $('store-search').value);
-  if (shown.length === 0) return;
-  const head = document.createElement('div');
-  head.className = 'hint';
-  head.textContent = 'Library: apps that stay in their author\'s own GitHub. Not ranked; the author can change them at any time.';
-  list.append(head);
-  for (const entry of shown.slice(0, 200)) {
-    const row = document.createElement('div');
-    row.className = 'app';
-    row.dataset.id = entry.id;
-    const body = document.createElement('div');
-    body.className = 'body';
-    const title = document.createElement('div');
-    title.className = 'title';
-    title.textContent = entry.name;
-    const desc = document.createElement('div');
-    desc.className = 'desc';
-    desc.textContent = entry.description;
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    meta.textContent = `github.com/${entry.repo} · link`;
-    meta.style.cursor = 'pointer';
-    meta.title = `Show only the apps of ${entry.owner}`;
-    meta.addEventListener('click', () => { $('store-search').value = entry.owner; render(); });
-    body.append(title, desc, meta);
-    const open = document.createElement('button');
-    open.type = 'button';
-    open.className = 'primary';
-    open.textContent = 'Open';
-    open.addEventListener('click', () => openLink(entry, open));
-    const code = document.createElement('button');
-    code.type = 'button';
-    code.className = 'icon';
-    code.textContent = '</>';
-    code.title = 'Read the code in its repository';
-    code.setAttribute('aria-label', `Read the code of ${entry.name}`);
-    code.addEventListener('click', () => showLinkCode(entry, code));
-    row.append(body, open, code);
-    list.append(row);
-  }
-}
-
-async function openLink(entry, button) {
-  const was = button.textContent;
-  button.disabled = true;
-  button.textContent = '…';
-  try {
-    const { html } = await loadLink({ entry });
-    openViewer({ name: entry.name, meta: `github.com/${entry.repo}`, html });
-  } catch (err) {
-    $('store-status').textContent = String(err.message ?? err);
-  } finally {
-    button.disabled = false;
-    button.textContent = was;
-  }
-}
-
-async function showLinkCode(entry, button) {
-  const was = button.textContent;
-  button.disabled = true;
-  button.textContent = '…';
-  try {
-    const { files } = await loadLink({ entry });
-    $('code-title').textContent = entry.name;
-    $('code-meta').textContent = `In github.com/${entry.repo} · its author can change this code at any time (the frozen mode is the Aiwa contract).`;
-    $('code-proof').textContent = 'Read live from the repository. Nothing is signed or pinned here: it is whatever the author has there now.';
-    fillCode(Object.entries(files));
-  } catch (err) {
-    $('store-status').textContent = String(err.message ?? err);
-  } finally {
-    button.disabled = false;
-    button.textContent = was;
   }
 }
 
@@ -209,12 +131,10 @@ export async function refreshStore() {
   try {
     const result = await loadIndex({ baseUrl: config.registryUrl, cache });
     apps = result.apps;
-    links = result.links ?? [];
     setCatalog(apps);
     $('store-status').textContent = result.source === 'cache' ? `Offline: the last list seen (${result.error}).` : '';
   } catch (err) {
     apps = [];
-    links = [];
     setCatalog(apps);
     $('store-status').textContent = `The registry could not be read: ${err.message}`;
   }
@@ -235,4 +155,110 @@ export function initStore() {
   // Already open when the Android app asks for a code: only the fragment changes.
   window.addEventListener('hashchange', () => handoffCode());
   return refreshStore().then(handoffCode);
+}
+
+// ---------- the library: the GitHub accounts the user follows ----------
+
+let accounts = savedAccounts();
+let libraryApps = [];
+
+function renderAccounts() {
+  const box = $('library-accounts');
+  box.replaceChildren();
+  for (const account of accounts) {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.append(accountKey(account));
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '✕';
+    x.setAttribute('aria-label', `Stop following ${accountKey(account)}`);
+    x.addEventListener('click', () => { accounts = accounts.filter((a) => accountKey(a) !== accountKey(account)); saveAccounts(accounts); refreshLibrary(); });
+    chip.append(x);
+    box.append(chip);
+  }
+}
+
+function renderLibrary() {
+  const list = $('library-list');
+  list.replaceChildren();
+  for (const entry of filterLibrary(libraryApps, $('store-search').value)) {
+    const row = document.createElement('div');
+    row.className = 'app';
+    row.dataset.id = entry.id;
+    const body = document.createElement('div');
+    body.className = 'body';
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = entry.name;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = `github.com/${entry.repo} · can change at any time`;
+    body.append(title, meta);
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'primary';
+    open.textContent = 'Open';
+    open.addEventListener('click', () => openLink(entry, open, false));
+    const code = document.createElement('button');
+    code.type = 'button';
+    code.className = 'icon';
+    code.textContent = '</>';
+    code.title = 'Read the code in its repository';
+    code.setAttribute('aria-label', `Read the code of ${entry.name}`);
+    code.addEventListener('click', () => openLink(entry, code, true));
+    row.append(body, open, code);
+    list.append(row);
+  }
+}
+
+async function openLink(entry, button, readOnly) {
+  const was = button.textContent;
+  button.disabled = true;
+  button.textContent = '…';
+  try {
+    const { html, files } = await loadLink({ entry });
+    if (readOnly) {
+      $('code-title').textContent = entry.name;
+      $('code-meta').textContent = `In github.com/${entry.repo} · its author can change this code at any time (the frozen mode is the Aiwa contract).`;
+      $('code-proof').textContent = 'Read live from GitHub. Nothing is signed or pinned here: it is whatever the author has there now.';
+      fillCode(Object.entries(files));
+    } else {
+      openViewer({ name: entry.name, meta: `github.com/${entry.repo}`, html });
+    }
+  } catch (err) {
+    $('store-status').textContent = String(err.message ?? err);
+  } finally {
+    button.disabled = false;
+    button.textContent = was;
+  }
+}
+
+export async function refreshLibrary() {
+  renderAccounts();
+  $('library-status').textContent = accounts.length ? 'Loading…' : 'No account followed yet.';
+  const { apps, problems } = await loadLibrary(accounts, { store: localStore });
+  libraryApps = apps;
+  $('library-status').textContent = problems.join(' · ') || (accounts.length && apps.length === 0 ? 'No app found in these accounts.' : '');
+  renderLibrary();
+}
+
+/** Follows an account (`login` or `login/repo`); false when the text is not one. */
+export function followAccount(text) {
+  const account = parseAccount(text);
+  if (!account) return false;
+  if (!accounts.some((a) => accountKey(a) === accountKey(account))) { accounts = [...accounts, account]; saveAccounts(accounts); }
+  refreshLibrary();
+  return true;
+}
+
+export function initLibrary() {
+  const add = () => {
+    if (followAccount($('library-add').value)) $('library-add').value = '';
+    else $('library-status').textContent = 'A GitHub login, or login/repo.';
+  };
+  $('library-add-go').addEventListener('click', add);
+  $('library-add').addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+  $('store-search').addEventListener('input', renderLibrary);
+  return refreshLibrary();
 }

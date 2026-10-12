@@ -3,7 +3,7 @@
 // over an app (the ▦ button), or from the author's own list of apps to refresh a ranking. There is no publish form.
 //
 // The hand-off is the address #publish=<kind>;<name>;<code>: <code> is the app's one HTML file, raw-deflated then
-// base64url-encoded, and <kind> says how it is published: `code` (the code travels in the package on GitHub), `link` (the code stays in the author's repository; the Store lists where it is, no wallet) or `aiwa` (it is
+// base64url-encoded, and <kind> says how it is published: `code` (the code travels in the package on GitHub), `link` (the app stays in its author's GitHub: the Store follows the account, no wallet, nothing published) or `aiwa` (it is
 // published through Aiwa, and GitHub holds a pointer). A URL fragment never leaves the browser. Nothing is signed or sent
 // until the author presses Publish.
 
@@ -11,11 +11,12 @@ import { filesProblem, BUNDLE_LIMITS } from 'aiwa-registry/bundle';
 import { config } from './config.js';
 import { session, onSession, connected, catalog } from './session.js';
 import { $, flash, switchView } from './ui.js';
+import { followAccount } from './store-ui.js';
 import { openViewer } from './viewer.js';
 import { assembleHtml } from './assemble.js';
 import { hostAvailable, hostPost } from './host.js';
 import { ensureToken, forgetToken } from './github.js';
-import { slug, nextVersion, evidenceFor, buildSubmission, buildLinkSubmission, buildRefresh, sendSubmission, submissionFileName } from './publish.js';
+import { slug, nextVersion, evidenceFor, buildSubmission, buildRefresh, sendSubmission, submissionFileName } from './publish.js';
 
 const MAX_CHARS = 1_000_000;
 
@@ -37,7 +38,7 @@ async function unpack(b64url) {
 const describe = (html) => /<meta\s+name=["']description["']\s+content=["']([^"']{0,280})["']/i.exec(html)?.[1] ?? '';
 
 /** An app from what the hand-off carries, or throws why it cannot be one. */
-function appFrom(kind, name, text, pointer = null) {
+function appFrom(kind, name, text) {
   const id = slug(name);
   if (!id) throw new Error('the name has no letter or digit');
   if (kind === 'aiwa') {
@@ -46,7 +47,6 @@ function appFrom(kind, name, text, pointer = null) {
     if (problem) throw new Error(problem);
     return { kind, id, name, files, description: describe(text) };
   }
-  if (kind === 'link') return { kind, id, name, html: text, ...pointer, description: describe(text) };
   return { kind: 'code', id, name, html: text, description: describe(text) };
 }
 
@@ -76,8 +76,6 @@ function close() {
 // mining while the sheet is open, so it is looked at again.
 async function ready() {
   if (busy) return;
-  // A link needs no wallet: it stays in the author's GitHub and nothing is signed.
-  if (job?.mode === 'publish' && job.app.kind === 'link') { warn(''); if ($('sheet-status').textContent === STARTING) say(''); $('sheet-go').disabled = false; return; }
   if (!connected()) {
     $('sheet-go').disabled = true;
     // Still starting: wait. Started and no wallet: say so, with the way out. An app is signed with a wallet and ranked by what it has mined.
@@ -124,9 +122,7 @@ function openPublish(app) {
   $('sheet-source').hidden = false;
   openSheet({
     title: 'Publish this app',
-    summary: app.kind === 'link'
-      ? `One HTML file (${kb} KB) that stays in your GitHub, ${app.repo}/${app.path}: edit it whenever you like. The Store only lists where it is, in its library: no wallet, no signature, no ranking. It is added by a pull request from your GitHub account (the account that owns the repository). Anyone can open it from the Store, in a sandbox.`
-      : `${app.kind === 'aiwa' ? 'One HTML file, published through Aiwa' : 'One HTML file'} (${kb} KB). It is signed with your wallet and sent to the Store's registry as a pull request on your GitHub account. `
+    summary: `${app.kind === 'aiwa' ? 'One HTML file, published through Aiwa' : 'One HTML file'} (${kb} KB). It is signed with your wallet and sent to the Store's registry as a pull request on your GitHub account. `
       + 'Anyone can open it from the Store, in a sandbox; it is ranked by what you have mined.',
     fields: true, go: 'Publish',
   });
@@ -187,13 +183,10 @@ async function go() {
   busy = true;
   try {
     const aiwa = session.aiwa;
-    const isLink = job.mode === 'publish' && job.app.kind === 'link';
-    if (!isLink) say('Signing with your wallet…');
-    const evidence = isLink ? null : await evidenceFor(aiwa, { registryUrl: config.registryUrl });
+    say('Signing with your wallet…');
+    const evidence = await evidenceFor(aiwa, { registryUrl: config.registryUrl });
     let submission;
-    if (isLink) {
-      submission = buildLinkSubmission({ ...job.app, id: $('app-id').value.trim(), name: $('app-name').value.trim(), description: $('app-description').value.trim() });
-    } else if (job.mode === 'refresh') {
+    if (job.mode === 'refresh') {
       submission = await buildRefresh(aiwa, job.entry.id, evidence);
     } else {
       const app = { ...job.app, id: $('app-id').value.trim(), name: $('app-name').value.trim(), version: $('app-version').value.trim() || '1.0.0', description: $('app-description').value.trim() };
@@ -248,8 +241,16 @@ async function handoff() {
   try { history.replaceState(null, '', location.pathname + location.search); } catch { /* cosmetic */ }
   switchView('store');
   try {
-    if (match[1] === 'link' && !match[4]) throw new Error('the link has no repository');
-    openPublish(appFrom(match[1], match[2], await unpack(match[3]), match[4] ? { repo: match[4], path: match[5], ref: match[6] } : null));
+    if (match[1] === 'link') {
+      // The app is already in its author's GitHub: nothing to publish, no wallet. The Store follows that account and lists the app in its library.
+      if (!match[4]) throw new Error('the link has no repository');
+      const [owner, repo] = match[4].split('/');
+      $('library').open = true;
+      if (!followAccount(repo === 'aiwa-apps' ? owner : match[4])) throw new Error('the repository is not a GitHub one');
+      $('store-status').textContent = `"${match[2]}" is in your GitHub (${match[4]}): the Store now follows that account and lists it in its library.`;
+      return;
+    }
+    openPublish(appFrom(match[1], match[2], await unpack(match[3])));
   } catch (err) {
     $('store-status').textContent = `An app was received, but not opened: ${err.message}.`;
   }

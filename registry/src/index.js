@@ -5,4 +5,3 @@ export { POLICY, emptyStore, baselineEpochOf, validateSubmission, applyAccepted 
 export { readStore, writeStore } from './store-files.js';
 export { loadDeployment, rewardParamsOf } from './deployment.js';
 export { processSubmissionFile } from './process.js';
-export { LINK_LIMITS, linkProblem } from './link.js';

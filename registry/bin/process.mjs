@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Processes one submission to the store: validates it and, if it is accepted, writes the registry's files.
 //
-//   node registry/bin/process.mjs --submission <file.json> [--store store] [--deployment deployment.json] [--rpc <url>] [--submitter <github login>]
+//   node registry/bin/process.mjs --submission <file.json> [--store store] [--deployment deployment.json] [--rpc <url>]
 //
 // The submission is DATA: it is read, checked and (for a publication) copied into store/apps/ — never executed. The
 // GitHub Action (.github/workflows/registry.yml) runs this from the main branch on the file a pull request adds under
@@ -21,7 +21,7 @@ async function main() {
   const deployment = loadDeployment(resolve(args.deployment ?? `${root}/deployment.json`));
   const { Connection } = await import('@solana/web3.js');
   const connection = new Connection(args.rpc ?? process.env.SOLANA_RPC ?? deployment.rpc, 'confirmed');
-  const { code, message } = await processSubmissionFile({ file: resolve(args.submission), storeDir: resolve(args.store ?? `${root}/store`), deployment, connection, submitter: args.submitter ?? null });
+  const { code, message } = await processSubmissionFile({ file: resolve(args.submission), storeDir: resolve(args.store ?? `${root}/store`), deployment, connection });
   (code === 0 ? console.log : console.error)(message);
   return code;
 }

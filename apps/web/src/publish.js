@@ -43,24 +43,19 @@ export async function buildSubmission(aiwa, app, evidence) {
   return { format: SUBMISSION_FORMAT, kind: 'publish', package: pkg, evidence };
 }
 
-/** The submission for a link: the app stays in the author's own repository, nothing is signed (no wallet). */
-export const buildLinkSubmission = ({ id, name, description, repo, path, ref }) => ({ format: SUBMISSION_FORMAT, kind: 'link', id, name, description, repo, path, ref });
-
 export async function buildRefresh(aiwa, id, evidence) {
   return { format: SUBMISSION_FORMAT, kind: 'refresh', appId: id, authorization: await buildRefreshAuthorization(aiwa.identity, { id }), evidence };
 }
 
 /** The file name a submission gets in the pull request: one file, as the registry's workflow requires. */
-export const submissionFileName = (submission) => (submission.kind === 'link'
-  ? `link-${submission.id}-${Date.now()}.json`
-  : submission.kind === 'refresh'
+export const submissionFileName = (submission) => (submission.kind === 'refresh'
   ? `${submission.appId}-refresh-${Date.now()}.json`
   : `${submission.package.id}-${submission.package.version}.json`);
 
 /** Sends a submission to the registry's repository as a pull request. @returns {Promise<{ url: string }>} */
 export function sendSubmission({ token, repository, submission, fetchFn, onStep }) {
   const name = submissionFileName(submission);
-  const what = submission.kind === 'link' ? `Add ${submission.id} (${submission.repo})` : submission.kind === 'refresh' ? `Refresh ${submission.appId}` : `Publish ${submission.package.id} ${submission.package.version}`;
+  const what = submission.kind === 'refresh' ? `Refresh ${submission.appId}` : `Publish ${submission.package.id} ${submission.package.version}`;
   return openPullRequest({
     token, upstream: repository, path: `submissions/${name}`, text: JSON.stringify(submission), fetchFn, onStep,
     title: what, body: `${what}, sent from the Aiwa Store. The registry's workflow checks it and answers here.`,

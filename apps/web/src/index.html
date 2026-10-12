@@ -32,6 +32,14 @@
   </div>
   <p class="muted" id="store-status"></p>
   <div id="store-list"></div>
+  <details id="library" class="library">
+    <summary>Library: apps from GitHub accounts</summary>
+    <p class="muted">Apps that stay in their authors' own GitHub: no registry, no wallet, no ranking, and their authors can change them at any time. Add the accounts you follow (<code>login</code> for its aiwa-apps repository, or <code>login/repo</code> for the aiwa-apps folder of a repository).</p>
+    <div class="line"><input id="library-add" type="text" placeholder="login or login/repo" autocomplete="off" aria-label="GitHub account to follow"><button id="library-add-go" class="icon" aria-label="Follow this account">＋</button></div>
+    <div id="library-accounts"></div>
+    <p class="muted" id="library-status"></p>
+    <div id="library-list"></div>
+  </details>
   <p class="hint" id="store-empty" hidden>No app here yet. Press ＋ to publish one (paste its HTML file), or dictate one with the widget and use its Store button.</p>
   <p class="hint">Apps run in a sandbox: they cannot see your wallet unless they say they use it, and then a banner tells you. They are not reviewed; the list is ordered by what their authors have mined (<code>score / laps</code>).</p>
 </main>

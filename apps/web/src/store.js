@@ -21,37 +21,13 @@ export async function loadIndex({ baseUrl, fetchFn = fetch, cache = null }) {
     const index = await response.json();
     if (!index || index.format !== 'aiwa-store-index/1' || !Array.isArray(index.apps)) throw new Error('The registry\'s index is not in a format this store reads');
     const apps = rankApps(index.apps.filter(isEntry));
-    const links = (Array.isArray(index.links) ? index.links : []).filter(isLink);
-    await cache?.set('index', { ...index, apps, links }).catch?.(() => {});
-    return { apps, links, source: 'network' };
+    await cache?.set('index', { ...index, apps }).catch?.(() => {});
+    return { apps, source: 'network' };
   } catch (error) {
     const cached = await cache?.get('index').catch(() => null);
-    if (cached) return { apps: rankApps(cached.apps), links: cached.links ?? [], source: 'cache', error: error.message };
+    if (cached) return { apps: rankApps(cached.apps), source: 'cache', error: error.message };
     throw error;
   }
-}
-
-/** An entry of the library: an app that lives in its author's own repository (no signature, no ranking). */
-const isLink = (e) => e && e.kind === 'link' && ['id', 'name', 'description', 'owner', 'repo', 'file', 'ref'].every((k) => typeof e[k] === 'string');
-
-/** Library entries whose id, name, description or repository (hence GitHub account) contains every word of `query`. */
-export function filterLinks(links, query) {
-  const words = String(query ?? '').toLowerCase().split(/\s+/).filter(Boolean);
-  return links.filter((l) => words.every((w) => `${l.id} ${l.name} ${l.description} ${l.repo}`.toLowerCase().includes(w)));
-}
-
-const LINK_MAX_CHARS = 512 * 1024;
-
-/**
- * The code of a library app, read from its author's repository as it is NOW: nothing signed, nothing pinned, the author edits it as they like.
- * @returns {Promise<{ html: string, files: Record<string, string> }>}
- */
-export async function loadLink({ entry, fetchFn = fetch }) {
-  const response = await fetchFn(`https://raw.githubusercontent.com/${entry.repo}/${entry.ref}/${entry.file}`, { cache: 'no-store' }).catch(() => null);
-  if (!response?.ok) throw new Error(`Not opened: the repository ${entry.repo} does not serve ${entry.file} (it may be private, moved or deleted)`);
-  const html = await response.text();
-  if (html.length > LINK_MAX_CHARS) throw new Error('Not opened: the app file is larger than 512 KB');
-  return { html, files: { [entry.file]: html } };
 }
 
 const isEntry = (e) => e

@@ -343,29 +343,3 @@ test('the files of an app: an index, safe names, a size', async () => {
   assert.match(filesProblem([]), /no files/);
   assert.match(filesProblem([{ path: 'index.html', content: '  \n' }]), /index\.html is empty/);
 });
-
-const linkSubmission = (extra = {}) => ({ format: 'aiwa-submission/1', kind: 'link', id: 'tally', name: 'Tally', description: 'counts', repo: 'alice/tally', path: 'aiwa-apps/tally.app.html', ref: 'main', ...extra });
-const runLink = (submission, store = emptyStore(), submitter = null) => validateSubmission({ submission, store, deployment, connection: null, now: 1_000, submitter });
-
-test('a link needs no wallet, no signature and no mining: it is listed, not ranked', async () => {
-  const result = await runLink(linkSubmission(), emptyStore(), 'Alice');
-  assert.equal(result.ok, true, result.reason);
-  const store = applyAccepted(emptyStore(), result.accepted);
-  assert.deepEqual(store.index.links.map((l) => [l.id, l.owner, l.repo, l.file, l.ref]), [['tally', 'alice', 'alice/tally', 'aiwa-apps/tally.app.html', 'main']]);
-  assert.equal(store.index.apps.length, 0, 'a link is not an app of the ranking');
-});
-
-test('a link is added by the account that owns the repository, and only that one can change it', async () => {
-  assert.match((await runLink(linkSubmission(), emptyStore(), 'mallory')).reason, /not from alice/);
-  const first = applyAccepted(emptyStore(), (await runLink(linkSubmission(), emptyStore(), 'alice')).accepted);
-  assert.match((await runLink(linkSubmission({ repo: 'mallory/tally' }), first, 'mallory')).reason, /belongs to another account/);
-  const moved = await runLink(linkSubmission({ path: 'new.html' }), first, 'alice');
-  assert.equal(moved.ok, true);
-  assert.equal(applyAccepted(first, moved.accepted).index.links[0].file, 'new.html');
-});
-
-test('a link points at one .html file of a repository, nothing else', async () => {
-  for (const bad of [{ repo: 'no-slash' }, { path: '../x.html' }, { path: 'a.js' }, { ref: 'a..b' }, { id: 'Bad Id' }, { name: '' }]) {
-    assert.equal((await runLink(linkSubmission(bad))).ok, false, JSON.stringify(bad));
-  }
-});

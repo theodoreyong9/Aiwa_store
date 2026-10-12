@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateIdentity } from 'aiwa-core';
 import { buildAppPackage, buildBundle } from 'aiwa-registry';
-import { loadIndex, loadApp, loadLink, filterLinks, filterApps, rankApps } from '../src/store.js';
+import { loadIndex, loadApp, filterApps, rankApps } from '../src/store.js';
 
 const html = (t) => `<!doctype html><title>${t}</title><h1>${t}</h1>`;
 const entryOf = (pkg, extra = {}) => ({
@@ -125,19 +125,4 @@ test('the index lists apps of both kinds, and drops an aiwa entry that has no po
   const index = { format: 'aiwa-store-index/1', apps: [entry, entryOf(code), { ...entry, id: 'x', manifestId: undefined }, { ...entryOf(code), kind: undefined, id: 'y' }] };
   const { apps } = await loadIndex({ baseUrl: 'x', fetchFn: async () => json(index) });
   assert.deepEqual(apps.map((e) => e.id).sort(), ['a', 'tally']);
-});
-
-const LINK = { id: 'mine', name: 'Mine', description: 'a tool', kind: 'link', owner: 'alice', repo: 'alice/mine', file: 'aiwa-apps/mine.app.html', ref: 'main' };
-
-test('the library lists apps that live in their authors\' GitHub: not ranked, filtered by account, read as they are now', async () => {
-  const { links, apps } = await loadIndex({ baseUrl: 'x', fetchFn: async () => json({ format: 'aiwa-store-index/1', apps: [], links: [LINK, { id: 'broken' }] }) });
-  assert.deepEqual([apps.length, links.map((l) => l.id)], [0, ['mine']]);
-  assert.deepEqual(filterLinks([LINK, { ...LINK, id: 'other', repo: 'bob/other', owner: 'bob' }], 'alice').map((l) => l.id), ['mine'], 'by GitHub account');
-
-  const asked = [];
-  const serve = (code) => async (url) => { asked.push(url); return { ok: true, text: async () => code }; };
-  assert.equal((await loadLink({ entry: LINK, fetchFn: serve(html('v1')) })).html, html('v1'));
-  assert.equal((await loadLink({ entry: LINK, fetchFn: serve(html('v2, edited')) })).html, html('v2, edited'), 'the author changes it without asking anyone');
-  assert.equal(asked[0], 'https://raw.githubusercontent.com/alice/mine/main/aiwa-apps/mine.app.html');
-  await assert.rejects(loadLink({ entry: LINK, fetchFn: async () => ({ ok: false, status: 404 }) }), /does not serve/);
 });
