@@ -238,7 +238,7 @@ private fun FullContent(state: AiwaState) {
 
     // The bands share the height equally; the buttons in them grow with the band
     // up to a comfortable size, so a taller widget gets roomier, not emptier.
-    val bands = if (hasRepo) 4 else 3
+    val bands = 4     // the project type is chosen before any repository: the Store, Aiwa and campaign modes need none
     val band = (size.height.value - 16f) / bands
     val chipH = (band - 6f).coerceIn(30f, 44f)
     val micH = (band - 4f).coerceIn(34f, 48f)
@@ -346,8 +346,8 @@ private fun FullContent(state: AiwaState) {
     // asked for, or as soon as the address answers.
     val campaignMode = state.deploy == "campaign"
     val showSite = hasRepo && site != null && (state.deploy != "none" || live) && !campaignMode
-    val showProposals = hasRepo && campaignMode      // in the campaign mode the site button gives way to « Propositions et gestion »
-    val showStore = hasRepo && storeMode
+    val showProposals = campaignMode      // in the campaign mode the site button gives way to « Propositions et gestion »
+    val showStore = storeMode
     // In the Store mode the repository carries a small workflow that checks the app (aiwa-apps/*.app.html); the round "GitHub Actions" button
     // follows it, as it follows the build in the Android mode, next to the button that shows the code Claude sent.
     val showCode = showStore
@@ -394,9 +394,9 @@ private fun FullContent(state: AiwaState) {
         // The buttons of this band appear once a repository is chosen. They are
         // instructions integrated into the conversation — Claude Code does the
         // work itself.
-        if (hasRepo) {
+        run {
             Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-                if (state.ciHintTitle != null) {
+                if (hasRepo && state.ciHintTitle != null) {
                     // A setting of GitHub to change by hand: its own button (the guide), instead of changing what the other buttons do.
                     RoundButton(
                         icon = R.drawable.ic_warning,
@@ -454,14 +454,16 @@ private fun FullContent(state: AiwaState) {
                     )
                 }
                 // The promotional videos of the creation (VideosActivity): list them, or ask Claude for a new one.
-                Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(
-                    icon = R.drawable.ic_video,
-                    description = "Vidéos promotionnelles de la création",
-                    background = pill,
-                    action = actionStartActivity<VideosActivity>(),
-                    diameter = chipH.dp,
-                )
+                if (hasRepo) {
+                    Spacer(GlanceModifier.width(GAP.dp))
+                    RoundButton(
+                        icon = R.drawable.ic_video,
+                        description = "Vidéos promotionnelles de la création",
+                        background = pill,
+                        action = actionStartActivity<VideosActivity>(),
+                        diameter = chipH.dp,
+                    )
+                }
                 if (showActions) {
                     Spacer(GlanceModifier.width(GAP.dp))
                     // The colour is how the last run went: green, red, grey (running or unknown).
@@ -656,14 +658,15 @@ private fun CompactContent(state: AiwaState) {
             // deployment is asked for, or as soon as the address answers.
             val campaignMode = state.deploy == "campaign"
             val showSite = hasRepo && site != null && (state.deploy != "none" || live) && !campaignMode
-            val showProposals = hasRepo && campaignMode
-            val showStore = hasRepo && storeMode
+            val showProposals = campaignMode
+            val showStore = storeMode
             // In the Store mode nothing is published through GitHub: the round "GitHub Actions" button (the build of this
             // repository) has no meaning there, and gives way to a button that shows the code Claude sent.
             val showCode = showStore
             val showActions = (hasRepo && (publishesFromGithub(state.deploy) || storeMode || state.ciState != null)) || state.deploy == "aiwa"
             var others = 0f
-            if (hasRepo) others += GAP + chipWidth(pushText, fontScale) + GAP + chipWidth(deployText, fontScale)
+            others += GAP + chipWidth(deployText, fontScale)
+            if (hasRepo) others += GAP + chipWidth(pushText, fontScale)
             if (showSite || showProposals) others += GAP + 34f
             if (showStore) others += GAP + 34f
             if (showCode) others += GAP + 34f
@@ -680,8 +683,10 @@ private fun CompactContent(state: AiwaState) {
                 if (hasRepo) {
                     Spacer(GlanceModifier.width(GAP.dp))
                     Chip(pushText, if (locked) (if (state.pushMain) GREEN_DIM else PILL_DIM) else if (state.pushMain) green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionRunCallback<TogglePushMainCallback>()))
+                }
+                run {
                     Spacer(GlanceModifier.width(GAP.dp))
-                    if (state.ciHintTitle != null) {
+                    if (hasRepo && state.ciHintTitle != null) {
                         // A setting of GitHub to change by hand: its own button (the guide), instead of changing what the other buttons do.
                         RoundButton(
                             icon = R.drawable.ic_warning,

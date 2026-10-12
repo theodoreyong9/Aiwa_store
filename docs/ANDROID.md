@@ -103,7 +103,7 @@ Four bands, from the top: the title and status (the logo opens the app), the **r
 | GitHub Actions button | the last run of the repository: the build (Android), the deployment (Pages, campaign), the check of the app (Store), the registry's check of the pull request (Aiwa) | `OpenActionsActivity.kt`, `aiwa_server.py` (`_ci_snapshot`) |
 | Create from a file | menu d'Aiwa: a text file becomes a video **or a campaign**; GitHub is an accessory (off by default) | `DocumentCreation.kt` |
 
-The repository chip is always there; **the whole project-type band (the chip and its buttons, the proposals button included) appears only once a repository is chosen**, even for the Store, Aiwa and campaign modes, which do not need one. That is a known gap, not a design: the campaign's GitHub box is off by default, so a campaign started without a repository leaves the band hidden.
+The repository chip and the **project-type chip** are always there: the Store, Aiwa and campaign modes need no repository, so the type is chosen first. The push chip, the site button, the video button and the GitHub Actions button need a repository and appear once one is chosen.
 
 **The modes.** All of them end, except *none*, with something sent to the phone or built by GitHub:
 
