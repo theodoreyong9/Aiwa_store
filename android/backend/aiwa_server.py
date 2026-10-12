@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 66
+BACKEND_VERSION = 67
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -68,8 +68,8 @@ APP_DIR = Path.home() / ".aiwa_store_apps"
 APP_MAX = 2 * 1024 * 1024
 APP_KEEP = 10
 # What Claude writes in the "store" mode is an app for the Aiwa Store: one self-contained index.html, named name.app.html
-# here: it lives in the user's own public repository (aiwa-apps/name.app.html), mutable, and the Store lists a signed pointer to it
-# (kind "link"); with no repository it travels in the package (kind "code"). In the "aiwa" mode it is the same kind of file, name.aiwa.html, whose logic
+# here: it lives in the user's own public repository (aiwa-apps/name.app.html), mutable, and the Store lists where it is
+# (kind "link", a library entry: no wallet, not ranked); with no repository it travels in the package (kind "code"). In the "aiwa" mode it is the same kind of file, name.aiwa.html, whose logic
 # is an Aiwa contract: the Store publishes it through Aiwa and GitHub holds only a pointer. Either way the Store's publish sheet
 # takes the name and the code.
 APP_FILE_RE = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?\.(?:app|aiwa)\.html")
@@ -821,7 +821,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/store-app-example.html. "
             + (
                 "Place-la dans mon dépôt, sous `aiwa-apps/nom.app.html` (crée le dossier), sur la branche principale du dépôt (qui doit être public) : c'est là que vit l'app, dans MON GitHub, et je pourrai la modifier quand je veux. "
-                "Le Store ne garde pas le code, seulement un lien signé vers ce fichier ; le publier, c'est moi qui le fais depuis le Store (bouton ▦ du widget), avec mon identité. "
+                "Le Store ne garde pas le code, seulement l'endroit où il est (sans wallet ni signature) ; je l'ajoute à la bibliothèque du Store depuis le Store (bouton ▦ du widget). "
                 if repo else
                 "Ne la pousse sur AUCUN dépôt : je la relis, l'essaie et la publie moi-même depuis le Store (bouton ▦ du widget), avec mon identité. "
             ) +

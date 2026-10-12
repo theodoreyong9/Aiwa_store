@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateIdentity } from 'aiwa-core';
 import { buildAppPackage, buildBundle } from 'aiwa-registry';
-import { loadIndex, loadApp, filterApps, rankApps } from '../src/store.js';
+import { loadIndex, loadApp, loadLink, filterLinks, filterApps, rankApps } from '../src/store.js';
 
 const html = (t) => `<!doctype html><title>${t}</title><h1>${t}</h1>`;
 const entryOf = (pkg, extra = {}) => ({
@@ -127,20 +127,17 @@ test('the index lists apps of both kinds, and drops an aiwa entry that has no po
   assert.deepEqual(apps.map((e) => e.id).sort(), ['a', 'tally']);
 });
 
-test('an app of kind link is opened from the author\'s repository, as it is there now', async () => {
-  const author = await generateIdentity();
-  const pkg = await buildAppPackage(author, { id: 'mine', name: 'Mine', version: '1.0.0', repo: 'alice/mine', path: 'aiwa-apps/mine.app.html', ref: 'main' });
-  const entry = entryOf(pkg, { repo: 'alice/mine', file: 'aiwa-apps/mine.app.html', ref: 'main' });
+const LINK = { id: 'mine', name: 'Mine', description: 'a tool', kind: 'link', owner: 'alice', repo: 'alice/mine', file: 'aiwa-apps/mine.app.html', ref: 'main' };
+
+test('the library lists apps that live in their authors\' GitHub: not ranked, filtered by account, read as they are now', async () => {
+  const { links, apps } = await loadIndex({ baseUrl: 'x', fetchFn: async () => json({ format: 'aiwa-store-index/1', apps: [], links: [LINK, { id: 'broken' }] }) });
+  assert.deepEqual([apps.length, links.map((l) => l.id)], [0, ['mine']]);
+  assert.deepEqual(filterLinks([LINK, { ...LINK, id: 'other', repo: 'bob/other', owner: 'bob' }], 'alice').map((l) => l.id), ['mine'], 'by GitHub account');
+
   const asked = [];
-  const serve = (code) => async (url) => {
-    asked.push(url);
-    return url.startsWith('https://raw.githubusercontent.com/') ? { ok: true, text: async () => code } : json(pkg);
-  };
-  const first = await loadApp({ entry, baseUrl: 'x', fetchFn: serve(html('v1')) });
-  assert.equal(first.html, html('v1'));
-  assert.ok(asked.includes('https://raw.githubusercontent.com/alice/mine/main/aiwa-apps/mine.app.html'));
-  const edited = await loadApp({ entry, baseUrl: 'x', fetchFn: serve(html('v2, edited by its author')) });
-  assert.equal(edited.html, html('v2, edited by its author'), 'the author can change the code without asking anyone');
-  await assert.rejects(loadApp({ entry, baseUrl: 'x', fetchFn: async (u) => (u.startsWith('https://raw') ? { ok: false, status: 404 } : json(pkg)) }), /does not serve/);
-  await assert.rejects(loadApp({ entry: { ...entry, repo: 'mallory/mine' }, baseUrl: 'x', fetchFn: serve('x') }), /points elsewhere/);
+  const serve = (code) => async (url) => { asked.push(url); return { ok: true, text: async () => code }; };
+  assert.equal((await loadLink({ entry: LINK, fetchFn: serve(html('v1')) })).html, html('v1'));
+  assert.equal((await loadLink({ entry: LINK, fetchFn: serve(html('v2, edited')) })).html, html('v2, edited'), 'the author changes it without asking anyone');
+  assert.equal(asked[0], 'https://raw.githubusercontent.com/alice/mine/main/aiwa-apps/mine.app.html');
+  await assert.rejects(loadLink({ entry: LINK, fetchFn: async () => ({ ok: false, status: 404 }) }), /does not serve/);
 });

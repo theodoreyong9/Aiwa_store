@@ -32,7 +32,7 @@ function readBaselines(dir) {
 export function readStore(dir) {
   const fresh = emptyStore();
   return {
-    index: readJson(join(dir, 'index.json'), fresh.index),
+    index: { ...fresh.index, ...readJson(join(dir, 'index.json'), fresh.index) },
     baselines: readBaselines(dir),
     witnesses: readJson(join(dir, 'state', 'witnesses.json'), fresh.witnesses),
   };
@@ -40,11 +40,11 @@ export function readStore(dir) {
 
 /** Writes the store after `applyAccepted`: the index, the baseline of the author concerned, and the package of a publication under apps/. */
 export function writeStore(dir, store, accepted = null) {
-  const index = { ...store.index, apps: rankApps(store.index.apps) };
+  const index = { ...store.index, apps: rankApps(store.index.apps), links: [...(store.index.links ?? [])].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) };
   writeJson(join(dir, 'index.json'), index);
   if (accepted?.baseline) writeJson(join(dir, 'baselines', `${accepted.author}.json`), store.baselines[accepted.author], false);
   writeJson(join(dir, 'state', 'witnesses.json'), store.witnesses);
-  if (accepted && accepted.kind === 'publish') {
+  if (accepted?.kind === 'publish') {
     writeJson(join(dir, accepted.entry.path), accepted.package, false);
     if (accepted.bundle) writeJson(join(dir, accepted.entry.bundlePath), accepted.bundle, false);
   }

@@ -1,4 +1,4 @@
-import { loadIndex, loadApp, filterApps, shortAddress, figureOf } from './store.js';
+import { loadIndex, loadApp, loadLink, filterApps, filterLinks, shortAddress, figureOf } from './store.js';
 import { openCache } from './kv.js';
 import { config } from './config.js';
 import { $, switchView } from './ui.js';
@@ -7,12 +7,13 @@ import { openViewer } from './viewer.js';
 
 const cache = openCache('aiwa-store-cache');
 let apps = [];
+let links = [];
 
 function render() {
   const shown = filterApps(apps, $('store-search').value);
   const list = $('store-list');
   list.replaceChildren();
-  $('store-empty').hidden = apps.length > 0;
+  $('store-empty').hidden = apps.length > 0 || links.length > 0;
   for (const app of shown.slice(0, 200)) {
     const row = document.createElement('div');
     row.className = 'app';
@@ -36,7 +37,7 @@ function render() {
     desc.textContent = app.description;
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = `${shortAddress(app.author)}${app.kind === 'aiwa' ? ' · Aiwa' : app.kind === 'link' ? ' · link' : ''} · score/laps ${figureOf(app)} (${Number(app.score).toPrecision(3)} / ${app.laps})`;
+    meta.textContent = `${shortAddress(app.author)}${app.kind === 'aiwa' ? ' · Aiwa' : ''} · score/laps ${figureOf(app)} (${Number(app.score).toPrecision(3)} / ${app.laps})`;
     body.append(title, desc, meta);
 
     const open = document.createElement('button');
@@ -56,6 +57,84 @@ function render() {
 
     row.append(rank, body, open, code);
     list.append(row);
+  }
+  renderLibrary(list);
+}
+
+// The library: apps that live in their authors' own GitHub, listed without a wallet. Not ranked (the ranking is mining), filtered by account.
+function renderLibrary(list) {
+  const shown = filterLinks(links, $('store-search').value);
+  if (shown.length === 0) return;
+  const head = document.createElement('div');
+  head.className = 'hint';
+  head.textContent = 'Library: apps that stay in their author\'s own GitHub. Not ranked; the author can change them at any time.';
+  list.append(head);
+  for (const entry of shown.slice(0, 200)) {
+    const row = document.createElement('div');
+    row.className = 'app';
+    row.dataset.id = entry.id;
+    const body = document.createElement('div');
+    body.className = 'body';
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = entry.name;
+    const desc = document.createElement('div');
+    desc.className = 'desc';
+    desc.textContent = entry.description;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = `github.com/${entry.repo} · link`;
+    meta.style.cursor = 'pointer';
+    meta.title = `Show only the apps of ${entry.owner}`;
+    meta.addEventListener('click', () => { $('store-search').value = entry.owner; render(); });
+    body.append(title, desc, meta);
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'primary';
+    open.textContent = 'Open';
+    open.addEventListener('click', () => openLink(entry, open));
+    const code = document.createElement('button');
+    code.type = 'button';
+    code.className = 'icon';
+    code.textContent = '</>';
+    code.title = 'Read the code in its repository';
+    code.setAttribute('aria-label', `Read the code of ${entry.name}`);
+    code.addEventListener('click', () => showLinkCode(entry, code));
+    row.append(body, open, code);
+    list.append(row);
+  }
+}
+
+async function openLink(entry, button) {
+  const was = button.textContent;
+  button.disabled = true;
+  button.textContent = '…';
+  try {
+    const { html } = await loadLink({ entry });
+    openViewer({ name: entry.name, meta: `github.com/${entry.repo}`, html });
+  } catch (err) {
+    $('store-status').textContent = String(err.message ?? err);
+  } finally {
+    button.disabled = false;
+    button.textContent = was;
+  }
+}
+
+async function showLinkCode(entry, button) {
+  const was = button.textContent;
+  button.disabled = true;
+  button.textContent = '…';
+  try {
+    const { files } = await loadLink({ entry });
+    $('code-title').textContent = entry.name;
+    $('code-meta').textContent = `In github.com/${entry.repo} · its author can change this code at any time (the frozen mode is the Aiwa contract).`;
+    $('code-proof').textContent = 'Read live from the repository. Nothing is signed or pinned here: it is whatever the author has there now.';
+    fillCode(Object.entries(files));
+  } catch (err) {
+    $('store-status').textContent = String(err.message ?? err);
+  } finally {
+    button.disabled = false;
+    button.textContent = was;
   }
 }
 
@@ -78,32 +157,34 @@ async function openApp(entry, button) {
 // signature, and for an Aiwa contract every file against the signed manifest). The code of a version never changes: a new code is a new version.
 let shownFiles = [];
 
+function fillCode(entries) {
+  shownFiles = entries;
+  const list = $('code-files');
+  list.replaceChildren();
+  for (const [path, content] of shownFiles) {
+    const block = document.createElement('div');
+    block.className = 'codefile';
+    const name = document.createElement('b');
+    name.textContent = path;
+    const text = document.createElement('pre');
+    text.textContent = content;
+    block.append(name, text);
+    list.append(block);
+  }
+  $('codesheet').hidden = false;
+}
+
 async function showCode(entry, button) {
   const was = button?.textContent;
   if (button) { button.disabled = true; button.textContent = '…'; }
   try {
     const { pkg, files } = await loadApp({ entry, baseUrl: config.registryUrl, cache });
     $('code-title').textContent = `${entry.name} v${entry.version}`;
-    $('code-meta').textContent = `Published by ${shortAddress(entry.author)} · ${entry.kind === 'aiwa' ? 'an Aiwa contract' : entry.kind === 'link' ? 'an app in its author\'s own repository' : 'a plain app'} · ${entry.kind === 'link' ? 'its author can change this code at any time (the frozen mode is the Aiwa contract).' : 'this code cannot change: a new code is a new version.'}`;
-    $('code-proof').textContent = entry.kind === 'link'
-      ? `Read live from github.com/${entry.repo}. The entry is signed by its author; the code is not: it is whatever the author has there now.`
-      : entry.kind === 'aiwa'
+    $('code-meta').textContent = `Published by ${shortAddress(entry.author)} · ${entry.kind === 'aiwa' ? 'an Aiwa contract' : 'a plain app'} · this code cannot change: a new code is a new version.`;
+    $('code-proof').textContent = entry.kind === 'aiwa'
       ? `Checked here: signed by its author, and every file matches the signed manifest ${String(pkg.manifestId).slice(0, 12)}…`
       : `Checked here: signed by its author, fingerprint ${String(entry.bundleHash).slice(0, 12)}…`;
-    shownFiles = Object.entries(files);
-    const list = $('code-files');
-    list.replaceChildren();
-    for (const [path, content] of shownFiles) {
-      const block = document.createElement('div');
-      block.className = 'codefile';
-      const name = document.createElement('b');
-      name.textContent = path;
-      const text = document.createElement('pre');
-      text.textContent = content;
-      block.append(name, text);
-      list.append(block);
-    }
-    $('codesheet').hidden = false;
+    fillCode(Object.entries(files));
   } catch (err) {
     $('store-status').textContent = String(err.message ?? err);
   } finally {
@@ -128,10 +209,12 @@ export async function refreshStore() {
   try {
     const result = await loadIndex({ baseUrl: config.registryUrl, cache });
     apps = result.apps;
+    links = result.links ?? [];
     setCatalog(apps);
     $('store-status').textContent = result.source === 'cache' ? `Offline: the last list seen (${result.error}).` : '';
   } catch (err) {
     apps = [];
+    links = [];
     setCatalog(apps);
     $('store-status').textContent = `The registry could not be read: ${err.message}`;
   }

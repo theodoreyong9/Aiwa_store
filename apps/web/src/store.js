@@ -21,18 +21,42 @@ export async function loadIndex({ baseUrl, fetchFn = fetch, cache = null }) {
     const index = await response.json();
     if (!index || index.format !== 'aiwa-store-index/1' || !Array.isArray(index.apps)) throw new Error('The registry\'s index is not in a format this store reads');
     const apps = rankApps(index.apps.filter(isEntry));
-    await cache?.set('index', { ...index, apps }).catch?.(() => {});
-    return { apps, source: 'network' };
+    const links = (Array.isArray(index.links) ? index.links : []).filter(isLink);
+    await cache?.set('index', { ...index, apps, links }).catch?.(() => {});
+    return { apps, links, source: 'network' };
   } catch (error) {
     const cached = await cache?.get('index').catch(() => null);
-    if (cached) return { apps: rankApps(cached.apps), source: 'cache', error: error.message };
+    if (cached) return { apps: rankApps(cached.apps), links: cached.links ?? [], source: 'cache', error: error.message };
     throw error;
   }
 }
 
+/** An entry of the library: an app that lives in its author's own repository (no signature, no ranking). */
+const isLink = (e) => e && e.kind === 'link' && ['id', 'name', 'description', 'owner', 'repo', 'file', 'ref'].every((k) => typeof e[k] === 'string');
+
+/** Library entries whose id, name, description or repository (hence GitHub account) contains every word of `query`. */
+export function filterLinks(links, query) {
+  const words = String(query ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+  return links.filter((l) => words.every((w) => `${l.id} ${l.name} ${l.description} ${l.repo}`.toLowerCase().includes(w)));
+}
+
+const LINK_MAX_CHARS = 512 * 1024;
+
+/**
+ * The code of a library app, read from its author's repository as it is NOW: nothing signed, nothing pinned, the author edits it as they like.
+ * @returns {Promise<{ html: string, files: Record<string, string> }>}
+ */
+export async function loadLink({ entry, fetchFn = fetch }) {
+  const response = await fetchFn(`https://raw.githubusercontent.com/${entry.repo}/${entry.ref}/${entry.file}`, { cache: 'no-store' }).catch(() => null);
+  if (!response?.ok) throw new Error(`Not opened: the repository ${entry.repo} does not serve ${entry.file} (it may be private, moved or deleted)`);
+  const html = await response.text();
+  if (html.length > LINK_MAX_CHARS) throw new Error('Not opened: the app file is larger than 512 KB');
+  return { html, files: { [entry.file]: html } };
+}
+
 const isEntry = (e) => e
   && ['id', 'name', 'version', 'description', 'author', 'bundleHash', 'path'].every((k) => typeof e[k] === 'string')
-  && (e.kind === 'code' || (e.kind === 'link' && ['repo', 'file', 'ref'].every((k) => typeof e[k] === 'string')) || (e.kind === 'aiwa' && typeof e.manifestId === 'string' && typeof e.bundlePath === 'string'))
+  && (e.kind === 'code' || (e.kind === 'aiwa' && typeof e.manifestId === 'string' && typeof e.bundlePath === 'string'))
   && typeof e.score === 'number' && typeof e.laps === 'number';
 
 /** Apps whose id, name, description or author contains every word of `query` (case-insensitive). */
@@ -77,15 +101,6 @@ export async function loadApp({ entry, baseUrl, fetchFn = fetch, cache = null })
   }
   let html = pkg.html;
   let files = { 'index.html': pkg.html };
-  if (pkg.kind === 'link') {
-    // The code is not in the registry: it lives in the author's repository and is read there, as it is now.
-    if (pkg.repo !== entry.repo || pkg.path !== entry.file || pkg.ref !== entry.ref) throw new Error('Not opened: the package points elsewhere than the registry lists');
-    const response = await fetchFn(`https://raw.githubusercontent.com/${pkg.repo}/${pkg.ref}/${pkg.path}`, { cache: 'no-store' }).catch(() => null);
-    if (!response?.ok) throw new Error(`Not opened: the author's repository ${pkg.repo} does not serve ${pkg.path} (it may be private, moved or deleted)`);
-    html = await response.text();
-    if (html.length > LINK_MAX_CHARS) throw new Error('Not opened: the app file is larger than 512 KB');
-    files = { [pkg.path]: html };
-  }
   if (pkg.kind === 'aiwa') {
     if (pkg.manifestId !== entry.manifestId) throw new Error('Not opened: the package points at another manifest than the registry lists');
     const checked = await verifyBundle(bundle, { manifestId: pkg.manifestId, domain: verified.domain, name: pkg.name, version: pkg.version });
@@ -96,8 +111,6 @@ export async function loadApp({ entry, baseUrl, fetchFn = fetch, cache = null })
   if (source === 'network') await cache?.set(key, held).catch?.(() => {});
   return { pkg, html, files, source };
 }
-
-const LINK_MAX_CHARS = 512 * 1024;
 
 export const shortAddress = (s) => (s && s.length > 14 ? `${s.slice(0, 6)}…${s.slice(-4)}` : (s ?? ''));
 

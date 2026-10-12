@@ -3,6 +3,7 @@
 //   publish   a new app, or a higher version of the author's own: the package (app-package.js) and the author's mining
 //             evidence (aiwa-lib's wallet.submissionEvidence()). A package of kind `aiwa` comes with its bundle of Aiwa
 //             events (bundle.js), which are verified against the manifest the package pins, then kept.
+//   link      an app that stays in its author's own GitHub repository: a pointer, no wallet, no signature (link.js)
 //   refresh   no new content: the author's signed request to re-read the ranking figure of one of its apps from fresh
 //             evidence.
 //
@@ -21,6 +22,7 @@
 import { assessSubmission, ingestWitnesses, mergeWitnessStore, domainOfAddress } from 'aiwa-core';
 import { verifyAppPackage, verifyRefreshAuthorization, compareVersions } from './app-package.js';
 import { verifyBundle } from './bundle.js';
+import { linkProblem } from './link.js';
 import { ratioOf } from './rank.js';
 
 export const POLICY = {
@@ -30,7 +32,7 @@ export const POLICY = {
   maxSubmissionBytes: 40 * 1024 * 1024,
 };
 
-export const emptyStore = () => ({ index: { format: 'aiwa-store-index/1', apps: [] }, baselines: {}, witnesses: {} });
+export const emptyStore = () => ({ index: { format: 'aiwa-store-index/1', apps: [], links: [] }, baselines: {}, witnesses: {} });
 
 /** domain -> the epoch this registry already validated for it, from baselines kept by author address. */
 export function baselineEpochOf(baselines) {
@@ -65,11 +67,35 @@ async function witnessesFrom(evidence, domain, store) {
  * @param {number} [args.now] the registry's clock, ms
  * @returns {Promise<{ ok: boolean, reason: string, accepted?: object }>} `accepted`: { kind, entry, package?, bundle?, baseline, author, witnesses }
  */
-export async function validateSubmission({ submission, store, deployment, connection, now = Date.now() }) {
+export async function validateSubmission({ submission, store, deployment, connection, now = Date.now(), submitter = null }) {
   if (!submission || typeof submission !== 'object' || submission.format !== 'aiwa-submission/1') return refuse('Not a store submission (format aiwa-submission/1)');
+  if (submission.kind === 'link') return validateLink({ submission, store, submitter, now });
   if (submission.kind === 'publish') return validatePublish({ submission, store, deployment, connection, now });
   if (submission.kind === 'refresh') return validateRefresh({ submission, store, deployment, connection, now });
   return refuse('The submission kind is publish or refresh');
+}
+
+/**
+ * A link: an app that lives in its author's own GitHub repository, listed in the Store's library. NO wallet, no signature, no mining: nothing is
+ * frozen, so there is nothing to sign. The only permission is GitHub's own: the pull request must come from the account that owns the repository
+ * (`submitter`, when the registry's workflow knows it). Not ranked (the ranking is the mining of a wallet), only listed.
+ */
+async function validateLink({ submission, store, submitter, now }) {
+  const problem = linkProblem(submission);
+  if (problem) return refuse(problem);
+  const owner = submission.repo.split('/')[0].toLowerCase();
+  if (submitter !== null && String(submitter).toLowerCase() !== owner) return refuse(`The pull request comes from ${submitter}, not from ${submission.repo.split('/')[0]}, the owner of the repository: a link is added by the account that owns the app`);
+  const links = store.index.links ?? [];
+  const existing = links.find((link) => link.id === submission.id) ?? null;
+  if (existing && existing.owner !== owner) return refuse(`The id ${submission.id} belongs to another account`);
+  const mine = links.filter((link) => link.owner === owner);
+  if (!existing && mine.length >= POLICY.maxAppsPerAuthor) return refuse(`An account has at most ${POLICY.maxAppsPerAuthor} apps`);
+  const entry = {
+    id: submission.id, name: submission.name, description: submission.description ?? '', kind: 'link', owner,
+    repo: submission.repo, file: submission.path, ref: submission.ref,
+    publishedAt: existing ? existing.publishedAt : now, updatedAt: now,
+  };
+  return { ok: true, reason: 'ok', accepted: { kind: 'link', entry } };
 }
 
 async function validatePublish({ submission, store, deployment, connection, now }) {
@@ -121,7 +147,6 @@ async function validatePublish({ submission, store, deployment, connection, now 
     id: pkg.id, name: pkg.name, version: pkg.version, description: pkg.description, kind: pkg.kind,
     author: pkg.author, domain, bundleHash: pkg.bundleHash, path: `apps/${pkg.id}/${pkg.version}.json`,
     ...(bundle ? { bundlePath: `apps/${pkg.id}/${pkg.version}.bundle.json`, manifestId: pkg.manifestId } : {}),
-    ...(pkg.kind === 'link' ? { repo: pkg.repo, file: pkg.path, ref: pkg.ref } : {}),
     score: ranking.score, laps: ranking.laps,
     publishedAt: existing ? existing.publishedAt : now, updatedAt: now,
   };
@@ -143,6 +168,11 @@ async function validateRefresh({ submission, store, deployment, connection, now 
 
 /** The store after an accepted submission (pure): the entry replaced or added, the baseline and witnesses kept. */
 export function applyAccepted(store, accepted) {
+  if (accepted.kind === 'link') {
+    const links = (store.index.links ?? []).filter((link) => link.id !== accepted.entry.id);
+    links.push(accepted.entry);
+    return { ...store, index: { ...store.index, links } };
+  }
   const apps = store.index.apps.filter((app) => app.id !== accepted.entry.id);
   apps.push(accepted.entry);
   const baselines = { ...store.baselines };

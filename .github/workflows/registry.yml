@@ -54,9 +54,10 @@ jobs:
         id: process
         env:
           SOLANA_RPC: ${{ vars.SOLANA_RPC }}
+          SUBMITTER: ${{ github.event.pull_request.user.login }}
         run: |
           set -o pipefail
-          node registry/bin/process.mjs --submission "$RUNNER_TEMP/submission.json" 2>&1 | tee "$RUNNER_TEMP/verdict.txt"
+          node registry/bin/process.mjs --submission "$RUNNER_TEMP/submission.json" --submitter "$SUBMITTER" 2>&1 | tee "$RUNNER_TEMP/verdict.txt"
 
       - name: Publish what changed
         run: |

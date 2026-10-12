@@ -3,7 +3,7 @@
 // over an app (the ▦ button), or from the author's own list of apps to refresh a ranking. There is no publish form.
 //
 // The hand-off is the address #publish=<kind>;<name>;<code>: <code> is the app's one HTML file, raw-deflated then
-// base64url-encoded, and <kind> says how it is published: `code` (the code travels in the package on GitHub), `link` (the code stays in the author's repository, the Store lists a pointer) or `aiwa` (it is
+// base64url-encoded, and <kind> says how it is published: `code` (the code travels in the package on GitHub), `link` (the code stays in the author's repository; the Store lists where it is, no wallet) or `aiwa` (it is
 // published through Aiwa, and GitHub holds a pointer). A URL fragment never leaves the browser. Nothing is signed or sent
 // until the author presses Publish.
 
@@ -15,7 +15,7 @@ import { openViewer } from './viewer.js';
 import { assembleHtml } from './assemble.js';
 import { hostAvailable, hostPost } from './host.js';
 import { ensureToken, forgetToken } from './github.js';
-import { slug, nextVersion, evidenceFor, buildSubmission, buildRefresh, sendSubmission, submissionFileName } from './publish.js';
+import { slug, nextVersion, evidenceFor, buildSubmission, buildLinkSubmission, buildRefresh, sendSubmission, submissionFileName } from './publish.js';
 
 const MAX_CHARS = 1_000_000;
 
@@ -76,6 +76,8 @@ function close() {
 // mining while the sheet is open, so it is looked at again.
 async function ready() {
   if (busy) return;
+  // A link needs no wallet: it stays in the author's GitHub and nothing is signed.
+  if (job?.mode === 'publish' && job.app.kind === 'link') { warn(''); if ($('sheet-status').textContent === STARTING) say(''); $('sheet-go').disabled = false; return; }
   if (!connected()) {
     $('sheet-go').disabled = true;
     // Still starting: wait. Started and no wallet: say so, with the way out. An app is signed with a wallet and ranked by what it has mined.
@@ -123,8 +125,7 @@ function openPublish(app) {
   openSheet({
     title: 'Publish this app',
     summary: app.kind === 'link'
-      ? `One HTML file (${kb} KB) that stays in your GitHub, ${app.repo}/${app.path}: you can edit it whenever you like. The Store only lists a pointer to it, signed with your wallet and sent as a pull request on your GitHub account. `
-        + 'Anyone can open it from the Store, in a sandbox; it is ranked by what you have mined.'
+      ? `One HTML file (${kb} KB) that stays in your GitHub, ${app.repo}/${app.path}: edit it whenever you like. The Store only lists where it is, in its library: no wallet, no signature, no ranking. It is added by a pull request from your GitHub account (the account that owns the repository). Anyone can open it from the Store, in a sandbox.`
       : `${app.kind === 'aiwa' ? 'One HTML file, published through Aiwa' : 'One HTML file'} (${kb} KB). It is signed with your wallet and sent to the Store's registry as a pull request on your GitHub account. `
       + 'Anyone can open it from the Store, in a sandbox; it is ranked by what you have mined.',
     fields: true, go: 'Publish',
@@ -186,10 +187,13 @@ async function go() {
   busy = true;
   try {
     const aiwa = session.aiwa;
-    say('Signing with your wallet…');
-    const evidence = await evidenceFor(aiwa, { registryUrl: config.registryUrl });
+    const isLink = job.mode === 'publish' && job.app.kind === 'link';
+    if (!isLink) say('Signing with your wallet…');
+    const evidence = isLink ? null : await evidenceFor(aiwa, { registryUrl: config.registryUrl });
     let submission;
-    if (job.mode === 'refresh') {
+    if (isLink) {
+      submission = buildLinkSubmission({ ...job.app, id: $('app-id').value.trim(), name: $('app-name').value.trim(), description: $('app-description').value.trim() });
+    } else if (job.mode === 'refresh') {
       submission = await buildRefresh(aiwa, job.entry.id, evidence);
     } else {
       const app = { ...job.app, id: $('app-id').value.trim(), name: $('app-name').value.trim(), version: $('app-version').value.trim() || '1.0.0', description: $('app-description').value.trim() };

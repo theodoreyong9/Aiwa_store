@@ -1469,7 +1469,7 @@ flowchart LR
 | Kind | The package carries | What the author signs | Who verifies the code, and how |
 |---|---|---|---|
 | **`code`** | the app's one HTML file (≤ 512 KB; it loads what it needs from the network itself) | the hash of `[id, name, version, description, kind, html]` | anyone, by recomputing that hash |
-| **`link`** | no code: a pointer `{ repo, path, ref }` to one `.html` file in the author's own public repository, read live by the Store | the hash of `[id, name, version, description, kind, 'repo/path@ref']`: it pins the pointer, **not** the code, which its author may change at any time; immutability is the `aiwa` kind | anyone, by recomputing that hash |
+| *(link)* | not a package: a submission `{ kind:'link', id, name, description, repo, path, ref }`, no wallet and no signature; the code stays in the author's own repository, the registry lists where it is (library, not ranked), the pull request must come from the account that owns the repository | — | nothing is frozen; immutability and ranking are the `aiwa` kind |
 | **`aiwa`** | no code: a **pointer**, the id of a signed `bundle.manifest` | the hash of `[id, name, version, description, kind, manifestId]` | the registry and the Store, each on its own: the bundle's events pass an event log (id, signature, parents), then are checked against the pin |
 
 For an `aiwa` entry, the check against the pin is: the manifest is signed by the author's domain, names exactly this app and
@@ -1993,7 +1993,7 @@ A contract's own action (`signedAction`, §16.2) signs *all* its fields plus `no
 ### A.4 The store's formats
 
 ```
-package   = { format:'aiwa-app/1', kind:'code'|'aiwa'|'link', id, name, version, description, html | manifestId | repo+path+ref,
+package   = { format:'aiwa-app/1', kind:'code'|'aiwa', id, name, version, description, html | manifestId,
               author (Solana address), bundleHash, authorization }
 bundleHash = SHA( JSON([ id, name, version, description, kind, html | manifestId ]) )
 authorization = signedAction by the author's key over (publish-app, id, version, bundleHash)
