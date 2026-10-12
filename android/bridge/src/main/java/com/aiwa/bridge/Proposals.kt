@@ -10,6 +10,8 @@ data class Proposal(
     val price: String,
     val videoUrl: String,
     val demoUrl: String,
+    /** International form with the +, or empty (WhatsApp needs the country code). */
+    val phone: String = "",
 )
 
 data class ProposalList(val repo: String?, val proposals: List<Proposal>)
@@ -34,5 +36,45 @@ object ProposalMail {
         lines.add(STOP_LINE)
         val subject = (if (test) "[TEST] " else "") + p.subject.ifBlank { "Proposition pour ${p.name}" }
         return Draft(if (test) "" else p.email, subject, lines.filter { it.isNotBlank() }.joinToString("\n\n"))
+    }
+}
+
+/**
+ * The same proposal as a chat message, opened in the person's own application (WhatsApp, SMS, Telegram) through the address that application publishes
+ * for it: no account, no key, nothing sent from here. The person reads the message and presses send there. Pure, so that it is tested.
+ */
+object ProposalShare {
+    private val PHONE = Regex("^\\+[1-9][0-9]{7,14}$")
+
+    /** The number's digits for wa.me, or null when it is not an international number. */
+    fun digits(phone: String): String? {
+        val clean = phone.replace(Regex("[\\s().-]"), "")
+        return if (PHONE.matches(clean)) clean.substring(1) else null
+    }
+
+    private fun encode(text: String) = java.net.URLEncoder.encode(text, "UTF-8").replace("+", "%20")
+
+    /** The message: the mail's text, the subject first. */
+    fun message(p: Proposal, price: String, test: Boolean): String {
+        val d = ProposalMail.draft(p, price, test)
+        return d.subject + "\n\n" + d.body
+    }
+
+    /** WhatsApp: the chat of the number (test: the person picks a chat, to try it on themselves). Null when there is no number to open and it is not a test. */
+    fun whatsapp(p: Proposal, price: String, test: Boolean): String? {
+        val text = encode(message(p, price, test))
+        if (test) return "https://wa.me/?text=$text"
+        val digits = digits(p.phone) ?: return null
+        return "https://wa.me/$digits?text=$text"
+    }
+
+    /** SMS: the address to open (the message goes apart, as the SMS body). Null without a number outside a test. */
+    fun smsAddress(p: Proposal, test: Boolean): String? = if (test) "smsto:" else digits(p.phone)?.let { "smsto:+$it" }
+
+    /** Telegram: its share window, where the person picks the chat (it has no address by phone number). */
+    fun telegram(p: Proposal, price: String, test: Boolean): String {
+        val text = encode(message(p, price, test))
+        val url = encode(p.demoUrl.ifBlank { "https://github.com" })
+        return "https://t.me/share/url?url=$url&text=$text"
     }
 }

@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 68
+BACKEND_VERSION = 69
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -638,8 +638,8 @@ def _proposals_line(repo):
         "la maquette porte en haut, bien visible, « Maquette de démonstration, pas le site officiel de <cible> », n'utilise de la cible que ce qu'elle publie elle-même, ne copie ni logo ni photo sans droit, et n'invente rien (ni chiffre, ni client, ni avis) ; "
         "une vidéo de présentation à la qualité que j'ai choisie (la consigne vidéo s'applique : stratégie, style, critique) ; un prix proposé, justifié en une phrase dans la liste. "
         "Puis écris `aiwa-proposals/proposals.json` : une liste d'objets "
-        "`{\"id\":\"cible\",\"name\":\"nom de la cible\",\"email\":\"adresse\",\"subject\":\"…\",\"body\":\"le message, court, signé de mon nom, sans lien (les liens sont ajoutés à part)\",\"price\":\"prix proposé\",\"videoUrl\":\"https://…\",\"demoUrl\":\"https://<utilisateur>.github.io/<dépôt>/aiwa-proposals/<cible>/\"}` "
-        "(videoUrl et demoUrl en https ; si tu n'as pas d'adresse sûre, laisse `email` vide). "
+        "`{\"id\":\"cible\",\"name\":\"nom de la cible\",\"email\":\"adresse\",\"phone\":\"+41791234567\",\"subject\":\"…\",\"body\":\"le message, court, signé de mon nom, sans lien (les liens sont ajoutés à part)\",\"price\":\"prix proposé\",\"videoUrl\":\"https://…\",\"demoUrl\":\"https://<utilisateur>.github.io/<dépôt>/aiwa-proposals/<cible>/\"}` "
+        "(videoUrl et demoUrl en https ; si tu n'as pas d'adresse sûre, laisse `email` vide ; `phone` est un numéro public de la cible au format international avec le +, ou vide : il sert à ouvrir WhatsApp ou un SMS que JE valide et envoie). "
         "Pousse le tout sur la branche principale, puis dis-moi en une phrase combien de propositions sont prêtes : je les relis et je les envoie moi-même, une par une, depuis l'application (menu d'Aiwa → Propositions à valider)."
     )
 
@@ -1979,6 +1979,7 @@ def _github_json(url):
 
 
 PROPOSAL_MAX = 50
+_PHONE_RE = re.compile(r"^\+[1-9][0-9]{7,14}$")      # international form only: WhatsApp needs the country code
 _EMAIL_RE = re.compile(r"^[^@\s<>,;]{1,64}@[^@\s<>,;]{1,255}\.[A-Za-z]{2,}$")
 
 
@@ -2008,7 +2009,8 @@ def _proposals_snapshot():
             return value if value.startswith("https://") and " " not in value else ""
         ident = re.sub(r"[^A-Za-z0-9._-]", "-", text("id", 80)) or f"p{len(items) + 1}"
         email = text("email", 320)
-        items.append({"id": ident, "name": text("name", 120), "email": email if _EMAIL_RE.match(email) else "", "subject": text("subject", 200),
+        phone = re.sub(r"[\s().-]", "", text("phone", 40))
+        items.append({"id": ident, "name": text("name", 120), "email": email if _EMAIL_RE.match(email) else "", "phone": phone if _PHONE_RE.match(phone) else "", "subject": text("subject", 200),
                       "body": text("body", 4000), "price": text("price", 120), "videoUrl": link("videoUrl"), "demoUrl": link("demoUrl")})
     return {"repo": repo, "proposals": items}
 

@@ -370,7 +370,7 @@ class ProposalsTests(unittest.TestCase):
 
     def test_a_proposal_is_cleaned(self):
         got = self.snapshot([
-            {"id": "Café Du Port!", "name": "Café du Port", "email": "contact@cafe.ch", "subject": "Une maquette", "body": "Bonjour", "price": "900 CHF",
+            {"id": "Café Du Port!", "name": "Café du Port", "email": "contact@cafe.ch", "phone": "+41 79 123 45 67", "subject": "Une maquette", "body": "Bonjour", "price": "900 CHF",
              "videoUrl": "https://github.com/o/r/releases/download/videos/a.mp4", "demoUrl": "http://insecure.example/x"},
             {"name": "Sans adresse", "email": "pas une adresse", "videoUrl": "javascript:alert(1)"},
             "not an object",
@@ -379,9 +379,11 @@ class ProposalsTests(unittest.TestCase):
         first, second = got["proposals"]
         self.assertEqual(first["id"], "Caf--Du-Port-")
         self.assertEqual(first["email"], "contact@cafe.ch")
+        self.assertEqual(first["phone"], "+41791234567")
         self.assertTrue(first["videoUrl"].startswith("https://"))
         self.assertEqual(first["demoUrl"], "")        # only https links
         self.assertEqual(second["email"], "")         # not an address: left empty, the person types it
+        self.assertEqual(second["phone"], "")
         self.assertEqual(second["videoUrl"], "")
         self.assertEqual(second["id"], "p2")
 

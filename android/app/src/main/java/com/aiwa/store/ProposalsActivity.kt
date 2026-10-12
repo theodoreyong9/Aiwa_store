@@ -43,6 +43,7 @@ import com.aiwa.bridge.LocalClaudeBridge
 import com.aiwa.bridge.Proposal
 import com.aiwa.bridge.ProposalList
 import com.aiwa.bridge.ProposalMail
+import com.aiwa.bridge.ProposalShare
 
 /**
  * "Propositions": what a session prepared for a list of people (a mock-up, a video, a price) and wrote in the repository. NOTHING is sent from here: for each one the
@@ -76,6 +77,16 @@ private fun openMail(context: Context, p: Proposal, price: String, test: Boolean
     return try { context.startActivity(intent); true } catch (err: Exception) { false }
 }
 
+/** The chat applications: the address each publishes opens the application with the message ready; the person sends it there. */
+private fun openChat(context: Context, kind: String, p: Proposal, price: String, test: Boolean): Boolean {
+    val intent = when (kind) {
+        "whatsapp" -> ProposalShare.whatsapp(p, price, test)?.let { Intent(Intent.ACTION_VIEW, Uri.parse(it)) }
+        "sms" -> ProposalShare.smsAddress(p, test)?.let { Intent(Intent.ACTION_SENDTO, Uri.parse(it)).putExtra("sms_body", ProposalShare.message(p, price, test)) }
+        else -> Intent(Intent.ACTION_VIEW, Uri.parse(ProposalShare.telegram(p, price, test)))
+    } ?: return false
+    return try { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true } catch (err: Exception) { false }
+}
+
 @Composable
 private fun ProposalsWindow(onClose: () -> Unit) {
     val context = LocalContext.current
@@ -107,10 +118,10 @@ private fun ProposalsWindow(onClose: () -> Unit) {
             ) {
                 Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Propositions et gestion de la campagne", style = MaterialTheme.typography.titleMedium)
-                    Text("Rien n'est envoyé d'ici : « Envoyer » ouvre ta messagerie avec le mail rempli, tu le relis et tu l'envoies toi-même.", style = MaterialTheme.typography.bodySmall)
+                    Text("Rien n'est envoyé d'ici : « Envoyer » ouvre ta messagerie, et WhatsApp, SMS ou Telegram ouvrent leur application, avec le message rempli ; tu le relis et tu l'envoies toi-même.", style = MaterialTheme.typography.bodySmall)
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { test = !test }) {
                         Checkbox(checked = test, onCheckedChange = { test = it })
-                        Text("Test : le mail s'ouvre sans destinataire (écris ta propre adresse)")
+                        Text("Test : le message s'ouvre sans destinataire (choisis ta propre adresse ou ton propre contact)")
                     }
                     val current = list
                     val repoName = current?.repo ?: ""
@@ -145,6 +156,21 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                             } else toastOnMain(context, "Aucune messagerie trouvée sur ce téléphone.")
                                         }, modifier = Modifier.weight(1f)) { Text(if (done) "Rouvrir le mail" else if (test) "Envoyer (test)" else "Envoyer") }
                                         OutlinedButton(onClick = { mark(context, repoName, p.id, "dismissed", true); stamp.value++ }, modifier = Modifier.weight(1f)) { Text("Écarter") }
+                                    }
+                                    // The other doors, each an application of the person's own phone (nothing is sent from here)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        listOf("whatsapp" to "WhatsApp", "sms" to "SMS", "telegram" to "Telegram").forEach { (kind, label) ->
+                                            val usable = kind == "telegram" || test || ProposalShare.digits(p.phone) != null
+                                            OutlinedButton(
+                                                enabled = usable,
+                                                onClick = {
+                                                    if (openChat(context, kind, p, prices[p.id] ?: "", test)) {
+                                                        if (!test) { mark(context, repoName, p.id, "opened", true); stamp.value++ }
+                                                    } else toastOnMain(context, "$label n'a pas pu s'ouvrir sur ce téléphone.")
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                            ) { Text(label) }
+                                        }
                                     }
                                     if (done) Text("Mail ouvert dans ta messagerie (c'est toi qui l'envoies).", style = MaterialTheme.typography.bodySmall)
                                 }
