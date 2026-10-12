@@ -316,7 +316,7 @@ window.SHOTS.splice(5, 0,
     window.THEME = Object.assign({}, window.THEME, { bg: 'transparent', grain: 0, vignette: 0 });
     document.documentElement.style.background = 'transparent'; document.body.style.background = 'transparent';
     window.SHOTS.length = 0;
-    window.SHOTS.push({ seconds: 6, bg: { type: 'solid', color: 'rgba(0,0,0,0)' }, layers: [
+    window.SHOTS.push({ seconds: 9, bg: { type: 'solid', color: 'rgba(0,0,0,0)' }, layers: [
       { type: 'html', id: T.id, css: VCSS, markup: T.markup, design: [600, 1180], w: [100, 100], x: [50, 50], y: [50, 50], at: 0, tick: T.tick },
     ] });
   }
