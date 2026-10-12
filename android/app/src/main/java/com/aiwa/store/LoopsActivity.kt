@@ -8,7 +8,12 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -30,7 +35,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.PI
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.hypot
+import kotlin.math.roundToInt
+import kotlin.math.sin
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.updateAll
 import com.aiwa.bridge.LocalClaudeBridge
@@ -75,6 +91,7 @@ private fun LoopsWindow(onClose: () -> Unit) {
     var pickingBuilder by remember { mutableStateOf(false) }
     var builderId by remember { mutableStateOf<String?>(null) }
     var rollbackOf by remember { mutableStateOf<LoopPair?>(null) }
+    var showGraph by remember { mutableStateOf(false) }
 
     fun refresh() {
         scope.launch {
@@ -122,6 +139,10 @@ private fun LoopsWindow(onClose: () -> Unit) {
                         OutlinedButton(onClick = { current?.let { act("limit", mapOf("limit" to (minOf(50, it.limit + 1)).toString())) } }, enabled = current != null && !busy) { Text("+") }
                     }
                     message?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    if (current != null && current.pairs.isNotEmpty()) {
+                        OutlinedButton(onClick = { showGraph = !showGraph }, modifier = Modifier.fillMaxWidth()) { Text(if (showGraph) "Masquer le graphe des paires" else "Voir le graphe des paires") }
+                        if (showGraph) LoopsGraph(current.pairs)
+                    }
 
                     val rollback = rollbackOf
                     if (rollback != null && current != null) {
@@ -211,3 +232,80 @@ private fun LoopsWindow(onClose: () -> Unit) {
     }
 }
 
+
+
+/**
+ * The graph of the pairs: the sessions are the nodes, each pair an arrow from the builder to the critic (green running, orange stopped, blue finished, grey not started),
+ * with its name and its round. The sessions are placed on a circle; what is connected shows at a glance (a chain, a hub, a cycle).
+ */
+@Composable
+private fun LoopsGraph(pairs: List<LoopPair>) {
+    val nodes = pairs.flatMap { listOf(it.builder to it.builderTitle, it.critic to it.criticTitle) }.distinctBy { it.first }
+    val density = LocalDensity.current
+    val nodeW = 92.dp
+    val nodeH = 36.dp
+    fun colorOf(p: LoopPair) = when (p.state) {
+        "running" -> Color(0xFF2E7D5A)
+        "stopped" -> Color(0xFFD08A2E)
+        "done" -> Color(0xFF3F7FBF)
+        else -> Color(0xFF8E8EA0)
+    }
+    BoxWithConstraints(Modifier.fillMaxWidth().height(280.dp)) {
+        val widthPx = with(density) { maxWidth.toPx() }
+        val heightPx = with(density) { maxHeight.toPx() }
+        val nodeWPx = with(density) { nodeW.toPx() }
+        val nodeHPx = with(density) { nodeH.toPx() }
+        val radius = minOf(widthPx - nodeWPx, heightPx - nodeHPx) / 2f
+        val centre = Offset(widthPx / 2f, heightPx / 2f)
+        val position = nodes.mapIndexed { i, node ->
+            val angle = -PI / 2 + 2 * PI * i / maxOf(1, nodes.size)
+            node.first to (if (nodes.size == 1) centre else Offset(centre.x + (radius * cos(angle)).toFloat(), centre.y + (radius * sin(angle)).toFloat()))
+        }.toMap()
+        Canvas(Modifier.fillMaxSize()) {
+            pairs.forEach { p ->
+                val from = position[p.builder] ?: return@forEach
+                val to = position[p.critic] ?: return@forEach
+                val dx = to.x - from.x
+                val dy = to.y - from.y
+                val length = hypot(dx, dy)
+                if (length < 1f) return@forEach
+                val ux = dx / length
+                val uy = dy / length
+                // the arrow stops at the border of the critic's box
+                val back = minOf(nodeWPx / 2f / maxOf(0.01f, kotlin.math.abs(ux)), nodeHPx / 2f / maxOf(0.01f, kotlin.math.abs(uy))) + 4f
+                val start = Offset(from.x + ux * 20f, from.y + uy * 20f)
+                val end = Offset(to.x - ux * back, to.y - uy * back)
+                drawLine(colorOf(p), start, end, strokeWidth = 4f)
+                val angle = atan2(uy, ux)
+                val head = Path().apply {
+                    moveTo(end.x, end.y)
+                    lineTo((end.x - 22f * cos(angle - 0.45)).toFloat(), (end.y - 22f * sin(angle - 0.45)).toFloat())
+                    lineTo((end.x - 22f * cos(angle + 0.45)).toFloat(), (end.y - 22f * sin(angle + 0.45)).toFloat())
+                    close()
+                }
+                drawPath(head, colorOf(p))
+            }
+        }
+        // the labels of the pairs, at the middle of their arrows
+        pairs.forEach { p ->
+            val from = position[p.builder] ?: return@forEach
+            val to = position[p.critic] ?: return@forEach
+            val mid = Offset((from.x + to.x) / 2f, (from.y + to.y) / 2f)
+            Text(
+                p.id + (if (p.state == "running" || p.rounds > 0) " ${p.rounds}/${p.limit}" else ""),
+                color = colorOf(p), style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.offset { IntOffset((mid.x - 14f).roundToInt(), (mid.y - 22f).roundToInt()) },
+            )
+        }
+        // the sessions
+        nodes.forEach { (id, title) ->
+            val at = position[id] ?: return@forEach
+            Surface(
+                shape = RoundedCornerShape(10.dp), tonalElevation = 4.dp,
+                modifier = Modifier.width(nodeW).height(nodeH).offset { IntOffset((at.x - nodeWPx / 2f).roundToInt(), (at.y - nodeHPx / 2f).roundToInt()) },
+            ) {
+                Box(Modifier.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) { Text(title, style = MaterialTheme.typography.labelSmall, maxLines = 2) }
+            }
+        }
+    }
+}

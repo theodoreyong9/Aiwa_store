@@ -53,7 +53,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 73
+BACKEND_VERSION = 74
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -638,13 +638,20 @@ def _proposals_line(repo):
         "ma création dans le dépôt et ses vidéos (`aiwa-videos/`), mes réalisations GitHub publiques si je l'ai coché : un fichier n'est PAS obligatoire. "
         "Si ma demande ne désigne rien de tout cela et que le dépôt est vide, demande-moi UNE fois par la question du widget (menu d'Aiwa → Créer à partir d'un fichier → Une campagne) et arrête-toi là. "
         "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Le paquet que tu livres : (1) la liste des cibles, (2) un site avec son arborescence, (3) une vidéo par cible, (4) `aiwa-proposals/proposals.json`. "
+        "REPÉRAGE : quand ma demande vise des sites dépassés à remplacer, cherche les cibles avec tes outils de recherche web et ne retiens un site que sur des CONSTATS MESURÉS, jamais sur un avis : "
+        "(1) pas de HTTPS ou certificat expiré (`curl -sI`) ; (2) pas adapté au téléphone : pas de `<meta name=\"viewport\">`, ou défilement horizontal à 390 px de large (Playwright, capture mobile) ; "
+        "(3) technologies d'un autre âge : Flash, cadres (`<frame>`), mise en page en tableaux imbriqués, balises `<font>`, jQuery très ancien ; (4) contenu daté : année de copyright ou dernière mise à jour de plus de 5 ans ; "
+        "(5) lourd ou lent : poids de la page, nombre de requêtes, temps de chargement mesuré ; (6) liens ou images cassés (statuts HTTP ≥ 400) ; (7) aucun moyen de contact lisible depuis un téléphone (ni formulaire, ni numéro cliquable, ni adresse). "
+        "Écris pour chaque cible, dans `liste.md`, les constats avec leur valeur mesurée (les chiffres, pas « semble ancien »), garde-les dans `reasons` en une ligne, et mets l'adresse du site actuel dans `currentUrl`. Ne retiens pas une cible qui n'a qu'un constat faible. "
+        "POINTS DE CONTACT : relève, sur le site de la cible lui-même, ses points de contact PUBLICS (e-mail, téléphone, adresse, horaires, formulaire, réseaux) : seulement ce qu'elle y publie, jamais une donnée déduite ou privée ; mets-les dans `contacts`, et l'e-mail et le téléphone dans `email` et `phone` s'ils y sont. "
+        "La maquette REMPLAÇANTE reprend tous ces points de contact tels que la cible les publie (elle reste utilisable le jour même par ses clients), avec un site moderne qui règle chacun des constats, et sans copier ni logo ni photo sans droit. "
         "D'abord la liste : établis-la d'après ma demande (au plus 20 cibles par lot ; seulement des coordonnées professionnelles publiques ou que je t'ai données, jamais de données privées) et écris-la dans `aiwa-proposals/liste.md` avec, pour chaque cible, pourquoi elle est retenue. "
         "Envoie-moi cette liste (noms seulement, courte) par la question du widget, avec trois choix : « Prépare ces cibles », « Retire-en… », « Annule » : c'est la SEULE fois où tu t'arrêtes pour m'attendre, ATTENDS ma réponse avant de fabriquer quoi que ce soit. "
         "Ensuite le rendu, pour chaque cible : une maquette de site sous `aiwa-proposals/<cible>/`, dans le MÊME site (l'arborescence d'un seul site, publié par GitHub Pages, adresses non listées ; pas un dépôt par cible) : "
         "la maquette porte en haut, bien visible, « Maquette de démonstration, pas le site officiel de <cible> », n'utilise de la cible que ce qu'elle publie elle-même, ne copie ni logo ni photo sans droit, et n'invente rien (ni chiffre, ni client, ni avis) ; "
         "une vidéo de présentation à la qualité que j'ai choisie (la consigne vidéo s'applique : stratégie, style, critique) ; un prix proposé, justifié en une phrase dans la liste. "
         "Puis écris `aiwa-proposals/proposals.json` : une liste d'objets "
-        "`{\"id\":\"cible\",\"name\":\"nom de la cible\",\"email\":\"adresse\",\"phone\":\"+41791234567\",\"subject\":\"…\",\"body\":\"le message, court, signé de mon nom, sans lien (les liens sont ajoutés à part)\",\"chatBody\":\"la version courte pour WhatsApp, SMS et Telegram\",\"xBody\":\"la version pour un post sur X, 200 caractères au plus, sans lien\",\"style\":\"le style de cette création en une phrase, avec les références des registres utilisées (ids)\",\"price\":\"prix proposé\",\"videoUrl\":\"https://…\",\"demoUrl\":\"https://<utilisateur>.github.io/<dépôt>/aiwa-proposals/<cible>/\"}` "
+        "`{\"id\":\"cible\",\"name\":\"nom de la cible\",\"email\":\"adresse\",\"phone\":\"+41791234567\",\"subject\":\"…\",\"body\":\"le message, court, signé de mon nom, sans lien (les liens sont ajoutés à part)\",\"chatBody\":\"la version courte pour WhatsApp, SMS et Telegram\",\"xBody\":\"la version pour un post sur X, 200 caractères au plus, sans lien\",\"style\":\"le style de cette création en une phrase, avec les références des registres utilisées (ids)\",\"currentUrl\":\"https://… le site actuel de la cible\",\"reasons\":\"les constats mesurés qui font juger ce site dépassé, en une ligne\",\"contacts\":\"les points de contact publics de la cible, relevés sur son site\",\"price\":\"prix proposé\",\"videoUrl\":\"https://…\",\"demoUrl\":\"https://<utilisateur>.github.io/<dépôt>/aiwa-proposals/<cible>/\"}` "
         "(videoUrl et demoUrl en https ; si tu n'as pas d'adresse sûre, laisse `email` vide ; `phone` est un numéro public de la cible au format international avec le +, ou vide : il sert à ouvrir WhatsApp ou un SMS que JE valide et envoie). "
         "CANAL PAR CANAL : chaque canal (mail, WhatsApp/SMS/Telegram, X) a sa forme, donc son texte : `body` pour le mail, `chatBody` pour les messageries, `xBody` pour X ; et son propre fil de créations. "
         "Ma demande dit, pour la campagne, si la création est « classique » ou « innovante », et ce qui a été envoyé en dernier sur chaque canal (avec son style). "
@@ -2023,7 +2030,7 @@ def _proposals_snapshot():
         email = text("email", 320)
         phone = re.sub(r"[\s().-]", "", text("phone", 40))
         items.append({"id": ident, "name": text("name", 120), "email": email if _EMAIL_RE.match(email) else "", "phone": phone if _PHONE_RE.match(phone) else "", "subject": text("subject", 200),
-                      "body": text("body", 4000), "chatBody": text("chatBody", 1000), "xBody": text("xBody", 300), "style": text("style", 600), "price": text("price", 120), "videoUrl": link("videoUrl"), "demoUrl": link("demoUrl")})
+                      "body": text("body", 4000), "chatBody": text("chatBody", 1000), "xBody": text("xBody", 300), "style": text("style", 600), "currentUrl": link("currentUrl"), "reasons": text("reasons", 600), "contacts": text("contacts", 400), "price": text("price", 120), "videoUrl": link("videoUrl"), "demoUrl": link("demoUrl")})
     return {"repo": repo, "proposals": items}
 
 

@@ -159,12 +159,15 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(p.name.ifBlank { p.id }, style = MaterialTheme.typography.titleSmall)
                                     Text(if (p.email.isBlank()) "Pas d'adresse sûre : tu la tapes dans ta messagerie." else p.email, style = MaterialTheme.typography.bodySmall)
+                                    if (p.reasons.isNotBlank()) Text("Constats : " + p.reasons, style = MaterialTheme.typography.bodySmall)
+                                    if (p.contacts.isNotBlank()) Text("Contacts publics : " + p.contacts, style = MaterialTheme.typography.bodySmall)
                                     Text(p.body, style = MaterialTheme.typography.bodySmall, maxLines = 6)
                                     OutlinedTextField(
                                         value = prices[p.id] ?: "", onValueChange = { prices[p.id] = it },
                                         label = { Text("Prix proposé") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                                     )
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        if (p.currentUrl.isNotBlank()) OutlinedButton(onClick = { openUrl(context, p.currentUrl) }, modifier = Modifier.weight(1f)) { Text("Site actuel") }
                                         if (p.demoUrl.isNotBlank()) OutlinedButton(onClick = { openUrl(context, p.demoUrl) }, modifier = Modifier.weight(1f)) { Text("Maquette") }
                                         if (p.videoUrl.isNotBlank()) OutlinedButton(onClick = { openUrl(context, p.videoUrl) }, modifier = Modifier.weight(1f)) { Text("Vidéo") }
                                     }

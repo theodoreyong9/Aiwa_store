@@ -16,6 +16,10 @@ data class Proposal(
     val chatBody: String = "",
     val xBody: String = "",
     val style: String = "",
+    /** The target's present site, the measured findings that make it dated, and its public points of contact, as the session found them. */
+    val currentUrl: String = "",
+    val reasons: String = "",
+    val contacts: String = "",
 )
 
 data class ProposalList(val repo: String?, val proposals: List<Proposal>)
