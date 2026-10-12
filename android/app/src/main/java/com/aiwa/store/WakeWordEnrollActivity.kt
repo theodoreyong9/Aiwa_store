@@ -77,6 +77,12 @@ class WakeWordEnrollActivity : ComponentActivity() {
         save = Button(this).apply { text = "Enregistrer ce mot"; visibility = View.GONE; setOnClickListener { saveWord() } }
         test = Button(this).apply { text = "Tester mon mot"; visibility = if (WakeWordSettings.variants(this@WakeWordEnrollActivity).isEmpty()) View.GONE else View.VISIBLE; isEnabled = false; setOnClickListener { testWord() } }
         reset = Button(this).apply { text = "Remettre « mon agent »"; setOnClickListener { WakeWordSettings.clear(this@WakeWordEnrollActivity); name.setText(""); test.visibility = View.GONE; show("C'est de nouveau « mon agent » (et « instruction »).") } }
+        val pause = android.widget.CheckBox(this).apply {
+            text = "Ne pas écouter pendant qu'un son ou une vidéo joue (la vidéo n'est plus mise en pause par le micro ; le mot d'éveil ne marche alors pas pendant la lecture)"
+            isChecked = WakeWordSettings.pauseOnMedia(this@WakeWordEnrollActivity)
+            setOnCheckedChangeListener { _, on -> WakeWordSettings.setPauseOnMedia(this@WakeWordEnrollActivity, on) }
+        }
+        column.addView(pause)
         val close = Button(this).apply { text = "Fermer"; setOnClickListener { closeAndResume() } }
         for (b in listOf(say, save, test, reset, close)) column.addView(b)
         setContentView(ScrollView(this).apply { addView(column) })

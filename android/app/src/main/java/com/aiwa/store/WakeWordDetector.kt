@@ -24,6 +24,9 @@ class WakeWordDetector(
     private val custom: List<String> = emptyList(),
     private val onWake: (WakeKind) -> Unit,
     private val onFailure: (String) -> Unit,
+    /** True while a sound or a video plays on the phone (another app). With [pauseOnMedia], the microphone is then given back and listening waits: a video is never paused by it, and its own sound is never taken for a word. */
+    private val mediaPlaying: () -> Boolean = { false },
+    private val pauseOnMedia: Boolean = false,
 ) {
     @Volatile private var running = false
     private var thread: Thread? = null
@@ -40,25 +43,39 @@ class WakeWordDetector(
         try { thread?.join(800) } catch (err: InterruptedException) { /* leaving */ }
     }
 
-    @android.annotation.SuppressLint("MissingPermission")
+    /** Listens; while a media plays (and the person asked for it) the microphone is released and listening waits, a second at a time. */
     private fun run() {
+        while (running) {
+            if (pauseOnMedia && mediaPlaying()) {
+                try { Thread.sleep(1200) } catch (err: InterruptedException) { return }
+                continue
+            }
+            if (listenOnce()) return
+        }
+    }
+
+    /** One listening, from opening the microphone to giving it back. True when it is over for good (a word heard, a failure, a stop); false when a media started playing. */
+    @android.annotation.SuppressLint("MissingPermission")
+    private fun listenOnce(): Boolean {
         val sampleRate = 16_000
         val minimum = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        if (minimum <= 0) { running = false; onFailure("le micro ne donne pas de taille de tampon (code $minimum)"); return }
+        if (minimum <= 0) { running = false; onFailure("le micro ne donne pas de taille de tampon (code $minimum)"); return true }
         val record = try {
             AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(minimum, 8192))
         } catch (err: Exception) {
             running = false
             onFailure("micro refusé : ${err.message}")
-            return
+            return true
         }
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             record.release()
             running = false
             onFailure("le micro n'a pas pu s'ouvrir (un autre programme l'utilise ?)")
-            return
+            return true
         }
         var woken: WakeKind? = null
+        var interrupted = false
+        var sinceCheck = 0
         try {
             Recognizer(model, sampleRate.toFloat(), WakeWords.grammar(custom)).use { recognizer ->
                 record.startRecording()
@@ -67,6 +84,8 @@ class WakeWordDetector(
                     val n = record.read(buffer, 0, buffer.size)
                     if (n < 0) { onFailure("lecture du micro interrompue (code $n)"); running = false; break }
                     if (n == 0) continue
+                    // about every second (8 reads of 128 ms): has a media started? then the microphone goes back and this listening ends
+                    if (pauseOnMedia && ++sinceCheck >= 8) { sinceCheck = 0; if (mediaPlaying()) { interrupted = true; break } }
                     val heard = if (recognizer.acceptWaveForm(buffer, n)) JSONObject(recognizer.result).optString("text") else JSONObject(recognizer.partialResult).optString("partial")
                     val kind = if (heard.isEmpty()) null else wakeKind(heard, custom)
                     if (kind != null) { woken = kind; running = false }
@@ -80,5 +99,6 @@ class WakeWordDetector(
             record.release()
         }
         woken?.let { onWake(it) }
+        return !interrupted
     }
 }

@@ -46,6 +46,10 @@ object WakeWordSettings {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("custom", variants.joinToString("|")).putString("custom_name", name.trim()).apply()
     }
     fun clear(context: Context) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("custom").remove("custom_name").apply() }
+
+    /** Whether listening waits while a sound or a video plays (default: yes: a video is not paused by the microphone, and its sound is not heard as a word). */
+    fun pauseOnMedia(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("pause_on_media", true)
+    fun setPauseOnMedia(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("pause_on_media", on).apply() }
 }
 
 /**
@@ -150,6 +154,8 @@ class WakeWordService : Service() {
             custom = WakeWordSettings.variants(this),
             onWake = { kind -> main.post { heardWakeWord(kind) } },
             onFailure = { reason -> main.post { fail("Écoute permanente arrêtée : $reason") } },
+            mediaPlaying = { (getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager).isMusicActive },
+            pauseOnMedia = WakeWordSettings.pauseOnMedia(this),
         ).also { it.start() }
     }
 

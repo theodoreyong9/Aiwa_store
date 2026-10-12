@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 62
+BACKEND_VERSION = 63
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -524,6 +524,7 @@ def _game_line():
         "ne remplace pas une fonction manquante par une simulation non signalée, n'invente aucune méthode d'un SDK (lis la documentation officielle de la version utilisée), et n'annonce aucune capacité (8 ou 16 joueurs) que tu n'as pas mesurée. "
         "Avant de livrer, JOUE-LE toi-même : ouvre-le dans Chromium avec Playwright (installe-le si besoin : `npx playwright install chromium`), joue une partie complète par script (début, points, fin, rejouer), "
         "vérifie qu'il n'y a aucune erreur dans la console, prends des captures en 390 px et 1440 px, regarde-les, corrige ce qui est cassé, coupé ou illisible, et dis-moi ce que tu as vu. "
+        "Pour les décors, modèles 3D, textures et lumières libres de droits, cherche d'abord dans le registre (`node asset-research/src/cli.js search \"<ce qu'il faut>\" --kind=model`, depuis le dépôt de référence cloné) et ne télécharge que ce que tu gardes ; pour la musique et les sons, le registre de musique (`node music-research/src/cli.js search \"<l'ambiance>\" --credit=ok`, qui lit aussi OpenGameArt) : garde la source et la licence de chaque élément dans `CREDITS.md` du jeu. "
         "Pour l'interface et la direction visuelle, applique aussi la consigne Design."
     )
 
@@ -562,8 +563,8 @@ def _video_full(repo):
     return (
         "Vidéo : si je demande une vidéo promotionnelle de ma création, lis d'abord " + REFERENCE_RAW + "/docs/PROMO-VIDEO.md (le standard) et suis ses étapes DANS L'ORDRE, "
         "en écrivant chacune dans un fichier sous `aiwa-videos/` et en relisant la précédente avant la suivante : 0 les faits (`facts.md` : ce qui est vrai, ce que ma création montre et fait, les vraies captures), "
-        "1 le brief (`brief.md` : le public, UN message, le ton, la direction artistique prise dans ma création, l'appel à l'action), "
-        "2 le script (`script.md` : accroche dans les 2 premières secondes, tension, révélation, preuve, appel à l'action, texte de la voix off avec ses secondes), "
+        "1 le brief (`brief.md` : le public, UN message, le ton, la direction artistique prise dans ma création, l'appel à l'action), puis la stratégie de la section 0 du guide du réalisateur : le contexte, la tension vraie, 6 à 10 idées notées dont tu choisis la meilleure en disant pourquoi les autres perdent, une proposition unique, un pré-mortem de trois risques, et `style.md` (la feuille de style de TOUT le film : palette, typographie, mouvements, identité sonore, grade), "
+        "2 le script (`script.md` : accroche dans les 2 premières secondes, tension, révélation, preuve, appel à l'action, texte de la voix off avec ses secondes, et le tableau des scènes : rôle dans l'histoire, émotion voulue, preuve montrée, durée, outil ; une scène sans rôle est coupée), "
         "3 le plan de plans (`video.html`, depuis `video-kit/template/cinematic.html` : un plan par temps du script, avec son mouvement, sa transition et son son ; c'est ici que tu consultes le registre des objets, lumières et textures (`asset-research`, voir plus bas) pour chaque scène que tu rends réelle, et que tu écris dans `script.md` le choix de chaque scène : page, 3D, footage ou générée), "
         "4 le son : une vraie musique forte qui porte le rythme, et une voix courte et percutante par-dessus, seulement sur les temps forts. "
         "Cherche la musique dans le registre : `node music-research/src/cli.js search \"<l'ambiance voulue>\" --bpm=100-130 --energy=4 --credit=ok` depuis le dépôt de référence cloné "
@@ -571,7 +572,7 @@ def _video_full(repo):
         "télécharge UNIQUEMENT celle que tu retiens (`music-research fetch <id> musique.mp3`), place les coupes et les phrases sur ses temps forts, assemble avec `video-kit assemble ... --audio=musique.mp3 --voice=vo.wav --duck=light`, "
         "et écris dans `brief.md` le titre, l'auteur, la licence et la source ; si le registre donne un crédit, affiche-le en tout petit dans la vidéo ou donne-le-moi pour la description. "
         "Si la source est injoignable ou si rien ne convient, prends le rythme généré (`beat.py`) et dis-le. "
-        "5 un aperçu en petit, 6 la critique, 7 le rendu final. "
+        "5 un aperçu en petit, 6 la critique (scène par scène, puis le film entier d'un seul regard : arc, cohérence, énergie, voix, fin, section 9 du guide), 7 le rendu final. "
         "Au stade 1, lis aussi " + REFERENCE_RAW + "/docs/DIRECTOR-PLAYBOOK.md (les règles du métier et la fiche de critique) et cherche des idées dans de vraies campagnes : "
         "`node video-research/src/cli.js research \"<ma demande>\"` depuis le dépôt de référence cloné (sinon `VR_CATALOG_URL=" + REFERENCE_RAW + "/video-research/catalog/campaigns.jsonl`) ; "
         "prends-en 2 ou 3 et cite-les dans `brief.md` (titre, lien, ce que tu en retiens), sans rien copier. "

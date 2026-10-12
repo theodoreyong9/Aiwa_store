@@ -328,6 +328,9 @@ class VideoQualityTests(unittest.TestCase):
         self.assertIn("un seul tour", mid)
         self.assertIn("EXTRA", extra)
         self.assertIn("CHAQUE scène", extra)
+        self.assertIn("section 0 du guide du réalisateur", extra)
+        self.assertIn("style.md", extra)
+        self.assertIn("section 9", extra)
         self.assertIn("registre des objets, lumières et textures", extra)
         self.assertIn("kit.phone", extra)
         self.assertNotIn("kit.phone", mid)
@@ -337,6 +340,11 @@ class VideoQualityTests(unittest.TestCase):
             self.assertIn(wanted, extra)
         self.assertLess(len(simple), len(mid))
         self.assertLess(len(mid), len(extra))
+
+    def test_the_game_instruction_uses_the_registers_and_keeps_credits(self):
+        text = dict(srv._instruction_lines("o/r", "w", "main", True))["game"]
+        for wanted in ("asset-research", "music-research", "CREDITS.md", "GAME-FOUNDATION.md"):
+            self.assertIn(wanted, text)
 
     def test_the_choice_is_kept_and_sent_in_the_instructions(self):
         srv.video_quality = "extra"
