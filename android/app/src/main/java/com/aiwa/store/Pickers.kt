@@ -530,10 +530,13 @@ class VoiceHelpActivity : ComponentActivity() {
                 add(PickerEntry("Mon mot d'éveil : le choisir ou le changer, même « Aiwa »", false, lines = 2) { open(WakeWordEnrollActivity::class.java) })
                 add(PickerEntry("État d'Aiwa : Claude, alertes, permissions", false, lines = 2) { open(HealthActivity::class.java) })
                 add(PickerEntry("Mettre à jour le cerveau d'Aiwa (Termux)", false, lines = 2) { updateBrain() })
-                add(PickerEntry(if (WidgetPin.hasWidget(applicationContext)) "Ajouter un widget de plus à l'écran d'accueil" else "Ajouter le widget à l'écran d'accueil (un appui sur « Ajouter »)", false, lines = 2) {
-                    WidgetPin.request(applicationContext, explain = true)
-                    finish()
-                })
+                // Only when there is no widget yet: nobody asked for a second one
+                if (!WidgetPin.hasWidget(applicationContext)) {
+                    add(PickerEntry("Ajouter le widget à l'écran d'accueil (un appui sur « Ajouter »)", false, lines = 2) {
+                        WidgetPin.request(applicationContext, explain = true)
+                        finish()
+                    })
+                }
                 add(PickerEntry("Mettre à jour l'application (version ${AppUpdater.installedVersion(applicationContext) ?: "?"}) : télécharge la dernière et ouvre l'installation", false, lines = 3) { AppUpdater.update(applicationContext); finish() })
 
                 add(PickerEntry("Écoute permanente", false, header = true) { })
