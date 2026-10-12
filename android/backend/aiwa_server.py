@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 64
+BACKEND_VERSION = 65
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -142,7 +142,7 @@ cloud_progress = ""          # what the running send is doing right now (a step 
 # wait for an answer) is always there — it is mandatory, not a switch.
 current_repo = None
 push_main = True
-DEPLOY_MODES = ("none", "pages", "android", "store", "aiwa")
+DEPLOY_MODES = ("none", "pages", "android", "store", "aiwa", "campaign")
 deploy_mode = "pages"
 video_quality = "moyen"   # simple, moyen, extra: how far a video goes (see _video_line)
 # Other repositories Claude may ALSO work on (checked in the widget's picker):
@@ -598,17 +598,21 @@ def _video_full(repo):
 
 
 def _proposals_line(repo):
-    """Proposals to a list of people: the session prepares them and writes them down; it never sends anything, I validate each one in the app."""
+    """The campaign mode: a file (and, if I ticked it, my GitHub work) becomes a package: a list of targets that I validate, a site with its tree, a video and a price for each, and the proposals
+    I validate one by one in the app. The session prepares, it never sends anything."""
     return (
-        "Propositions : si je te demande de préparer une proposition (commerciale, invitation, candidature…) pour plusieurs personnes ou entreprises, tu PRÉPARES, tu n'ENVOIES JAMAIS. "
-        "Établis d'abord la liste d'après ma demande (au plus 20 cibles par lot ; seulement des coordonnées professionnelles publiques ou que je t'ai données, jamais de données privées) et écris-la dans `aiwa-proposals/liste.md` avec, pour chaque cible, pourquoi elle est retenue. "
+        "MODE CAMPAGNE : ce projet est une campagne de propositions, semi-automatisée. Elle part d'UN fichier (le mien, dans mon message : un CV, un argumentaire, une brochure…) ; "
+        "si mon message n'en contient pas, demande-le moi UNE fois par la question du widget (menu d'Aiwa → Créer à partir d'un fichier → Une campagne) et arrête-toi là. "
+        "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Le paquet que tu livres : (1) la liste des cibles, (2) un site avec son arborescence, (3) une vidéo par cible, (4) `aiwa-proposals/proposals.json`. "
+        "D'abord la liste : établis-la d'après ma demande (au plus 20 cibles par lot ; seulement des coordonnées professionnelles publiques ou que je t'ai données, jamais de données privées) et écris-la dans `aiwa-proposals/liste.md` avec, pour chaque cible, pourquoi elle est retenue. "
         "Envoie-moi cette liste (noms seulement, courte) par la question du widget, avec trois choix : « Prépare ces cibles », « Retire-en… », « Annule » : c'est la SEULE fois où tu t'arrêtes pour m'attendre, ATTENDS ma réponse avant de fabriquer quoi que ce soit. "
-        "Pour chaque cible, fabrique ce que ma demande décrit (par exemple une maquette de site et une vidéo de présentation) sous `aiwa-proposals/<cible>/` du dépôt en cours, dans le même site : "
-        "la maquette porte en haut, bien visible, « Maquette de démonstration, pas le site officiel de <cible> », n'utilise de la cible que ce qu'elle publie elle-même, ne copie ni logo ni photo sans droit, et n'invente rien (ni chiffre, ni client, ni avis). "
+        "Ensuite le rendu, pour chaque cible : une maquette de site sous `aiwa-proposals/<cible>/`, dans le MÊME site (l'arborescence d'un seul site, publié par GitHub Pages, adresses non listées ; pas un dépôt par cible) : "
+        "la maquette porte en haut, bien visible, « Maquette de démonstration, pas le site officiel de <cible> », n'utilise de la cible que ce qu'elle publie elle-même, ne copie ni logo ni photo sans droit, et n'invente rien (ni chiffre, ni client, ni avis) ; "
+        "une vidéo de présentation à la qualité que j'ai choisie (la consigne vidéo s'applique : stratégie, style, critique) ; un prix proposé, justifié en une phrase dans la liste. "
         "Puis écris `aiwa-proposals/proposals.json` : une liste d'objets "
         "`{\"id\":\"cible\",\"name\":\"nom de la cible\",\"email\":\"adresse\",\"subject\":\"…\",\"body\":\"le message, court, signé de mon nom, sans lien (les liens sont ajoutés à part)\",\"price\":\"prix proposé\",\"videoUrl\":\"https://…\",\"demoUrl\":\"https://<utilisateur>.github.io/<dépôt>/aiwa-proposals/<cible>/\"}` "
-        "(videoUrl et demoUrl en https, prix justifié en une phrase dans la liste ; si tu n'as pas d'adresse sûre, laisse `email` vide). "
-        "Pousse le tout sur la branche principale, puis dis-moi en une phrase combien de propositions sont prêtes : je les relis et je les envoie moi-même, une par une, depuis l'application (Vidéos → Propositions)."
+        "(videoUrl et demoUrl en https ; si tu n'as pas d'adresse sûre, laisse `email` vide). "
+        "Pousse le tout sur la branche principale, puis dis-moi en une phrase combien de propositions sont prêtes : je les relis et je les envoie moi-même, une par une, depuis l'application (menu d'Aiwa → Propositions à valider)."
     )
 
 
@@ -759,7 +763,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
                 f"N'intègre rien dans {base} et ne pousse pas dessus : tes changements s'accumulent sur ta branche et seront intégrés en entier "
                 "au prochain passage en intégration directe.",
             ))
-        if deploy == "pages":
+        if deploy in ("pages", "campaign"):
             lines.append((
                 "deploy",
                 f"Déploiement : le site est publié par GitHub Pages via GitHub Actions, à l'adresse {github.pages_url(repo)}. "
@@ -863,7 +867,8 @@ def _instruction_lines(repo, work, base, direct, origin=None):
     if repo:
         lines.append(("video", _video_line(repo, video_quality)))
         lines.append(("document", _document_line(repo)))
-        lines.append(("proposals", _proposals_line(repo)))
+        if deploy == "campaign":
+            lines.append(("proposals", _proposals_line(repo)))
     lines.append(("ask", _ask_line(repo, work, topic)))
     # Mandatory, not a switch: it is how the widget learns that Claude is
     # waiting (the CLI can't read a cloud reply back). A public relay, a

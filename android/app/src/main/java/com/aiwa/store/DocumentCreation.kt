@@ -105,18 +105,18 @@ class FileCreationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
-        setContent { FileCreationWindow(onClose = { finish() }) }
+        setContent { FileCreationWindow(startCampaign = intent?.getBooleanExtra("campaign", false) == true, onClose = { finish() }) }
     }
 }
 
 @Composable
-private fun FileCreationWindow(onClose: () -> Unit) {
+private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
     val context = LocalContext.current
     val bridge = remember { LocalClaudeBridge() }
     val scope = rememberCoroutineScope()
     var document by remember { mutableStateOf<PickedDocument?>(null) }
     var withGithub by remember { mutableStateOf(false) }
-    var campaign by remember { mutableStateOf(false) }
+    var campaign by remember { mutableStateOf(startCampaign) }
     var targets by remember { mutableStateOf("") }
     var quality by remember { mutableStateOf(AiwaRepository.state.value.videoQuality) }
     var busy by remember { mutableStateOf(false) }
@@ -132,7 +132,8 @@ private fun FileCreationWindow(onClose: () -> Unit) {
         if (busy) return
         busy = true
         scope.launch {
-            switchOptions(context, bridge, videoQuality = quality)
+            // a campaign is a mode of its own (the project-type list): the instruction of the mode goes with the request
+            switchOptions(context, bridge, videoQuality = quality, deploy = if (campaign) "campaign" else null)
             val sent = sendAndTrack(context, bridge, text, toastErrors = true)
             busy = false
             if (sent) { toastOnMain(context, "Demande envoyée à Claude"); onClose() }

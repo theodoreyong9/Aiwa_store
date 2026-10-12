@@ -689,5 +689,7 @@ class DeployPickerActivity : ComponentActivity() {
         val app = applicationContext
         finish()
         CoroutineScope(Dispatchers.Default).launch { switchOptions(app, LocalClaudeBridge(), deploy = mode) }
+        // the campaign mode simply asks for a file: its window opens at once
+        if (mode == "campaign") startActivity(Intent(app, FileCreationActivity::class.java).putExtra("campaign", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }

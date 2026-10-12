@@ -391,7 +391,20 @@ class ProposalsTests(unittest.TestCase):
         many = [{"id": f"c{i}", "name": "x"} for i in range(srv.PROPOSAL_MAX + 20)]
         self.assertEqual(len(self.snapshot(many)["proposals"]), srv.PROPOSAL_MAX)
 
+    def test_the_campaign_is_a_mode_of_its_own_and_the_other_modes_do_not_carry_it(self):
+        self.assertIn("campaign", srv.DEPLOY_MODES)
+        for mode in ("pages", "android"):
+            srv.deploy_mode = mode
+            self.assertNotIn("proposals", dict(srv._instruction_lines("o/r", "w", "main", True)))
+        srv.deploy_mode = "campaign"
+        lines = dict(srv._instruction_lines("o/r", "w", "main", True))
+        srv.deploy_mode = "pages"
+        self.assertIn("MODE CAMPAGNE", lines["proposals"])
+        self.assertIn("GitHub Pages", lines["deploy"])         # the campaign publishes its site like the pages mode does
+
     def test_the_instruction_prepares_and_never_sends(self):
+        srv.deploy_mode = "campaign"
+        self.addCleanup(setattr, srv, "deploy_mode", "pages")
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
         for wanted in ("n'ENVOIES JAMAIS", "aiwa-proposals/proposals.json", "Maquette de démonstration, pas le site officiel", "au plus 20 cibles", "n'invente rien", "ATTENDS ma réponse"):
             self.assertIn(wanted, text)

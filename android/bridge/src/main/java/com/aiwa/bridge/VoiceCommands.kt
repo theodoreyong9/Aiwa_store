@@ -78,6 +78,7 @@ private val BRANCH_WORDS = setOf("branche", "branches")
 private val NONE_WORDS = setOf("aucun", "aucune", "rien", "desactive", "desactiver", "non", "zero", "stop", "arret")
 private val PAGES_WORDS = setOf("pages", "page", "site", "web")
 private val ANDROID_WORDS = setOf("android", "apk")
+private val CAMPAIGN_WORDS = setOf("campagne", "campagnes")
 
 private fun startsCommand(word: Word, next: Word?): Boolean =
     word.plain in MODEL_WORDS || word.plain in PUSH_WORDS || word.plain in DEPLOY_WORDS || word.plain in SESSION_WORDS ||
@@ -197,6 +198,7 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
                     p == null -> null
                     p in PAGES_WORDS -> "pages" to "Pages"
                     p in ANDROID_WORDS -> "android" to "Android"
+                    p in CAMPAIGN_WORDS -> "campaign" to "Campagne"
                     p == "store" -> "store" to "Store"
                     p in AIWA || isAiwa(segment, k) > 0 -> "aiwa" to "Aiwa"
                     p in NONE_WORDS -> "none" to "aucun"
@@ -309,6 +311,7 @@ fun statusReport(repo: String?, modelLabel: String, pushMain: Boolean, deploy: S
             "android" -> "Déploiement Android"
             "store" -> "Déploiement Store"
             "aiwa" -> "Déploiement Aiwa"
+            "campaign" -> "Mode campagne"
             else -> "Aucun déploiement"
         },
     )

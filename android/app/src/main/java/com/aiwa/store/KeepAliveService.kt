@@ -147,6 +147,7 @@ class KeepAliveService : Service() {
             "android" -> "Android ●"
             "store" -> "Store ●"
             "aiwa" -> "Aiwa ●"
+            "campaign" -> "Campagne ●"
             else -> "Deploy ○"
         }
         val target: Class<*> = when {

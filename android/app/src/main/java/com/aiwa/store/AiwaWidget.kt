@@ -133,11 +133,12 @@ private fun deployLabel(mode: String) = when (mode) {
     "android" -> "Android ▾"
     "store" -> "Store ▾"
     "aiwa" -> "Aiwa ▾"
+    "campaign" -> "Campagne ▾"
     else -> "Deploy ▾"
 }
 
 // GitHub Actions only matter when the work is published from GitHub.
-private fun publishesFromGithub(deploy: String) = deploy == "pages" || deploy == "android"
+private fun publishesFromGithub(deploy: String) = deploy == "pages" || deploy == "android" || deploy == "campaign"
 
 
 // Every button of the widget is one of these two shapes (34 dp high in the

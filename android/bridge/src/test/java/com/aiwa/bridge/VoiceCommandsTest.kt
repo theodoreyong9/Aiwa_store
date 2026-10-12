@@ -93,6 +93,7 @@ class VoiceCommandsTest {
         assertEquals("pages", mode("déploiement github pages"))
         assertEquals("android", mode("déploiement en android"))
         assertEquals("android", mode("déploiement apk"))
+        assertEquals("campaign", mode("déploiement campagne"))
         assertEquals("store", mode("déploiement store"))
         assertEquals("aiwa", mode("déploiement aiwa"))
         assertEquals("aiwa", mode("déploiement ai wa"))
