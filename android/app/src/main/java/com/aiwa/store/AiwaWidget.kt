@@ -348,10 +348,10 @@ private fun FullContent(state: AiwaState) {
     val showSite = hasRepo && site != null && (state.deploy != "none" || live) && !campaignMode
     val showProposals = hasRepo && campaignMode      // in the campaign mode the site button gives way to « Propositions et gestion »
     val showStore = hasRepo && storeMode
-    // In the Store mode nothing is published through GitHub: the round "GitHub Actions" button (the build of this
-    // repository) has no meaning there, and gives way to a button that shows the code Claude sent.
+    // In the Store mode the repository carries a small workflow that checks the app (aiwa-apps/*.app.html); the round "GitHub Actions" button
+    // follows it, as it follows the build in the Android mode, next to the button that shows the code Claude sent.
     val showCode = showStore
-    val showActions = (hasRepo && ((!storeMode && publishesFromGithub(state.deploy)) || state.ciState != null)) || state.deploy == "aiwa"
+    val showActions = (hasRepo && (publishesFromGithub(state.deploy) || storeMode || state.ciState != null)) || state.deploy == "aiwa"
     val fixed = (if (showSite || showProposals) GAP + chipH else 0f) + (if (showStore) GAP + chipH else 0f) + (if (showCode) GAP + chipH else 0f) + (if (showActions) GAP + chipH else 0f) + (if (hasRepo) GAP + chipH else 0f)
     val each = avail - fixed - 20f
     val deployText = fitLabel(deployLabel(state.deploy), each, fontScale)
@@ -661,7 +661,7 @@ private fun CompactContent(state: AiwaState) {
             // In the Store mode nothing is published through GitHub: the round "GitHub Actions" button (the build of this
             // repository) has no meaning there, and gives way to a button that shows the code Claude sent.
             val showCode = showStore
-            val showActions = (hasRepo && ((!storeMode && publishesFromGithub(state.deploy)) || state.ciState != null)) || state.deploy == "aiwa"
+            val showActions = (hasRepo && (publishesFromGithub(state.deploy) || storeMode || state.ciState != null)) || state.deploy == "aiwa"
             var others = 0f
             if (hasRepo) others += GAP + chipWidth(pushText, fontScale) + GAP + chipWidth(deployText, fontScale)
             if (showSite || showProposals) others += GAP + 34f

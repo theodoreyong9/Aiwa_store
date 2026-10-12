@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 67
+BACKEND_VERSION = 68
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -73,6 +73,33 @@ APP_KEEP = 10
 # is an Aiwa contract: the Store publishes it through Aiwa and GitHub holds only a pointer. Either way the Store's publish sheet
 # takes the name and the code.
 APP_FILE_RE = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?\.(?:app|aiwa)\.html")
+# What the repository of a Store app carries (the Store mode with a repository): a workflow that checks every aiwa-apps/*.app.html, so that the
+# GitHub Actions button of the widget has something to follow there, as it has the build in the Android mode.
+APP_CHECK_WORKFLOW = (
+    "name: Aiwa app check\n"
+    "on:\n  push:\n    paths: ['aiwa-apps/**']\n  workflow_dispatch:\n"
+    "jobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n"
+    "      - uses: actions/checkout@v4\n"
+    "      - run: |\n"
+    "          python3 - <<'PY'\n"
+    "          import glob, re, sys\n"
+    "          bad = 0\n"
+    "          files = glob.glob('aiwa-apps/*.app.html')\n"
+    "          if not files:\n"
+    "              print('no app in aiwa-apps/'); bad = 1\n"
+    "          for f in files:\n"
+    "              t = open(f, encoding='utf-8').read()\n"
+    "              errs = []\n"
+    "              if not re.fullmatch(r'aiwa-apps/[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?\\.app\\.html', f): errs.append('file name')\n"
+    "              if len(t.encode()) > 512 * 1024: errs.append('larger than 512 KB')\n"
+    "              if '<title>' not in t.lower(): errs.append('no <title>')\n"
+    "              if re.search(r'(?:src|href)=\"(?!https?:|data:|#|mailto:|//)', t): errs.append('relative path')\n"
+    "              if re.search(r'localStorage|sessionStorage|indexedDB|document\\.cookie', t): errs.append('browser storage (not available in the Store frame)')\n"
+    "              print(f, 'OK' if not errs else errs)\n"
+    "              bad |= bool(errs)\n"
+    "          sys.exit(bad)\n"
+    "          PY\n"
+)
 # The repository the Store lives in: an important but OPTIONAL source for what is built in the "store" mode
 # (see _sources_line).
 REFERENCE_REPO = "theodoreyong9/Aiwa_store"
@@ -821,7 +848,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/store-app-example.html. "
             + (
                 "Place-la dans mon dépôt, sous `aiwa-apps/nom.app.html` (crée le dossier), sur la branche principale du dépôt (qui doit être public) : c'est là que vit l'app, dans MON GitHub, et je pourrai la modifier quand je veux. "
-                "Il n'y a pas de registre pour ça : le Store lit mon compte GitHub, sans wallet ni signature, et l'app apparaît dans sa bibliothèque (le bouton ▦ du widget ajoute mon compte à la liste du Store). "
+                "Ajoute aussi, une fois, `.github/workflows/aiwa-app-check.yml` avec exactement ce contenu (il vérifie chaque app à chaque push ; le bouton GitHub Actions du widget le suit) :\n```\n" + APP_CHECK_WORKFLOW + "```\nIl n'y a pas de registre pour ça : le Store lit mon compte GitHub, sans wallet ni signature, et l'app apparaît dans sa bibliothèque (le bouton ▦ du widget ajoute mon compte à la liste du Store). "
                 if repo else
                 "Ne la pousse sur AUCUN dépôt : je la relis, l'essaie et la publie moi-même depuis le Store (bouton ▦ du widget), avec mon identité. "
             ) +
