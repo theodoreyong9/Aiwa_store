@@ -270,6 +270,8 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         state.ask != null -> { status = "❓ Claude te pose une question — touche ici"; statusColor = alertText; statusBold = true }
         state.ciHintTitle != null -> { status = "⚠ GitHub : un réglage à faire — touche ⚠"; statusColor = alertText; statusBold = true }
         state.waiting -> { status = "● Claude attend ta réponse"; statusColor = alertText; statusBold = true }
+        // Nothing came back by any road for a while after a message: only « go and look » can be said (the answer cannot be read from here)
+        state.silenceMinutes > 0 -> { status = "⏳ Rien de Claude depuis ${state.silenceMinutes} min — touche ici"; statusColor = warm; statusBold = true }
         storeReady -> {
             status = "App prête : touche ▦ pour l'ouvrir dans le Store, </> montre son code"
             statusColor = fg
@@ -300,6 +302,7 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
         state.ask != null && state.status != AiwaState.Status.WORKING -> actionStartActivity<AskActivity>()
+        state.silenceMinutes > 0 && state.status != AiwaState.Status.WORKING -> actionStartActivity<OpenClaudeActivity>()
         state.status == AiwaState.Status.ERROR && state.notice != null -> actionStartActivity<MainActivity>()
         state.needsRepo || state.repo == null -> actionStartActivity<RepoPickerActivity>()
         else -> lockable(locked, actionStartActivity<SessionPickerActivity>())
@@ -531,8 +534,8 @@ private fun FullContent(state: AiwaState) {
             Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(
                 icon = R.drawable.ic_claude,
-                description = if (state.waiting) "Claude attend une réponse : ouvrir la conversation" else if (hasSession) "Ouvrir la conversation dans Claude" else "Ouvrir Claude",
-                background = if (state.waiting) alertRed else claudeOrange,
+                description = if (state.waiting) "Claude attend une réponse : ouvrir la conversation" else if (state.silenceMinutes > 0) "Rien reçu de Claude depuis un moment : ouvrir la conversation" else if (hasSession) "Ouvrir la conversation dans Claude" else "Ouvrir Claude",
+                background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
                 action = actionStartActivity<OpenClaudeActivity>(),
                 diameter = micH.dp,
             )
@@ -574,7 +577,7 @@ private fun GlassesContent(state: AiwaState) {
     val repoText = "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", textRoom - textWidth("⎇  ▾", fontScale), fontScale) + " ▾"
     val settingsText = fitLabel(settingsSummary(state), textRoom - textWidth(" ▾", fontScale), fontScale) + " ▾"
     val modeText = fitLabel(deployLabel(state.deploy), textRoom, fontScale)
-    val claudeText = if (state.waiting) "● Claude attend" else if (hasSession) "Claude ↗" else "Ouvrir Claude"
+    val claudeText = if (state.waiting) "● Claude attend" else if (state.silenceMinutes > 0) "⏳ Rien depuis ${state.silenceMinutes} min" else if (hasSession) "Claude ↗" else "Ouvrir Claude"
 
     Row(
         modifier = GlanceModifier.fillMaxSize()
@@ -594,7 +597,7 @@ private fun GlassesContent(state: AiwaState) {
             Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = !hasRepo)
             Chip(settingsText, if (locked) PILL_DIM else if (state.ciState == "failure") alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
             Chip(modeText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-            Chip(claudeText, if (state.waiting) alertRed else claudeOrange, fg, actionStartActivity<OpenClaudeActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+            Chip(claudeText, if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange, fg, actionStartActivity<OpenClaudeActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
         }
         // ---- the bridge: the microphone ---------------------------------------
         Column(modifier = GlanceModifier.width(bridgeW.dp).fillMaxHeight(), verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally) {

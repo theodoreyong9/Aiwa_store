@@ -61,6 +61,8 @@ data class BackendStatus(
     // seconds of the last ping ever received (null = never).
     val waiting: Boolean = false,
     val alertLast: Long? = null,
+    // Minutes since a message went with no sign of Claude by any road (0 = nothing to say): the widget then asks to go and look in the conversation.
+    val silenceMinutes: Int = 0,
     val site: SiteInfo = SiteInfo(null, "off"),
     val ci: CiInfo? = null,
     val githubError: String? = null,

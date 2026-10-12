@@ -33,6 +33,7 @@ import struct
 import subprocess
 import termios
 import threading
+import calendar
 import time
 import urllib.error
 import urllib.parse
@@ -51,7 +52,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 71
+BACKEND_VERSION = 72
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2239,6 +2240,65 @@ def _relay_listener():
 def _clear_waiting():
     with waiting_lock:
         waiting["since"] = None
+    # The person went to look in Claude: the silence alert has done its job for this message
+    silence["acked_for"] = last_message_at
+
+
+# SILENCE: a message was sent, and after a while nothing came back by any road (no alert from the session, no question, no new commit on its branch,
+# no workflow that ran, no app) while it is not still being sent. The backend cannot read Claude's answer; it can only say that nothing was seen, so that the person
+# goes and looks in the conversation. Said between SILENCE_AFTER and SILENCE_UNTIL seconds after the message; after an hour the message is taken as done or given up.
+SILENCE_AFTER = 600
+SILENCE_UNTIL = 3600
+silence = {"acked_for": 0, "commit_key": None, "commit_at": 0.0, "commit_time": None}
+
+
+def _newest_commit_time(repo, branch):
+    """When the branch last received a commit (epoch seconds), from GitHub's public API; None when it cannot be told. Kept two minutes."""
+    now = time.time()
+    key = (repo, branch)
+    if silence["commit_key"] == key and now - silence["commit_at"] < 120:
+        return silence["commit_time"]
+    when = None
+    try:
+        data = _github_json(f"https://api.github.com/repos/{repo}/commits?sha={urllib.parse.quote(branch, safe='')}&per_page=1")
+        if isinstance(data, list) and data:
+            stamp = str((((data[0] or {}).get("commit") or {}).get("committer") or {}).get("date") or "")
+            when = calendar.timegm(time.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ")) if stamp else None
+    except (GithubUnavailable, ValueError, TypeError):
+        when = None
+    silence.update(commit_key=key, commit_at=now, commit_time=when)
+    return when
+
+
+def _silence_minutes(now=None):
+    """How many minutes without a sign of Claude since the last message, or 0 when there is nothing to say."""
+    now = time.time() if now is None else now
+    with lock:
+        sent, busy, pending_ask, app = last_message_at, cloud_busy, ask, sent_app
+        session = current_cloud or last_cloud
+        repo = current_repo
+    if not sent or busy or pending_ask:
+        return 0
+    waited = now - sent
+    if waited < SILENCE_AFTER or waited > SILENCE_UNTIL or silence["acked_for"] >= sent:
+        return 0
+    with waiting_lock:
+        ping = waiting["last_ping"]
+    if ping and ping >= sent:
+        return 0                                  # the session pinged the relay after the message
+    if app and (app.get("ts") or 0) >= sent:
+        return 0                                  # an app came
+    with site_lock:
+        info = ci_cache["info"] if ci_cache["repo"] == repo else None
+    if info and (info.get("state") == "running" or (info.get("done") or 0) >= sent):
+        return 0                                  # a workflow ran
+    entry = _session_entry(session) if session else {}
+    branch = (entry or {}).get("work")
+    if repo and branch and github.REPO_RE.fullmatch(repo) and BRANCH_RE.fullmatch(branch):
+        when = _newest_commit_time(repo, branch)
+        if when and when >= sent:
+            return 0                              # a commit on its branch
+    return int(waited // 60)
 
 
 def _relay_test():
@@ -2275,7 +2335,7 @@ class Handler(BaseHTTPRequestHandler):
                 "version": BACKEND_VERSION, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "video_quality": vquality, "extra": own, "extra_repos": more, "source_repos": inspiration,
-                "waiting": is_waiting, "alert_last": last_ping,
+                "waiting": is_waiting, "alert_last": last_ping, "silence_minutes": _silence_minutes(),
                 "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
                 "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(), "ask": _ask_snapshot(),
             })

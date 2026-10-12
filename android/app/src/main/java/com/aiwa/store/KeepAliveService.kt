@@ -139,6 +139,7 @@ class KeepAliveService : Service() {
             state.status == AiwaState.Status.WORKING -> "Envoi en cours…"
             state.ask != null -> "❓ Claude te pose une question"
             state.waiting -> "● Claude attend ta réponse"
+            state.silenceMinutes > 0 -> "⏳ Rien de Claude depuis ${state.silenceMinutes} min — touche pour ouvrir la conversation"
             appReady -> "App prête — touche pour l'ouvrir dans le Store"
             else -> "Prêt"
         }
@@ -153,7 +154,7 @@ class KeepAliveService : Service() {
         val target: Class<*> = when {
             loginNeeded -> ClaudeLoginActivity::class.java
             state.ask != null -> AskActivity::class.java
-            state.waiting && hasSession -> OpenClaudeActivity::class.java
+            (state.waiting || state.silenceMinutes > 0) && hasSession -> OpenClaudeActivity::class.java
             appReady -> OpenStoreActivity::class.java
             else -> DictateActivity::class.java
         }
@@ -324,7 +325,7 @@ class KeepAliveService : Service() {
 
     private fun widgetKey(): List<Any?> {
         val state = AiwaRepository.state.value
-        return listOf(state.backend, state.status, state.sendingNote, if (state.status == AiwaState.Status.WORKING && state.sendingSince > 0) (System.currentTimeMillis() - state.sendingSince) / 10_000 else null, state.waiting, state.ciFresh, state.ciState, state.ciHintTitle, state.siteState, state.cloudSessionId, state.repo, state.extraRepos, state.model, state.repoAccessMissing, state.sourceRepos, state.storeUpdateReady, state.listening, state.pushMain, state.deploy, state.siteKind, state.claudeLogin, state.relayCloud, state.sentApp)
+        return listOf(state.backend, state.status, state.sendingNote, if (state.status == AiwaState.Status.WORKING && state.sendingSince > 0) (System.currentTimeMillis() - state.sendingSince) / 10_000 else null, state.waiting, state.silenceMinutes / 5, state.ciFresh, state.ciState, state.ciHintTitle, state.siteState, state.cloudSessionId, state.repo, state.extraRepos, state.model, state.repoAccessMissing, state.sourceRepos, state.storeUpdateReady, state.listening, state.pushMain, state.deploy, state.siteKind, state.claudeLogin, state.relayCloud, state.sentApp)
     }
 
     override fun onDestroy() {

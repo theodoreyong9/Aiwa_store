@@ -70,6 +70,7 @@ object BackendSync {
                     videoQuality = status.videoQuality,
                     extra = status.extra,
                     waiting = status.waiting,
+                    silenceMinutes = status.silenceMinutes,
                     alertAt = status.alertLast,
                     effort = status.effort,
                     siteUrl = status.site.url,

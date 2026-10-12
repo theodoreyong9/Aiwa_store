@@ -368,6 +368,37 @@ class ProposalsTests(unittest.TestCase):
                 unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None):
             return srv._proposals_snapshot()
 
+    def test_a_silence_after_a_message_is_said_only_when_no_sign_of_claude_came(self):
+        now = 1_000_000.0
+        sent = int(now - 700)         # a message sent 11 minutes ago
+        base = dict(last_message_at=sent, cloud_busy=False, ask=None, sent_app=None, current_repo="o/r", current_cloud="session_x", last_cloud=None)
+        entry = {"repo": "o/r", "work": "claude/work"}
+
+        def minutes(commit_time=None, ping=None, ci=None, acked=0, **over):
+            patches = [unittest.mock.patch.object(srv, k, v) for k, v in {**base, **over}.items()]
+            patches += [unittest.mock.patch.object(srv, "_session_entry", return_value=entry),
+                        unittest.mock.patch.object(srv, "_newest_commit_time", return_value=commit_time)]
+            for p in patches:
+                p.start()
+            try:
+                srv.waiting.update(since=None, last_ping=ping)
+                srv.ci_cache.update(repo="o/r", info=ci, at=0.0, busy=False)
+                srv.silence["acked_for"] = acked
+                return srv._silence_minutes(now)
+            finally:
+                for p in patches:
+                    p.stop()
+        self.assertEqual(minutes(), 11)                                        # nothing came
+        self.assertEqual(minutes(ping=sent + 5), 0)                            # the session pinged the relay
+        self.assertEqual(minutes(commit_time=sent + 30), 0)                    # a commit on its branch
+        self.assertEqual(minutes(ci={"state": "success", "done": sent + 60}), 0)   # a workflow ran
+        self.assertEqual(minutes(sent_app={"ts": sent + 10}), 0)               # an app came
+        self.assertEqual(minutes(ask={"question": "?"}), 0)                    # a question is itself a sign
+        self.assertEqual(minutes(cloud_busy=True), 0)                          # still being sent
+        self.assertEqual(minutes(acked=sent), 0)                               # the person went to look
+        self.assertEqual(minutes(last_message_at=int(now - 100)), 0)           # too early
+        self.assertEqual(minutes(last_message_at=int(now - 4000)), 0)          # an hour later: done or given up
+
     def test_the_source_files_of_the_repository_are_listed(self):
         folder = [{"type": "file", "name": "clients.csv", "size": 120}, {"type": "file", "name": ".hidden", "size": 1}, {"type": "dir", "name": "sub"},
                   {"type": "file", "name": "Brochure.pdf", "size": 9000}]

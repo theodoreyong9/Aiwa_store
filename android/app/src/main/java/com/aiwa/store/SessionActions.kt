@@ -333,7 +333,7 @@ fun openClaudeApp(context: Context): Boolean {
             false
         }
     }
-    if (opened && state.waiting) {
+    if (opened && (state.waiting || state.silenceMinutes > 0)) {
         // The user goes to answer: the waiting indicator has done its job.
         val appContext = context.applicationContext
         CoroutineScope(Dispatchers.IO).launch {

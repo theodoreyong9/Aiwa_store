@@ -79,6 +79,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             videoQuality = json.str("video_quality") ?: "moyen",
             extra = json.str("extra") ?: "",
             waiting = json.optBoolean("waiting", false),
+            silenceMinutes = json.optInt("silence_minutes", 0),
             alertLast = if (json.isNull("alert_last")) null else json.optLong("alert_last"),
             site = SiteInfo(site?.str("url"), site?.str("state") ?: "off", site?.str("kind") ?: "site", site?.str("termux")),
             ci = run?.let { CiInfo(it.str("state") ?: "none", it.str("url"), it.optBoolean("fresh", false), it.str("detail"), ciHint(it.optJSONObject("hint"))) },
