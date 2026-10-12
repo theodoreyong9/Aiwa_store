@@ -82,23 +82,32 @@ ${APPS.map(([n, d, c], i) => `<div class="row" id="sa${i}" style="top:${116 + i 
   const TICKS = ['jour 1', 'jours 1 à 7', 'jours 7 à 30', 'jours 30 à 365'], RATE = [1.84, 1.06, 0.81, 0.61], TOTAL = [1.84, 8.19, 26.9, 231];
   const CX = (k) => 130 + k * 250, CY = (v) => 330 - (v / 2.1) * 270;
   const CURVE = RATE.map((v, k) => (k ? 'L' : 'M') + CX(k) + ' ' + CY(v).toFixed(1)).join(' ');
-  const PRODSTEP = (i, icon, name, sub, badge) => `<div class="cd" id="pc${i}" style="left:0;top:${i * 156}px;width:1000px;height:140px;gap:24px;padding:18px 30px"><div class="ib" style="width:76px;height:76px;border-radius:24px;background:#262636">${ic(icon, 40)}</div><div style="flex:1"><b style="font-size:40px">${name}</b><span style="font-size:26px;margin-top:2px">${sub}</span></div>${badge}</div>`;
+  const PRODSTEP = (i, icon, name, sub, badge) => `<div class="cd" id="pc${i}" style="left:0;top:${i * 162}px;width:1000px;height:148px;gap:24px;padding:18px 30px"><div class="ib" style="width:78px;height:78px;border-radius:24px;background:#262636">${ic(icon, 40)}</div><div style="flex:1"><b style="font-size:42px">${name}</b><span style="font-size:27px;margin-top:2px;line-height:1.2">${sub}</span></div>${badge}</div>`;
   const BADGE = (txt, col) => `<span style="background:${col};color:#fff;border-radius:30px;padding:8px 20px;font-size:28px;font-weight:700;display:inline-block;margin:0">${txt}</span>`;
-  const PROD2 = PRODSTEP(0, LOCK, 'Engagement d\'origine', 'Tu t\'engages au départ. Sans retour.', '') + PRODSTEP(1, HOUR, 'Taux de patience', 'Moins tu prends tout de suite, plus tu reçois à la longue.', BADGE('−20 %', VIO)) + PRODSTEP(2, BOLT, 'Production immédiate', 'Le reste produit dès l\'engagement.', BADGE('80 %', '#2e7d5a')) + PRODSTEP(3, INF, 'Production perpétuelle', 'Sans date de fin, tant que l\'appli tourne.', '')
-    + `<div id="pcv" style="position:absolute;left:0;top:640px;width:1000px;height:480px;opacity:0;${GAP};color:#f0f0f5"><div style="position:absolute;left:60px;top:0;font-size:28px;color:#a4a4bc;letter-spacing:2px">AIWA PRODUITS PAR JOUR</div><svg viewBox="0 0 1000 420" width="1000" height="420" style="position:absolute;left:0;top:34px"><line x1="60" y1="330" x2="940" y2="330" stroke="#3a3a4c" stroke-width="3"/><path id="pcp" d="${CURVE}" fill="none" stroke="${GRN}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>${RATE.map((v, k) => `<circle cx="${CX(k)}" cy="${CY(v).toFixed(1)}" r="9" fill="#090912" stroke="${GRN}" stroke-width="4"/><text x="${CX(k)}" y="${(CY(v) - 24).toFixed(1)}" text-anchor="middle" font-size="30" font-weight="700" fill="#f0f0f5">${String(v).replace('.', ',')}</text><text x="${CX(k)}" y="368" text-anchor="middle" font-size="22" fill="#a4a4bc">${TICKS[k]}</text>`).join('')}<circle id="pcd" r="13" fill="${GRN}" stroke="#fff" stroke-width="4"/></svg>
-      <div id="pcn" style="position:absolute;right:60px;top:0;font-size:50px;font-weight:800;color:${GRN}">0 AIWA</div>
-      <div id="pcr" style="position:absolute;left:0;top:440px;width:1000px;text-align:center;font-size:30px;color:#c9c9d8;opacity:0">chaque jour produit moins que le précédent : <b style="color:${GRN}">désinflationniste</b></div></div>`;
-  const prod2Tick = (root, t, M) => {
-    for (let i = 0; i < 4; i++) pop(root.querySelector('#pc' + i), M.prog(t, 0.3 + i * 0.4, 0.55, ease(M)), 80, 0);
-    const show = M.prog(t, 2.3, 0.5), end = M.prog(t, 3.2, 3.4, M.ease.inOutCubic);
-    root.querySelector('#pcv').style.opacity = show;
+  const REDO = '<path d="M4 12a8 8 0 1 1 3 6.2M4 19v-5h5"/>', UP = '<path d="M6 18L18 6M9 6h9v9"/>';
+  // The formula (packages/core/src/reward.js): r = b * q^alpha / [ ln( qTotal^(beta*(1-T)) + C ) ]^gamma. b is the COMMITMENT (the capital that counts: the burn x (1-T)); q the epochs since the last
+  // action (a claim or a commitment starts it again at zero); qTotal the total epochs of the domain, its own age, which never starts again and is deliberately not shared with any other domain.
+  const PROD6 = PRODSTEP(0, LOCK, 'Engagement d\'origine', 'Tu t\'engages au départ : ce capital est la base. Sans retour.', '') + PRODSTEP(1, HOUR, 'Taux de patience', 'Moins tu prends tout de suite, plus tu reçois à la longue.', BADGE('−20 %', VIO)) + PRODSTEP(2, BOLT, 'Production immédiate', 'Le reste produit dès l\'engagement.', BADGE('80 %', '#2e7d5a')) + PRODSTEP(3, INF, 'Production perpétuelle', 'Sans date de fin, tant que l\'appli tourne.', '')
+    + PRODSTEP(4, REDO, 'Redémarrage', 'Chaque réclamation ou engagement redémarre la courbe. L\'âge total, lui, ne redémarre jamais.', '') + PRODSTEP(5, UP, 'Difficulté croissante', 'Plus l\'âge total grandit, moins chaque époque rapporte. Aucun plafond d\'AIWA.', '');
+  const prod6Tick = (root, t, M) => { for (let i = 0; i < 6; i++) pop(root.querySelector('#pc' + i), M.prog(t, 0.3 + i * 0.5, 0.55, ease(M)), 80, 0); };
+  const PRODCHART = `<div class="v" style="width:1000px;height:560px;opacity:1"><div id="pcv" style="position:absolute;left:0;top:0;width:1000px;height:560px;${GAP};color:#f0f0f5"><div style="position:absolute;left:60px;top:0;font-size:28px;color:#a4a4bc;letter-spacing:2px">AIWA PRODUITS PAR JOUR</div><svg viewBox="0 0 1000 420" width="1000" height="420" style="position:absolute;left:0;top:34px"><line x1="60" y1="330" x2="940" y2="330" stroke="#3a3a4c" stroke-width="3"/><path id="pcp" d="${CURVE}" fill="none" stroke="${GRN}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>${RATE.map((v, k) => `<circle cx="${CX(k)}" cy="${CY(v).toFixed(1)}" r="9" fill="#090912" stroke="${GRN}" stroke-width="4"/><text x="${CX(k)}" y="${(CY(v) - 24).toFixed(1)}" text-anchor="middle" font-size="30" font-weight="700" fill="#f0f0f5">${String(v).replace('.', ',')}</text><text x="${CX(k)}" y="368" text-anchor="middle" font-size="22" fill="#a4a4bc">${TICKS[k]}</text>`).join('')}<circle id="pcd" r="13" fill="${GRN}" stroke="#fff" stroke-width="4"/></svg>
+    <div id="pcn" style="position:absolute;right:60px;top:0;font-size:50px;font-weight:800;color:${GRN}">0 AIWA</div>
+    <div id="pcr" style="position:absolute;left:0;top:470px;width:1000px;text-align:center;font-size:30px;color:#c9c9d8;opacity:0">chaque jour produit moins que le précédent : <b style="color:${GRN}">désinflationniste</b></div></div></div>`;
+  const prodChartTick = (root, t, M) => {
+    const end = M.prog(t, 0.6, 3.4, M.ease.inOutCubic);
     const path = root.querySelector('#pcp'), len = path.getTotalLength(); path.style.strokeDasharray = String(len); path.style.strokeDashoffset = String(len * (1 - end));
     const pt = path.getPointAtLength(len * end); root.querySelector('#pcd').setAttribute('cx', pt.x); root.querySelector('#pcd').setAttribute('cy', pt.y);
     const k = Math.min(2.999, end * 3), k0 = Math.floor(k), f = k - k0, v = end <= 0 ? 0 : TOTAL[k0] + (TOTAL[k0 + 1] - TOTAL[k0]) * f;
     root.querySelector('#pcn').textContent = (v < 10 ? v.toFixed(2).replace('.', ',') : Math.round(v)) + ' AIWA';
-    root.querySelector('#pcr').style.opacity = M.prog(t, 6.4, 0.5);
+    root.querySelector('#pcr').style.opacity = M.prog(t, 4.3, 0.5);
   };
-  Object.assign(S[10].layers.find((l) => l.id === 'prod'), { markup: PROD2, tick: prod2Tick, design: [1000, 1130] });
+  Object.assign(S[10].layers.find((l) => l.id === 'prod'), { markup: PROD6, tick: prod6Tick, design: [1000, 970], w: [90, 42], y: [54, 52] });
+  S[10].seconds = 7.4;
+  const SH_PRODB = { seconds: 6.8167, transition: { type: 'wipe', seconds: 0.55 }, bg: { type: 'blobs', colors: ['rgba(204,120,92,.30)', 'rgba(123,97,255,.35)', 'rgba(30,30,70,.5)'], base: '#090912' }, layers: [
+    { type: 'text', text: 'Une production\nqui baisse\nchaque jour.', mode: 'lines', effect: 'mask', size: [9.4, 7.2], x: [50, 22], y: [15, 36], w: [90, 34], at: 0.25, stagger: 0.28, accent: { 'jour.': GRN } },
+    { type: 'html', id: 'prodchart', css: VCSS, markup: PRODCHART, design: [1000, 560], w: [92, 56], x: [50, 70], y: [56, 52], at: 0.15, tick: prodChartTick },
+    { type: 'text', text: 'Exemple : un engagement de 1 SOL, patience 20 %.', size: [3, 2.4], weight: 500, color: '#7c7c92', x: [50, 22], y: [90, 70], w: [90, 34], effect: 'fade', at: 1.0 },
+  ] };
 
   // ---- agents that make their own communities ----
   const GROUPS = [[VIO, 230, 205, 135, [[170, 150], [260, 130], [320, 200], [230, 230], [160, 260], [280, 280]], 'sa communauté'], [TEA, 715, 200, 135, [[640, 120], [730, 150], [790, 220], [690, 230], [630, 280]], 'ses règles'], [ORA, 545, 470, 150, [[430, 420], [520, 450], [590, 400], [470, 520], [560, 540], [670, 480]], 'sa propre voie']];
@@ -146,5 +155,5 @@ ${APPS.map(([n, d, c], i) => `<div class="row" id="sa${i}" style="top:${116 + i 
   // ---- the credit is in the picture, under everything, very small: it is added by the assembly (a clip), not by the shots ----
   S[27].layers = S[27].layers.filter((l) => !(l.type === 'text' && String(l.text).startsWith('Musique')));
 
-  window.SHOTS = [S[0], S[1], S[2], S[3], S[4], S[8], SH_VIDQ, SH_FILEC, SH_STEPS, S[7], SH_STORE, S[10], S[11], S[12], S[13], S[14], SH_AG, S[16], SH_ARCH, S[19], S[20], S[21], playShot, S[26], S[27]];
+  window.SHOTS = [S[0], S[1], S[2], S[3], S[4], S[8], SH_VIDQ, SH_FILEC, SH_STEPS, S[7], SH_STORE, S[10], SH_PRODB, S[11], S[12], S[13], S[14], SH_AG, S[16], SH_ARCH, S[19], S[20], S[21], playShot, S[26], S[27]];
 })();
