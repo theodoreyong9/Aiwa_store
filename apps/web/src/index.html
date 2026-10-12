@@ -28,7 +28,6 @@
   <div class="line">
     <input id="store-search" type="search" placeholder="Search apps" autocomplete="off" aria-label="Search apps">
     <button id="store-refresh" class="icon" title="Refresh the list" aria-label="Refresh the list">↻</button>
-    <button id="store-publish" class="icon" title="Publish an app" aria-label="Publish an app">＋</button>
   </div>
   <nav class="tabs" id="store-tabs" role="tablist" aria-label="Store">
     <button type="button" id="tab-aiwa" class="active" role="tab" aria-selected="true">Aiwa</button>
@@ -37,7 +36,7 @@
   <p class="muted" id="store-status"></p>
   <section id="pane-aiwa" role="tabpanel">
     <div id="store-list"></div>
-    <p class="hint" id="store-empty" hidden>No app here yet. Press ＋ to publish one (paste its HTML file), or dictate one with the widget and use its Store button.</p>
+    <p class="hint" id="store-empty" hidden>No Aiwa contract here yet. Dictate one with the widget (the Aiwa mode) and press ▦.</p>
     <p class="hint">Aiwa apps are signed by their authors and published through the registry. They run in a sandbox: they cannot see your wallet unless they say they use it, and then a banner tells you. They are not reviewed; the list is ordered by what their authors have mined (<code>score / laps</code>).</p>
   </section>
   <section id="pane-library" class="library" role="tabpanel" hidden>
@@ -190,16 +189,6 @@
 <div id="sheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
   <div class="sheet-card">
     <h2 id="sheet-title">Publish this app</h2>
-    <div id="sheet-paste" hidden>
-      <textarea id="paste-html" rows="8" placeholder="Paste the app's whole HTML file" aria-label="The app's HTML file" spellcheck="false"></textarea>
-      <div class="line">
-        <select id="paste-kind" aria-label="What it is">
-          <option value="code">A plain app</option>
-          <option value="aiwa">An Aiwa contract (name.aiwa.html)</option>
-        </select>
-        <button id="paste-next" type="button" class="primary">Continue</button>
-      </div>
-    </div>
     <div id="sheet-fields">
       <input id="app-name" type="text" placeholder="Name" aria-label="Name">
       <div class="line">

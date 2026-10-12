@@ -261,7 +261,6 @@ export function showStoreTab(name) {
   $('tab-library').classList.toggle('active', library);
   $('tab-aiwa').setAttribute('aria-selected', String(!library));
   $('tab-library').setAttribute('aria-selected', String(library));
-  $('store-publish').hidden = library;       // publishing through the registry is the Aiwa tab's
   $('store-search').placeholder = library ? 'Search the library' : 'Search Aiwa apps';
 }
 

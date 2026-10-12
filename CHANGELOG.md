@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **The Store no longer has a ＋ to register an app by hand.** Creating an app goes through the assisted creation (the widget: dictate, then ▦), so the button and its sheet to paste a file are gone; the sheet that follows (name, description, try, publish) stays, opened by the widget's ▦. The two end-to-end tests that went through the paste now go through the hand-off. **Why the new tabs were not seen in the app:** the Pages deployment of the tabs' commit failed at its last step (`deploy-pages`), and the app follows that site for its page; the next change to the web app starts it again.
+
 - **The APK of Aiwa downloads normally again.** This repository declared a Termux line (`aiwa-android.json`), so the widget's download button on Aiwa_store copied the `bootstrap.sh` line and opened Termux instead of downloading the APK. The declaration is removed: the button downloads the APK, and the menu d'Aiwa updates the application itself; the brain (Termux) stays a separate update. The mechanism stays for other apps that really need a Termux line.
 
 - **Widget: the video button sits at the left of the mode chip** (it was the last button of the row, after the site, the Store and the Actions buttons). Compact layout; compiled by CI, not tried on a phone.

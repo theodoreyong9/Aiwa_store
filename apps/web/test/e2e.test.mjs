@@ -473,24 +473,16 @@ test('publishing from the widget\'s hand-off: one sheet, a GitHub login once, a 
   await context.close();
 });
 
-test('an app is published from the Store itself: + opens a sheet to paste its file, and the same sheet follows', async () => {
+test('an app is published from the assisted creation: the widget\'s hand-off opens the sheet, and the same sheet follows', async () => {
   const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
   const github = await fakeGitHub(context);
   await mineInPage(page);
 
-  await page.click('#app-nav [data-view="store"]');
-  await page.click('#store-publish');
+  await handoff(page, 'code', 'Taps', SAMPLE_APP);
   await page.waitForSelector('#sheet:not([hidden])');
-  assert.equal(await page.locator('#paste-html').isVisible(), true);
-  assert.equal(await page.locator('#sheet-go').isHidden(), true, 'nothing to publish until a file is pasted');
-  await page.click('#paste-next');
-  assert.match(await page.locator('#sheet-warning').textContent(), /Paste the file first/);
-
-  await page.fill('#paste-html', SAMPLE_APP);
-  assert.equal(await page.inputValue('#paste-kind'), 'code');
-  await page.click('#paste-next');
-  assert.equal(await page.locator('#paste-html').isHidden(), true);
-  assert.equal(await page.inputValue('#app-name'), 'Taps', 'the name comes from the file\'s own title');
+  assert.equal(await page.locator('#paste-html').count(), 0, 'there is no form to paste a file: the creation is assisted');
+  assert.equal(await page.locator('#store-publish').count(), 0);
+  assert.equal(await page.inputValue('#app-name'), 'Taps');
   assert.equal(await page.inputValue('#app-description'), 'counts taps');
   await page.waitForFunction(() => !document.getElementById('sheet-go').disabled);
   await page.click('#sheet-go');
@@ -503,15 +495,11 @@ test('an app is published from the Store itself: + opens a sheet to paste its fi
   await context.close();
 });
 
-test('a pasted file that imports the SDK is taken for a contract and published through Aiwa', async () => {
+test('a hand-off of a contract (a file that imports the SDK) is published through Aiwa', async () => {
   const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
   await mineInPage(page);
   const contract = SAMPLE_APP.replace('<h1>Taps</h1></body>', "<script type=\"module\">import { defineContract } from 'https://theodoreyong9.github.io/Aiwa_store/lib/aiwa.js';</script></body>");
-  await page.click('#app-nav [data-view="store"]');
-  await page.click('#store-publish');
-  await page.fill('#paste-html', contract);
-  assert.equal(await page.inputValue('#paste-kind'), 'aiwa');
-  await page.click('#paste-next');
+  await handoff(page, 'aiwa', 'Taps', contract);
   await page.waitForSelector('#app-name');
   assert.match(await page.locator('#sheet-summary').textContent(), /published through Aiwa/);
   assert.deepEqual(errors, []);
