@@ -473,7 +473,7 @@ private fun FullContent(state: AiwaState) {
             // Before the mic: what can be said (the voice commands), and the switch of the always-on listening. Green while it listens.
             RoundButton(
                 icon = R.drawable.ic_voice,
-                description = if (state.listening) "Commandes vocales : l'écoute permanente est allumée" else "Commandes vocales et écoute permanente",
+                description = if (state.listening) "Menu d'Aiwa : l'écoute permanente est allumée" else "Menu d'Aiwa : écoute, mot d'éveil, état, mise à jour, fichier, propositions",
                 background = if (state.listening) green else pill,
                 action = actionStartActivity<VoiceHelpActivity>(),
                 diameter = micH.dp,
@@ -589,7 +589,7 @@ private fun CompactContent(state: AiwaState) {
             Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(
                 icon = R.drawable.ic_voice,
-                description = if (state.listening) "Commandes vocales : l'écoute permanente est allumée" else "Commandes vocales et écoute permanente",
+                description = if (state.listening) "Menu d'Aiwa : l'écoute permanente est allumée" else "Menu d'Aiwa : écoute, mot d'éveil, état, mise à jour, fichier, propositions",
                 background = if (state.listening) green else pill,
                 action = actionStartActivity<VoiceHelpActivity>(),
                 diameter = 36.dp,

@@ -393,7 +393,7 @@ class ProposalsTests(unittest.TestCase):
 
     def test_the_instruction_prepares_and_never_sends(self):
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
-        for wanted in ("n'ENVOIES JAMAIS", "aiwa-proposals/proposals.json", "Maquette de démonstration, pas le site officiel", "au plus 20 cibles", "n'invente rien"):
+        for wanted in ("n'ENVOIES JAMAIS", "aiwa-proposals/proposals.json", "Maquette de démonstration, pas le site officiel", "au plus 20 cibles", "n'invente rien", "ATTENDS ma réponse"):
             self.assertIn(wanted, text)
 
 

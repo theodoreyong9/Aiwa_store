@@ -11,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.updateAll
 import com.aiwa.bridge.LocalClaudeBridge
@@ -54,130 +58,68 @@ class PickerEntry(val label: String, val active: Boolean, val header: Boolean = 
 
 @Composable
 private fun PickerSheet(entries: List<PickerEntry>, onDismiss: () -> Unit) {
-    MaterialTheme {
+    AiwaTheme {
         Box(
             Modifier.fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.35f))
+                .background(Color.Black.copy(alpha = 0.45f))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onDismiss() },
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.BottomCenter,
         ) {
             Surface(
-                shape = RoundedCornerShape(20.dp),
-                tonalElevation = 6.dp,
-                modifier = Modifier.padding(24.dp).fillMaxWidth().heightIn(max = 460.dp),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 3.dp,
+                modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
-                LazyColumn(Modifier.padding(vertical = 8.dp)) {
-                    items(entries) { entry ->
-                        if (entry.header) {
-                            Text(
-                                text = entry.label,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.outline,
-                                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 4.dp),
-                            )
-                        } else {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    // the handle: the sheet is a sheet, and it goes away with a tap outside it
+                    Box(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(width = 40.dp, height = 4.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(2.dp)))
+                    }
+                    LazyColumn(Modifier.padding(horizontal = 12.dp).padding(bottom = 16.dp)) {
+                        items(entries) { entry ->
+                            if (entry.header) {
                                 Text(
-                                    text = (if (entry.active) "●  " else "    ") + entry.label,
-                                    color = if (entry.active) MaterialTheme.colorScheme.primary else Color.Unspecified,
-                                    maxLines = entry.lines,
-                                    modifier = Modifier.weight(1f).clickable { entry.onClick() }
-                                        .padding(start = 20.dp, end = if (entry.side == null) 20.dp else 8.dp, top = 14.dp, bottom = 14.dp),
+                                    text = entry.label.uppercase(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    letterSpacing = 1.2.sp,
+                                    modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 18.dp, bottom = 6.dp),
                                 )
-                                if (entry.side != null) {
+                            } else {
+                                val shape = RoundedCornerShape(16.dp)
+                                val info = !entry.active && entry.side == null && entry.lines >= 3          // a sentence that explains, not a choice
+                                Row(
+                                    Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                                        .background(if (entry.active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, shape)
+                                        .clickable { entry.onClick() },
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
                                     Text(
-                                        text = entry.side,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.clickable { entry.onSide() }.padding(start = 12.dp, end = 20.dp, top = 14.dp, bottom = 14.dp),
+                                        text = entry.label,
+                                        style = if (info) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                                        color = if (entry.active) MaterialTheme.colorScheme.onPrimaryContainer else if (info) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = if (entry.active) FontWeight.SemiBold else FontWeight.Normal,
+                                        maxLines = entry.lines,
+                                        modifier = Modifier.weight(1f).padding(start = 14.dp, end = 8.dp, top = 13.dp, bottom = 13.dp),
                                     )
+                                    if (entry.active) Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 16.dp))
+                                    if (entry.side != null) {
+                                        Text(
+                                            text = entry.side,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            modifier = Modifier.padding(end = 8.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                                                .clickable { entry.onSide() }.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-class SessionPickerActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        wakeAiwa(applicationContext)
-        setContent {
-            val state by AiwaRepository.state.collectAsState()
-            var confirmClear by remember { mutableStateOf(false) }
-            val adding by addingSession
-            val problem by addProblem
-            val branchRead by pendingBranch
-            // Fresh list from the backend every time the picker opens (which
-            // is started first if it isn't running).
-            LaunchedEffect(Unit) {
-                val bridge = LocalClaudeBridge()
-                ensureBackend(applicationContext, bridge)
-                BackendSync.refresh(bridge)
-            }
-            val entries = buildList {
-                add(PickerEntry("+  Nouvelle session", state.cloudSessionId == null) { pickCloud("new") })
-                state.cloudSessions.forEach { c ->
-                    add(PickerEntry(c.title.take(60), c.id == state.cloudSessionId) { pickCloud(c.id) })
-                }
-                // The CLI has no command to list the account's cloud
-                // sessions, so one made elsewhere is added by pasting the
-                // name of its branch (the rarely used entries come last).
-                if (adding) add(PickerEntry("⏳  Recherche de la session à partir de la branche… (quelques secondes)", false, lines = 2) { })
-                else add(PickerEntry("⎘  Ajouter une session existante (nom de branche copié)", false) { addFromClipboard() })
-                // Why it did not work, in full: a toast is gone before it can be read.
-                problem?.let { add(PickerEntry("⚠  $it", false, lines = 10) { }) }
-                // The branch was found but no commit names the session (it has not committed yet): the link of the session completes it.
-                branchRead?.let { add(PickerEntry("⎘  Coller maintenant le lien de la session (la branche $it est déjà lue)", false, lines = 3) { addFromClipboard(withBranch = it) }) }
-                // Emptied in two taps: the list is only Aiwa's, nothing is deleted in Claude.
-                if (state.cloudSessions.isNotEmpty()) {
-                    if (!confirmClear) add(PickerEntry("🗑  Vider cette liste…", false) { confirmClear = true })
-                    else add(PickerEntry("⚠  Confirmer : vider la liste (les sessions restent dans Claude)", false, lines = 2) { clearList() })
-                }
-            }
-            PickerSheet(entries) { finish() }
-        }
-    }
-
-    // finish() first, work in a scope that outlives this activity.
-    private fun pickCloud(target: String) {
-        val appContext = applicationContext
-        finish()
-        CoroutineScope(Dispatchers.Default).launch { switchCloud(appContext, LocalClaudeBridge(), target) }
-    }
-
-    private fun clearList() {
-        val appContext = applicationContext
-        finish()
-        CoroutineScope(Dispatchers.Default).launch { clearSessionList(appContext, LocalClaudeBridge()) }
-    }
-
-    private val addingSession = mutableStateOf(false)
-    private val addProblem = mutableStateOf<String?>(null)
-    private val pendingBranch = mutableStateOf<String?>(null)
-
-    // Read here, on the main thread of the focused activity: that is the
-    // only place Android hands the clipboard over. The picker stays open until the answer is known, so that the reason
-    // of a failure can be read.
-    private fun addFromClipboard(withBranch: String? = null) {
-        val text = clipboardText(this)
-        if (text.isNullOrBlank()) {
-            addProblem.value = EMPTY_CLIPBOARD_FOR_SESSION
-            return
-        }
-        val appContext = applicationContext
-        val whole = if (withBranch != null) "$withBranch $text" else text
-        addingSession.value = true
-        addProblem.value = null
-        CoroutineScope(Dispatchers.Main).launch {
-            val problem = withContext(Dispatchers.IO) { tryAddCloudSession(appContext, LocalClaudeBridge(), whole) }
-            addingSession.value = false
-            if (problem == null) { finish(); return@launch }
-            addProblem.value = problem
-            // "no commit names the session": keep the branch, ask for the link
-            pendingBranch.value = if (problem.contains("ne mentionne la session")) BRANCH_IN_TEXT.find(whole)?.value else null
         }
     }
 }
@@ -469,6 +411,19 @@ class VoiceHelpActivity : ComponentActivity() {
         }
     }
 
+    private fun open(screen: Class<*>) {
+        finish()
+        startActivity(Intent(this, screen))
+    }
+
+    /** The same start the app makes by itself when the brain is older than expected or down, with a restart: it pulls the code and starts the server again. */
+    private fun updateBrain() {
+        val app = applicationContext
+        val started = startAiwaBackendViaTermux(app, forceRestart = true)
+        toastOnMain(app, if (started.isSuccess) "Mise à jour demandée à Termux : environ 30 secondes." else "Termux n'a pas pu être lancé : ${started.exceptionOrNull()?.message ?: "?"} (l'autorisation « exécuter des commandes » et allow-external-apps=true sont à régler une fois).")
+        finish()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
@@ -477,6 +432,13 @@ class VoiceHelpActivity : ComponentActivity() {
             // the switch is the person's wish; "listening" is whether the service is running (after a restart of the phone it is not, until the app is opened)
             val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
+                add(PickerEntry("Aiwa", false, header = true) { })
+                add(PickerEntry("Mon mot d'éveil : le choisir ou le changer, même « Aiwa »", false, lines = 2) { open(WakeWordEnrollActivity::class.java) })
+                add(PickerEntry("État d'Aiwa : Claude, alertes, permissions", false, lines = 2) { open(HealthActivity::class.java) })
+                add(PickerEntry("Mettre à jour le cerveau d'Aiwa (Termux)", false, lines = 2) { updateBrain() })
+                add(PickerEntry("Créer à partir d'un fichier : une vidéo ou une campagne", false, lines = 2) { open(FileCreationActivity::class.java) })
+                add(PickerEntry("Propositions à valider (la campagne en cours)", false, lines = 2) { open(ProposalsActivity::class.java) })
+
                 add(PickerEntry("Écoute permanente", false, header = true) { })
                 add(PickerEntry(if (wanted) "✓  Allumée : le téléphone écoute « mon agent », « instruction » et « stop Claude » — toucher pour l'éteindre" else "Éteinte — toucher pour l'allumer", wanted, lines = 3) { toggle() })
                 if (ListenSettings.enabled(this@VoiceHelpActivity) && !state.listening) {
@@ -636,10 +598,6 @@ class DeployPickerActivity : ComponentActivity() {
                 DEPLOY_CHOICES.filter { state.accessLevel >= 2 || !deliversApp(it.id.orEmpty()) }.forEach { choice ->
                     add(PickerEntry(choice.label, choice.id == state.deploy, lines = 3) { pick(choice.id) })
                 }
-                add(PickerEntry("Qualité des vidéos (dès le prochain message)", false, header = true) { })
-                VIDEO_QUALITY_CHOICES.forEach { choice ->
-                    add(PickerEntry(choice.label, choice.id == state.videoQuality, lines = 3) { pickQuality(choice.id) })
-                }
             }
             PickerSheet(entries) { finish() }
         }
@@ -649,11 +607,5 @@ class DeployPickerActivity : ComponentActivity() {
         val app = applicationContext
         finish()
         CoroutineScope(Dispatchers.Default).launch { switchOptions(app, LocalClaudeBridge(), deploy = mode) }
-    }
-
-    private fun pickQuality(level: String?) {
-        val app = applicationContext
-        finish()
-        CoroutineScope(Dispatchers.Default).launch { switchOptions(app, LocalClaudeBridge(), videoQuality = level) }
     }
 }

@@ -266,25 +266,6 @@ class StoreActivity : ComponentActivity() {
         when (json.optString("cmd")) {
             "save" -> saveToDownloads(json.optString("name"), json.optString("mime", "application/json"), json.optString("text"))
             "dictation" -> startActivity(Intent(this, MainActivity::class.java))
-            // Which build of the app is installed (the « Aiwa » tab shows it, so that an old install is seen at once).
-            "app-info" -> respond(reply, id) {
-                val info = packageManager.getPackageInfo(packageName, 0)
-                JSONObject().put("version", info.versionName ?: "?").put("code", info.longVersionCode)
-                    .put("backend", AiwaRepository.state.value.backendVersion).put("expected", EXPECTED_BACKEND_VERSION)
-            }
-            // Updates the « brain » (the backend in Termux): the same start the app does by itself, with a restart: it pulls the code and restarts the server.
-            "update-backend" -> respond(reply, id) {
-                val started = startAiwaBackendViaTermux(applicationContext, forceRestart = true)
-                started.exceptionOrNull()?.let { throw it }
-                JSONObject()
-            }
-            // The « Aiwa » tab of the Store: the screens of the app, by name (nothing else can be opened from the page).
-            "open" -> when (json.optString("screen")) {
-                "wake-word" -> startActivity(Intent(this, WakeWordEnrollActivity::class.java))
-                "dictation" -> startActivity(Intent(this, MainActivity::class.java))
-                "videos" -> startActivity(Intent(this, VideosActivity::class.java))
-                "proposals" -> startActivity(Intent(this, ProposalsActivity::class.java))
-            }
             "secret-get" -> respond(reply, id) { JSONObject().put("value", secrets.get(secretName(json)) ?: JSONObject.NULL) }
             "secret-set" -> respond(reply, id) { secrets.set(secretName(json), json.getString("value")); JSONObject() }
             "secret-delete" -> respond(reply, id) { secrets.delete(secretName(json)); JSONObject() }

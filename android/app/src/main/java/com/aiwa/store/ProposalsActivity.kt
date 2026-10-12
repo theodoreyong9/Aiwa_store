@@ -94,7 +94,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
         } catch (err: Exception) { error = err.message ?: "Liste indisponible." }
     }
 
-    MaterialTheme {
+    AiwaTheme {
         Box(
             Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClose() },

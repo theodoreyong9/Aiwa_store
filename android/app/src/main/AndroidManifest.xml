@@ -130,6 +130,11 @@
         </activity>
         <!-- The voice button of the widget: the commands, and the switch of the always-on listening (Pickers.kt). -->
         <!-- "Propositions" (ProposalsActivity.kt): what a session prepared for a list of people, read and sent by hand through the person's own mail application. -->
+        <!-- "Créer à partir d'un fichier" (DocumentCreation.kt): a video or a campaign of proposals made from a text file, with or without my GitHub work. -->
+        <activity android:name=".FileCreationActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <activity android:name=".ProposalsActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""

@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 63
+BACKEND_VERSION = 64
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -602,6 +602,7 @@ def _proposals_line(repo):
     return (
         "Propositions : si je te demande de préparer une proposition (commerciale, invitation, candidature…) pour plusieurs personnes ou entreprises, tu PRÉPARES, tu n'ENVOIES JAMAIS. "
         "Établis d'abord la liste d'après ma demande (au plus 20 cibles par lot ; seulement des coordonnées professionnelles publiques ou que je t'ai données, jamais de données privées) et écris-la dans `aiwa-proposals/liste.md` avec, pour chaque cible, pourquoi elle est retenue. "
+        "Envoie-moi cette liste (noms seulement, courte) par la question du widget, avec trois choix : « Prépare ces cibles », « Retire-en… », « Annule » : c'est la SEULE fois où tu t'arrêtes pour m'attendre, ATTENDS ma réponse avant de fabriquer quoi que ce soit. "
         "Pour chaque cible, fabrique ce que ma demande décrit (par exemple une maquette de site et une vidéo de présentation) sous `aiwa-proposals/<cible>/` du dépôt en cours, dans le même site : "
         "la maquette porte en haut, bien visible, « Maquette de démonstration, pas le site officiel de <cible> », n'utilise de la cible que ce qu'elle publie elle-même, ne copie ni logo ni photo sans droit, et n'invente rien (ni chiffre, ni client, ni avis). "
         "Puis écris `aiwa-proposals/proposals.json` : une liste d'objets "
