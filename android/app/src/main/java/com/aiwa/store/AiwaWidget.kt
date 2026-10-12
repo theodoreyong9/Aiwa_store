@@ -544,15 +544,15 @@ private fun FullContent(state: AiwaState) {
 }
 
 /**
- * The other shape of the widget: a pair of glasses. Two lenses, five things in each, and the microphone on the bridge that joins them. The left lens is the context
- * (the session and what is going on, the repository, the settings, the mode, Claude); the right one is what the work gives (the site or the proposals, the Store buttons,
- * the videos, the GitHub guide). Only what exists is shown, so a lens may hold fewer than five. Chosen in the settings list (WidgetStyle).
+ * The other shape of the widget: a pair of glasses. A drawn frame (two rounded lenses, the bridge, the start of the temples: glasses_frame) stretched over the card, and the
+ * things placed INSIDE the lenses. Left lens: the context (the session and what is going on, the repository, the settings, the mode, Claude). Right lens: the application (the
+ * logo, which opens it) and the microphone side by side, then what the work gives (the site or the proposals, ▦ and `</>`, the videos, the GitHub guide). Only what exists is shown.
+ * Chosen in the settings list (WidgetStyle).
  */
 @Composable
 private fun GlassesContent(state: AiwaState) {
     val fg = rgb(android.graphics.Color.rgb(240, 240, 245))
-    val pill = rgb(android.graphics.Color.rgb(44, 44, 54))
-    val lens = rgb(android.graphics.Color.rgb(28, 28, 36))
+    val pill = rgb(android.graphics.Color.rgb(52, 52, 64))
     val micGrey = rgb(android.graphics.Color.rgb(84, 84, 94))
     val claudeOrange = rgb(android.graphics.Color.rgb(204, 120, 92))
     val alertRed = rgb(android.graphics.Color.rgb(214, 69, 65))
@@ -568,60 +568,76 @@ private fun GlassesContent(state: AiwaState) {
     val live = state.siteState == "live"
     val showSite = hasRepo && site != null && (state.deploy != "none" || live) && !campaignMode
 
-    val bridgeW = 64f
-    val lensW = (size.width.value - 20f - bridgeW) / 2f
-    val itemH = ((size.height.value - 16f - 20f) / 5f).coerceIn(22f, 38f)
-    val textRoom = lensW - 28f
+    // The frame is drawn on a 200 x 100 grid stretched to the widget: the lenses are 8..96 and 104..192 wide and 10..90 high, the things go inside them.
+    val w = size.width.value
+    val h = size.height.value
+    val outer = w * 0.085f
+    val inner = w * 0.355f
+    val middle = w - 2 * outer - 2 * inner
+    val top = h * 0.17f
+    val itemH = ((h * 0.83f - 4f - 4f) / 5f).coerceIn(16f, 34f)       // five things share what is inside the lenses
+    val textRoom = inner - 12f
     val band = bandInfo(state, textRoom)
     val repoName = state.repo?.substringAfter('/')
     val repoText = "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", textRoom - textWidth("⎇  ▾", fontScale), fontScale) + " ▾"
     val settingsText = fitLabel(settingsSummary(state), textRoom - textWidth(" ▾", fontScale), fontScale) + " ▾"
     val modeText = fitLabel(deployLabel(state.deploy), textRoom, fontScale)
     val claudeText = if (state.waiting) "● Claude attend" else if (state.silenceMinutes > 0) "⏳ Rien depuis ${state.silenceMinutes} min" else if (hasSession) "Claude ↗" else "Ouvrir Claude"
+    val micAct = lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))
 
-    Row(
-        modifier = GlanceModifier.fillMaxSize()
-            .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Box(
+        modifier = GlanceModifier.fillMaxSize().background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg)),
     ) {
-        // ---- the left lens: the context --------------------------------------
-        Column(
-            modifier = GlanceModifier.width(lensW.dp).fillMaxHeight().background(lens).cornerRadius(26.dp).padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = GlanceModifier.fillMaxWidth().height(itemH.dp).clickable(band.action), verticalAlignment = Alignment.CenterVertically) {
-                Text(band.title, style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-                Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 10.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
+        Box(modifier = GlanceModifier.fillMaxSize().background(ImageProvider(R.drawable.glasses_frame))) {
+            Row(modifier = GlanceModifier.fillMaxSize().padding(top = top.dp, bottom = 4.dp)) {
+                Spacer(GlanceModifier.width(outer.dp))
+                // ---- the left lens: the context ----------------------------------
+                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight(), verticalAlignment = Alignment.Top) {
+                    Column(modifier = GlanceModifier.fillMaxWidth().height((itemH + 4f).dp).clickable(band.action), verticalAlignment = Alignment.CenterVertically) {
+                        Text(band.title, style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                        Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 10.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
+                    }
+                    Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = !hasRepo)
+                    Chip(settingsText, if (locked) PILL_DIM else if (workflowFailed(state)) alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+                    Chip(modeText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+                    Chip(claudeText, if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange, fg, actionStartActivity<OpenClaudeActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+                }
+                // ---- the bridge: nothing on it, it is the frame ------------------------
+                Spacer(GlanceModifier.width(middle.dp))
+                // ---- the right lens: the application, the microphone, then what the work gives ----
+                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight(), verticalAlignment = Alignment.Top) {
+                    Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 4f).dp), verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            provider = ImageProvider(R.drawable.logo_round),
+                            contentDescription = "Ouvrir Aiwa",
+                            modifier = GlanceModifier.size((itemH + 2f).dp).clickable(actionStartActivity<StoreActivity>()),
+                        )
+                        Spacer(GlanceModifier.width(GAP.dp))
+                        Box(
+                            modifier = GlanceModifier.defaultWeight().height((itemH + 2f).dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(((itemH + 2f) / 2).dp).clickable(micAct),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(14.dp))
+                                Spacer(GlanceModifier.width(5.dp))
+                                Text("Dicter", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                            }
+                        }
+                    }
+                    if (campaignMode) Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+                    else if (showSite && site != null) Chip(if (state.siteKind == "apk") "⇩ APK" else "🌐 Site", if (live) claudeOrange else pill, fg, siteAction, GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = state.ciFresh)
+                    if (storeMode) {
+                        Row(modifier = GlanceModifier.fillMaxWidth().height(itemH.dp)) {
+                            Chip("▦ App", if (storeReady) claudeOrange else pill, fg, actionStartActivity<OpenStoreActivity>(), GlanceModifier.defaultWeight(), height = itemH.dp)
+                            Spacer(GlanceModifier.width(GAP.dp))
+                            Chip("</>", if (storeReady) claudeOrange else pill, fg, codeAction, GlanceModifier.defaultWeight(), height = itemH.dp)
+                        }
+                    }
+                    if (hasRepo) Chip("🎬 Vidéos", pill, fg, actionStartActivity<VideosActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+                    if (hasRepo && state.ciHintTitle != null) Chip("⚠ Réglage GitHub", alertRed, fg, actionStartActivity<PagesHelpActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+                }
+                Spacer(GlanceModifier.width(outer.dp))
             }
-            Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = !hasRepo)
-            Chip(settingsText, if (locked) PILL_DIM else if (workflowFailed(state)) alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-            Chip(modeText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-            Chip(claudeText, if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange, fg, actionStartActivity<OpenClaudeActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-        }
-        // ---- the bridge: the microphone ---------------------------------------
-        Column(modifier = GlanceModifier.width(bridgeW.dp).fillMaxHeight(), verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = GlanceModifier.size(48.dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(24.dp)
-                    .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(20.dp))
-            }
-        }
-        // ---- the right lens: what the work gives -------------------------------
-        Column(
-            modifier = GlanceModifier.width(lensW.dp).fillMaxHeight().background(lens).cornerRadius(26.dp).padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (campaignMode) Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-            else if (showSite && site != null) Chip(if (state.siteKind == "apk") "⇩ Télécharger l'APK" else "🌐 Ouvrir le site", if (live) claudeOrange else pill, fg, siteAction, GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = state.ciFresh)
-            if (storeMode) {
-                Chip("▦ App dans le Store", if (storeReady) claudeOrange else pill, fg, actionStartActivity<OpenStoreActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-                Chip("</> Voir le code", if (storeReady) claudeOrange else pill, fg, codeAction, GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-            }
-            if (hasRepo) Chip("🎬 Vidéos", pill, fg, actionStartActivity<VideosActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-            if (hasRepo && state.ciHintTitle != null) Chip("⚠ Réglage GitHub", alertRed, fg, actionStartActivity<PagesHelpActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
         }
     }
 }
