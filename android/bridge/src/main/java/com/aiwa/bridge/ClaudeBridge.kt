@@ -19,6 +19,10 @@ data class AskInfo(val id: String, val question: String, val options: List<Strin
 data class VideoItem(val name: String, val size: Long, val url: String, val ts: String)
 data class VideoList(val repo: String?, val videos: List<VideoItem>)
 
+/** A source file of a creation or a campaign, in the folder aiwa-campagne/ of the repository. */
+data class InputFile(val name: String, val size: Long)
+data class InputList(val repo: String?, val files: List<InputFile>)
+
 data class SentAppCode(val name: String, val code: String, val kind: String = "code", val repo: String? = null, val path: String? = null, val ref: String = "main")
 
 // The `claude auth login` the backend runs for the app. phase: idle / starting / url (the
@@ -152,6 +156,7 @@ interface ClaudeBridge {
     suspend fun askAnswer(id: String, answer: String) { throw UnsupportedOperationException("askAnswer") }
 
     suspend fun videos(): VideoList { throw UnsupportedOperationException("videos") }
+    suspend fun inputs(): InputList { throw UnsupportedOperationException("inputs") }
     // The proposals a session prepared (`aiwa-proposals/proposals.json` of the repository): to read, validate and send by hand.
     suspend fun proposals(): ProposalList { throw UnsupportedOperationException("proposals") }
 }

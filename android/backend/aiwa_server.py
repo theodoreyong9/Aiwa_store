@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 69
+BACKEND_VERSION = 70
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -582,7 +582,10 @@ def _document_line(repo):
         "N'utilise que ce que le fichier dit : n'invente aucun poste, chiffre, client ni prix, et dans `facts.md` sépare ce qui vient du fichier de ce que tu ajoutes. "
         "Mes réalisations GitHub ne sont utilisées QUE si ma demande dit que je l'ai coché : alors prends parmi mes dépôts PUBLICS ceux qui servent le propos, "
         "montre-les au bon moment de la vidéo (vraies captures ou pages), liste ceux que tu retiens dans `brief.md`, jamais un dépôt privé que je n'ai pas nommé. "
-        "Sans cette mention, le fichier seul compte. Mets la vidéo dans `aiwa-videos/` du dépôt en cours : l'appli montre la liste de toutes les vidéos de ce dépôt."
+        "Sans cette mention, le fichier seul compte. Mets la vidéo dans `aiwa-videos/` du dépôt en cours : l'appli montre la liste de toutes les vidéos de ce dépôt. "
+        "Mes fichiers sources sont dans le dossier `aiwa-campagne/` du dépôt en cours : quand ma demande en nomme, lis-les là (tu y as accès), un par un ; un CSV, un JSON ou un texte tels quels, "
+        "un tableur .xlsx avec Python (openpyxl ou pandas), un PDF avec `pdftotext`, une image ou une vidéo en les citant ou en les intégrant telles quelles sans rien dire de leur contenu que tu n'as pas pu lire. "
+        "Quand ma demande contient un document collé et te dit de le ranger, écris-en une copie dans `aiwa-campagne/` (même nom) et pousse-la avec la consigne Push."
     )
 
 
@@ -2072,6 +2075,41 @@ def _videos_snapshot():
     return {"repo": repo, "videos": items}
 
 
+# The source files of a creation or a campaign, which the person puts in the repository (folder aiwa-campagne/, public): listed for the window
+# « Créer à partir d'un fichier », which lets the person tick several of them.
+INPUTS_DIR = "aiwa-campagne"
+inputs_cache = {"key": None, "items": [], "at": 0.0}
+
+
+def _inputs_snapshot():
+    with lock:
+        session = current_cloud or last_cloud
+        repo = (_session_entry(session) or {}).get("repo") if session else None
+        repo = repo or current_repo
+    if not repo or not github.REPO_RE.fullmatch(repo):
+        return {"repo": None, "files": []}
+    now = time.time()
+    with lock:
+        if inputs_cache["key"] == repo and now - inputs_cache["at"] < 30:
+            return {"repo": repo, "files": list(inputs_cache["items"])}
+    try:
+        folder = _github_json(f"https://api.github.com/repos/{repo}/contents/{INPUTS_DIR}")
+    except GithubUnavailable:
+        with lock:
+            kept = list(inputs_cache["items"]) if inputs_cache["key"] == repo else []
+            inputs_cache.update(key=repo, items=kept, at=now)
+        return {"repo": repo, "files": kept}
+    items = []
+    for entry in folder if isinstance(folder, list) else []:
+        name = str(entry.get("name") or "") if isinstance(entry, dict) else ""
+        if entry.get("type") == "file" and name and "/" not in name and not name.startswith("."):
+            items.append({"name": name[:200], "size": int(entry.get("size") or 0)})
+    items.sort(key=lambda f: f["name"].lower())
+    with lock:
+        inputs_cache.update(key=repo, items=items[:100], at=now)
+    return {"repo": repo, "files": items[:100]}
+
+
 ASK_OPTIONS = 6
 ASK_QUESTION_MAX = 600
 ASK_OPTION_MAX = 80
@@ -2246,6 +2284,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json({"sent_app": _sent_app_snapshot()})
         elif self.path == "/api/videos":
             self.reply_json(_videos_snapshot())
+        elif self.path == "/api/inputs":
+            self.reply_json(_inputs_snapshot())
         elif self.path == "/api/proposals":
             self.reply_json(_proposals_snapshot())
         elif self.path == "/api/sent-app/code":

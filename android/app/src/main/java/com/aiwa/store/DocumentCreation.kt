@@ -29,6 +29,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,16 +66,26 @@ private fun githubPhrase(withGithub: Boolean) =
     if (withGithub) "J'ai coché : ajoute mes réalisations GitHub publiques là où elles servent. "
     else "Je n'ai PAS coché les réalisations GitHub : le fichier seul compte. "
 
-/** The request for a video made from a document; my GitHub projects are named only when the box was ticked (the instruction says the same). */
-fun documentVideoRequest(doc: PickedDocument, format: String, withGithub: Boolean): String =
-    "Fais une vidéo à partir de ce document (fichier « ${doc.name} »), au format $format. " + githubPhrase(withGithub) +
-        "Si un choix ne t'appartient pas, demande-le moi par la question du widget.\n\nDocument :\n<<<\n${doc.text}\n>>>"
+/** What the request is made from: the document picked on the phone (its text travels in the message) and/or files of the repository's folder aiwa-campagne/ (read there). */
+private fun sourcesPhrase(doc: PickedDocument?, repoFiles: List<String>, repoKnown: Boolean): String {
+    val parts = mutableListOf<String>()
+    if (doc != null) parts.add("le document « ${doc.name} » (collé plus bas" + (if (repoKnown) " ; range-en une copie dans `aiwa-campagne/${doc.name}` du dépôt" else "") + ")")
+    if (repoFiles.isNotEmpty()) parts.add("les fichiers du dossier `aiwa-campagne/` du dépôt : " + repoFiles.joinToString(", ") + " (lis-les là)")
+    return parts.joinToString(" et ")
+}
 
-/** The request for a campaign of proposals from a document: the agent proposes the list of targets first and WAITS for my answer; nothing is sent by it. */
-fun campaignRequest(doc: PickedDocument, targets: String, withGithub: Boolean): String =
-    "Prépare une campagne de propositions à partir de ce document (fichier « ${doc.name} »). Les cibles : ${targets.trim()}. " + githubPhrase(withGithub) +
+private fun documentBlock(doc: PickedDocument?) = if (doc == null) "" else "\n\nDocument :\n<<<\n${doc.text}\n>>>"
+
+/** The request for a video made from a document and/or files of the repository; my GitHub projects are named only when the box was ticked (the instruction says the same). */
+fun documentVideoRequest(doc: PickedDocument?, format: String, withGithub: Boolean, repoFiles: List<String> = emptyList(), repoKnown: Boolean = false): String =
+    "Fais une vidéo à partir de ${sourcesPhrase(doc, repoFiles, repoKnown)}, au format $format. " + githubPhrase(withGithub) +
+        "Si un choix ne t'appartient pas, demande-le moi par la question du widget." + documentBlock(doc)
+
+/** The request for a campaign of proposals from a document and/or files: the agent proposes the list of targets first and WAITS for my answer; nothing is sent by it. */
+fun campaignRequest(doc: PickedDocument?, targets: String, withGithub: Boolean, repoFiles: List<String> = emptyList(), repoKnown: Boolean = false): String =
+    "Prépare une campagne de propositions à partir de ${sourcesPhrase(doc, repoFiles, repoKnown)}. Les cibles : ${targets.trim()}. " + githubPhrase(withGithub) +
         "Établis d'abord la liste des cibles et envoie-la moi pour validation par la question du widget : ATTENDS ma réponse avant de fabriquer quoi que ce soit. " +
-        "Ensuite, pour chaque cible : une maquette, une vidéo, un prix, sous `aiwa-proposals/`. Tu n'envoies rien : je valide chaque proposition dans l'application (Propositions à valider).\n\nDocument :\n<<<\n${doc.text}\n>>>"
+        "Ensuite, pour chaque cible : une maquette, une vidéo, un prix, sous `aiwa-proposals/`. Tu n'envoies rien : je valide chaque proposition dans l'application (Propositions à valider)." + documentBlock(doc)
 
 /** The three qualities of a video, chosen where the video is asked for: a button each, the one in use filled. */
 @Composable
@@ -120,6 +133,24 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
     var targets by remember { mutableStateOf("") }
     var quality by remember { mutableStateOf(AiwaRepository.state.value.videoQuality) }
     var busy by remember { mutableStateOf(false) }
+    val state by AiwaRepository.state.collectAsState()
+    val repoKnown = state.repo != null
+    // The files of the repository's folder aiwa-campagne/, several of which can be ticked
+    var repoFiles by remember { mutableStateOf<List<String>>(emptyList()) }
+    var repoFilesNote by remember { mutableStateOf<String?>(null) }
+    val chosen = remember { mutableStateListOf<String>() }
+    fun loadFiles() {
+        scope.launch {
+            repoFilesNote = "Chargement…"
+            try {
+                val got = bridge.inputs()
+                repoFiles = got.files.map { it.name }
+                chosen.retainAll(repoFiles.toSet())
+                repoFilesNote = if (got.repo == null) "Choisis d'abord un dépôt (⎇)." else if (repoFiles.isEmpty()) "Rien dans aiwa-campagne/ pour l'instant." else null
+            } catch (err: Exception) { repoFilesNote = "Liste indisponible : ${err.message ?: "?"}" }
+        }
+    }
+    LaunchedEffect(repoKnown) { if (repoKnown) loadFiles() }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val picked = try { readDocument(context, uri) } catch (err: Exception) { null }
@@ -153,7 +184,22 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("Créer à partir d'un fichier", style = MaterialTheme.typography.titleLarge)
                     OutlinedButton(onClick = { picker.launch(arrayOf("text/*", "application/json", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) {
-                        Text(document?.let { "Fichier : ${it.name} · changer" } ?: "Choisir un fichier (CV, argumentaire, brochure…)")
+                        Text(document?.let { "Fichier du téléphone : ${it.name} · changer" } ?: "Choisir un fichier texte du téléphone (CV, argumentaire, notes…)")
+                    }
+                    if (repoKnown) {
+                        Text("Fichiers de ton dépôt (dossier aiwa-campagne/)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        repoFiles.forEach { name ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { if (name in chosen) chosen.remove(name) else chosen.add(name) }) {
+                                Checkbox(checked = name in chosen, onCheckedChange = { if (it) chosen.add(name) else chosen.remove(name) })
+                                Text(name)
+                            }
+                        }
+                        repoFilesNote?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        Text(
+                            "Dépose tes fichiers (CSV, Excel, PDF, images, vidéos) dans ce dossier sur github.com (Add file ▸ Upload files), le dépôt étant public, puis ↻. Un fichier texte choisi sur le téléphone y est rangé par Claude.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedButton(onClick = { loadFiles() }, modifier = Modifier.fillMaxWidth()) { Text("↻  Actualiser la liste") }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { withGithub = !withGithub }) {
                         Checkbox(checked = withGithub, onCheckedChange = { withGithub = it })
@@ -169,11 +215,12 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
                     }
                     QualityChoice(quality) { quality = it }
                     val doc = document
+                    val hasSource = doc != null || chosen.isNotEmpty()
                     if (!campaign) {
                         Text("Claude reconnaît le type du document (parcours, vente…) et adapte la vidéo.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             for ((label, format) in listOf("9:16" to "9:16 (vertical)", "16:9" to "16:9 (horizontal)", "1:1" to "1:1 (carré)")) {
-                                Button(onClick = { doc?.let { send(documentVideoRequest(it, format, withGithub)) } }, enabled = doc != null && !busy, modifier = Modifier.weight(1f)) { Text(label) }
+                                Button(onClick = { send(documentVideoRequest(doc, format, withGithub, chosen.toList(), repoKnown)) }, enabled = hasSource && !busy, modifier = Modifier.weight(1f)) { Text(label) }
                             }
                         }
                     } else {
@@ -185,7 +232,7 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
                             "Claude te propose d'abord la liste : tu la valides. Il prépare ensuite, pour chaque cible, une maquette, une vidéo et un prix. Rien n'est envoyé : tu valides chaque proposition et tu l'envoies toi-même depuis ta messagerie.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Button(onClick = { doc?.let { send(campaignRequest(it, targets, withGithub)) } }, enabled = doc != null && targets.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Proposer la liste des cibles") }
+                        Button(onClick = { send(campaignRequest(doc, targets, withGithub, chosen.toList(), repoKnown)) }, enabled = hasSource && targets.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Proposer la liste des cibles") }
                     }
                     OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
                 }

@@ -368,6 +368,22 @@ class ProposalsTests(unittest.TestCase):
                 unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None):
             return srv._proposals_snapshot()
 
+    def test_the_source_files_of_the_repository_are_listed(self):
+        folder = [{"type": "file", "name": "clients.csv", "size": 120}, {"type": "file", "name": ".hidden", "size": 1}, {"type": "dir", "name": "sub"},
+                  {"type": "file", "name": "Brochure.pdf", "size": 9000}]
+        srv.inputs_cache.update(key=None, items=[], at=0.0)
+        with unittest.mock.patch.object(srv, "_github_json", return_value=folder) as call, unittest.mock.patch.object(srv, "current_repo", "o/r"), \
+                unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None):
+            got = srv._inputs_snapshot()
+            self.assertEqual(got["repo"], "o/r")
+            self.assertEqual([f["name"] for f in got["files"]], ["Brochure.pdf", "clients.csv"])
+            self.assertTrue(call.call_args[0][0].endswith("/contents/aiwa-campagne"))
+            srv._inputs_snapshot()
+            self.assertEqual(call.call_count, 1, "kept for a moment: GitHub's request limit is small")
+
+    def test_the_instruction_knows_the_source_folder(self):
+        self.assertIn("aiwa-campagne/", srv._document_line("o/r"))
+
     def test_a_proposal_is_cleaned(self):
         got = self.snapshot([
             {"id": "Café Du Port!", "name": "Café du Port", "email": "contact@cafe.ch", "phone": "+41 79 123 45 67", "subject": "Une maquette", "body": "Bonjour", "price": "900 CHF",

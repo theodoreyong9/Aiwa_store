@@ -283,6 +283,18 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         )
     }
 
+    override suspend fun inputs(): InputList = withContext(Dispatchers.IO) {
+        val json = JSONObject(getText("/api/inputs"))
+        val array = json.optJSONArray("files")
+        InputList(
+            json.str("repo"),
+            if (array == null) emptyList() else (0 until array.length()).map {
+                val v = array.getJSONObject(it)
+                InputFile(v.optString("name"), v.optLong("size", 0L))
+            },
+        )
+    }
+
     override suspend fun videos(): VideoList = withContext(Dispatchers.IO) {
         val json = JSONObject(getText("/api/videos"))
         val array = json.optJSONArray("videos")

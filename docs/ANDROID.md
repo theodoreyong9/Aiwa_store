@@ -105,7 +105,7 @@ Four bands, from the top: the title and status (the logo opens the app), the **r
 | ▦ and `</>` | Store and Aiwa modes: open the Store on the app Claude sent (to read, try, add) and on its code | `OpenStoreActivity.kt`, `StoreActivity.kt` |
 | Video button (at the left of the mode chip) | the promotional videos of the creation, **played in the app** (a player of its own, with a button to hand the file to the browser); the **quality** (simple, medium, extra) is chosen where a video is asked for | `VideosActivity.kt` |
 | GitHub Actions button | the last run of the repository: the build (Android), the deployment (Pages, campaign), the check of the app (Store), the registry's check of the pull request (Aiwa) | `OpenActionsActivity.kt`, `aiwa_server.py` (`_ci_snapshot`) |
-| Create from a file | menu d'Aiwa: a text file becomes a video **or a campaign**; GitHub is an accessory (off by default) | `DocumentCreation.kt` |
+| Create from a file | menu d'Aiwa: files become a video **or a campaign**: several files ticked among those of the folder `aiwa-campagne/` of the chosen repository, and/or a text file of the phone (kept there by the session); GitHub work is an accessory (off by default) | `DocumentCreation.kt` |
 
 The repository chip and the **project-type chip** are always there: the Store, Aiwa and campaign modes need no repository, so the type is chosen first. The push chip, the site button, the video button and the GitHub Actions button need a repository and appear once one is chosen.
 
