@@ -172,6 +172,12 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
+        <!-- The player of the videos list (VideoPlayerActivity.kt): a video plays in the app, full screen, in either orientation. -->
+        <activity android:name=".VideoPlayerActivity" android:exported="false"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <activity android:name=".VideosActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""

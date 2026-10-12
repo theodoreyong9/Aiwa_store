@@ -6,6 +6,8 @@ import com.aiwa.bridge.VoiceCommand
 import com.aiwa.bridge.VoiceModel
 import com.aiwa.bridge.VoiceSession
 import com.aiwa.bridge.describeCommand
+import com.aiwa.bridge.PillReference
+import com.aiwa.bridge.Pills
 import com.aiwa.bridge.parseDictation
 import com.aiwa.bridge.recapSentence
 import com.aiwa.bridge.statusReport
@@ -51,6 +53,20 @@ class VoiceDictation(
     private var lastPartial = ""
     private var ended = false
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    /** The pills as they are now, for the sentence that reads everything back before a hands-free request leaves. */
+    private fun currentPills(): Pills {
+        val state = AiwaRepository.state.value
+        return Pills(
+            repo = state.repo,
+            model = if (state.model == null) "automatique" else modelLabel(state.model),
+            effort = PillReference.effortLabel(state.effort),
+            pushMain = state.pushMain,
+            deploy = state.deploy,
+            videoQuality = PillReference.videoQualityLabel(state.videoQuality),
+            session = if (state.cloudSessionId != null) state.session else null,
+        )
+    }
 
     private fun voiceModels() = MODEL_CHOICES.map { VoiceModel(it.id, it.label) }
     private fun voiceSessions() = AiwaRepository.state.value.cloudSessions.map { VoiceSession(it.id, it.title) }
@@ -147,7 +163,7 @@ class VoiceDictation(
         if (dictation.commands.any { it is VoiceCommand.StopClaude }) stopClaude(appContext)
         var repoConfirmed = false
         if (confirmAll) {
-            val recap = recapSentence(dictation)
+            val recap = recapSentence(dictation, currentPills())
             if (recap != null) {
                 if (!confirmSentence(recap)) {
                     // What was said is not lost, and nothing was applied nor sent.
@@ -167,10 +183,12 @@ class VoiceDictation(
                 is VoiceCommand.NewSession, is VoiceCommand.SelectSession -> 0
                 is VoiceCommand.Repo -> 1
                 is VoiceCommand.Model -> 2
-                is VoiceCommand.PushMain -> 3
-                is VoiceCommand.Deploy -> 4
-                is VoiceCommand.Report -> 5
-                is VoiceCommand.StopClaude -> 6
+                is VoiceCommand.Effort -> 3
+                is VoiceCommand.PushMain -> 4
+                is VoiceCommand.Deploy -> 5
+                is VoiceCommand.VideoQuality -> 6
+                is VoiceCommand.Report -> 7
+                is VoiceCommand.StopClaude -> 8
             }
         }
         for (command in ordered) {
@@ -178,6 +196,8 @@ class VoiceDictation(
                 is VoiceCommand.NewSession -> switchCloud(appContext, bridge, "new")
                 is VoiceCommand.SelectSession -> switchCloud(appContext, bridge, command.id)
                 is VoiceCommand.Model -> switchModel(appContext, bridge, command.id)
+                is VoiceCommand.Effort -> switchEffort(appContext, bridge, command.id)
+                is VoiceCommand.VideoQuality -> switchOptions(appContext, bridge, videoQuality = command.id)
                 is VoiceCommand.PushMain -> switchOptions(appContext, bridge, pushMain = command.direct)
                 is VoiceCommand.Deploy -> switchOptions(appContext, bridge, deploy = command.mode)
                 is VoiceCommand.Report -> report = true
@@ -217,7 +237,10 @@ class VoiceDictation(
         try { BackendSync.refresh(bridge) } catch (err: Exception) { /* what is known is said, with the warning below */ }
         val state = AiwaRepository.state.value
         val model = if (state.model == null) "automatique" else modelLabel(state.model)
-        val sentence = statusReport(state.repo, model, state.pushMain, state.deploy, if (state.cloudSessionId != null) state.session else null, state.backend == "up")
+        val sentence = statusReport(
+            state.repo, model, state.pushMain, state.deploy, if (state.cloudSessionId != null) state.session else null, state.backend == "up",
+            PillReference.effortLabel(state.effort), PillReference.videoQualityLabel(state.videoQuality),
+        )
         onQuestion(sentence)
         Speaker.speakAndWait(voiceContext, sentence)
         onQuestion(null)

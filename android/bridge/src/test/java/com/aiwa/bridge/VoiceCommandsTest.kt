@@ -250,4 +250,66 @@ class VoiceCommandsTest {
         assertTrue(problem.contains("Je n'ai pas compris"))
         assertTrue(problem.startsWith("J'applique : push main"))
     }
+
+    // ---- the reference of the pills ----
+
+    @Test fun theEffortIsHeardInItsWordsAndOnlyWithAValue() {
+        assertEquals(listOf(VoiceCommand.Effort("high", "élevé")), parse("instruction aiwa effort élevé").commands)
+        assertEquals(listOf(VoiceCommand.Effort("xhigh", "très élevé")), parse("instruction aiwa effort très élevé").commands)
+        assertEquals(listOf(VoiceCommand.Effort("max", "max")), parse("instruction aiwa effort maximum").commands)
+        assertEquals(listOf(VoiceCommand.Effort(null, "automatique")), parse("instruction aiwa effort auto").commands)
+        // « effort » with no value after it is a word of the message
+        val d = parse("instruction aiwa fais un gros effort sur le css")
+        assertTrue(d.commands.isEmpty())
+        assertEquals("fais un gros effort sur le css", d.message)
+    }
+
+    @Test fun theVideoQualityIsHeardWithOrWithoutTheWordQuality() {
+        assertEquals(listOf(VoiceCommand.VideoQuality("extra", "extra")), parse("instruction aiwa qualité vidéo extra").commands)
+        assertEquals(listOf(VoiceCommand.VideoQuality("simple", "simple")), parse("instruction aiwa vidéo simple").commands)
+        assertEquals(listOf(VoiceCommand.VideoQuality("moyen", "moyenne")), parse("instruction aiwa qualité moyenne").commands)
+        val d = parse("instruction aiwa fais une vidéo de présentation")
+        assertTrue(d.commands.isEmpty())
+        assertEquals("fais une vidéo de présentation", d.message)
+    }
+
+    @Test fun theCampaignModeIsADeploymentLikeTheOthers() {
+        assertEquals(listOf(VoiceCommand.Deploy("campaign", "Campagne")), parse("instruction aiwa déploiement campagne").commands)
+        assertEquals(listOf(VoiceCommand.Deploy("store", "Store")), parse("instruction aiwa déploiement store").commands)
+    }
+
+    @Test fun aRepositoryHeardBadlyIsFoundByItsNearestName() {
+        val d = parse("instruction aiwa dépôt aiwa stoor")
+        assertEquals(listOf<VoiceCommand>(VoiceCommand.Repo("theodoreyong9/Aiwa_store")), d.commands)
+        // too far from every name: nothing is guessed
+        assertTrue(parse("instruction aiwa dépôt banane jaune").commands.isEmpty())
+    }
+
+    private val pills = Pills("theodoreyong9/Aiwa_store", "Opus 5.5", "automatique", true, "pages", "moyenne", "Widget du matin")
+
+    @Test fun theRecapReadsEveryPillAsItWillBeBeforeAnythingIsSent() {
+        val d = parse("instruction aiwa effort élevé déploiement campagne")
+        val recap = recapSentence(d, pills)!!
+        assertTrue(recap, recap.contains("J'applique : effort élevé, déploiement Campagne"))
+        assertTrue(recap, recap.contains("Réglages : Dépôt Aiwa store. Modèle Opus 5.5. Effort élevé. Push direct sur main. Mode campagne. Qualité vidéo moyenne. Session Widget du matin"))
+        assertTrue(recap, recap.endsWith("Tu confirmes ?"))
+        // the pills are read even when only a message goes
+        val onlyMessage = recapSentence(Dictation("fais un site", emptyList(), emptyList(), true), pills)!!
+        assertTrue(onlyMessage, onlyMessage.contains("Réglages : "))
+        assertTrue(onlyMessage, onlyMessage.contains("J'envoie à Claude : fais un site"))
+    }
+
+    @Test fun theReferenceListsWhatCanBeSaid() {
+        val sections = PillReference.helpSections(listOf("Opus", "Sonnet")).toMap()
+        assertTrue(sections.getValue("effort").contains("très élevé"))
+        assertTrue(sections.getValue("déploiement").contains("Campagne"))
+        assertFalse(sections.getValue("déploiement").contains("aucun"))
+        assertEquals("simple · moyenne · extra", sections.getValue("qualité vidéo"))
+    }
+
+    @Test fun similarityIsOneForTheSameNameAndLowForOtherNames() {
+        assertEquals(1.0, similarity("aiwastore", "aiwastore"), 0.0)
+        assertTrue(similarity("aiwastor", "aiwastore") > 0.85)
+        assertTrue(similarity("banane", "aiwastore") < 0.3)
+    }
 }

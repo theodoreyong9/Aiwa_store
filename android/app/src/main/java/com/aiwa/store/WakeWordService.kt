@@ -173,13 +173,14 @@ class WakeWordService : Service() {
             return
         }
         say("Je t'écoute… dis « c'est bon vas-y » pour finir")
-        // Woken by a phrase, nobody is looking at a screen, but only a change of REPOSITORY is read back and confirmed (VoiceDictation.confirmRepo):
-        // the rest is applied and sent as said. Where things stand is read only when asked ("t'en es où", "t'es sur quoi"), "mon agent" alone does not.
+        // Woken by a phrase, nobody is looking at a screen: before anything is applied or sent, the phone reads back what it will do AND every pill as it
+        // will be, and waits for "c'est bon vas-y" (VoiceDictation, confirmAll). "Non" or silence: nothing is applied, nothing is sent, the message is copied.
+        // Where things stand is read on its own only when asked ("t'en es où", "t'es sur quoi"); "mon agent" alone does not.
         dictation = VoiceDictation(
             context = this,
             startInInstructions = true,
             reportFirst = false,
-            confirmAll = false,
+            confirmAll = true,
             onUnderstood = { if (it.isNotBlank()) say(it) },
             onQuestion = { if (!it.isNullOrBlank()) say(it) },
             onFinished = { main.post { dictation = null; listen() } },

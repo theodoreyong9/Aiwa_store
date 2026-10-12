@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.updateAll
+import com.aiwa.bridge.PillReference
 import com.aiwa.bridge.LocalClaudeBridge
 import com.aiwa.bridge.RepoInfo
 import kotlinx.coroutines.CoroutineScope
@@ -532,18 +533,17 @@ class VoiceHelpActivity : ComponentActivity() {
                 add(PickerEntry("« Non, c'est pas bon, arrête » ou « annule », à la fin : tout est abandonné.", false, lines = 3) { })
 
                 add(PickerEntry("Après « instruction Aiwa » (enchaîne autant que tu veux)", false, header = true) { })
-                add(PickerEntry("modèle Opus · Sonnet · Haiku · Fable (+ version « 5.5 », « un million ») · automatique", false, lines = 3) { })
-                add(PickerEntry("push main · push branche", false) { })
-                add(PickerEntry("déploiement Pages · Android · Store · Aiwa · aucun", false, lines = 3) { })
-                add(PickerEntry("nouvelle session · session + un bout du titre", false, lines = 3) { })
-                add(PickerEntry("dépôt + son nom (le téléphone demande confirmation à voix haute)", false, lines = 3) { })
+                // Generated from the reference of the pills (PillReference): a pill or a value added there is listed here
+                PillReference.helpSections(MODEL_CHOICES.map { it.label.substringBefore(" (") }).forEach { (title, what) ->
+                    add(PickerEntry("$title : $what", false, lines = 3) { })
+                }
                 add(PickerEntry("t'es sur quoi ? (rapport, statut, bilan) : le téléphone lit les pastilles", false, lines = 3) { })
                 add(PickerEntry("stop · arrête Claude · arrête-toi : demande à Claude de s'arrêter (il le lit à sa prochaine étape)", false, lines = 3) { })
                 add(PickerEntry("Tout s'applique à « c'est bon vas-y » ; ce qui n'est pas une commande reste du texte pour Claude.", false, lines = 3) { })
 
                 add(PickerEntry("Écoute permanente : les mots de réveil", false, header = true) { })
-                add(PickerEntry("« Mon agent » : il t'écoute, puis tu donnes tes instructions. Seul un changement de dépôt est relu et attend « c'est bon vas-y » ; le reste part comme tu l'as dit.", false, lines = 5) { })
-                add(PickerEntry("« Instruction » : tu donnes directement tes instructions (même relecture).", false, lines = 3) { })
+                add(PickerEntry("« Mon agent » : il t'écoute, puis tu donnes tes instructions. Avant d'envoyer, le téléphone relit ce qu'il va faire et toutes les pastilles, et attend « c'est bon vas-y » ; « non » ou le silence : rien ne part (le message est copié).", false, lines = 5) { })
+                add(PickerEntry("« Instruction » : tu donnes directement tes instructions (même relecture et même confirmation).", false, lines = 3) { })
                 add(PickerEntry("« Stop Claude » ou « arrête Claude » : arrête Claude tout de suite, sans confirmation.", false, lines = 3) { })
             }
             PickerSheet(entries) { finish() }

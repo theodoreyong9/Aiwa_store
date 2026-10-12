@@ -16,6 +16,8 @@ import java.util.Locale
  */
 sealed class VoiceCommand {
     data class Model(val id: String?, val label: String) : VoiceCommand()
+    data class Effort(val id: String?, val label: String) : VoiceCommand()
+    data class VideoQuality(val id: String, val label: String) : VoiceCommand()
     data class PushMain(val direct: Boolean) : VoiceCommand()
     data class Deploy(val mode: String, val label: String) : VoiceCommand()
     object NewSession : VoiceCommand()
@@ -36,6 +38,8 @@ data class Dictation(val message: String, val commands: List<VoiceCommand>, val 
 /** The command in a few words, for the line that says what was understood. */
 fun describeCommand(command: VoiceCommand): String = when (command) {
     is VoiceCommand.Model -> "modèle " + command.label.substringBefore(" (")
+    is VoiceCommand.Effort -> "effort " + command.label
+    is VoiceCommand.VideoQuality -> "qualité vidéo " + command.label
     is VoiceCommand.PushMain -> if (command.direct) "push main" else "push branche"
     is VoiceCommand.Deploy -> "déploiement " + command.label
     is VoiceCommand.NewSession -> "nouvelle session"
@@ -73,15 +77,14 @@ private val FILLERS = setOf("et", "puis", "ensuite", "alors", "aussi", "donc", "
 private val SKIPPABLE = setOf("de", "du", "le", "la", "l", "les", "en", "sur", "avec", "mode", "est", "sera", "pour", "passe", "mets", "met", "a", "au", "ma", "une", "sa", "ta", "un")
 private val FAMILIES = setOf("opus", "sonnet", "haiku", "fable")
 private val AUTO_WORDS = setOf("auto", "automatique", "defaut")
-private val DIRECT_WORDS = setOf("main", "direct", "directement", "principal", "principale", "master")
-private val BRANCH_WORDS = setOf("branche", "branches")
-private val NONE_WORDS = setOf("aucun", "aucune", "rien", "desactive", "desactiver", "non", "zero", "stop", "arret")
-private val PAGES_WORDS = setOf("pages", "page", "site", "web")
-private val ANDROID_WORDS = setOf("android", "apk")
-private val CAMPAIGN_WORDS = setOf("campagne", "campagnes")
+private val DIRECT_WORDS = PillReference.PUSH_DIRECT
+private val BRANCH_WORDS = PillReference.PUSH_BRANCH
+private val EFFORT_WORDS = setOf("effort")
+private val QUALITY_WORDS = setOf("qualite")
+private val VIDEO_WORDS = setOf("video", "videos")
 
 private fun startsCommand(word: Word, next: Word?): Boolean =
-    word.plain in MODEL_WORDS || word.plain in PUSH_WORDS || word.plain in DEPLOY_WORDS || word.plain in SESSION_WORDS ||
+    word.plain in MODEL_WORDS || word.plain in PUSH_WORDS || word.plain in EFFORT_WORDS || word.plain in QUALITY_WORDS || word.plain in DEPLOY_WORDS || word.plain in SESSION_WORDS ||
         word.plain in REPO_WORDS || (word.plain in NEW_WORDS && next?.plain in SESSION_WORDS) || (word.plain in TRIGGER)
 
 private fun isAiwa(list: List<Word>, at: Int): Int {
@@ -163,6 +166,23 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
                 afterCommand = true
             }
 
+            // « effort élevé », « effort très élevé »: said without a value after it, the word is only text for Claude
+            w.plain in EFFORT_WORDS -> {
+                val k = skipSkippable(i + 1)
+                val found = PillReference.effortAt(listOfNotNull(wordAt(k)?.plain, wordAt(k + 1)?.plain))
+                if (found == null) { leftover.add(w.original); afterCommand = false; i++ }
+                else { commands.add(VoiceCommand.Effort(found.first.id, found.first.label)); i = k + found.second; afterCommand = true }
+            }
+
+            // « qualité vidéo extra », « vidéo simple »: only when a quality follows; « fais une vidéo » is text for Claude
+            w.plain in QUALITY_WORDS || w.plain in VIDEO_WORDS -> {
+                var k = skipSkippable(i + 1)
+                if (w.plain in QUALITY_WORDS && wordAt(k)?.plain in VIDEO_WORDS) k = skipSkippable(k + 1)
+                val found = wordAt(k)?.plain?.let { PillReference.videoQualityOf(it) }
+                if (found == null) { leftover.add(w.original); afterCommand = false; i++ }
+                else { commands.add(VoiceCommand.VideoQuality(found.id ?: "moyen", found.label)); i = k + 1; afterCommand = true }
+            }
+
             w.plain in MODEL_WORDS -> {
                 var k = skipSkippable(i + 1)
                 val start = k
@@ -196,19 +216,14 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
                 val p = wordAt(k)?.plain
                 val mode = when {
                     p == null -> null
-                    p in PAGES_WORDS -> "pages" to "Pages"
-                    p in ANDROID_WORDS -> "android" to "Android"
-                    p in CAMPAIGN_WORDS -> "campaign" to "Campagne"
-                    p == "store" -> "store" to "Store"
                     p in AIWA || isAiwa(segment, k) > 0 -> "aiwa" to "Aiwa"
-                    p in NONE_WORDS -> "none" to "aucun"
-                    else -> null
+                    else -> PillReference.deployOf(p)?.let { (it.id ?: "none") to it.label }
                 }
                 if (mode != null) {
                     commands.add(VoiceCommand.Deploy(mode.first, mode.second))
                     k += if (p in AIWA || isAiwa(segment, k) == 0) 1 else isAiwa(segment, k)
                 } else {
-                    problems.add("Déploiement « ${wordAt(k)?.original ?: "?"} » inconnu : Pages, Android, Store, Aiwa ou aucun")
+                    problems.add("Déploiement « ${wordAt(k)?.original ?: "?"} » inconnu : " + PillReference.DEPLOY.filter { it.listed }.joinToString(", ") { it.label })
                     if (k < segment.size) k++
                 }
                 i = k
@@ -244,6 +259,21 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
                     if (partial.size == 1) { picked = partial[0].first; used = len; break }
                     if (partial.size > 1) state = "many"
                 }
+                if (picked == null && state != "many") {
+                    // Heard badly (« ai oie store » for aiwa_store): the closest name, if it is clearly the closest. The repository is read back and confirmed anyway.
+                    var bestName: String? = null
+                    var bestScore = 0.0
+                    var bestLen = 0
+                    for (len in minOf(5, segment.size - start) downTo 1) {
+                        val spoken = compact(segment.subList(start, start + len).joinToString("") { it.plain })
+                        if (spoken.length < 4) continue
+                        val scored = keyed.map { it.first to similarity(spoken, it.second) }.sortedByDescending { it.second }
+                        val top = scored.firstOrNull() ?: continue
+                        val gap = top.second - (scored.getOrNull(1)?.second ?: 0.0)
+                        if (top.second >= 0.75 && gap >= 0.1 && top.second > bestScore) { bestName = top.first; bestScore = top.second; bestLen = len }
+                    }
+                    if (bestName != null) { picked = bestName; used = bestLen }
+                }
                 if (picked != null) commands.add(VoiceCommand.Repo(picked))
                 else {
                     val said = wordAt(start)?.original ?: "?"
@@ -261,6 +291,23 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
     }
     val message = (before + leftover).joinToString(" ").trim()
     return Dictation(message, commands, problems, true)
+}
+
+/** 1.0 for the same text, towards 0 as the edits needed to turn one into the other grow (Levenshtein over the longer length). */
+internal fun similarity(a: String, b: String): Double {
+    if (a == b) return 1.0
+    if (a.isEmpty() || b.isEmpty()) return 0.0
+    var previous = IntArray(b.length + 1) { it }
+    for (i in 1..a.length) {
+        val current = IntArray(b.length + 1)
+        current[0] = i
+        for (j in 1..b.length) {
+            val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+            current[j] = minOf(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost)
+        }
+        previous = current
+    }
+    return 1.0 - previous[b.length].toDouble() / maxOf(a.length, b.length)
 }
 
 private fun plainText(text: String): String = words(text).joinToString(" ") { it.plain }.trim()
@@ -300,10 +347,11 @@ private fun pickModel(spoken: List<String>, models: List<VoiceModel>): VoiceMode
 }
 
 /** What the pills say, as a sentence the phone can read aloud. */
-fun statusReport(repo: String?, modelLabel: String, pushMain: Boolean, deploy: String, session: String?, backendUp: Boolean): String {
+fun statusReport(repo: String?, modelLabel: String, pushMain: Boolean, deploy: String, session: String?, backendUp: Boolean, effort: String? = null, videoQuality: String? = null): String {
     val parts = mutableListOf<String>()
     parts.add(if (repo == null) "Aucun dépôt choisi" else "Dépôt " + repo.substringAfter('/').replace('_', ' ').replace('-', ' '))
     parts.add("Modèle $modelLabel")
+    if (effort != null) parts.add("Effort $effort")
     parts.add(if (pushMain) "Push direct sur main" else "Push sur une branche")
     parts.add(
         when (deploy) {
@@ -315,6 +363,7 @@ fun statusReport(repo: String?, modelLabel: String, pushMain: Boolean, deploy: S
             else -> "Aucun déploiement"
         },
     )
+    if (videoQuality != null) parts.add("Qualité vidéo $videoQuality")
     parts.add(if (session.isNullOrBlank()) "Pas de session en cours" else "Session $session")
     if (!backendUp) parts.add("Attention : le serveur Termux ne répond pas, ces réglages peuvent ne pas être à jour")
     return parts.joinToString(". ") + "."
@@ -340,12 +389,17 @@ fun wakeKind(heard: String, custom: List<String> = emptyList()): WakeKind? {
 fun isWakeWord(heard: String): Boolean = wakeKind(heard) != null
 
 /** What the phone says back before a hands-free dictation is applied: everything it is about to do, and the question. Null when there is nothing to do. */
-fun recapSentence(dictation: Dictation): String? {
+fun recapSentence(dictation: Dictation, pills: Pills? = null): String? {
     // The report and the stop are not "applied": the first only reads, the second is done at once, never read back and waited on
     val commands = dictation.commands.filter { it !is VoiceCommand.Report && it !is VoiceCommand.StopClaude }
     if (commands.isEmpty() && dictation.message.isBlank()) return null
     val parts = mutableListOf<String>()
     if (commands.isNotEmpty()) parts.add("J'applique : " + commands.joinToString(", ") { describeCommand(it) })
+    // With the pills as they are: everything the request will go with, changed or not, read before it leaves
+    if (pills != null) {
+        val after = applyCommands(pills, commands)
+        parts.add("Réglages : " + statusReport(after.repo, after.model, after.pushMain, after.deploy, after.session, true, after.effort, after.videoQuality).removeSuffix("."))
+    }
     if (dictation.message.isNotBlank()) parts.add("J'envoie à Claude : " + dictation.message.take(160) + if (dictation.message.length > 160) "…" else "")
     if (dictation.problems.isNotEmpty()) parts.add("Je n'ai pas compris : " + dictation.problems.joinToString(", "))
     parts.add("Tu confirmes ?")

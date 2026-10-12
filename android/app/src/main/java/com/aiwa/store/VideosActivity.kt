@@ -44,7 +44,7 @@ import kotlinx.coroutines.launch
 
 /**
  * "Vidéos": the promotional videos of the creation, files of the release `videos` of its GitHub repository (public: Aiwa asks
- * for no token). A tap on one opens it; the button asks Claude, in the current session, for a new one (the instruction that
+ * for no token). A tap on one plays it in the app (VideoPlayerActivity), the second button hands it to the browser; the button asks Claude, in the current session, for a new one (the instruction that
  * tells it how comes with the message: the standard, the tools, the honesty rule).
  */
 class VideosActivity : ComponentActivity() {
@@ -115,8 +115,18 @@ private fun VideosWindow(onClose: () -> Unit) {
                         current.repo == null -> Text("Choisis d'abord un dépôt (le bouton ⎇ du widget).")
                         current.videos.isEmpty() -> Text("Aucune vidéo pour l'instant dans ${current.repo}. Demande-en une ci-dessous ; elle apparaîtra ici dès que Claude l'aura déposée.")
                         else -> current.videos.forEach { video ->
-                            OutlinedButton(onClick = { openUrl(context, video.url) }, modifier = Modifier.fillMaxWidth()) {
-                                Text(video.name + " · " + sizeLabel(video.size))
+                            // Played here, in the app; the second button hands the file to the browser, which can download it
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Button(
+                                    onClick = {
+                                        context.startActivity(
+                                            android.content.Intent(context, VideoPlayerActivity::class.java)
+                                                .putExtra(VideoPlayerActivity.EXTRA_URL, video.url).putExtra(VideoPlayerActivity.EXTRA_TITLE, video.name),
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) { Text("▶  " + video.name + " · " + sizeLabel(video.size), maxLines = 2) }
+                                OutlinedButton(onClick = { openUrl(context, video.url) }) { Text("⇩") }
                             }
                         }
                     }
