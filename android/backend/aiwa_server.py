@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 61
+BACKEND_VERSION = 62
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -564,7 +564,7 @@ def _video_full(repo):
         "en écrivant chacune dans un fichier sous `aiwa-videos/` et en relisant la précédente avant la suivante : 0 les faits (`facts.md` : ce qui est vrai, ce que ma création montre et fait, les vraies captures), "
         "1 le brief (`brief.md` : le public, UN message, le ton, la direction artistique prise dans ma création, l'appel à l'action), "
         "2 le script (`script.md` : accroche dans les 2 premières secondes, tension, révélation, preuve, appel à l'action, texte de la voix off avec ses secondes), "
-        "3 le plan de plans (`video.html`, depuis `video-kit/template/cinematic.html` : un plan par temps du script, avec son mouvement, sa transition et son son), "
+        "3 le plan de plans (`video.html`, depuis `video-kit/template/cinematic.html` : un plan par temps du script, avec son mouvement, sa transition et son son ; c'est ici que tu consultes le registre des objets, lumières et textures (`asset-research`, voir plus bas) pour chaque scène que tu rends réelle, et que tu écris dans `script.md` le choix de chaque scène : page, 3D, footage ou générée), "
         "4 le son : une vraie musique forte qui porte le rythme, et une voix courte et percutante par-dessus, seulement sur les temps forts. "
         "Cherche la musique dans le registre : `node music-research/src/cli.js search \"<l'ambiance voulue>\" --bpm=100-130 --energy=4 --credit=ok` depuis le dépôt de référence cloné "
         "(sinon `MR_CATALOG_URL=" + REFERENCE_RAW + "/music-research/catalog/tracks.jsonl`), `--credit=none` pour une musique sans crédit à afficher ; écoute ou compare 2 ou 3 candidats, "
@@ -640,7 +640,8 @@ def _video_line(repo, quality="moyen"):
             "et dis-moi que je peux la remplacer par la qualité moyenne ou simple si je suis pressé ; puis travaille sans attendre ma réponse, et donne-moi l'avancement à chaque étape terminée. "
         ) + full
     # moyen: the stages and the real track, without the campaign research or the shots of the catalogue
-    mid = _cut(full, "Au stade 1, lis aussi ", "sans rien copier. ")
+    mid = _cut(full, "; c'est ici que tu consultes le registre", "page, 3D, footage ou générée")
+    mid = _cut(mid, "Au stade 1, lis aussi ", "sans rien copier. ")
     mid = _cut(mid, "Quand un plan doit avoir l'air RÉEL", "garde la source et la licence de ce que tu prends dans un catalogue. ")
     mid = mid.replace("jusqu'à trois tours", "un seul tour", 1)
     return "Vidéo, qualité MOYENNE (le standard, sans plans de catalogue ni 3D : des pages animées, une vraie musique, une voix courte). " + mid

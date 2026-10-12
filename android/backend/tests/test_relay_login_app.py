@@ -328,6 +328,7 @@ class VideoQualityTests(unittest.TestCase):
         self.assertIn("un seul tour", mid)
         self.assertIn("EXTRA", extra)
         self.assertIn("CHAQUE scène", extra)
+        self.assertIn("registre des objets, lumières et textures", extra)
         self.assertIn("kit.phone", extra)
         self.assertNotIn("kit.phone", mid)
         self.assertIn("plusieurs heures", extra)
