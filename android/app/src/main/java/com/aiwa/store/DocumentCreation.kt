@@ -74,6 +74,14 @@ private fun sourcesPhrase(doc: PickedDocument?, repoFiles: List<String>, repoKno
     return parts.joinToString(" et ")
 }
 
+/** A campaign needs no file: my creation in the repository, its videos and, if I ticked it, my public GitHub work can be all it starts from. */
+private fun campaignSources(doc: PickedDocument?, repoFiles: List<String>, repoKnown: Boolean, withGithub: Boolean): String {
+    val given = sourcesPhrase(doc, repoFiles, repoKnown)
+    if (given.isNotEmpty()) return given
+    return (if (repoKnown) "ma création, dans le dépôt en cours (lis-le), et les vidéos de `aiwa-videos/` s'il y en a" else "ce que je te dis ici") +
+        (if (withGithub) " ainsi que mes réalisations GitHub publiques" else "")
+}
+
 private fun documentBlock(doc: PickedDocument?) = if (doc == null) "" else "\n\nDocument :\n<<<\n${doc.text}\n>>>"
 
 /** The request for a video made from a document and/or files of the repository; my GitHub projects are named only when the box was ticked (the instruction says the same). */
@@ -83,7 +91,7 @@ fun documentVideoRequest(doc: PickedDocument?, format: String, withGithub: Boole
 
 /** The request for a campaign of proposals from a document and/or files: the agent proposes the list of targets first and WAITS for my answer; nothing is sent by it. */
 fun campaignRequest(doc: PickedDocument?, targets: String, withGithub: Boolean, repoFiles: List<String> = emptyList(), repoKnown: Boolean = false): String =
-    "Prépare une campagne de propositions à partir de ${sourcesPhrase(doc, repoFiles, repoKnown)}. Les cibles : ${targets.trim()}. " + githubPhrase(withGithub) +
+    "Prépare une campagne de propositions à partir de " + campaignSources(doc, repoFiles, repoKnown, withGithub) + ". Les cibles : ${targets.trim()}. " + githubPhrase(withGithub) +
         "Établis d'abord la liste des cibles et envoie-la moi pour validation par la question du widget : ATTENDS ma réponse avant de fabriquer quoi que ce soit. " +
         "Ensuite, pour chaque cible : une maquette, une vidéo, un prix, sous `aiwa-proposals/`. Tu n'envoies rien : je valide chaque proposition dans l'application (Propositions à valider)." + documentBlock(doc)
 
@@ -229,10 +237,10 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
                             label = { Text("À qui ? Décris la liste (métier, ville, critère…)") },
                         )
                         Text(
-                            "Claude te propose d'abord la liste : tu la valides. Il prépare ensuite, pour chaque cible, une maquette, une vidéo et un prix. Rien n'est envoyé : tu valides chaque proposition et tu l'envoies toi-même depuis ta messagerie.",
+                            "Un fichier n'est pas obligatoire : ta création du dépôt, ses vidéos et (si tu coches) tes réalisations GitHub peuvent suffire. Claude te propose d'abord la liste : tu la valides. Il prépare ensuite, pour chaque cible, une maquette, une vidéo et un prix. Rien n'est envoyé : tu valides chaque proposition et tu l'envoies toi-même depuis ta messagerie.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Button(onClick = { send(campaignRequest(doc, targets, withGithub, chosen.toList(), repoKnown)) }, enabled = hasSource && targets.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Proposer la liste des cibles") }
+                        Button(onClick = { send(campaignRequest(doc, targets, withGithub, chosen.toList(), repoKnown)) }, enabled = (hasSource || repoKnown || withGithub) && targets.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Proposer la liste des cibles") }
                     }
                     OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
                 }
