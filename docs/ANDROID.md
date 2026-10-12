@@ -95,7 +95,7 @@ Four bands, from the top: the title and status (the logo opens the app), the **r
 | Part | What it is | Source |
 |---|---|---|
 | Voice button (before the mic) | the **menu d'Aiwa**: wake word, state of Aiwa (Claude, alerts, permissions), *update the brain* (Termux), *update the application*, the always-on listening, the voice commands | `Pickers.kt` (`VoiceHelpActivity`) |
-| Project type chip | what Claude must produce, from the next message: *none*, *Pages*, *Android*, *Store*, *Aiwa*, *Campaign* (see below) | `Pickers.kt` (`DeployPicker`), `aiwa_server.py` (`DEPLOY_MODES`, `_instruction_lines`) |
+| Project type chip | what Claude must produce, from the next message: *Pages*, *Android*, *Store*, *Aiwa*, *Campaign* (see below) | `Pickers.kt` (`DeployPicker`), `aiwa_server.py` (`DEPLOY_MODES`, `_instruction_lines`) |
 | Site / APK button | Pages and Android modes (the address of the site or of the APK); hidden in the campaign mode | `AiwaWidget.kt` |
 | Proposals button (envelope) | **in the campaign mode, instead of the site button**: the proposals, to be sent from the person's mail application | `ProposalsActivity.kt` |
 | ▦ and `</>` | Store and Aiwa modes: open the Store on the app Claude sent (to read, try, add) and on its code | `OpenStoreActivity.kt`, `StoreActivity.kt` |
@@ -105,7 +105,7 @@ Four bands, from the top: the title and status (the logo opens the app), the **r
 
 The repository chip and the **project-type chip** are always there: the Store, Aiwa and campaign modes need no repository, so the type is chosen first. The push chip, the site button, the video button and the GitHub Actions button need a repository and appear once one is chosen.
 
-**The modes.** All of them end, except *none*, with something sent to the phone or built by GitHub:
+**The five modes.** A repository can have all of them: a mode is only the instruction of the next message, and each writes in its own place (the site, the release, `aiwa-apps/`, `aiwa-proposals/`).
 
 - `pages`: a site published by GitHub Pages. `android`: the APK built by GitHub Actions and published to the rolling release.
 - `store` (**without permission**): ONE app, a self-contained `nom.app.html` ([`store-app-example.html`](store-app-example.html)). Claude puts it in the person's **own public repository**, `aiwa-apps/nom.app.html`, with a small check workflow (`.github/workflows/aiwa-app-check.yml`). There is **no registry, no wallet, no signature, no ranking**: the Store's *Library* lists the GitHub accounts the person follows (`login` → its repository `aiwa-apps`, `login/repo` → the `aiwa-apps/` folder) and reads the code from GitHub as it is, so its author edits it freely (`apps/web/src/library.js`). ▦ adds the account to that list.

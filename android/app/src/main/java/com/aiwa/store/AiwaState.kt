@@ -49,9 +49,9 @@ val MODEL_CHOICES = listOf(
 val DEPLOY_CHOICES = listOf(
     ModelChoice("pages", "Site web — publié avec GitHub Pages"),
     ModelChoice("android", "Application Android — l'APK dans une release GitHub"),
-    ModelChoice("store", "Store Aiwa — une app écrite par Claude, que tu essaies puis publies depuis le Store (▦)"),
+    ModelChoice("store", "Store — une app écrite par Claude, qui reste dans ton GitHub (bibliothèque du Store, sans registre ni wallet)"),
     ModelChoice("campaign", "Campagne — un fichier devient un site (arborescence), une vidéo et des propositions à valider, semi-automatique"),
-    ModelChoice("aiwa", "App Aiwa — un contrat publié par Aiwa : GitHub n'en garde qu'un pointeur immuable"),
+    ModelChoice("aiwa", "App Aiwa — un contrat figé, signé et classé par minage, publié par Aiwa (registre)"),
 )
 
 // How far a video goes: the time it takes grows with the quality.

@@ -29,9 +29,9 @@ The real screens at phone size. The apps and the Solana network are demo stand-i
 
 | | |
 |---|---|
-| **Build** | Dictate to Claude Code with the home-screen widget. It writes the app; you read it and try it before anything leaves the phone. *(Optional: needs Termux and your own Claude account.)* |
-| **Submit** | One tap. The Store signs the app with your wallet, adds proof of the work you have done, and opens the pull request on your GitHub account. No form, no file to carry. |
-| **Store** | A list ranked by what each author has *mined*, not by ads or ratings, and nobody edits it. Every app is checked against its author's signature before it opens, and runs in a sealed box. Works offline. |
+| **Build** | Dictate to Claude Code with the home-screen widget (Android, Termux and your own Claude account: optional). Five modes, chosen on the widget: a **site** (Pages), an **APK**, an **app that stays in your own GitHub** (Store: no registry, no wallet), a **frozen, ranked contract** (Aiwa), or a **campaign** from one file (site, video, proposals you send yourself). It also makes promotional **videos**. You read and try everything before anything leaves the phone. |
+| **Submit** | Only for Aiwa contracts: one tap, the Store signs with your wallet, adds proof of the work you have done and opens the pull request on your GitHub account. An app of the Store mode needs none of it: it stays in your GitHub and you add the account to your Library. |
+| **Store** | Two lists. The **ranked** one holds the Aiwa contracts, ordered by what each author has *mined*, not by ads or ratings, and nobody edits it; each is checked against its author's signature before it opens. The **Library** holds the apps of the GitHub accounts you follow: no registry, no ranking, their authors can change them. Every app runs in a sealed box. Works offline. |
 | **Token** | **AIWA** is created by your phone doing verifiable work, after one burn of SOL: no miners' network, no exchange. Send it by QR code or text, even with no connection. |
 | **Connect and see** | The wallets that are open find each other by themselves (a public relay introduces them, never sees the data) and exchange what each lacks, directly; *Link with another phone* does it by hand with two codes. Each signs a receipt for what it received, and the wallet shows where every identity it holds anything of stands: what is proven, the vote, a fork, its pace against yours. |
 | **Play and pay** | An app can use your wallet. [Click duel](docs/demo-apps/click-duel.html): two phones, a price per click, 20 seconds, whoever clicked less pays what they clicked, and nothing is signed per click. |
@@ -60,12 +60,12 @@ flowchart LR
 </details>
 <!-- /diagram -->
 
-1. **Build.** The widget sends your voice to Claude Code, which writes one self-contained app (or one published through Aiwa, signed and pinned by hash).
+1. **Build.** The widget sends your voice to Claude Code, which writes what the chosen mode asks: a site, an APK, one self-contained app that stays in your GitHub, one contract published through Aiwa (signed and pinned by hash), or a campaign.
 2. **Earn.** The only thing that costs anything, and the only thing that needs Solana, is the burn. 0.1 % of the part you choose to set aside
    (called T) goes to the creator of the software, in the same transaction, shown before you sign. At T = 0, nothing. Then each unit of work is
    signed, anyone can check it in milliseconds, and what you can claim grows with time.
-3. **Submit.** Your app, signed with your wallet, with proof of your work, as a pull request.
-4. **Rank.** The registry is a GitHub workflow: it checks the signature, the proof and the burn on Solana itself, then ranks you by
+3. **Submit** (Aiwa contracts only). Your app, signed with your wallet, with proof of your work, as a pull request.
+4. **Rank** (Aiwa contracts only). The registry is a GitHub workflow: it checks the signature, the proof and the burn on Solana itself, then ranks you by
    `score / laps` (what you can claim, over the epochs since your last action).
 5. **Use.** Each Store checks every app against its author's signature before it opens it. An app that says it uses your wallet gets a banner,
    and can ask it to pay: a sheet of the Store asks you first (that payment, or a budget until you close the app), and nothing leaves the wallet without it.
