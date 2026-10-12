@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 70
+BACKEND_VERSION = 71
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -632,8 +632,9 @@ def _proposals_line(repo):
     """The campaign mode: a file (and, if I ticked it, my GitHub work) becomes a package: a list of targets that I validate, a site with its tree, a video and a price for each, and the proposals
     I validate one by one in the app. The session prepares, it never sends anything."""
     return (
-        "MODE CAMPAGNE : ce projet est une campagne de propositions, semi-automatisée. Elle part d'UN fichier (le mien, dans mon message : un CV, un argumentaire, une brochure…) ; "
-        "si mon message n'en contient pas, demande-le moi UNE fois par la question du widget (menu d'Aiwa → Créer à partir d'un fichier → Une campagne) et arrête-toi là. "
+        "MODE CAMPAGNE : ce projet est une campagne de propositions, semi-automatisée. Elle part de ce que ma demande désigne : un fichier (dans mon message ou dans `aiwa-campagne/` : un CV, un argumentaire, une brochure…), "
+        "ma création dans le dépôt et ses vidéos (`aiwa-videos/`), mes réalisations GitHub publiques si je l'ai coché : un fichier n'est PAS obligatoire. "
+        "Si ma demande ne désigne rien de tout cela et que le dépôt est vide, demande-moi UNE fois par la question du widget (menu d'Aiwa → Créer à partir d'un fichier → Une campagne) et arrête-toi là. "
         "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Le paquet que tu livres : (1) la liste des cibles, (2) un site avec son arborescence, (3) une vidéo par cible, (4) `aiwa-proposals/proposals.json`. "
         "D'abord la liste : établis-la d'après ma demande (au plus 20 cibles par lot ; seulement des coordonnées professionnelles publiques ou que je t'ai données, jamais de données privées) et écris-la dans `aiwa-proposals/liste.md` avec, pour chaque cible, pourquoi elle est retenue. "
         "Envoie-moi cette liste (noms seulement, courte) par la question du widget, avec trois choix : « Prépare ces cibles », « Retire-en… », « Annule » : c'est la SEULE fois où tu t'arrêtes pour m'attendre, ATTENDS ma réponse avant de fabriquer quoi que ce soit. "
@@ -641,8 +642,14 @@ def _proposals_line(repo):
         "la maquette porte en haut, bien visible, « Maquette de démonstration, pas le site officiel de <cible> », n'utilise de la cible que ce qu'elle publie elle-même, ne copie ni logo ni photo sans droit, et n'invente rien (ni chiffre, ni client, ni avis) ; "
         "une vidéo de présentation à la qualité que j'ai choisie (la consigne vidéo s'applique : stratégie, style, critique) ; un prix proposé, justifié en une phrase dans la liste. "
         "Puis écris `aiwa-proposals/proposals.json` : une liste d'objets "
-        "`{\"id\":\"cible\",\"name\":\"nom de la cible\",\"email\":\"adresse\",\"phone\":\"+41791234567\",\"subject\":\"…\",\"body\":\"le message, court, signé de mon nom, sans lien (les liens sont ajoutés à part)\",\"price\":\"prix proposé\",\"videoUrl\":\"https://…\",\"demoUrl\":\"https://<utilisateur>.github.io/<dépôt>/aiwa-proposals/<cible>/\"}` "
+        "`{\"id\":\"cible\",\"name\":\"nom de la cible\",\"email\":\"adresse\",\"phone\":\"+41791234567\",\"subject\":\"…\",\"body\":\"le message, court, signé de mon nom, sans lien (les liens sont ajoutés à part)\",\"chatBody\":\"la version courte pour WhatsApp, SMS et Telegram\",\"xBody\":\"la version pour un post sur X, 200 caractères au plus, sans lien\",\"style\":\"le style de cette création en une phrase, avec les références des registres utilisées (ids)\",\"price\":\"prix proposé\",\"videoUrl\":\"https://…\",\"demoUrl\":\"https://<utilisateur>.github.io/<dépôt>/aiwa-proposals/<cible>/\"}` "
         "(videoUrl et demoUrl en https ; si tu n'as pas d'adresse sûre, laisse `email` vide ; `phone` est un numéro public de la cible au format international avec le +, ou vide : il sert à ouvrir WhatsApp ou un SMS que JE valide et envoie). "
+        "CANAL PAR CANAL : chaque canal (mail, WhatsApp/SMS/Telegram, X) a sa forme, donc son texte : `body` pour le mail, `chatBody` pour les messageries, `xBody` pour X ; et son propre fil de créations. "
+        "Ma demande dit, pour la campagne, si la création est « classique » ou « innovante », et ce qui a été envoyé en dernier sur chaque canal (avec son style). "
+        "Pour un canal qui a un dernier envoi : « classique » = reste dans le MÊME style que lui (cherche dans les registres des références proches : mêmes traits mesurés, même palette, même ambiance de musique), "
+        "« innovante » = cherche AUTRE CHOSE (références éloignées : traits, palette et ambiance différents) tout en respectant le brief, le format et les licences. Pour un canal sans dernier envoi, pars du brief. "
+        "Consulte les registres du dépôt de référence (design : `design-research/src/cli.js search`, musique, objets) pour trouver ces références, compare avec les traits du dernier style, et note dans `style` de chaque proposition le style retenu et les ids des références, "
+        "pour que le prochain envoi puisse s'en servir. Ne prétends pas avoir comparé ce que tu n'as pas lu. "
         "Pousse le tout sur la branche principale, puis dis-moi en une phrase combien de propositions sont prêtes : je les relis et je les envoie moi-même, une par une, depuis l'application (menu d'Aiwa → Propositions à valider)."
     )
 
@@ -2014,7 +2021,7 @@ def _proposals_snapshot():
         email = text("email", 320)
         phone = re.sub(r"[\s().-]", "", text("phone", 40))
         items.append({"id": ident, "name": text("name", 120), "email": email if _EMAIL_RE.match(email) else "", "phone": phone if _PHONE_RE.match(phone) else "", "subject": text("subject", 200),
-                      "body": text("body", 4000), "price": text("price", 120), "videoUrl": link("videoUrl"), "demoUrl": link("demoUrl")})
+                      "body": text("body", 4000), "chatBody": text("chatBody", 1000), "xBody": text("xBody", 300), "style": text("style", 600), "price": text("price", 120), "videoUrl": link("videoUrl"), "demoUrl": link("demoUrl")})
     return {"repo": repo, "proposals": items}
 
 

@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.aiwa.bridge.CampaignChannels
 import com.aiwa.bridge.LocalClaudeBridge
 import kotlinx.coroutines.launch
 
@@ -90,10 +91,10 @@ fun documentVideoRequest(doc: PickedDocument?, format: String, withGithub: Boole
         "Si un choix ne t'appartient pas, demande-le moi par la question du widget." + documentBlock(doc)
 
 /** The request for a campaign of proposals from a document and/or files: the agent proposes the list of targets first and WAITS for my answer; nothing is sent by it. */
-fun campaignRequest(doc: PickedDocument?, targets: String, withGithub: Boolean, repoFiles: List<String> = emptyList(), repoKnown: Boolean = false): String =
+fun campaignRequest(doc: PickedDocument?, targets: String, withGithub: Boolean, repoFiles: List<String> = emptyList(), repoKnown: Boolean = false, channels: String = ""): String =
     "Prépare une campagne de propositions à partir de " + campaignSources(doc, repoFiles, repoKnown, withGithub) + ". Les cibles : ${targets.trim()}. " + githubPhrase(withGithub) +
         "Établis d'abord la liste des cibles et envoie-la moi pour validation par la question du widget : ATTENDS ma réponse avant de fabriquer quoi que ce soit. " +
-        "Ensuite, pour chaque cible : une maquette, une vidéo, un prix, sous `aiwa-proposals/`. Tu n'envoies rien : je valide chaque proposition dans l'application (Propositions à valider)." + documentBlock(doc)
+        "Ensuite, pour chaque cible : une maquette, une vidéo, un prix, sous `aiwa-proposals/`. Tu n'envoies rien : je valide chaque proposition dans l'application (Propositions à valider). " + channels + documentBlock(doc)
 
 /** The three qualities of a video, chosen where the video is asked for: a button each, the one in use filled. */
 @Composable
@@ -147,6 +148,9 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
     var repoFiles by remember { mutableStateOf<List<String>>(emptyList()) }
     var repoFilesNote by remember { mutableStateOf<String?>(null) }
     val chosen = remember { mutableStateListOf<String>() }
+    // The campaign's creation: « classique » (the style of the last send on each channel) or « innovante » (something else), channel by channel
+    var innovative by remember { mutableStateOf(false) }
+    var proposalList by remember { mutableStateOf<List<com.aiwa.bridge.Proposal>>(emptyList()) }
     fun loadFiles() {
         scope.launch {
             repoFilesNote = "Chargement…"
@@ -158,7 +162,12 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
             } catch (err: Exception) { repoFilesNote = "Liste indisponible : ${err.message ?: "?"}" }
         }
     }
-    LaunchedEffect(repoKnown) { if (repoKnown) loadFiles() }
+    LaunchedEffect(repoKnown) {
+        if (repoKnown) {
+            loadFiles()
+            proposalList = try { bridge.proposals().proposals } catch (err: Exception) { emptyList() }
+        }
+    }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val picked = try { readDocument(context, uri) } catch (err: Exception) { null }
@@ -236,11 +245,20 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
                             value = targets, onValueChange = { targets = it }, modifier = Modifier.fillMaxWidth(),
                             label = { Text("À qui ? Décris la liste (métier, ville, critère…)") },
                         )
+                        Text("La création : classique ou innovante ?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (!innovative) Button(onClick = { innovative = false }, modifier = Modifier.weight(1f)) { Text("Classique") } else OutlinedButton(onClick = { innovative = false }, modifier = Modifier.weight(1f)) { Text("Classique") }
+                            if (innovative) Button(onClick = { innovative = true }, modifier = Modifier.weight(1f)) { Text("Innovante") } else OutlinedButton(onClick = { innovative = true }, modifier = Modifier.weight(1f)) { Text("Innovante") }
+                        }
+                        Text(
+                            "Canal par canal (mail, messageries, X) : classique reste dans le style du dernier envoi sur ce canal, innovante cherche autre chose. Sans envoi précédent sur un canal, Claude part de ta demande.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         Text(
                             "Un fichier n'est pas obligatoire : ta création du dépôt, ses vidéos et (si tu coches) tes réalisations GitHub peuvent suffire. Claude te propose d'abord la liste : tu la valides. Il prépare ensuite, pour chaque cible, une maquette, une vidéo et un prix. Rien n'est envoyé : tu valides chaque proposition et tu l'envoies toi-même depuis ta messagerie.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Button(onClick = { send(campaignRequest(doc, targets, withGithub, chosen.toList(), repoKnown)) }, enabled = (hasSource || repoKnown || withGithub) && targets.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Proposer la liste des cibles") }
+                        Button(onClick = { send(campaignRequest(doc, targets, withGithub, chosen.toList(), repoKnown, CampaignChannels.phrase(innovative, state.repo?.let { lastSentByChannel(context, it, proposalList) } ?: emptyMap()))) }, enabled = (hasSource || repoKnown || withGithub) && targets.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Proposer la liste des cibles") }
                     }
                     OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
                 }

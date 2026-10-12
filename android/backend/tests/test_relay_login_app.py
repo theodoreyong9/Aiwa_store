@@ -388,7 +388,7 @@ class ProposalsTests(unittest.TestCase):
         got = self.snapshot([
             {"id": "Café Du Port!", "name": "Café du Port", "email": "contact@cafe.ch", "phone": "+41 79 123 45 67", "subject": "Une maquette", "body": "Bonjour", "price": "900 CHF",
              "videoUrl": "https://github.com/o/r/releases/download/videos/a.mp4", "demoUrl": "http://insecure.example/x"},
-            {"name": "Sans adresse", "email": "pas une adresse", "videoUrl": "javascript:alert(1)"},
+            {"name": "Sans adresse", "email": "pas une adresse", "videoUrl": "javascript:alert(1)", "xBody": "x" * 900, "style": "sobre"},
             "not an object",
         ])
         self.assertEqual(got["repo"], "o/r")
@@ -400,6 +400,9 @@ class ProposalsTests(unittest.TestCase):
         self.assertEqual(first["demoUrl"], "")        # only https links
         self.assertEqual(second["email"], "")         # not an address: left empty, the person types it
         self.assertEqual(second["phone"], "")
+        self.assertEqual(len(second["xBody"]), 300)     # a post is short: cut
+        self.assertEqual(second["style"], "sobre")
+        self.assertEqual(first["chatBody"], "")
         self.assertEqual(second["videoUrl"], "")
         self.assertEqual(second["id"], "p2")
 
@@ -424,7 +427,7 @@ class ProposalsTests(unittest.TestCase):
         srv.deploy_mode = "campaign"
         self.addCleanup(setattr, srv, "deploy_mode", "pages")
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
-        for wanted in ("n'ENVOIES JAMAIS", "aiwa-proposals/proposals.json", "Maquette de démonstration, pas le site officiel", "au plus 20 cibles", "n'invente rien", "ATTENDS ma réponse"):
+        for wanted in ("CANAL PAR CANAL", "« classique »", "« innovante »", "chatBody", "xBody", "un fichier n'est PAS obligatoire", "n'ENVOIES JAMAIS", "aiwa-proposals/proposals.json", "Maquette de démonstration, pas le site officiel", "au plus 20 cibles", "n'invente rien", "ATTENDS ma réponse"):
             self.assertIn(wanted, text)
 
 

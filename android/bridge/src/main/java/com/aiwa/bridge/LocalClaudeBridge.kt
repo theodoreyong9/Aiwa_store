@@ -278,7 +278,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             json.str("repo"),
             if (array == null) emptyList() else (0 until array.length()).map {
                 val v = array.getJSONObject(it)
-                Proposal(v.optString("id"), v.optString("name"), v.optString("email"), v.optString("subject"), v.optString("body"), v.optString("price"), v.optString("videoUrl"), v.optString("demoUrl"), v.optString("phone"))
+                Proposal(v.optString("id"), v.optString("name"), v.optString("email"), v.optString("subject"), v.optString("body"), v.optString("price"), v.optString("videoUrl"), v.optString("demoUrl"), v.optString("phone"), v.optString("chatBody"), v.optString("xBody"), v.optString("style"))
             },
         )
     }

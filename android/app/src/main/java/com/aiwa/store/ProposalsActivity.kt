@@ -66,6 +66,24 @@ private fun marked(context: Context, repo: String, id: String, kind: String) =
 private fun mark(context: Context, repo: String, id: String, kind: String, value: Boolean) =
     context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE).edit().putBoolean("$kind:$repo:$id", value).apply()
 
+/** The channel a door belongs to for the campaign's history: mail, chat (WhatsApp, SMS, Telegram) or x. */
+private fun channelOf(kind: String) = when (kind) { "mail" -> "mail"; "x" -> "x"; else -> "chat" }
+
+/** What was last sent on a channel (a real send, not a test): remembered on the phone, to start the next creation of that channel from it. */
+private fun rememberSent(context: Context, repo: String, kind: String, id: String) =
+    context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE).edit().putString("lastsent:$repo:${channelOf(kind)}", id).apply()
+
+/** For each channel, the proposal last sent on it (among the repository's proposals). */
+internal fun lastSentByChannel(context: Context, repo: String, proposals: List<Proposal>): Map<String, Proposal> {
+    val prefs = context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
+    val result = LinkedHashMap<String, Proposal>()
+    for (channel in listOf("mail", "chat", "x")) {
+        val id = prefs.getString("lastsent:$repo:$channel", null) ?: continue
+        proposals.firstOrNull { it.id == id }?.let { result[channel] = it }
+    }
+    return result
+}
+
 private fun openMail(context: Context, p: Proposal, price: String, test: Boolean): Boolean {
     val draft = ProposalMail.draft(p, price, test)
     val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:")).apply {
@@ -153,7 +171,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Button(onClick = {
                                             if (openMail(context, p, prices[p.id] ?: "", test)) {
-                                                if (!test) { mark(context, repoName, p.id, "opened", true); stamp.value++ }
+                                                if (!test) { mark(context, repoName, p.id, "opened", true); rememberSent(context, repoName, "mail", p.id); stamp.value++ }
                                             } else toastOnMain(context, "Aucune messagerie trouvée sur ce téléphone.")
                                         }, modifier = Modifier.weight(1f)) { Text(if (done) "Rouvrir le mail" else if (test) "Envoyer (test)" else "Envoyer") }
                                         OutlinedButton(onClick = { mark(context, repoName, p.id, "dismissed", true); stamp.value++ }, modifier = Modifier.weight(1f)) { Text("Écarter") }
@@ -166,7 +184,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                                 enabled = usable,
                                                 onClick = {
                                                     if (openChat(context, kind, p, prices[p.id] ?: "", test)) {
-                                                        if (!test) { mark(context, repoName, p.id, "opened", true); stamp.value++ }
+                                                        if (!test) { mark(context, repoName, p.id, "opened", true); rememberSent(context, repoName, kind, p.id); stamp.value++ }
                                                     } else toastOnMain(context, "$label n'a pas pu s'ouvrir sur ce téléphone.")
                                                 },
                                                 modifier = Modifier.weight(1f),

@@ -12,6 +12,10 @@ data class Proposal(
     val demoUrl: String,
     /** International form with the +, or empty (WhatsApp needs the country code). */
     val phone: String = "",
+    /** The short version for WhatsApp, SMS and Telegram, the one for a post on X, and the style of this creation (written by the session, read for the next one). */
+    val chatBody: String = "",
+    val xBody: String = "",
+    val style: String = "",
 )
 
 data class ProposalList(val repo: String?, val proposals: List<Proposal>)
@@ -56,7 +60,8 @@ object ProposalShare {
 
     /** The message: the mail's text, the subject first. */
     fun message(p: Proposal, price: String, test: Boolean): String {
-        val d = ProposalMail.draft(p, price, test)
+        // The chat version when the session wrote one (a message app is not a mail), the mail's text otherwise
+        val d = ProposalMail.draft(if (p.chatBody.isNotBlank()) p.copy(body = p.chatBody) else p, price, test)
         return d.subject + "\n\n" + d.body
     }
 
@@ -85,7 +90,7 @@ object ProposalShare {
     fun x(p: Proposal, price: String, test: Boolean): String {
         val links = listOf(p.demoUrl, p.videoUrl).filter { it.isNotBlank() }
         val tail = (if (price.isNotBlank()) " Prix : ${price.trim()}." else "")
-        val head = (if (test) "[TEST] " else "") + p.subject.ifBlank { "Proposition pour ${p.name}" }
+        val head = (if (test) "[TEST] " else "") + p.xBody.ifBlank { p.subject.ifBlank { "Proposition pour ${p.name}" } }
         val room = 280 - links.size * 24 - tail.length - 1
         val cut = if (head.length <= room) head else head.take(maxOf(0, room - 1)).trimEnd() + "…"
         val text = (cut + tail + (if (links.isEmpty()) "" else " " + links.joinToString(" "))).trim()
@@ -94,4 +99,22 @@ object ProposalShare {
 
     /** The title and description that go with the video shared to YouTube or another application (the person pastes them there). */
     fun videoDescription(p: Proposal, price: String): String = message(p, price, false).take(4800)
+}
+
+/**
+ * What the campaign has already sent, channel by channel, and the style asked for: the sentence that goes with a new batch so that the session works from the
+ * LAST creation of each channel (« classique »: the same style; « innovante »: something else). `last` maps a channel to the proposal last sent on it.
+ */
+object CampaignChannels {
+    val NAMES = linkedMapOf("mail" to "mail", "chat" to "WhatsApp/SMS/Telegram", "x" to "X")
+
+    fun phrase(innovative: Boolean, last: Map<String, Proposal>): String {
+        val style = if (innovative) "INNOVANTE : pour chaque canal, cherche autre chose que son dernier envoi." else "CLASSIQUE : pour chaque canal, reste dans le style de son dernier envoi."
+        val lines = NAMES.entries.map { (key, label) ->
+            val p = last[key]
+            if (p == null) "$label : rien d'envoyé encore, pars du brief."
+            else "$label : dernier envoi « ${p.name.ifBlank { p.id }} »" + (if (p.style.isNotBlank()) " (style : ${p.style})" else " (style non noté : relis ses fichiers dans `aiwa-proposals/${p.id}/`)") + "."
+        }
+        return "Création $style Canal par canal : " + lines.joinToString(" ")
+    }
 }

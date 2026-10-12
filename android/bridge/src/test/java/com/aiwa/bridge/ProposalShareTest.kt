@@ -1,6 +1,7 @@
 package com.aiwa.bridge
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -50,5 +51,27 @@ class ProposalShareTest {
         assertTrue("$counted characters", counted <= 280)
         assertTrue(text.endsWith("https://x.test/v.mp4"))
         assertTrue(text.contains("…"))
+    }
+
+    @Test fun eachChannelHasItsOwnText() {
+        val q = p.copy(body = "Bonjour, voici le long message du mail.", chatBody = "Salut, version courte.", xBody = "Version pour X")
+        assertTrue(ProposalShare.message(q, "", false).contains("Salut, version courte."))
+        assertFalse(ProposalShare.message(q, "", false).contains("long message du mail"))
+        assertTrue(ProposalMail.draft(q, "", false).body.contains("long message du mail"))
+        assertTrue(java.net.URLDecoder.decode(ProposalShare.x(q, "", false), "UTF-8").contains("Version pour X"))
+        // no chat version written: the mail's text goes, as before
+        assertTrue(ProposalShare.message(p, "", false).contains("Bonjour"))
+    }
+
+    @Test fun theCampaignWorksFromTheLastSendOfEachChannel() {
+        val last = mapOf("mail" to p.copy(name = "Café du Port", style = "sobre, sombre; réf. site-12"))
+        val classic = CampaignChannels.phrase(false, last)
+        assertTrue(classic, classic.contains("CLASSIQUE"))
+        assertTrue(classic, classic.contains("mail : dernier envoi « Café du Port » (style : sobre, sombre; réf. site-12)"))
+        assertTrue(classic, classic.contains("X : rien d'envoyé encore, pars du brief."))
+        val innovative = CampaignChannels.phrase(true, emptyMap())
+        assertTrue(innovative, innovative.contains("INNOVANTE"))
+        assertTrue(innovative, innovative.contains("mail : rien d'envoyé encore"))
+        assertTrue(CampaignChannels.phrase(false, mapOf("x" to p)).contains("style non noté"))
     }
 }
