@@ -747,7 +747,10 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
                 if (state.repo != null) {
                     add(PickerEntry(if (state.pushMain) "Push : direct sur main — toucher pour passer sur une branche" else "Push : sur une branche — toucher pour passer sur main", false, lines = 2) { togglePush(state.pushMain) })
-                    add(PickerEntry("GitHub Actions : $ci — ouvrir", false, lines = 2) { open(OpenActionsActivity::class.java) })
+                }
+                // The workflow that matters for the mode chosen (the build, the deployment, the check of the app, the registry's check)
+                if (workflowShown(state)) {
+                    add(PickerEntry(workflowName(state.deploy) + (if (workflowStateKnown(state)) " : $ci" else "") + " — ouvrir", false, lines = 2) { open(OpenActionsActivity::class.java) })
                 }
                 add(PickerEntry("Menu d'Aiwa : écoute, mot d'éveil, état, mises à jour, fichier", false, lines = 2) { open(VoiceHelpActivity::class.java) })
                 add(PickerEntry("Forme du widget", false, header = true) { })

@@ -257,3 +257,25 @@ object AiwaRepository {
         store.edit().putString("snapshot", json.toString()).apply()
     }
 }
+
+
+// ---- the workflow, as it adapts to the mode ----
+// The last GitHub workflow means something different in each mode: the build of the APK (Android), the deployment of the site (Pages, campaign), the check of the app
+// (Store), and, for Aiwa, the registry's check of the pull request (it has no state of its own here: the page it opens says). It was a button of its own that adapted;
+// now that it is in the settings list, it adapts the same way.
+fun workflowShown(state: AiwaState): Boolean =
+    state.deploy == "aiwa" || (state.repo != null && (state.deploy in setOf("pages", "android", "campaign", "store") || state.ciState != null))
+
+/** Whether the state of the last run (green, red, running) is the one of what the mode produces. */
+fun workflowStateKnown(state: AiwaState): Boolean = state.deploy != "aiwa" && workflowShown(state)
+
+fun workflowFailed(state: AiwaState): Boolean = workflowStateKnown(state) && state.ciState == "failure"
+
+fun workflowName(deploy: String): String = when (deploy) {
+    "pages" -> "Déploiement Pages"
+    "android" -> "Build de l'APK"
+    "campaign" -> "Déploiement des maquettes (Pages)"
+    "store" -> "Contrôle de l'app"
+    "aiwa" -> "Registre : vérification de ta publication"
+    else -> "GitHub Actions"
+}

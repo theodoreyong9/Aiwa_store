@@ -104,7 +104,7 @@ private fun fitLabel(text: String, room: Float, fontScale: Float): String {
 
 /** The settings pill, in a few words: model, push, and how the last workflow went (✓ ✗ …); a microphone first while the always-on listening is on. */
 private fun settingsSummary(state: AiwaState): String {
-    val ci = when (state.ciState) { "success" -> " ✓"; "failure" -> " ✗"; "running" -> " …"; else -> "" }
+    val ci = if (!workflowStateKnown(state)) "" else when (state.ciState) { "success" -> " ✓"; "failure" -> " ✗"; "running" -> " …"; else -> "" }
     return (if (state.listening) "🎙 " else "") + modelLabel(state.model) + (if (state.repo != null) " · " + (if (state.pushMain) "main" else "branche") else "") + ci
 }
 
@@ -416,7 +416,7 @@ private fun FullContent(state: AiwaState) {
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, badge = state.repo == null)
             Spacer(GlanceModifier.width(GAP.dp))
-            Chip(settingsText, if (locked) PILL_DIM else if (state.ciState == "failure") alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
+            Chip(settingsText, if (locked) PILL_DIM else if (workflowFailed(state)) alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
         }
         // The buttons of this band appear once a repository is chosen. They are
         // instructions integrated into the conversation — Claude Code does the
@@ -595,7 +595,7 @@ private fun GlassesContent(state: AiwaState) {
                 Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 10.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
             }
             Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = !hasRepo)
-            Chip(settingsText, if (locked) PILL_DIM else if (state.ciState == "failure") alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+            Chip(settingsText, if (locked) PILL_DIM else if (workflowFailed(state)) alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
             Chip(modeText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
             Chip(claudeText, if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange, fg, actionStartActivity<OpenClaudeActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
         }
