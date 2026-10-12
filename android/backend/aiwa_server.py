@@ -42,6 +42,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import aiwa_github as github
+import aiwa_loops as loops_lib
 
 
 def _ts():
@@ -52,7 +53,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 72
+BACKEND_VERSION = 73
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -1156,7 +1157,7 @@ def cloud_send(text, command=False):
                         base = fresh
                     entry = _session_entry(session_id)
                 extra_text, fingerprint = _compose(entry, entry.get("repo"), work, base, entry.get("direct", True), entry.get("origin"))
-                sent += extra_text
+                sent += extra_text + _loop_block_for(session_id)
             result = _queue_followup(session_id, sent)
             if not result["ok"]:
                 _note_login_problem(result["error"])
@@ -2145,6 +2146,238 @@ def _ask_set(raw, event_id=None):
     return True
 
 
+# ---- loops between two sessions (aiwa_loops.py): the backend is the courier ----
+LOOPS_FILE = Path.home() / ".aiwa_loops.json"
+loops_lock = threading.RLock()
+loops_store = loops_lib.new_store()
+
+
+def _loops_load():
+    global loops_store
+    try:
+        raw = json.loads(LOOPS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raw = None
+    with loops_lock:
+        loops_store = loops_lib.clean_store(raw)
+
+
+def _loops_save():
+    with loops_lock:
+        try:
+            LOOPS_FILE.write_text(json.dumps(loops_store), encoding="utf-8")
+        except OSError:
+            pass
+
+
+def _loops_relay_url():
+    return f"{NTFY_SERVER}/{waiting_topic}"
+
+
+def _loops_titles():
+    return {e.get("id"): (e.get("title") or e.get("id")) for e in _load_cloud_sessions() if e.get("id")}
+
+
+def _loop_branch(session_id):
+    """(work branch, base branch) of a session."""
+    entry = _session_entry(session_id) or {}
+    return _session_targets(session_id, entry) if entry.get("repo") else (entry.get("work") or "main", entry.get("base") or "main")
+
+
+def _loop_send(session_id, text):
+    """One message to a session of a loop, in the background (creating the follow-up takes a while); a failure is logged and counted as the session's silence."""
+    def run():
+        result = _queue_followup(session_id, text)
+        if not result["ok"]:
+            print(f"[{_ts()}] loop: message to {session_id} not sent: {str(result['error'])[:160]}", flush=True)
+    threading.Thread(target=run, daemon=True).start()
+
+
+def _loop_block_for(session_id):
+    """What every message the person sends to a session in a running loop carries: how to signal that the turn is done."""
+    out = ""
+    with loops_lock:
+        for pair in loops_lib.pairs_of_session(loops_store, session_id):
+            if pair["state"] == "running":
+                out += loops_lib.loop_block(pair, "builder" if pair["builder"] == session_id else "critic", _loops_relay_url())
+    return out
+
+
+def _loop_head_sha(repo, base):
+    if not repo or not base or not github.REPO_RE.fullmatch(repo):
+        return None
+    try:
+        data = _github_json(f"https://api.github.com/repos/{repo}/commits/{urllib.parse.quote(base, safe='')}")
+    except GithubUnavailable:
+        return None
+    sha = data.get("sha") if isinstance(data, dict) else None
+    return sha if isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha) else None
+
+
+def loops_create(builder, critic):
+    with loops_lock:
+        repo = (_session_entry(builder) or {}).get("repo") or (_session_entry(critic) or {}).get("repo")
+        pair, error = loops_lib.create_pair(loops_store, builder, critic, set(_loops_titles()), repo=repo)
+        if pair:
+            _loops_save()
+    return {"ok": pair is not None, "error": error, "pair": pair}
+
+
+def loops_start(pair_id):
+    global current_cloud, last_cloud, current_repo
+    with loops_lock:
+        pair = loops_lib.find(loops_store, pair_id)
+        if pair is None:
+            return {"ok": False, "error": "paire inconnue"}
+        if pair["state"] == "running":
+            return {"ok": False, "error": "cette boucle tourne déjà"}
+        builder, critic = pair["builder"], pair["critic"]
+        b_work, base = _loop_branch(builder)
+        c_work, _ = _loop_branch(critic)
+        sha = _loop_head_sha(pair.get("repo"), base)
+        tag = f"aiwa-loop-{pair['id']}-{time.strftime('%Y%m%d-%H%M%S')}"
+        loops_lib.start(pair, tag, sha, base, loops_store["limit"])
+        _loops_save()
+        snapshot = dict(pair)
+    url = _loops_relay_url()
+    _loop_send(builder, loops_lib.start_message_builder(snapshot, base, b_work, url))
+    _loop_send(critic, loops_lib.start_message_critic(snapshot, base, c_work, b_work, url))
+    # The next thing the person says goes to the builder
+    with lock:
+        current_cloud = last_cloud = builder
+        entry_repo = (_session_entry(builder) or {}).get("repo")
+        if entry_repo:
+            current_repo = entry_repo
+        _save_state()
+    return {"ok": True, "pair": snapshot}
+
+
+def loops_stop(pair_id):
+    with loops_lock:
+        pair = loops_lib.find(loops_store, pair_id)
+        if pair is None:
+            return {"ok": False, "error": "paire inconnue"}
+        was = pair["state"]
+        loops_lib.stop(pair)
+        _loops_save()
+        snapshot = dict(pair)
+    if was == "running":
+        for session_id in (snapshot["builder"], snapshot["critic"]):
+            _loop_send(session_id, loops_lib.message_stopped(snapshot, "arrêtée par la personne"))
+    return {"ok": True, "pair": snapshot}
+
+
+def loops_relaunch(pair_id):
+    with loops_lock:
+        pair = loops_lib.find(loops_store, pair_id)
+        if pair is None:
+            return {"ok": False, "error": "paire inconnue"}
+        if pair["state"] == "running":
+            return {"ok": False, "error": "cette boucle tourne déjà"}
+        if not loops_lib.relaunch(pair, loops_store["limit"]):
+            return {"ok": False, "error": "cette boucle n'a jamais démarré : démarre-la"}
+        _loops_save()
+        snapshot = dict(pair)
+    url = _loops_relay_url()
+    _loop_send(snapshot["builder"], f"[Boucle {snapshot['id']} relancée, compteur à zéro] Poursuis ton travail sur ta branche." + loops_lib.loop_block(snapshot, "builder", url))
+    _loop_send(snapshot["critic"], f"[Boucle {snapshot['id']} relancée] Attends : Aiwa te dira quand relire." + loops_lib.loop_block(snapshot, "critic", url))
+    return {"ok": True, "pair": snapshot}
+
+
+def loops_rollback(pair_id):
+    """The repository goes back to where it was when this pair's loop began, and so does the whole chain connected to it (every pair of it is stopped)."""
+    with loops_lock:
+        pair = loops_lib.find(loops_store, pair_id)
+        if pair is None:
+            return {"ok": False, "error": "paire inconnue"}
+        if pair["started"] is None:
+            return {"ok": False, "error": "cette boucle n'a jamais démarré : rien où revenir"}
+        chain = loops_lib.chain_of(loops_store, pair_id)
+        now = time.time()
+        for member in chain:
+            if member["state"] == "running":
+                member["state"] = "stopped"
+            member["rolled_back"] = now
+        _loops_save()
+        snapshot = dict(pair)
+        members = [dict(m) for m in chain]
+    builder_work, base = _loop_branch(snapshot["builder"])
+    _loop_send(snapshot["builder"], loops_lib.message_rollback(snapshot, snapshot.get("base") or base, builder_work))
+    told = {snapshot["builder"]}
+    for member in members:
+        for session_id in (member["builder"], member["critic"]):
+            if session_id not in told:
+                told.add(session_id)
+                work, member_base = _loop_branch(session_id)
+                _loop_send(session_id, loops_lib.message_after_rollback(snapshot, snapshot.get("base") or member_base, work))
+    return {"ok": True, "pair": snapshot, "chain": [m["id"] for m in members]}
+
+
+def loops_set_limit(value):
+    with loops_lock:
+        loops_store["limit"] = loops_lib.clamp_limit(value)
+        _loops_save()
+    return {"ok": True, "limit": loops_store["limit"]}
+
+
+def loops_delete(pair_id):
+    with loops_lock:
+        removed = loops_lib.remove_pair(loops_store, pair_id)
+        if removed:
+            _loops_save()
+    return {"ok": removed, "error": None if removed else "paire inconnue, ou elle tourne : arrête-la d'abord"}
+
+
+def _loop_signal(raw):
+    """A session of a loop says its turn is done (title aiwa-loop): the other one is told, or the loop is over (limit reached)."""
+    try:
+        data = json.loads(raw) if isinstance(raw, (str, bytes)) else raw
+    except ValueError:
+        return False
+    if not isinstance(data, dict):
+        return False
+    pair_id, role, note = str(data.get("pair") or ""), str(data.get("role") or ""), str(data.get("note") or "(sans note)").strip()
+    with loops_lock:
+        action = loops_lib.signal(loops_store, pair_id, role)
+        pair = dict(loops_lib.find(loops_store, pair_id) or {})
+        if action:
+            _loops_save()
+    if not action:
+        return False
+    kind, n = action
+    url = _loops_relay_url()
+    if kind == "critic":
+        _loop_send(pair["critic"], loops_lib.message_to_critic(pair, _loop_branch(pair["builder"])[0], note, n, url))
+    elif kind == "builder":
+        _loop_send(pair["builder"], loops_lib.message_to_builder(pair, _loop_branch(pair["critic"])[0], note, n, url))
+    else:
+        for session_id in (pair["builder"], pair["critic"]):
+            _loop_send(session_id, loops_lib.message_stopped(pair, f"terminée : {n} allers-retours, la limite est atteinte"))
+    print(f"[{_ts()}] loop {pair_id}: {role} done, next: {kind} {n}", flush=True)
+    return True
+
+
+def _loops_snapshot():
+    titles = _loops_titles()
+    with loops_lock:
+        pairs = [dict(p) for p in loops_store["pairs"]]
+        chains = [[{"id": p["id"], "started": p["started"], "created": p["created"], "state": p["state"], "rolled_back": p["rolled_back"]} for p in chain] for chain in loops_lib.chains(loops_store)]
+        limit = loops_store["limit"]
+    for p in pairs:
+        p["builder_title"], p["critic_title"] = titles.get(p["builder"], p["builder"]), titles.get(p["critic"], p["critic"])
+    return {"limit": limit, "pairs": pairs, "chains": chains}
+
+
+def _loops_running():
+    """For the status of the widget: the running pair that began last, or None."""
+    with loops_lock:
+        running = [p for p in loops_store["pairs"] if p["state"] == "running"]
+        if not running:
+            return None
+        newest = max(running, key=lambda p: p["started"] or 0)
+        return {"pair": newest["id"], "rounds": newest["rounds"], "limit": newest["limit"], "turn": newest["turn"], "running": len(running)}
+
+
 def _ask_snapshot():
     with lock:
         return {k: ask[k] for k in ("id", "question", "options", "ts")} if ask is not None and not ask["answered"] else None
@@ -2192,6 +2425,9 @@ def _relay_event(event):
     attachment = event.get("attachment")
     attached = str(attachment.get("name") or "") if isinstance(attachment, dict) else ""
     if title == "aiwa-check":
+        _cloud_check_seen()
+    elif title == "aiwa-loop":
+        _loop_signal(event.get("message"))
         _cloud_check_seen()
     elif title == "aiwa-ask":
         _ask_set(event.get("message"), event.get("id"))
@@ -2335,7 +2571,7 @@ class Handler(BaseHTTPRequestHandler):
                 "version": BACKEND_VERSION, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "video_quality": vquality, "extra": own, "extra_repos": more, "source_repos": inspiration,
-                "waiting": is_waiting, "alert_last": last_ping, "silence_minutes": _silence_minutes(),
+                "waiting": is_waiting, "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(),
                 "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
                 "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(), "ask": _ask_snapshot(),
             })
@@ -2351,6 +2587,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json({"sent_app": _sent_app_snapshot()})
         elif self.path == "/api/videos":
             self.reply_json(_videos_snapshot())
+        elif self.path == "/api/loops":
+            self.reply_json(_loops_snapshot())
         elif self.path == "/api/inputs":
             self.reply_json(_inputs_snapshot())
         elif self.path == "/api/proposals":
@@ -2450,6 +2688,29 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/waiting/clear":
             _clear_waiting()
             self.reply_json({"accepted": True})
+        elif self.path.startswith("/api/loops/"):
+            try:
+                data = json.loads(body) if body.strip() else {}
+            except ValueError:
+                data = {}
+            data = data if isinstance(data, dict) else {}
+            action, ident = self.path.rsplit("/", 1)[1], str(data.get("id") or "")
+            if action == "create":
+                self.reply_json(loops_create(str(data.get("builder") or ""), str(data.get("critic") or "")))
+            elif action == "start":
+                self.reply_json(loops_start(ident))
+            elif action == "stop":
+                self.reply_json(loops_stop(ident))
+            elif action == "relaunch":
+                self.reply_json(loops_relaunch(ident))
+            elif action == "rollback":
+                self.reply_json(loops_rollback(ident))
+            elif action == "limit":
+                self.reply_json(loops_set_limit(data.get("limit")))
+            elif action == "delete":
+                self.reply_json(loops_delete(ident))
+            else:
+                self.send_error(404)
         elif self.path == "/api/claude/login/start":
             self.reply_json(_login_start())
         elif self.path == "/api/claude/login/code":
@@ -2615,6 +2876,7 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     _load_state()
+    _loops_load()
     _login_state()  # looks the login up in the background, so the first status already knows
     threading.Thread(target=_relay_listener, daemon=True).start()
     print(f"{time.strftime('%H:%M:%S')} Aiwa backend listening on http://{HOST}:{PORT}", flush=True)

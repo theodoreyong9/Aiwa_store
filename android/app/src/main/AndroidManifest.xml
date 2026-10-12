@@ -108,6 +108,11 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
+        <!-- The loops between two sessions, a builder and a critic (LoopsActivity.kt). -->
+        <activity android:name=".LoopsActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <activity android:name=".ModelPickerActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""

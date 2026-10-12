@@ -21,6 +21,16 @@ data class VideoList(val repo: String?, val videos: List<VideoItem>)
 
 /** A source file of a creation or a campaign, in the folder aiwa-campagne/ of the repository. */
 data class InputFile(val name: String, val size: Long)
+
+/** A loop between two sessions: a builder and a critic (the backend is the courier between them). */
+data class LoopPair(
+    val id: String, val builder: String, val critic: String, val builderTitle: String, val criticTitle: String,
+    val state: String, val turn: String, val rounds: Int, val limit: Int, val started: Long?, val created: Long?, val rolledBack: Long?,
+)
+data class LoopChainEntry(val id: String, val started: Long?, val created: Long?, val state: String)
+data class LoopsInfo(val limit: Int, val pairs: List<LoopPair>, val chains: List<List<LoopChainEntry>>)
+/** The running loop that began last, for the widget: which pair, the round it is at, the limit, whose turn it is. */
+data class LoopRunning(val pair: String, val rounds: Int, val limit: Int, val turn: String, val running: Int)
 data class InputList(val repo: String?, val files: List<InputFile>)
 
 data class SentAppCode(val name: String, val code: String, val kind: String = "code", val repo: String? = null, val path: String? = null, val ref: String = "main")
@@ -63,6 +73,7 @@ data class BackendStatus(
     val alertLast: Long? = null,
     // Minutes since a message went with no sign of Claude by any road (0 = nothing to say): the widget then asks to go and look in the conversation.
     val silenceMinutes: Int = 0,
+    val loop: LoopRunning? = null,
     val site: SiteInfo = SiteInfo(null, "off"),
     val ci: CiInfo? = null,
     val githubError: String? = null,
@@ -159,6 +170,9 @@ interface ClaudeBridge {
 
     suspend fun videos(): VideoList { throw UnsupportedOperationException("videos") }
     suspend fun inputs(): InputList { throw UnsupportedOperationException("inputs") }
+    suspend fun loops(): LoopsInfo { throw UnsupportedOperationException("loops") }
+    /** create (builder, critic), start / stop / relaunch / rollback / delete (id), limit (limit). Returns the reason when refused, null when done. */
+    suspend fun loopsAction(action: String, fields: Map<String, String> = emptyMap()): String? { throw UnsupportedOperationException("loopsAction") }
     // The proposals a session prepared (`aiwa-proposals/proposals.json` of the repository): to read, validate and send by hand.
     suspend fun proposals(): ProposalList { throw UnsupportedOperationException("proposals") }
 }

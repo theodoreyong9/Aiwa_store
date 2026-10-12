@@ -80,6 +80,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             extra = json.str("extra") ?: "",
             waiting = json.optBoolean("waiting", false),
             silenceMinutes = json.optInt("silence_minutes", 0),
+            loop = json.optJSONObject("loop")?.let { LoopRunning(it.optString("pair"), it.optInt("rounds", 0), it.optInt("limit", 0), it.optString("turn"), it.optInt("running", 1)) },
             alertLast = if (json.isNull("alert_last")) null else json.optLong("alert_last"),
             site = SiteInfo(site?.str("url"), site?.str("state") ?: "off", site?.str("kind") ?: "site", site?.str("termux")),
             ci = run?.let { CiInfo(it.str("state") ?: "none", it.str("url"), it.optBoolean("fresh", false), it.str("detail"), ciHint(it.optJSONObject("hint"))) },
@@ -282,6 +283,37 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                 Proposal(v.optString("id"), v.optString("name"), v.optString("email"), v.optString("subject"), v.optString("body"), v.optString("price"), v.optString("videoUrl"), v.optString("demoUrl"), v.optString("phone"), v.optString("chatBody"), v.optString("xBody"), v.optString("style"))
             },
         )
+    }
+
+    override suspend fun loops(): LoopsInfo = withContext(Dispatchers.IO) {
+        val json = JSONObject(getText("/api/loops"))
+        fun time(o: JSONObject, key: String): Long? = if (o.isNull(key) || !o.has(key)) null else o.optDouble(key).toLong()
+        val pairs = json.optJSONArray("pairs")
+        val chains = json.optJSONArray("chains")
+        LoopsInfo(
+            json.optInt("limit", 5),
+            if (pairs == null) emptyList() else (0 until pairs.length()).map {
+                val p = pairs.getJSONObject(it)
+                LoopPair(
+                    p.optString("id"), p.optString("builder"), p.optString("critic"), p.optString("builder_title"), p.optString("critic_title"),
+                    p.optString("state"), p.optString("turn"), p.optInt("rounds", 0), p.optInt("limit", 5), time(p, "started"), time(p, "created"), time(p, "rolled_back"),
+                )
+            },
+            if (chains == null) emptyList() else (0 until chains.length()).map { c ->
+                val chain = chains.getJSONArray(c)
+                (0 until chain.length()).map {
+                    val e = chain.getJSONObject(it)
+                    LoopChainEntry(e.optString("id"), time(e, "started"), time(e, "created"), e.optString("state"))
+                }
+            },
+        )
+    }
+
+    override suspend fun loopsAction(action: String, fields: Map<String, String>): String? = withContext(Dispatchers.IO) {
+        val body = JSONObject()
+        fields.forEach { (k, v) -> body.put(k, v) }
+        val json = JSONObject(postText("/api/loops/$action", body.toString()))
+        if (json.optBoolean("ok", false)) null else json.optString("error").ifBlank { "refusé" }
     }
 
     override suspend fun inputs(): InputList = withContext(Dispatchers.IO) {

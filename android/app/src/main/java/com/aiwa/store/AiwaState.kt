@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 72
+const val EXPECTED_BACKEND_VERSION = 73
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -108,6 +108,11 @@ data class AiwaState(
     val alertAt: Long? = null,
     // Minutes of silence since the last message (0 = none): nothing came back by any road.
     val silenceMinutes: Int = 0,
+    // The loop between two sessions that is running (the one that began last): "" = none; the round it is at, its limit, whose turn it is.
+    val loopPair: String = "",
+    val loopRounds: Int = 0,
+    val loopLimit: Int = 0,
+    val loopTurn: String = "",
     val effort: String? = null,
     val siteUrl: String? = null,
     val siteState: String = "off",

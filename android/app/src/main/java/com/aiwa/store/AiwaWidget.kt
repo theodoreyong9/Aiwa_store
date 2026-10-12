@@ -272,6 +272,8 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         state.waiting -> { status = "● Claude attend ta réponse"; statusColor = alertText; statusBold = true }
         // Nothing came back by any road for a while after a message: only « go and look » can be said (the answer cannot be read from here)
         state.silenceMinutes > 0 -> { status = "⏳ Rien de Claude depuis ${state.silenceMinutes} min — touche ici"; statusColor = warm; statusBold = true }
+        // A loop between two sessions is running: where it is
+        state.loopPair.isNotEmpty() -> { status = "🔁 Boucle ${state.loopPair} : tour ${state.loopRounds + 1}/${state.loopLimit}, au tour du ${if (state.loopTurn == "critic") "critique" else "builder"}"; statusColor = fg; statusBold = false }
         storeReady -> {
             status = "App prête : touche ▦ pour l'ouvrir dans le Store, </> montre son code"
             statusColor = fg
@@ -529,6 +531,15 @@ private fun FullContent(state: AiwaState) {
                     Text("Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 }
             }
+            // The loop between two sessions (builder and critic): green while one is running
+            Spacer(GlanceModifier.width(GAP.dp))
+            RoundButton(
+                icon = R.drawable.ic_loop,
+                description = if (state.loopPair.isNotEmpty()) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
+                background = if (state.loopPair.isNotEmpty()) green else pill,
+                action = actionStartActivity<LoopsActivity>(),
+                diameter = micH.dp,
+            )
             // To the right of the mic. Always there: with a session it opens that conversation in Claude, without one it opens Claude's
             // Code tab, where a session can be made or found. Red while Claude waits for an answer.
             Spacer(GlanceModifier.width(GAP.dp))
@@ -623,6 +634,15 @@ private fun GlassesContent(state: AiwaState) {
                                 Text("Dicter", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                             }
                         }
+                        // The loop between two sessions: green while one runs
+                        Spacer(GlanceModifier.width(GAP.dp))
+                        RoundButton(
+                            icon = R.drawable.ic_loop,
+                            description = if (state.loopPair.isNotEmpty()) "Boucle ${state.loopPair} en cours" else "Boucles builder / critique",
+                            background = if (state.loopPair.isNotEmpty()) rgb(android.graphics.Color.rgb(46, 125, 90)) else pill,
+                            action = actionStartActivity<LoopsActivity>(),
+                            diameter = (itemH + 2f).dp,
+                        )
                     }
                     if (campaignMode) Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
                     else if (showSite && site != null) Chip(if (state.siteKind == "apk") "⇩ APK" else "🌐 Site", if (live) claudeOrange else pill, fg, siteAction, GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = state.ciFresh)
