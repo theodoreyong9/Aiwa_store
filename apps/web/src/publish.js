@@ -30,7 +30,8 @@ export async function evidenceFor(aiwa, { registryUrl, fetchFn = fetch }) {
 
 /**
  * The submission for an app. `app` is { kind: 'code', id, name, version, description, html } or
- * { kind: 'aiwa', id, name, version, description, files: [{ path, content }] }.
+ * { kind: 'aiwa', id, name, version, description, files: [{ path, content }] } or
+ * { kind: 'link', id, name, version, description, html, repo, path, ref } (a pointer to the author's own repository).
  */
 export async function buildSubmission(aiwa, app, evidence) {
   const { id, name, version, description } = app;
@@ -38,6 +39,10 @@ export async function buildSubmission(aiwa, app, evidence) {
     const { manifestId, bundle } = await buildBundle(aiwa.identity, { name, version, files: app.files });
     const pkg = await buildAppPackage(aiwa.identity, { id, name, version, description, manifestId });
     return { format: SUBMISSION_FORMAT, kind: 'publish', package: pkg, bundle, evidence };
+  }
+  if (app.kind === 'link') {
+    const pkg = await buildAppPackage(aiwa.identity, { id, name, version, description, repo: app.repo, path: app.path, ref: app.ref });
+    return { format: SUBMISSION_FORMAT, kind: 'publish', package: pkg, evidence };
   }
   const pkg = await buildAppPackage(aiwa.identity, { id, name, version, description, html: app.html });
   return { format: SUBMISSION_FORMAT, kind: 'publish', package: pkg, evidence };

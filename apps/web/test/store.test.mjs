@@ -126,3 +126,21 @@ test('the index lists apps of both kinds, and drops an aiwa entry that has no po
   const { apps } = await loadIndex({ baseUrl: 'x', fetchFn: async () => json(index) });
   assert.deepEqual(apps.map((e) => e.id).sort(), ['a', 'tally']);
 });
+
+test('an app of kind link is opened from the author\'s repository, as it is there now', async () => {
+  const author = await generateIdentity();
+  const pkg = await buildAppPackage(author, { id: 'mine', name: 'Mine', version: '1.0.0', repo: 'alice/mine', path: 'aiwa-apps/mine.app.html', ref: 'main' });
+  const entry = entryOf(pkg, { repo: 'alice/mine', file: 'aiwa-apps/mine.app.html', ref: 'main' });
+  const asked = [];
+  const serve = (code) => async (url) => {
+    asked.push(url);
+    return url.startsWith('https://raw.githubusercontent.com/') ? { ok: true, text: async () => code } : json(pkg);
+  };
+  const first = await loadApp({ entry, baseUrl: 'x', fetchFn: serve(html('v1')) });
+  assert.equal(first.html, html('v1'));
+  assert.ok(asked.includes('https://raw.githubusercontent.com/alice/mine/main/aiwa-apps/mine.app.html'));
+  const edited = await loadApp({ entry, baseUrl: 'x', fetchFn: serve(html('v2, edited by its author')) });
+  assert.equal(edited.html, html('v2, edited by its author'), 'the author can change the code without asking anyone');
+  await assert.rejects(loadApp({ entry, baseUrl: 'x', fetchFn: async (u) => (u.startsWith('https://raw') ? { ok: false, status: 404 } : json(pkg)) }), /does not serve/);
+  await assert.rejects(loadApp({ entry: { ...entry, repo: 'mallory/mine' }, baseUrl: 'x', fetchFn: serve('x') }), /points elsewhere/);
+});

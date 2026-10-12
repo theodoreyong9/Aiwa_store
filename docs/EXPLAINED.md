@@ -435,6 +435,7 @@ An app is **one HTML file** (or a small set of files) that its author *signed*. 
 |---|---|---|
 | **`code`** | the file itself, in the submission | anyone, by recomputing its fingerprint |
 | **`aiwa`** | two files: the **package**, whose content is only a **pointer** (the number of a signed manifest published through Aiwa, which pins every file by its fingerprint), and the **bundle**, the signed events that carry the files themselves | the registry and the Store, each on its own, so whoever served the files, they are exactly what the author published |
+| **`link`** (Store without permission) | one file: a **pointer** signed by the author, `repo` + `path` of one `.html` file + `ref` (branch). **The code is not in the registry**: it stays in the author's own public GitHub repository and the Store reads it from there when the app is opened. The author can edit it whenever they like; nothing is frozen (the frozen mode is `aiwa`). Only the pointer is signed, which is what ties the app to its author for ranking by mining | the Store, which verifies the pointer's signature, then fetches the code live; if the repository is deleted or made private the app no longer opens |
 
 ### 6.2 Publishing
 

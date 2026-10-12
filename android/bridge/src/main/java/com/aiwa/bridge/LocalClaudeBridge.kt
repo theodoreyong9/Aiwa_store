@@ -253,7 +253,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
     override suspend fun sentAppCode(): SentAppCode = withContext(Dispatchers.IO) {
         val json = JSONObject(getText("/api/sent-app/code"))
         if (!json.optBoolean("ok", false)) throw IllegalStateException(json.str("error") ?: "aucune app reçue")
-        SentAppCode(json.getString("name"), json.getString("code"), json.str("kind") ?: "code")
+        SentAppCode(json.getString("name"), json.getString("code"), json.str("kind") ?: "code", json.str("repo"), json.str("path"), json.str("ref") ?: "main")
     }
 
     override suspend fun sentAppSeen() = withContext(Dispatchers.IO) {

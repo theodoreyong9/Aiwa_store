@@ -343,3 +343,31 @@ test('the files of an app: an index, safe names, a size', async () => {
   assert.match(filesProblem([]), /no files/);
   assert.match(filesProblem([{ path: 'index.html', content: '  \n' }]), /index\.html is empty/);
 });
+
+const publishLink = async (aiwa, { repo = 'alice/tally', path = 'aiwa-apps/tally.app.html', ref = 'main', version = '1.0.0' } = {}) => ({
+  format: 'aiwa-submission/1', kind: 'publish',
+  package: await buildAppPackage(aiwa.identity, { id: 'tally', name: 'Tally', version, description: 'counts', repo, path, ref }),
+  evidence: await aiwa.submissionEvidence(),
+});
+
+test('an app of kind link is a signed pointer to the author\'s own repository, with no code in the package', async () => {
+  const connection = fakeSolana();
+  const alice = await minedWallet(connection);
+  const { package: pkg } = await publishLink(alice);
+  assert.equal(pkg.kind, 'link');
+  assert.equal(pkg.html, undefined);
+  assert.equal((await verifyAppPackage(pkg)).ok, true);
+  assert.match((await verifyAppPackage({ ...pkg, repo: 'mallory/tally' })).reason, /hash does not match/, 'the pointer cannot be moved without the author');
+  for (const bad of [{ repo: 'no-slash' }, { path: '../x.html' }, { path: 'a.js' }, { ref: 'a..b' }]) {
+    await assert.rejects(() => publishLink(alice, bad), undefined, JSON.stringify(bad));
+  }
+});
+
+test('an app of kind link is accepted and indexed with repo, file and ref', async () => {
+  const connection = fakeSolana();
+  const alice = await minedWallet(connection);
+  const { store } = await accept(await publishLink(alice), emptyStore(), connection, 1_000);
+  const entry = store.index.apps[0];
+  assert.equal(entry.kind, 'link');
+  assert.deepEqual([entry.repo, entry.file, entry.ref], ['alice/tally', 'aiwa-apps/tally.app.html', 'main']);
+});

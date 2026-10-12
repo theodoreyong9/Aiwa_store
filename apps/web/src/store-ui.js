@@ -36,7 +36,7 @@ function render() {
     desc.textContent = app.description;
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = `${shortAddress(app.author)}${app.kind === 'aiwa' ? ' · Aiwa' : ''} · score/laps ${figureOf(app)} (${Number(app.score).toPrecision(3)} / ${app.laps})`;
+    meta.textContent = `${shortAddress(app.author)}${app.kind === 'aiwa' ? ' · Aiwa' : app.kind === 'link' ? ' · link' : ''} · score/laps ${figureOf(app)} (${Number(app.score).toPrecision(3)} / ${app.laps})`;
     body.append(title, desc, meta);
 
     const open = document.createElement('button');
@@ -84,8 +84,10 @@ async function showCode(entry, button) {
   try {
     const { pkg, files } = await loadApp({ entry, baseUrl: config.registryUrl, cache });
     $('code-title').textContent = `${entry.name} v${entry.version}`;
-    $('code-meta').textContent = `Published by ${shortAddress(entry.author)} · ${entry.kind === 'aiwa' ? 'an Aiwa contract' : 'a plain app'} · this code cannot change: a new code is a new version.`;
-    $('code-proof').textContent = entry.kind === 'aiwa'
+    $('code-meta').textContent = `Published by ${shortAddress(entry.author)} · ${entry.kind === 'aiwa' ? 'an Aiwa contract' : entry.kind === 'link' ? 'an app in its author\'s own repository' : 'a plain app'} · ${entry.kind === 'link' ? 'its author can change this code at any time (the frozen mode is the Aiwa contract).' : 'this code cannot change: a new code is a new version.'}`;
+    $('code-proof').textContent = entry.kind === 'link'
+      ? `Read live from github.com/${entry.repo}. The entry is signed by its author; the code is not: it is whatever the author has there now.`
+      : entry.kind === 'aiwa'
       ? `Checked here: signed by its author, and every file matches the signed manifest ${String(pkg.manifestId).slice(0, 12)}…`
       : `Checked here: signed by its author, fingerprint ${String(entry.bundleHash).slice(0, 12)}…`;
     shownFiles = Object.entries(files);

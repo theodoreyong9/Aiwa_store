@@ -1469,6 +1469,7 @@ flowchart LR
 | Kind | The package carries | What the author signs | Who verifies the code, and how |
 |---|---|---|---|
 | **`code`** | the app's one HTML file (≤ 512 KB; it loads what it needs from the network itself) | the hash of `[id, name, version, description, kind, html]` | anyone, by recomputing that hash |
+| **`link`** | no code: a pointer `{ repo, path, ref }` to one `.html` file in the author's own public repository, read live by the Store | the hash of `[id, name, version, description, kind, 'repo/path@ref']`: it pins the pointer, **not** the code, which its author may change at any time; immutability is the `aiwa` kind | anyone, by recomputing that hash |
 | **`aiwa`** | no code: a **pointer**, the id of a signed `bundle.manifest` | the hash of `[id, name, version, description, kind, manifestId]` | the registry and the Store, each on its own: the bundle's events pass an event log (id, signature, parents), then are checked against the pin |
 
 For an `aiwa` entry, the check against the pin is: the manifest is signed by the author's domain, names exactly this app and
@@ -1992,7 +1993,7 @@ A contract's own action (`signedAction`, §16.2) signs *all* its fields plus `no
 ### A.4 The store's formats
 
 ```
-package   = { format:'aiwa-app/1', kind:'code'|'aiwa', id, name, version, description, html | manifestId,
+package   = { format:'aiwa-app/1', kind:'code'|'aiwa'|'link', id, name, version, description, html | manifestId | repo+path+ref,
               author (Solana address), bundleHash, authorization }
 bundleHash = SHA( JSON([ id, name, version, description, kind, html | manifestId ]) )
 authorization = signedAction by the author's key over (publish-app, id, version, bundleHash)
@@ -2016,7 +2017,7 @@ Files of the registry: `store/index.json`, `store/apps/<id>/<version>.json`, `st
 | Backup | `{ version: 1, kind: 'aiwa-backup', domain, address, createdAt, epoch, events: [checkpoint] }` |
 | Offline bundle | `btoa(encodeURIComponent(JSON.stringify(bundle)))`: text for a QR code, NFC, Bluetooth or a paste |
 | Replicator | `HELLO { heads }`, `HELLO_ACK { heads }`, `EVENTS { chunk }`, `ACK` (JSON, UTF-8) |
-| Publish hand-off | `#publish=<kind>;<name>;<file raw-deflated, base64url>` (`<kind>`: `code` or `aiwa`; `<name>` without spaces) |
+| Publish hand-off | `#publish=<kind>;<name>;<file raw-deflated, base64url>` (`<kind>`: `code` or `aiwa`; `<name>` without spaces); for `link`: `#publish=link;<name>;<file>;<repo>;<path>;<ref>` |
 | App door | request `{ aiwa: 1, id, cmd, args }` → `{ aiwa: 1, id, result }` or `{ aiwa: 1, id, error }` between the page and the frame of an app that declares `<meta name="aiwa-wallet">`; commands in §18.8 |
 | Host channel | request `{ id, command, … }` → `{ id, result }` / `{ id, error }` / `{ id, progress }`; commands `secret-get`, `secret-set`, `secret-delete`, `github-login`, `save`, `dictation` |
 | Channel session key | `HMAC-SHA256(rootSecret, "aiwa-lib-channel-session-v1:" ‖ peerId)` |

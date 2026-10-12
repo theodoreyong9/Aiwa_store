@@ -3,7 +3,7 @@
 // over an app (the ▦ button), or from the author's own list of apps to refresh a ranking. There is no publish form.
 //
 // The hand-off is the address #publish=<kind>;<name>;<code>: <code> is the app's one HTML file, raw-deflated then
-// base64url-encoded, and <kind> says how it is published: `code` (the code travels in the package on GitHub) or `aiwa` (it is
+// base64url-encoded, and <kind> says how it is published: `code` (the code travels in the package on GitHub), `link` (the code stays in the author's repository, the Store lists a pointer) or `aiwa` (it is
 // published through Aiwa, and GitHub holds a pointer). A URL fragment never leaves the browser. Nothing is signed or sent
 // until the author presses Publish.
 
@@ -37,7 +37,7 @@ async function unpack(b64url) {
 const describe = (html) => /<meta\s+name=["']description["']\s+content=["']([^"']{0,280})["']/i.exec(html)?.[1] ?? '';
 
 /** An app from what the hand-off carries, or throws why it cannot be one. */
-function appFrom(kind, name, text) {
+function appFrom(kind, name, text, pointer = null) {
   const id = slug(name);
   if (!id) throw new Error('the name has no letter or digit');
   if (kind === 'aiwa') {
@@ -46,6 +46,7 @@ function appFrom(kind, name, text) {
     if (problem) throw new Error(problem);
     return { kind, id, name, files, description: describe(text) };
   }
+  if (kind === 'link') return { kind, id, name, html: text, ...pointer, description: describe(text) };
   return { kind: 'code', id, name, html: text, description: describe(text) };
 }
 
@@ -121,7 +122,10 @@ function openPublish(app) {
   $('sheet-source').hidden = false;
   openSheet({
     title: 'Publish this app',
-    summary: `${app.kind === 'aiwa' ? 'One HTML file, published through Aiwa' : 'One HTML file'} (${kb} KB). It is signed with your wallet and sent to the Store's registry as a pull request on your GitHub account. `
+    summary: app.kind === 'link'
+      ? `One HTML file (${kb} KB) that stays in your GitHub, ${app.repo}/${app.path}: you can edit it whenever you like. The Store only lists a pointer to it, signed with your wallet and sent as a pull request on your GitHub account. `
+        + 'Anyone can open it from the Store, in a sandbox; it is ranked by what you have mined.'
+      : `${app.kind === 'aiwa' ? 'One HTML file, published through Aiwa' : 'One HTML file'} (${kb} KB). It is signed with your wallet and sent to the Store's registry as a pull request on your GitHub account. `
       + 'Anyone can open it from the Store, in a sandbox; it is ranked by what you have mined.',
     fields: true, go: 'Publish',
   });
@@ -235,12 +239,13 @@ function download() {
 // ---------- hand-off ----------
 
 async function handoff() {
-  const match = /^#publish=(code|aiwa);([A-Za-z0-9_.-]{1,60});([A-Za-z0-9_-]+)$/.exec(location.hash);
+  const match = /^#publish=(code|aiwa|link);([A-Za-z0-9_.-]{1,60});([A-Za-z0-9_-]+)(?:;([A-Za-z0-9._-]+\/[A-Za-z0-9._-]+);([A-Za-z0-9._\/-]+);([A-Za-z0-9._\/-]+))?$/.exec(location.hash);
   if (!match) return;
   try { history.replaceState(null, '', location.pathname + location.search); } catch { /* cosmetic */ }
   switchView('store');
   try {
-    openPublish(appFrom(match[1], match[2], await unpack(match[3])));
+    if (match[1] === 'link' && !match[4]) throw new Error('the link has no repository');
+    openPublish(appFrom(match[1], match[2], await unpack(match[3]), match[4] ? { repo: match[4], path: match[5], ref: match[6] } : null));
   } catch (err) {
     $('store-status').textContent = `An app was received, but not opened: ${err.message}.`;
   }

@@ -1,4 +1,8 @@
-// An app of the store, as its author signs it and the registry keeps it. Two kinds, both submitted on GitHub:
+// An app of the store, as its author signs it and the registry keeps it. Three kinds, all submitted on GitHub:
+//
+//   link   the app LIVES IN ITS AUTHOR'S OWN REPOSITORY: the package is a pointer (repo, path of the one HTML file, branch or tag), signed by the author so that it is
+//          the author's and ranked by what the author has mined. The CODE IS NOT SIGNED NOR PINNED: the author edits it as they like, and the Store reads it from the
+//          repository when it opens it. This is the Store mode (« un store sans permission »). The immutable mode is `aiwa`.
 //
 //   code   the app is ONE self-contained HTML file (it loads what it needs from the network itself), carried by the package.
 //   aiwa   the package carries no code, only a POINTER: the id of a signed manifest published through Aiwa, which pins
@@ -26,7 +30,7 @@ import { base58Encode, deriveId } from 'aiwa-core';
 import { signedAction, verifySignedAction } from 'aiwa-lib';
 
 export const APP_FORMAT = 'aiwa-app/1';
-export const APP_KINDS = ['code', 'aiwa'];
+export const APP_KINDS = ['code', 'aiwa', 'link'];
 
 export const APP_LIMITS = {
   htmlBytes: 512 * 1024,
@@ -35,13 +39,17 @@ export const APP_LIMITS = {
   idPattern: /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/,
   versionPattern: /^\d{1,6}\.\d{1,6}\.\d{1,6}$/,
   manifestIdPattern: /^[0-9a-f]{64}$/,
+  // a pointer into the author's repository: owner/name, the path of one HTML file, a branch or tag name
+  repoPattern: /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}$/,
+  pathPattern: /^(?!.*\.\.)[A-Za-z0-9._\/-]{1,200}\.html$/,
+  refPattern: /^(?!.*\.\.)[A-Za-z0-9._\/-]{1,100}$/,
 };
 
 const hexToBytes = (hex) => Uint8Array.from(hex.match(/.{2}/g) ?? [], (b) => parseInt(b, 16));
 const utf8 = (text) => new TextEncoder().encode(text);
 
 /** The content a package stands for: the HTML (code) or the manifest id (aiwa). */
-export const contentOf = (pkg) => (pkg.kind === 'aiwa' ? pkg.manifestId : pkg.html);
+export const contentOf = (pkg) => (pkg.kind === 'aiwa' ? pkg.manifestId : pkg.kind === 'link' ? `${pkg.repo}/${pkg.path}@${pkg.ref}` : pkg.html);
 
 /** The hash that identifies an app's content: sha256 of the JSON array [id, name, version, description, kind, content]. */
 export function bundleHashOf(pkg) {
@@ -76,6 +84,10 @@ export function appPackageProblem(pkg) {
     if (typeof pkg.html !== 'string') return 'The package has no html';
     if (pkg.html.trim().length === 0) return 'The app is empty';
     if (utf8(pkg.html).length > APP_LIMITS.htmlBytes) return `The app is larger than ${APP_LIMITS.htmlBytes / 1024} KB`;
+  } else if (pkg.kind === 'link') {
+    if (typeof pkg.repo !== 'string' || !APP_LIMITS.repoPattern.test(pkg.repo)) return 'The repository is owner/name';
+    if (typeof pkg.path !== 'string' || !APP_LIMITS.pathPattern.test(pkg.path)) return 'The path is that of one .html file in the repository';
+    if (typeof pkg.ref !== 'string' || !APP_LIMITS.refPattern.test(pkg.ref)) return 'The ref is a branch or a tag';
   } else if (typeof pkg.manifestId !== 'string' || !APP_LIMITS.manifestIdPattern.test(pkg.manifestId)) {
     return 'The pointer is the id of a manifest: 64 hexadecimal characters';
   }
@@ -87,12 +99,12 @@ export function appPackageProblem(pkg) {
  * Builds and signs a package with `identity` (an aiwa-core identity holding its secret key). `html` makes a code app,
  * `manifestId` an aiwa one.
  */
-export async function buildAppPackage(identity, { id, name, version, description = '', html, manifestId }, { now = Date.now() } = {}) {
-  const content = manifestId ? { kind: 'aiwa', manifestId } : { kind: 'code', html };
+export async function buildAppPackage(identity, { id, name, version, description = '', html, manifestId, repo, path, ref }, { now = Date.now() } = {}) {
+  const content = manifestId ? { kind: 'aiwa', manifestId } : repo ? { kind: 'link', repo, path, ref } : { kind: 'code', html };
   const base = { id, name, version, description, ...content };
   const bundleHash = bundleHashOf(base);
   const authorization = await signedAction(identity, { from: identity.id, action: 'publish-app', appId: id, version, bundleHash }, { now });
-  const pkg = { format: APP_FORMAT, kind: content.kind, id, name, version, description, ...(manifestId ? { manifestId } : { html }), author: base58Encode(hexToBytes(identity.publicKey)), bundleHash, authorization };
+  const pkg = { format: APP_FORMAT, kind: content.kind, id, name, version, description, ...(manifestId ? { manifestId } : repo ? { repo, path, ref } : { html }), author: base58Encode(hexToBytes(identity.publicKey)), bundleHash, authorization };
   const problem = appPackageProblem(pkg);
   if (problem) throw new Error(problem);
   return pkg;

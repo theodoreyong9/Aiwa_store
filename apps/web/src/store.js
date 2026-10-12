@@ -32,7 +32,7 @@ export async function loadIndex({ baseUrl, fetchFn = fetch, cache = null }) {
 
 const isEntry = (e) => e
   && ['id', 'name', 'version', 'description', 'author', 'bundleHash', 'path'].every((k) => typeof e[k] === 'string')
-  && (e.kind === 'code' || (e.kind === 'aiwa' && typeof e.manifestId === 'string' && typeof e.bundlePath === 'string'))
+  && (e.kind === 'code' || (e.kind === 'link' && ['repo', 'file', 'ref'].every((k) => typeof e[k] === 'string')) || (e.kind === 'aiwa' && typeof e.manifestId === 'string' && typeof e.bundlePath === 'string'))
   && typeof e.score === 'number' && typeof e.laps === 'number';
 
 /** Apps whose id, name, description or author contains every word of `query` (case-insensitive). */
@@ -77,6 +77,15 @@ export async function loadApp({ entry, baseUrl, fetchFn = fetch, cache = null })
   }
   let html = pkg.html;
   let files = { 'index.html': pkg.html };
+  if (pkg.kind === 'link') {
+    // The code is not in the registry: it lives in the author's repository and is read there, as it is now.
+    if (pkg.repo !== entry.repo || pkg.path !== entry.file || pkg.ref !== entry.ref) throw new Error('Not opened: the package points elsewhere than the registry lists');
+    const response = await fetchFn(`https://raw.githubusercontent.com/${pkg.repo}/${pkg.ref}/${pkg.path}`, { cache: 'no-store' }).catch(() => null);
+    if (!response?.ok) throw new Error(`Not opened: the author's repository ${pkg.repo} does not serve ${pkg.path} (it may be private, moved or deleted)`);
+    html = await response.text();
+    if (html.length > LINK_MAX_CHARS) throw new Error('Not opened: the app file is larger than 512 KB');
+    files = { [pkg.path]: html };
+  }
   if (pkg.kind === 'aiwa') {
     if (pkg.manifestId !== entry.manifestId) throw new Error('Not opened: the package points at another manifest than the registry lists');
     const checked = await verifyBundle(bundle, { manifestId: pkg.manifestId, domain: verified.domain, name: pkg.name, version: pkg.version });
@@ -87,6 +96,8 @@ export async function loadApp({ entry, baseUrl, fetchFn = fetch, cache = null })
   if (source === 'network') await cache?.set(key, held).catch?.(() => {});
   return { pkg, html, files, source };
 }
+
+const LINK_MAX_CHARS = 512 * 1024;
 
 export const shortAddress = (s) => (s && s.length > 14 ? `${s.slice(0, 6)}…${s.slice(-4)}` : (s ?? ''));
 

@@ -82,4 +82,14 @@ class StoreLinkTest {
         assertNull(storeCodeUrl("a".repeat(41)))
         assertNull("nothing can be slipped into the fragment", storeCodeUrl("x;y"))
     }
+
+    @Test
+    fun aLinkCarriesWhereTheCodeLives() {
+        val url = storePublishUrl("a", "x", kind = "link", repo = "alice/tally", path = "aiwa-apps/a.app.html")!!
+        assertTrue(url, url.endsWith(";alice/tally;aiwa-apps/a.app.html;main"))
+        assertNull(storePublishUrl("a", "x", kind = "link"))
+        assertNull(storePublishUrl("a", "x", kind = "link", repo = "nope", path = "a.html"))
+        assertNull(storePublishUrl("a", "x", kind = "link", repo = "alice/t", path = "../a.html"))
+        assertNull(storePublishUrl("a", "x", kind = "link", repo = "alice/t", path = "a.js"))
+    }
 }

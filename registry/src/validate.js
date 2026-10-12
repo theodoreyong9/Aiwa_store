@@ -121,6 +121,7 @@ async function validatePublish({ submission, store, deployment, connection, now 
     id: pkg.id, name: pkg.name, version: pkg.version, description: pkg.description, kind: pkg.kind,
     author: pkg.author, domain, bundleHash: pkg.bundleHash, path: `apps/${pkg.id}/${pkg.version}.json`,
     ...(bundle ? { bundlePath: `apps/${pkg.id}/${pkg.version}.bundle.json`, manifestId: pkg.manifestId } : {}),
+    ...(pkg.kind === 'link' ? { repo: pkg.repo, file: pkg.path, ref: pkg.ref } : {}),
     score: ranking.score, laps: ranking.laps,
     publishedAt: existing ? existing.publishedAt : now, updatedAt: now,
   };

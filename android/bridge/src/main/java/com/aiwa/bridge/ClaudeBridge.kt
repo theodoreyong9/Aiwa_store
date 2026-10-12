@@ -19,7 +19,7 @@ data class AskInfo(val id: String, val question: String, val options: List<Strin
 data class VideoItem(val name: String, val size: Long, val url: String, val ts: String)
 data class VideoList(val repo: String?, val videos: List<VideoItem>)
 
-data class SentAppCode(val name: String, val code: String, val kind: String = "code")
+data class SentAppCode(val name: String, val code: String, val kind: String = "code", val repo: String? = null, val path: String? = null, val ref: String = "main")
 
 // The `claude auth login` the backend runs for the app. phase: idle / starting / url (the
 // page to open is there, a code is awaited) / checking / done / failed; message: what the

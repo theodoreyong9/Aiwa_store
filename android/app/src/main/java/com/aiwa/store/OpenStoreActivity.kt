@@ -37,7 +37,7 @@ class OpenStoreActivity : ComponentActivity() {
             }
             copyToClipboard(this@OpenStoreActivity, sent.code)
             val name = sent.name.removeSuffix(".app.html").removeSuffix(".aiwa.html")
-            val url = storePublishUrl(name, sent.code, sent.kind)
+            val url = storePublishUrl(name, sent.code, sent.kind, repo = sent.repo, path = sent.path, ref = sent.ref)
             startActivity(
                 Intent(this@OpenStoreActivity, StoreActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)

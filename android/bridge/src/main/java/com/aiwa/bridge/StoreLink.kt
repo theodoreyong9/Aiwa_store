@@ -53,7 +53,12 @@ private val APP_ID = Regex("[a-z0-9-]{1,40}")
 fun storeCodeUrl(id: String, base: String = STORE_APP_URL): String? = if (APP_ID.matches(id)) "$base#code=$id" else null
 
 // The kinds of app the Store takes: its code in the package ("code": one HTML file), or published through Aiwa ("aiwa").
-private val KINDS = setOf("code", "aiwa")
+private val KINDS = setOf("code", "aiwa", "link")
+
+// Where a "link" app lives: the author's own public repository, "owner/name", the path of its one HTML file and the branch.
+private val LINK_REPO = Regex("[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9._-]{1,100}")
+private val LINK_PATH = Regex("(?!.*\\.\\.)[A-Za-z0-9._/-]{1,200}\\.html")
+private val LINK_REF = Regex("(?!.*\\.\\.)[A-Za-z0-9._/-]{1,100}")
 
 /**
  * The address that makes the Store open its publish sheet with the app's name and code in it — and nothing else: reading
@@ -64,8 +69,16 @@ private val KINDS = setOf("code", "aiwa")
  * The code sits in the URL FRAGMENT, which is never sent anywhere. Null when the name is not a plain file name, the kind
  * is unknown, or the packed app is too long for an address.
  */
-fun storePublishUrl(name: String, code: String, kind: String = "code", base: String = STORE_APP_URL): String? {
+fun storePublishUrl(
+    name: String, code: String, kind: String = "code", base: String = STORE_APP_URL,
+    repo: String? = null, path: String? = null, ref: String = "main",
+): String? {
     if (kind !in KINDS || !FRAGMENT_NAME.matches(name)) return null
     val payload = pack(code) ?: return null
+    if (kind == "link") {
+        // ...;<repo>;<path>;<ref>: the code stays in the author's repository, the Store lists a pointer to it.
+        if (repo == null || path == null || !LINK_REPO.matches(repo) || !LINK_PATH.matches(path) || !LINK_REF.matches(ref)) return null
+        return "$base#publish=link;$name;$payload;$repo;$path;$ref"
+    }
     return "$base#publish=$kind;$name;$payload"
 }

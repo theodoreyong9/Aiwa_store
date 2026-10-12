@@ -51,7 +51,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 65
+BACKEND_VERSION = 66
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -68,7 +68,8 @@ APP_DIR = Path.home() / ".aiwa_store_apps"
 APP_MAX = 2 * 1024 * 1024
 APP_KEEP = 10
 # What Claude writes in the "store" mode is an app for the Aiwa Store: one self-contained index.html, named name.app.html
-# here (its code travels in the package on GitHub). In the "aiwa" mode it is the same kind of file, name.aiwa.html, whose logic
+# here: it lives in the user's own public repository (aiwa-apps/name.app.html), mutable, and the Store lists a signed pointer to it
+# (kind "link"); with no repository it travels in the package (kind "code"). In the "aiwa" mode it is the same kind of file, name.aiwa.html, whose logic
 # is an Aiwa contract: the Store publishes it through Aiwa and GitHub holds only a pointer. Either way the Store's publish sheet
 # takes the name and the code.
 APP_FILE_RE = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?\.(?:app|aiwa)\.html")
@@ -819,8 +820,8 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             "(5) pensée d'abord pour un téléphone (~390 px de large), sans débordement horizontal. "
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/store-app-example.html. "
             + (
-                "Place-la aussi dans le dépôt, sous `aiwa-apps/nom.app.html` (crée le dossier), avec la consigne Push ci-dessus : c'est la copie de travail dans le dépôt (je relis le brouillon dans le Store, et le code publié avec le bouton </> du widget). "
-                "La publier sur le Store, c'est moi qui le fais depuis le Store (bouton ▦ du widget), avec mon identité. "
+                "Place-la dans mon dépôt, sous `aiwa-apps/nom.app.html` (crée le dossier), sur la branche principale du dépôt (qui doit être public) : c'est là que vit l'app, dans MON GitHub, et je pourrai la modifier quand je veux. "
+                "Le Store ne garde pas le code, seulement un lien signé vers ce fichier ; le publier, c'est moi qui le fais depuis le Store (bouton ▦ du widget), avec mon identité. "
                 if repo else
                 "Ne la pousse sur AUCUN dépôt : je la relis, l'essaie et la publie moi-même depuis le Store (bouton ▦ du widget), avec mon identité. "
             ) +
@@ -1842,15 +1843,16 @@ APP_GITHUB_DIR = "aiwa-apps"
 
 
 def _app_github_probe(repo, branches, name, key):
-    found = None
+    found = branch_found = None
     for branch in branches:
         stamp = int(time.time() * 1000)
         if _raw_get(f"{RAW_BASE}/{repo}/refs/heads/{branch}/{APP_GITHUB_DIR}/{name}?t={stamp}", APP_MAX):
             found = f"https://github.com/{repo}/blob/{branch}/{APP_GITHUB_DIR}/{name}"
+            branch_found = branch
             break
     with lock:
         if app_github["key"] == key:
-            app_github.update(url=found, at=time.time(), busy=False)
+            app_github.update(url=found, branch=branch_found, at=time.time(), busy=False)
 
 
 def _app_github_url(app):
@@ -1898,7 +1900,15 @@ def _sent_app_code():
         code = (APP_DIR / last["name"]).read_text(encoding="utf-8")
     except OSError:
         return {"ok": False, "error": "le fichier de l'app est introuvable"}
-    return {"ok": True, "name": last["name"], "kind": _app_kind(last["name"]), "code": code}
+    answer = {"ok": True, "name": last["name"], "kind": _app_kind(last["name"]), "code": code}
+    # In the repository (public, found there): the Store lists a pointer to it instead of keeping the code.
+    if answer["kind"] == "code" and _app_github_url(last):
+        with lock:
+            repo = (_session_entry(current_cloud or last_cloud) or {}).get("repo") if (current_cloud or last_cloud) else None
+            branch = app_github.get("branch")
+        if repo and branch:
+            answer.update(kind="link", repo=repo, path=f"{APP_GITHUB_DIR}/{last['name']}", ref=branch)
+    return answer
 
 
 VIDEO_TAG = "videos"
