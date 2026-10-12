@@ -94,17 +94,17 @@ by itself. (`BackendHealth.kt`, tested on a JVM; the widget and the activity are
 
 ### The widget: what each part is
 
-Four bands, from the top: the title and status (the logo opens the app), the **repository**, **model** and **push** chips, the **project type** chip with its round buttons, and the voice row. Everything it does is an instruction sent into the conversation with Claude Code; the widget itself builds, signs and publishes nothing.
+Two shapes, chosen in the settings list (`WidgetStyle`): **Classic** (four bands, below) and **Glasses** (two lenses with five things each, the microphone on the bridge between them: the left lens is the context — session and state, repository, settings, mode, Claude — and the right one what the work gives — the site or the proposals, ▦ and `</>`, videos, the GitHub guide; only what exists is shown). Classic, from the top: four bands: the title and status (the logo opens the app), the **repository**, **model** and **push** chips, the **project type** chip with its round buttons, and the voice row. Everything it does is an instruction sent into the conversation with Claude Code; the widget itself builds, signs and publishes nothing.
 
 | Part | What it is | Source |
 |---|---|---|
-| Voice button (before the mic) | the **menu d'Aiwa**: wake word, state of Aiwa (Claude, alerts, permissions), *update the brain* (Termux), *update the application*, the always-on listening, the voice commands | `Pickers.kt` (`VoiceHelpActivity`) |
+| Settings pill (next to the repository chip) | **one list** instead of four buttons: the model and the effort, the push (main or branch), the state of the workflow (GitHub Actions), the **menu d'Aiwa** (wake word, state of Aiwa, updates, listening, voice commands, create from a file) and the **shape of the widget**. The pill itself says the state in a few words (« Opus · main ✓ », red when the workflow failed, a microphone while the listening is on) | `Pickers.kt` (`SettingsActivity`, `VoiceHelpActivity`) |
 | Project type chip | what Claude must produce, from the next message: *Pages*, *Android*, *Store*, *Aiwa*, *Campaign* (see below) | `Pickers.kt` (`DeployPicker`), `aiwa_server.py` (`DEPLOY_MODES`, `_instruction_lines`) |
 | Site / APK button | Pages and Android modes (the address of the site or of the APK); hidden in the campaign mode | `AiwaWidget.kt` |
 | Proposals button (envelope) | **in the campaign mode, instead of the site button**: the proposals, to be sent from the person's mail application | `ProposalsActivity.kt` |
 | ▦ and `</>` | Store and Aiwa modes: open the Store on the app Claude sent (to read, try, add) and on its code | `OpenStoreActivity.kt`, `StoreActivity.kt` |
 | Video button (at the left of the mode chip) | the promotional videos of the creation, **played in the app** (a player of its own, with a button to hand the file to the browser); the **quality** (simple, medium, extra) is chosen where a video is asked for | `VideosActivity.kt` |
-| GitHub Actions button | the last run of the repository: the build (Android), the deployment (Pages, campaign), the check of the app (Store), the registry's check of the pull request (Aiwa) | `OpenActionsActivity.kt`, `aiwa_server.py` (`_ci_snapshot`) |
+| GitHub Actions (in the settings list; a button of its own in the glasses shape: no, it is in the list) | the last run of the repository: the build (Android), the deployment (Pages, campaign), the check of the app (Store), the registry's check of the pull request (Aiwa) | `OpenActionsActivity.kt`, `aiwa_server.py` (`_ci_snapshot`) |
 | Create from a file | menu d'Aiwa: files become a video **or a campaign**: several files ticked among those of the folder `aiwa-campagne/` of the chosen repository, and/or a text file of the phone (kept there by the session); GitHub work is an accessory (off by default) | `DocumentCreation.kt` |
 
 The repository chip and the **project-type chip** are always there: the Store, Aiwa and campaign modes need no repository, so the type is chosen first. The push chip, the site button, the video button and the GitHub Actions button need a repository and appear once one is chosen.

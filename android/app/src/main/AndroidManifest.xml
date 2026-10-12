@@ -103,6 +103,11 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
+        <!-- The settings button of the widget: model, push, workflow, the menu of Aiwa, and the shape of the widget (SettingsActivity in Pickers.kt). -->
+        <activity android:name=".SettingsActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <activity android:name=".ModelPickerActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""

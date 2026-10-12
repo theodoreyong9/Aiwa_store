@@ -707,3 +707,51 @@ class DeployPickerActivity : ComponentActivity() {
         if (mode == "campaign") startActivity(Intent(app, FileCreationActivity::class.java).putExtra("campaign", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
+
+
+/**
+ * The settings button of the widget: ONE list for what used to be four buttons (the model, the push, the state of the workflow and the menu of Aiwa), and the choice of the
+ * shape of the widget, classic or glasses. The pill on the widget says the state in a few words; this is where it is changed.
+ */
+class SettingsActivity : ComponentActivity() {
+    private fun open(screen: Class<*>) {
+        finish()
+        startActivity(Intent(this, screen))
+    }
+
+    private fun shape(shape: String) {
+        val app = applicationContext
+        WidgetStyle.set(app, shape)
+        finish()
+        CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(app) }
+    }
+
+    private fun togglePush(direct: Boolean) {
+        val app = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch { switchOptions(app, LocalClaudeBridge(), pushMain = !direct) }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        wakeAiwa(applicationContext)
+        setContent {
+            val state by AiwaRepository.state.collectAsState()
+            val current = WidgetStyle.current(applicationContext)
+            val ci = when (state.ciState) { "success" -> "réussi ✓"; "failure" -> "échec ✗"; "running" -> "en cours …"; else -> "état inconnu" }
+            val entries = buildList {
+                add(PickerEntry("Réglages", false, header = true) { })
+                add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
+                if (state.repo != null) {
+                    add(PickerEntry(if (state.pushMain) "Push : direct sur main — toucher pour passer sur une branche" else "Push : sur une branche — toucher pour passer sur main", false, lines = 2) { togglePush(state.pushMain) })
+                    add(PickerEntry("GitHub Actions : $ci — ouvrir", false, lines = 2) { open(OpenActionsActivity::class.java) })
+                }
+                add(PickerEntry("Menu d'Aiwa : écoute, mot d'éveil, état, mises à jour, fichier", false, lines = 2) { open(VoiceHelpActivity::class.java) })
+                add(PickerEntry("Forme du widget", false, header = true) { })
+                add(PickerEntry("Classic — les bandes, comme avant", current == WidgetStyle.CLASSIC, lines = 2) { shape(WidgetStyle.CLASSIC) })
+                add(PickerEntry("Glasses — des lunettes : un verre pour le contexte, un pour le travail, le micro sur le pont", current == WidgetStyle.GLASSES, lines = 3) { shape(WidgetStyle.GLASSES) })
+            }
+            PickerSheet(entries) { finish() }
+        }
+    }
+}

@@ -102,6 +102,12 @@ private fun fitLabel(text: String, room: Float, fontScale: Float): String {
     return if (out.isEmpty()) "…" else "$out…"
 }
 
+/** The settings pill, in a few words: model, push, and how the last workflow went (✓ ✗ …); a microphone first while the always-on listening is on. */
+private fun settingsSummary(state: AiwaState): String {
+    val ci = when (state.ciState) { "success" -> " ✓"; "failure" -> " ✗"; "running" -> " …"; else -> "" }
+    return (if (state.listening) "🎙 " else "") + modelLabel(state.model) + (if (state.repo != null) " · " + (if (state.pushMain) "main" else "branche") else "") + ci
+}
+
 // While a message is on its way the settings and the mic are locked and dimmed (they were still tappable, which was pointless and
 // confusing): a tap says why. What only looks (the site, the app, the code, Actions, Claude) stays alive.
 private fun lockable(locked: Boolean, action: Action): Action = if (locked) actionRunCallback<BusyTapCallback>() else action
@@ -214,49 +220,23 @@ private fun Content(state: AiwaState) {
     // that share the whole height, so there is never an empty strip. The compact
     // two-row layout below is only a safety net for a launcher whose cells are so
     // small that four bands would not fit.
-    if (LocalSize.current.height >= 150.dp) FullContent(state) else CompactContent(state)
+    val glasses = WidgetStyle.current(LocalContext.current) == WidgetStyle.GLASSES && LocalSize.current.height >= 100.dp
+    if (glasses) GlassesContent(state) else if (LocalSize.current.height >= 150.dp) FullContent(state) else CompactContent(state)
 }
 
+// What the top of the widget says (the session and what is going on) and what a tap on it opens: the fix for what is wrong, else the sessions. Shared by both shapes.
+private class BandInfo(val title: String, val statusText: String, val statusColor: ColorProvider, val statusBold: Boolean, val action: Action)
+
 @Composable
-private fun FullContent(state: AiwaState) {
+private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
     val fg = rgb(android.graphics.Color.rgb(240, 240, 245))
     val subtle = rgb(android.graphics.Color.rgb(160, 160, 174))
     val warm = rgb(android.graphics.Color.rgb(232, 150, 124))
     val alertText = rgb(android.graphics.Color.rgb(255, 138, 133))
-    val pill = rgb(android.graphics.Color.rgb(44, 44, 54))
-    val micGrey = rgb(android.graphics.Color.rgb(84, 84, 94))
-    val claudeOrange = rgb(android.graphics.Color.rgb(204, 120, 92))
-    val alertRed = rgb(android.graphics.Color.rgb(214, 69, 65))
-    val green = rgb(android.graphics.Color.rgb(46, 125, 90))
     val locked = state.status == AiwaState.Status.WORKING
-    val size = LocalSize.current
     val fontScale = LocalContext.current.resources.configuration.fontScale
-    // The card's own padding takes 10 dp on each side and 8 dp above and below.
-    val avail = size.width.value - 20f
-    val hasSession = state.cloudSessionId != null || state.lastSessionId != null
-    val hasRepo = state.repo != null
-
-    // The bands share the height equally; the buttons in them grow with the band
-    // up to a comfortable size, so a taller widget gets roomier, not emptier.
-    val bands = 4     // the project type is chosen before any repository: the Store, Aiwa and campaign modes need none
-    val band = (size.height.value - 16f) / bands
-    val chipH = (band - 6f).coerceIn(30f, 44f)
-    val micH = (band - 4f).coerceIn(34f, 48f)
-    val avatar = (band - 2f).coerceIn(34f, 44f)
-
-    // ---- band 1: which conversation, and what is going on ------------------
-    // The backend's own state comes first: with it down or starting, nothing else
-    // on the widget can be trusted to work, and a widget that just sits there looks
-    // broken. While a message is on its way (creating a cloud session takes a few
-    // seconds) it says so; while Claude waits for an answer (it pinged the relay)
-    // it says that in red, the Claude button turns red and the card gets a red
-    // edge: the alert is the widget itself, not a notification.
-    // Before anything else: Aiwa may not start the backend yet (its permission is
-    // asked once, by the set-up window the widget opens).
     val needsSetup = !hasTermuxPermission(LocalContext.current)
-    // The CLI is not logged in to a Claude account: nothing can be sent until it is.
     val needsLogin = state.claudeLogin == "needed"
-    // The "Store" and "Aiwa" modes end with an app Claude sends to the phone: when it has come and was not opened yet, it is waiting.
     val storeMode = deliversApp(state.deploy)
     val storeReady = storeMode && state.sentApp?.seen == false
     val status: String
@@ -305,8 +285,6 @@ private fun FullContent(state: AiwaState) {
         state.repo == null && state.cloudSessionId != null -> { status = "Choisis le dépôt de cette session (⎇)"; statusColor = warm; statusBold = true }
         else -> { status = "Prêt"; statusColor = subtle }
     }
-    val updateRoom = 0f   // (the Store applies a downloaded update by itself when it opens: no button)
-    val titleRoom = avail - avatar - 8f - updateRoom
     val title = when {
         needsSetup -> "Autoriser Aiwa ▸"
         accessNotice(state, 1) != null -> "Accès réservé ▸"
@@ -326,17 +304,68 @@ private fun FullContent(state: AiwaState) {
         state.needsRepo || state.repo == null -> actionStartActivity<RepoPickerActivity>()
         else -> lockable(locked, actionStartActivity<SessionPickerActivity>())
     }
+    return BandInfo(title, statusText, statusColor, statusBold, bandAction)
+}
+
+@Composable
+private fun FullContent(state: AiwaState) {
+    val fg = rgb(android.graphics.Color.rgb(240, 240, 245))
+    val subtle = rgb(android.graphics.Color.rgb(160, 160, 174))
+    val warm = rgb(android.graphics.Color.rgb(232, 150, 124))
+    val alertText = rgb(android.graphics.Color.rgb(255, 138, 133))
+    val pill = rgb(android.graphics.Color.rgb(44, 44, 54))
+    val micGrey = rgb(android.graphics.Color.rgb(84, 84, 94))
+    val claudeOrange = rgb(android.graphics.Color.rgb(204, 120, 92))
+    val alertRed = rgb(android.graphics.Color.rgb(214, 69, 65))
+    val green = rgb(android.graphics.Color.rgb(46, 125, 90))
+    val locked = state.status == AiwaState.Status.WORKING
+    val size = LocalSize.current
+    val fontScale = LocalContext.current.resources.configuration.fontScale
+    // The card's own padding takes 10 dp on each side and 8 dp above and below.
+    val avail = size.width.value - 20f
+    val hasSession = state.cloudSessionId != null || state.lastSessionId != null
+    val hasRepo = state.repo != null
+
+    // The bands share the height equally; the buttons in them grow with the band
+    // up to a comfortable size, so a taller widget gets roomier, not emptier.
+    val bands = 4     // the project type is chosen before any repository: the Store, Aiwa and campaign modes need none
+    val band = (size.height.value - 16f) / bands
+    val chipH = (band - 6f).coerceIn(30f, 44f)
+    val micH = (band - 4f).coerceIn(34f, 48f)
+    val avatar = (band - 2f).coerceIn(34f, 44f)
+
+    // ---- band 1: which conversation, and what is going on ------------------
+    // The backend's own state comes first: with it down or starting, nothing else
+    // on the widget can be trusted to work, and a widget that just sits there looks
+    // broken. While a message is on its way (creating a cloud session takes a few
+    // seconds) it says so; while Claude waits for an answer (it pinged the relay)
+    // it says that in red, the Claude button turns red and the card gets a red
+    // edge: the alert is the widget itself, not a notification.
+    // Before anything else: Aiwa may not start the backend yet (its permission is
+    // asked once, by the set-up window the widget opens).
+    val needsSetup = !hasTermuxPermission(LocalContext.current)
+    // The CLI is not logged in to a Claude account: nothing can be sent until it is.
+    val needsLogin = state.claudeLogin == "needed"
+    // The "Store" and "Aiwa" modes end with an app Claude sends to the phone: when it has come and was not opened yet, it is waiting.
+    val storeMode = deliversApp(state.deploy)
+    val storeReady = storeMode && state.sentApp?.seen == false
+    val band1 = bandInfo(state, avail - avatar - 8f)
+    val title = band1.title
+    val statusText = band1.statusText
+    val statusColor = band1.statusColor
+    val statusBold = band1.statusBold
+    val bandAction = band1.action
 
     // ---- band 2: repository and model, half the width each -----------------
     // The push chip sits at the end of this band, as short as it can be ("main" / "branche"); the repository and the model share the rest.
     val pushText = if (state.pushMain) "main" else "branche"
-    val pushRoom = if (hasRepo) GAP + chipWidth(pushText, fontScale) else 0f
-    val half = (avail - GAP - pushRoom) / 2f - 20f
+    val half = (avail - GAP) / 2f - 20f
     val repoName = state.repo?.substringAfter('/')
     // "+2": two more repositories Claude may work on (see the repository picker).
     val extraSuffix = if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""
     val repoText = "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", half - textWidth("⎇  ▾", fontScale) - textWidth(extraSuffix, fontScale), fontScale) + extraSuffix + " ▾"
-    val modelText = fitLabel(modelLabel(state.model), half - textWidth(" ▾", fontScale), fontScale) + " ▾"
+    // Model, effort, push, the state of the workflow and the menu of Aiwa are ONE list: this pill says them in a few words and opens it.
+    val settingsText = fitLabel(settingsSummary(state), half - textWidth(" ▾", fontScale), fontScale) + " ▾"
 
     // ---- band 3: Push, Deploy, and the site / Actions ---------------------
     val site = state.siteUrl
@@ -351,7 +380,7 @@ private fun FullContent(state: AiwaState) {
     // In the Store mode the repository carries a small workflow that checks the app (aiwa-apps/*.app.html); the round "GitHub Actions" button
     // follows it, as it follows the build in the Android mode, next to the button that shows the code Claude sent.
     val showCode = showStore
-    val showActions = (hasRepo && (publishesFromGithub(state.deploy) || storeMode || state.ciState != null)) || state.deploy == "aiwa"
+    val showActions = false      // the state of the workflow is in the settings pill and its list
     val fixed = (if (showSite || showProposals) GAP + chipH else 0f) + (if (showStore) GAP + chipH else 0f) + (if (showCode) GAP + chipH else 0f) + (if (showActions) GAP + chipH else 0f) + (if (hasRepo) GAP + chipH else 0f)
     val each = avail - fixed - 20f
     val deployText = fitLabel(deployLabel(state.deploy), each, fontScale)
@@ -384,12 +413,7 @@ private fun FullContent(state: AiwaState) {
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, badge = state.repo == null)
             Spacer(GlanceModifier.width(GAP.dp))
-            Chip(modelText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<ModelPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
-            if (hasRepo) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                // Green = push straight to the main branch; grey = on a branch. A tap switches.
-                Chip(pushText, if (locked) (if (state.pushMain) GREEN_DIM else PILL_DIM) else if (state.pushMain) green else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionRunCallback<TogglePushMainCallback>()), GlanceModifier.width(chipWidth(pushText, fontScale).dp), alignStart = true, height = chipH.dp)
-            }
+            Chip(settingsText, if (locked) PILL_DIM else if (state.ciState == "failure") alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
         }
         // The buttons of this band appear once a repository is chosen. They are
         // instructions integrated into the conversation — Claude Code does the
@@ -485,15 +509,6 @@ private fun FullContent(state: AiwaState) {
         }
         // The main action, big: dictate. The grey button with its red recording dot.
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            // Before the mic: what can be said (the voice commands), and the switch of the always-on listening. Green while it listens.
-            RoundButton(
-                icon = R.drawable.ic_voice,
-                description = if (state.listening) "Menu d'Aiwa : l'écoute permanente est allumée" else "Menu d'Aiwa : écoute, mot d'éveil, état, mise à jour, fichier, propositions",
-                background = if (state.listening) green else pill,
-                action = actionStartActivity<VoiceHelpActivity>(),
-                diameter = micH.dp,
-            )
-            Spacer(GlanceModifier.width(GAP.dp))
             Box(
                 modifier = GlanceModifier.defaultWeight().height(micH.dp)
                     .background(if (locked) MIC_DIM else micGrey)
@@ -521,6 +536,89 @@ private fun FullContent(state: AiwaState) {
                 action = actionStartActivity<OpenClaudeActivity>(),
                 diameter = micH.dp,
             )
+        }
+    }
+}
+
+/**
+ * The other shape of the widget: a pair of glasses. Two lenses, five things in each, and the microphone on the bridge that joins them. The left lens is the context
+ * (the session and what is going on, the repository, the settings, the mode, Claude); the right one is what the work gives (the site or the proposals, the Store buttons,
+ * the videos, the GitHub guide). Only what exists is shown, so a lens may hold fewer than five. Chosen in the settings list (WidgetStyle).
+ */
+@Composable
+private fun GlassesContent(state: AiwaState) {
+    val fg = rgb(android.graphics.Color.rgb(240, 240, 245))
+    val pill = rgb(android.graphics.Color.rgb(44, 44, 54))
+    val lens = rgb(android.graphics.Color.rgb(28, 28, 36))
+    val micGrey = rgb(android.graphics.Color.rgb(84, 84, 94))
+    val claudeOrange = rgb(android.graphics.Color.rgb(204, 120, 92))
+    val alertRed = rgb(android.graphics.Color.rgb(214, 69, 65))
+    val locked = state.status == AiwaState.Status.WORKING
+    val size = LocalSize.current
+    val fontScale = LocalContext.current.resources.configuration.fontScale
+    val hasRepo = state.repo != null
+    val hasSession = state.cloudSessionId != null || state.lastSessionId != null
+    val storeMode = deliversApp(state.deploy)
+    val storeReady = storeMode && state.sentApp?.seen == false
+    val campaignMode = state.deploy == "campaign"
+    val site = state.siteUrl
+    val live = state.siteState == "live"
+    val showSite = hasRepo && site != null && (state.deploy != "none" || live) && !campaignMode
+
+    val bridgeW = 64f
+    val lensW = (size.width.value - 20f - bridgeW) / 2f
+    val itemH = ((size.height.value - 16f - 20f) / 5f).coerceIn(22f, 38f)
+    val textRoom = lensW - 28f
+    val band = bandInfo(state, textRoom)
+    val repoName = state.repo?.substringAfter('/')
+    val repoText = "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", textRoom - textWidth("⎇  ▾", fontScale), fontScale) + " ▾"
+    val settingsText = fitLabel(settingsSummary(state), textRoom - textWidth(" ▾", fontScale), fontScale) + " ▾"
+    val modeText = fitLabel(deployLabel(state.deploy), textRoom, fontScale)
+    val claudeText = if (state.waiting) "● Claude attend" else if (hasSession) "Claude ↗" else "Ouvrir Claude"
+
+    Row(
+        modifier = GlanceModifier.fillMaxSize()
+            .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // ---- the left lens: the context --------------------------------------
+        Column(
+            modifier = GlanceModifier.width(lensW.dp).fillMaxHeight().background(lens).cornerRadius(26.dp).padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = GlanceModifier.fillMaxWidth().height(itemH.dp).clickable(band.action), verticalAlignment = Alignment.CenterVertically) {
+                Text(band.title, style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 10.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
+            }
+            Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = !hasRepo)
+            Chip(settingsText, if (locked) PILL_DIM else if (state.ciState == "failure") alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+            Chip(modeText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+            Chip(claudeText, if (state.waiting) alertRed else claudeOrange, fg, actionStartActivity<OpenClaudeActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+        }
+        // ---- the bridge: the microphone ---------------------------------------
+        Column(modifier = GlanceModifier.width(bridgeW.dp).fillMaxHeight(), verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = GlanceModifier.size(48.dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(24.dp)
+                    .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(20.dp))
+            }
+        }
+        // ---- the right lens: what the work gives -------------------------------
+        Column(
+            modifier = GlanceModifier.width(lensW.dp).fillMaxHeight().background(lens).cornerRadius(26.dp).padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (campaignMode) Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+            else if (showSite && site != null) Chip(if (state.siteKind == "apk") "⇩ Télécharger l'APK" else "🌐 Ouvrir le site", if (live) claudeOrange else pill, fg, siteAction, GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = state.ciFresh)
+            if (storeMode) {
+                Chip("▦ App dans le Store", if (storeReady) claudeOrange else pill, fg, actionStartActivity<OpenStoreActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+                Chip("</> Voir le code", if (storeReady) claudeOrange else pill, fg, codeAction, GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+            }
+            if (hasRepo) Chip("🎬 Vidéos", pill, fg, actionStartActivity<VideosActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+            if (hasRepo && state.ciHintTitle != null) Chip("⚠ Réglage GitHub", alertRed, fg, actionStartActivity<PagesHelpActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
         }
     }
 }
