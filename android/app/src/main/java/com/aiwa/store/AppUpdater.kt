@@ -63,8 +63,11 @@ object AppUpdater {
                     target
                 }
                 val uri = FileProvider.getUriForFile(app, "${app.packageName}.updates", file)
+                // INSTALL_PACKAGE, not VIEW: only the system's installer answers it. A plain VIEW of a file also matches the applications that take any file
+                // (Termux offers to « save the file in ~/downloads »), which is not an installation.
                 app.startActivity(
-                    Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+                    Intent(Intent.ACTION_INSTALL_PACKAGE).setDataAndType(uri, "application/vnd.android.package-archive")
+                        .putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION),
                 )
             } catch (e: Exception) {

@@ -503,7 +503,18 @@ class VoiceHelpActivity : ComponentActivity() {
     private fun updateBrain() {
         val app = applicationContext
         val started = startAiwaBackendViaTermux(app, forceRestart = true)
-        toastOnMain(app, if (started.isSuccess) "Mise à jour demandée à Termux : environ 30 secondes." else "Termux n'a pas pu être lancé : ${started.exceptionOrNull()?.message ?: "?"} (l'autorisation « exécuter des commandes » et allow-external-apps=true sont à régler une fois).")
+        toastOnMain(app, if (started.isSuccess) "Mise à jour demandée à Termux : environ 30 secondes. Je te dis quand c'est fait." else "Termux n'a pas pu être lancé : ${started.exceptionOrNull()?.message ?: "?"} (l'autorisation « exécuter des commandes » et allow-external-apps=true sont à régler une fois).")
+        if (started.isSuccess) {
+            // Said at the end, whatever happened: the person was left wondering whether it had worked
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                val up = awaitBackendVersion(LocalClaudeBridge(), EXPECTED_BACKEND_VERSION, 150_000)
+                toastOnMain(
+                    app,
+                    if (up != null) "Cerveau à jour : version ${up.version} ✓"
+                    else "Le cerveau n'a pas répondu après 2 minutes et demie. Ouvre Termux : il affiche l'erreur (réseau, ou la commande bootstrap.sh à relancer).",
+                )
+            }
+        }
         finish()
     }
 
