@@ -227,6 +227,29 @@ def runs_of_mode(runs, mode):
     return [r for r in runs if any(w in f"{r.get('name') or ''} {r.get('path') or ''}".lower() for w in words)]
 
 
+def _recent_runs(repo):
+    """The recent runs of a repository's GitHub Actions that are news (not scheduled or dynamic ones), or None when it can't be told."""
+    try:
+        request = urllib.request.Request(
+            f"{GITHUB_API}/repos/{repo}/actions/runs?per_page=20",
+            headers={"User-Agent": "aiwa", "Accept": "application/vnd.github+json"},
+        )
+        with urllib.request.urlopen(request, timeout=10) as reply:
+            data = json.load(reply)
+    except (OSError, ValueError):
+        return None
+    return [r for r in (data.get("workflow_runs") or []) if r.get("event") not in NOT_NEWS_EVENTS]
+
+
+def latest_runs(repo, modes, hint_mode=None):
+    """The verdict of each of `modes` from ONE request (a change of mode finds its verdict already there), or None when it can't be told.
+    The hint about a failure (one more request) is looked up for `hint_mode` only."""
+    runs = _recent_runs(repo)
+    if runs is None:
+        return None
+    return {mode: _verdict(repo, runs_of_mode(runs, mode), with_hint=(mode == hint_mode)) for mode in set(modes)}
+
+
 def latest_run(repo, mode=None):
     """The verdict on the most recent COMMIT of a repository's GitHub Actions: {"state":
     "running" | "success" | "failure" | "none", "url", "id", "sha", "done", "detail"} — a plain
@@ -240,16 +263,14 @@ def latest_run(repo, mode=None):
     workflow, what commit, what event and who — so that a surprising answer can be explained.
 
     mode: the verdict is the one of the workflow of that mode (MODE_WORKFLOW_WORDS), "none" when it has not run."""
-    try:
-        request = urllib.request.Request(
-            f"{GITHUB_API}/repos/{repo}/actions/runs?per_page=20",
-            headers={"User-Agent": "aiwa", "Accept": "application/vnd.github+json"},
-        )
-        with urllib.request.urlopen(request, timeout=10) as reply:
-            data = json.load(reply)
-    except (OSError, ValueError):
+    runs = _recent_runs(repo)
+    if runs is None:
         return None
-    runs = runs_of_mode([r for r in (data.get("workflow_runs") or []) if r.get("event") not in NOT_NEWS_EVENTS], mode)
+    return _verdict(repo, runs_of_mode(runs, mode))
+
+
+def _verdict(repo, runs, with_hint=True):
+    """The one verdict on the most recent COMMIT among `runs` (see latest_run)."""
     if not runs:
         return {"state": "none", "url": None}
     head = runs[0]  # the newest, by creation
@@ -272,7 +293,7 @@ def latest_run(repo, mode=None):
     actor = (shown.get("actor") or {}).get("login") or "?"
     detail = f"{shown.get('name') or '?'} — {shown.get('display_title') or '?'} ({shown.get('event') or '?'}, {actor})"
     result = {"state": state, "url": shown.get("html_url"), "id": head.get("id"), "sha": head.get("head_sha"), "done": done, "detail": detail}
-    if state == "failure" and shown.get("id"):
+    if with_hint and state == "failure" and shown.get("id"):
         hint = failure_hint(repo, shown["id"])
         if hint:
             result["hint"] = hint

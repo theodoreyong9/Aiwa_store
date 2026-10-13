@@ -1,5 +1,6 @@
 import sys
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -71,3 +72,17 @@ class ModeWorkflows(unittest.TestCase):
         self.assertEqual(names("store"), ["App check"])
         self.assertEqual(names("aiwa"), ["Android", "Pages", "CI", "App check"], "a mode with no workflow of its own: nothing is filtered")
         self.assertEqual(names(None), ["Android", "Pages", "CI", "App check"])
+
+    def test_one_request_gives_the_verdict_of_every_mode(self):
+        import aiwa_github as gh
+        runs = [
+            {"name": "Android", "path": ".github/workflows/android.yml", "head_sha": "a", "status": "completed", "conclusion": "success", "created_at": "2026-01-02", "id": 2},
+            {"name": "Pages", "path": ".github/workflows/pages.yml", "head_sha": "a", "status": "in_progress", "created_at": "2026-01-01", "id": 1},
+        ]
+        with unittest.mock.patch.object(gh, "_recent_runs", lambda repo: runs):
+            verdicts = gh.latest_runs("o/r", ("pages", "android", "store"))
+        self.assertEqual(verdicts["android"]["state"], "success")
+        self.assertEqual(verdicts["pages"]["state"], "running")
+        self.assertEqual(verdicts["store"]["state"], "none", "a mode whose workflow has not run: none")
+        with unittest.mock.patch.object(gh, "_recent_runs", lambda repo: None):
+            self.assertIsNone(gh.latest_runs("o/r", ("pages",)))

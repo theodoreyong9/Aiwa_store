@@ -54,7 +54,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 81
+BACKEND_VERSION = 82
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -212,7 +212,7 @@ relay_seen = {"id": None, "time": None}
 # Whether the Pages address of current_repo answers, probed in the background.
 site_lock = threading.Lock()
 site_cache = {"url": None, "state": "off", "at": 0.0, "busy": False}
-ci_cache = {"repo": None, "info": None, "at": 0.0, "busy": False}
+ci_cache = {"repo": None, "info": None, "at": 0.0, "busy": False, "modes": {}}   # modes: the verdict of the workflow of each mode, from the same request
 # How often the GitHub Actions of the current repository are looked up: every 30 s while a result is being waited for (a run
 # is going, or a message was sent through Aiwa less than 10 minutes ago), every 150 s otherwise. The unauthenticated API
 # allows 60 requests an hour whatever the rhythm, so the lookups of the last hour are counted and never go past 50.
@@ -1380,7 +1380,9 @@ CI_FAILURE_WATCH_SECONDS = 600   # after a failure is first seen, the lookups st
 
 
 def _ci_probe(repo):
-    info = github.latest_run(repo, deploy_mode)
+    mode = deploy_mode
+    verdicts = github.latest_runs(repo, ("pages", "android", "campaign", "store", mode), hint_mode=mode)
+    info = verdicts.get(mode) if verdicts is not None else None
     if info and info.get("state") == "failure":
         with site_lock:
             before = ci_cache["info"] if ci_cache["repo"] == repo else None
@@ -1388,7 +1390,8 @@ def _ci_probe(repo):
         info["failure_since"] = before.get("failure_since", time.time()) if same else time.time()
     with site_lock:
         # A failed lookup (rate limit, private repository) keeps what was known.
-        ci_cache.update(repo=repo, info=info if info is not None else (ci_cache["info"] if ci_cache["repo"] == repo else None), at=time.time(), busy=False)
+        ci_cache.update(repo=repo, info=info if info is not None else (ci_cache["info"] if ci_cache["repo"] == repo else None), at=time.time(), busy=False,
+                        modes=verdicts if verdicts is not None else (ci_cache.get("modes") if ci_cache["repo"] == repo else {}))
 
 
 def _ci_ttl(info, now=None):
@@ -3066,7 +3069,8 @@ class Handler(BaseHTTPRequestHandler):
                 if options.get("deploy") in DEPLOY_MODES:
                     if options["deploy"] != deploy_mode:
                         with site_lock:
-                            ci_cache.update(info=None, at=0.0)      # the verdict is the one of the workflow of the mode: another mode, another verdict
+                            # The verdict is the one of the workflow of the mode: the one already known for the new mode is shown at once, and looked up again
+                            ci_cache.update(info=(ci_cache.get("modes") or {}).get(options["deploy"]), at=0.0)
                     deploy_mode = options["deploy"]
                 elif isinstance(options.get("autodeploy"), bool):
                     deploy_mode = "pages" if options["autodeploy"] else "none"
