@@ -470,6 +470,40 @@ class SourceReposPickerActivity : ComponentActivity() {
 }
 
 /**
+ * The « Contexte » button of the Aiwa-shaped widget (at the left of the microphone): the four things the next message depends on, in one list — the session, the
+ * repository, the model (and its effort) and the push. Each opens its own list; the push changes at once.
+ */
+class ContextActivity : ComponentActivity() {
+    private fun open(screen: Class<*>) {
+        finish()
+        startActivity(Intent(this, screen))
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        wakeAiwa(applicationContext)
+        setContent {
+            val state by AiwaRepository.state.collectAsState()
+            val entries = buildList {
+                add(PickerEntry("Contexte du prochain message", false, header = true) { })
+                add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
+                add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
+                add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)} ▾", false, lines = 2) { open(ModelPickerActivity::class.java) })
+                if (state.repo != null) {
+                    add(PickerEntry(if (state.pushMain) "Push : direct sur main — toucher pour passer sur une branche" else "Push : sur une branche — toucher pour passer sur main", false, lines = 2) {
+                        val app = applicationContext
+                        val direct = state.pushMain
+                        finish()
+                        CoroutineScope(Dispatchers.Default).launch { switchOptions(app, LocalClaudeBridge(), pushMain = !direct) }
+                    })
+                }
+            }
+            PickerSheet(entries) { finish() }
+        }
+    }
+}
+
+/**
  * The widget's voice button (before the mic): the voice commands, written out, and the switch of the always-on listening. The list is the one
  * place the commands are given in the app; VoiceCommands.kt (the bridge) is what understands them.
  */

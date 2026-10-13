@@ -237,6 +237,9 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
+        <activity android:name=".ContextActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity="" />
         <activity android:name=".InstallUpdateActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""

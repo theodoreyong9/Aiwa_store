@@ -811,7 +811,7 @@ private fun AiwaContent(state: AiwaState) {
     val hasRepo = state.repo != null
     val view = aiwaView(state)
     val storeReady = deliversApp(state.deploy) && state.sentApp?.seen == false
-    val rows = 6
+    val rows = 5
     val rowH = ((size.height.value - 16f) / rows).coerceIn(26f, 42f)
     val chipH = (rowH - 4f).coerceAtLeast(22f)
     val band = bandInfo(state, avail - 20f)
@@ -823,7 +823,8 @@ private fun AiwaContent(state: AiwaState) {
     ) {
         // What is going on, only when it is not « Prêt » (sending, the silence of Claude, what to fix…)
         if (band.statusText != "Prêt") {
-            Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 10.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
+            // its tap is what the line is about (the fix for what is wrong, else the sessions)
+            Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 10.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1, modifier = GlanceModifier.fillMaxWidth().clickable(band.action))
         }
         // ---- the modes ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
@@ -877,6 +878,16 @@ private fun AiwaContent(state: AiwaState) {
         }
         // ---- the microphone, Claude, the question ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            // ONE button for the session, the repository, the model and the push: its tap opens them as a list. What is wrong (Aiwa not allowed, no backend, Claude not
+            // connected…) replaces its word, and its tap is then the fix.
+            val repoName = state.repo?.substringAfter('/')
+            Chip(
+                if (band.title.endsWith("▸")) band.title else "⎇ " + fitLabel(repoName ?: "Dépôt", 70f - textWidth("⎇  ▾", fontScale), fontScale) + " ▾",
+                if (locked) PILL_DIM else if (!hasRepo || band.title.endsWith("▸")) alertRed else pill, if (locked) TEXT_DIM else fg,
+                if (band.title.endsWith("▸")) band.action else lockable(locked, actionStartActivity<ContextActivity>()),
+                GlanceModifier.width(96.dp), alignStart = true, height = (rowH - 2f).dp, textSize = 11.sp, hPad = 8.dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
             Box(
                 modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
                     .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
@@ -900,35 +911,6 @@ private fun AiwaContent(state: AiwaState) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
             }
-        }
-        // ---- the session and the repository, as pills (what is wrong replaces the session's name, and its tap is the fix) ----
-        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            val half = (avail - GAP) / 2f - 20f
-            val repoName = state.repo?.substringAfter('/')
-            val extraSuffix = if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""
-            Chip(
-                band.title, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, band.action,
-                GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
-            )
-            Spacer(GlanceModifier.width(GAP.dp))
-            Chip(
-                "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", half - textWidth("⎇  ▾", fontScale) - textWidth(extraSuffix, fontScale), fontScale) + extraSuffix + " ▾",
-                if (locked) PILL_DIM else if (!hasRepo) alertRed else pill, if (locked) TEXT_DIM else fg,
-                lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
-            )
-        }
-        // ---- the model and the push ----
-        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            val half = (avail - GAP) / 2f - 20f
-            Chip(
-                fitLabel(modelLabel(state.model), half - textWidth(" ▾", fontScale), fontScale) + " ▾", if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
-                lockable(locked, actionStartActivity<ModelPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
-            )
-            Spacer(GlanceModifier.width(GAP.dp))
-            Chip(
-                if (state.pushMain) "Push : main" else "Push : branche", if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
-                lockable(locked, actionRunCallback<TogglePushMainCallback>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
-            )
         }
         // ---- the bottom row: the loop, the Aiwa app, the update when there is one, the settings ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
