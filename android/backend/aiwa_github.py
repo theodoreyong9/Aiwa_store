@@ -210,7 +210,24 @@ def failure_hint(repo, run_id):
     return hint
 
 
-def latest_run(repo):
+# What tells the workflow of each mode (words of its name or of its file): the verdict of a mode is the one of ITS workflow, not of whatever ran last.
+MODE_WORKFLOW_WORDS = {
+    "pages": ("pages",),
+    "campaign": ("pages", "maquette", "campaign", "campagne"),
+    "android": ("android", "apk", "build", "release"),
+    "store": ("app-check", "aiwa-app", "check"),
+}
+
+
+def runs_of_mode(runs, mode):
+    """The runs of the workflow of `mode` (all of them when the mode has none of its own, or is None)."""
+    words = MODE_WORKFLOW_WORDS.get(mode)
+    if not words:
+        return runs
+    return [r for r in runs if any(w in f"{r.get('name') or ''} {r.get('path') or ''}".lower() for w in words)]
+
+
+def latest_run(repo, mode=None):
     """The verdict on the most recent COMMIT of a repository's GitHub Actions: {"state":
     "running" | "success" | "failure" | "none", "url", "id", "sha", "done", "detail"} — a plain
     unauthenticated request (public repositories), None when it can't be told (private,
@@ -220,7 +237,9 @@ def latest_run(repo):
     "running" until the last has finished, "success" when none failed (skipped and neutral
     ones don't count), "failure" when one did (url: that one). Scheduled and dynamic runs are
     left out (see NOT_NEWS_EVENTS). done: when the last of them finished; detail: which
-    workflow, what commit, what event and who — so that a surprising answer can be explained."""
+    workflow, what commit, what event and who — so that a surprising answer can be explained.
+
+    mode: the verdict is the one of the workflow of that mode (MODE_WORKFLOW_WORDS), "none" when it has not run."""
     try:
         request = urllib.request.Request(
             f"{GITHUB_API}/repos/{repo}/actions/runs?per_page=20",
@@ -230,7 +249,7 @@ def latest_run(repo):
             data = json.load(reply)
     except (OSError, ValueError):
         return None
-    runs = [r for r in (data.get("workflow_runs") or []) if r.get("event") not in NOT_NEWS_EVENTS]
+    runs = runs_of_mode([r for r in (data.get("workflow_runs") or []) if r.get("event") not in NOT_NEWS_EVENTS], mode)
     if not runs:
         return {"state": "none", "url": None}
     head = runs[0]  # the newest, by creation

@@ -54,3 +54,20 @@ class CritiqueList(unittest.TestCase):
         self.assertEqual([i["n"] for i in L.critique_items(listing)], [12, 1])
         self.assertEqual(L.critique_items(None), [])
         self.assertIsNone(L.CRITIQUE_NAME_RE.fullmatch("../critique-1.md"))
+
+
+class ModeWorkflows(unittest.TestCase):
+    def test_the_verdict_of_a_mode_is_the_one_of_its_workflow(self):
+        import aiwa_github as gh
+        runs = [
+            {"name": "Android", "path": ".github/workflows/android.yml"},
+            {"name": "Pages", "path": ".github/workflows/pages.yml"},
+            {"name": "CI", "path": ".github/workflows/ci.yml"},
+            {"name": "App check", "path": ".github/workflows/aiwa-app-check.yml"},
+        ]
+        names = lambda mode: [r["name"] for r in gh.runs_of_mode(runs, mode)]
+        self.assertEqual(names("android"), ["Android"])
+        self.assertEqual(names("pages"), ["Pages"])
+        self.assertEqual(names("store"), ["App check"])
+        self.assertEqual(names("aiwa"), ["Android", "Pages", "CI", "App check"], "a mode with no workflow of its own: nothing is filtered")
+        self.assertEqual(names(None), ["Android", "Pages", "CI", "App check"])

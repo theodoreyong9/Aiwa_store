@@ -54,7 +54,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 80
+BACKEND_VERSION = 81
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -1364,7 +1364,7 @@ CI_FAILURE_WATCH_SECONDS = 600   # after a failure is first seen, the lookups st
 
 
 def _ci_probe(repo):
-    info = github.latest_run(repo)
+    info = github.latest_run(repo, deploy_mode)
     if info and info.get("state") == "failure":
         with site_lock:
             before = ci_cache["info"] if ci_cache["repo"] == repo else None
@@ -3048,6 +3048,9 @@ class Handler(BaseHTTPRequestHandler):
                         retarget = current_cloud
                     push_main = options["push_main"]
                 if options.get("deploy") in DEPLOY_MODES:
+                    if options["deploy"] != deploy_mode:
+                        with site_lock:
+                            ci_cache.update(info=None, at=0.0)      # the verdict is the one of the workflow of the mode: another mode, another verdict
                     deploy_mode = options["deploy"]
                 elif isinstance(options.get("autodeploy"), bool):
                     deploy_mode = "pages" if options["autodeploy"] else "none"

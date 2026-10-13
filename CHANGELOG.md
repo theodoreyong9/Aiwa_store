@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The state of the workflow is the one of the mode's own workflow (Pages → the Pages one, Android → the APK build, Campagne → the mockups' Pages deployment, Store → the app check), no longer the latest run of whatever workflow of the repository; changing the mode looks it up again, and the button opens that run. A mode with no workflow of its own (Aiwa: the registry's) is unchanged. Backend 81.
+
 - Aiwa-shaped widget: the row of modes is the first one again; the session and the repository are pills in the zone of the mode, just above the model and the push (the status line, when it is not « Prêt », stays on top).
 
 - Aiwa-shaped widget: the comment button (💬) is in the bottom row, next to the Aiwa app; it is no longer in the settings list for this shape.
