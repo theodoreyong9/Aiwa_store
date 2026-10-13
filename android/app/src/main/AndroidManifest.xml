@@ -173,6 +173,11 @@
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize" />
         <!-- The question Claude asked through the widget (AskActivity.kt) and the promotional videos of the creation (VideosActivity.kt). -->
+        <activity android:name=".SearchActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:windowSoftInputMode="adjustResize|stateVisible" />
         <activity android:name=".AskActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""

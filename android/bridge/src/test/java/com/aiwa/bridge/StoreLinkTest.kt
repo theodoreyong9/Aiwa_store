@@ -74,6 +74,11 @@ class StoreLinkTest {
         assertEquals("https://example.com/", servedAddress("https://example.com/", downloaded = true))
     }
 
+    @Test fun theUnifiedSearchTravelsInTheAddress() {
+        assertEquals("$STORE_APP_URL#q=bob%2Fmy%20app", storeSearchUrl("  bob/my app "))
+        assertNull(storeSearchUrl("   "))
+    }
+
     @Test fun theCodeOfAPublishedAppIsAskedForByItsId() {
         assertEquals("$STORE_APP_URL#code=meteo-du-jour", storeCodeUrl("meteo-du-jour"))
         assertEquals("$SITE_APP_URL#code=a1", servedAddress(storeCodeUrl("a1")!!, downloaded = true).replace("#code=a1", "") + "#code=a1")

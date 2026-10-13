@@ -160,8 +160,8 @@ export function initStore() {
     } catch { /* the browser refused the clipboard: the text is on screen to select */ }
   });
   // Already open when the Android app asks for a code: only the fragment changes.
-  window.addEventListener('hashchange', () => { handoffCode(); handoffApp(); });
-  return refreshStore().then(handoffCode).then(handoffApp);
+  window.addEventListener('hashchange', () => { handoffCode(); handoffApp(); handoffQuery(); });
+  return refreshStore().then(handoffCode).then(handoffApp).then(handoffQuery);
 }
 
 
@@ -207,6 +207,34 @@ async function handoffApp() {
   const entry = apps.find((app) => app.id === match[2]);
   if (entry) await openApp(entry, button);
   else if (apps.length > 0) $('store-status').textContent = `"${match[2]}" is not in the registry (yet).`;
+}
+
+// ---------- one search for everything: an address, an id, an author, a GitHub account ----------
+/** What the widget's field sends (#q=…): opens an address, else filters the Aiwa apps, else follows the GitHub account named. */
+export async function unifiedSearch(raw) {
+  const text = String(raw ?? '').trim();
+  if (!text) return;
+  switchView('store');
+  const address = /#(app|link)=([A-Za-z0-9._/-]{1,200})$/.exec(text);
+  if (address) { location.hash = `#${address[1]}=${address[2]}`; return; }
+  if (filterApps(apps, text).length > 0 || !parseAccount(text)) {
+    showStoreTab('aiwa');
+    $('store-search').value = text;
+    render();
+    return;
+  }
+  showStoreTab('library');
+  followAccount(text);
+}
+
+const QUERY_HASH = /^#q=(.{1,300})$/;
+function handoffQuery() {
+  const match = QUERY_HASH.exec(location.hash);
+  if (!match) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch { /* cosmetic */ }
+  let text = match[1];
+  try { text = decodeURIComponent(text); } catch { /* kept as it came */ }
+  return unifiedSearch(text);
 }
 
 // ---------- my apps: those published with this wallet, each with its address ----------

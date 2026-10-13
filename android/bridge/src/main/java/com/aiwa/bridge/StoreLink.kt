@@ -52,6 +52,10 @@ private val APP_ID = Regex("[a-z0-9-]{1,40}")
  */
 fun storeCodeUrl(id: String, base: String = STORE_APP_URL): String? = if (APP_ID.matches(id)) "$base#code=$id" else null
 
+/** The Store's one search (an Aiwa address, an id, an author, a GitHub account): the page reads `#q=` and does the right thing. Null for empty text. */
+fun storeSearchUrl(text: String, base: String = STORE_APP_URL): String? =
+    text.trim().take(300).takeIf { it.isNotEmpty() }?.let { "$base#q=" + java.net.URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
+
 // The kinds of app the Store takes: its code in the package ("code": one HTML file), or published through Aiwa ("aiwa").
 private val KINDS = setOf("code", "aiwa", "link")
 
