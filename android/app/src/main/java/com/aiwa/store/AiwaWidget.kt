@@ -8,6 +8,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.*
@@ -161,14 +162,16 @@ private fun Chip(
     alignStart: Boolean = false,
     height: Dp = 34.dp,
     badge: Boolean = false,
+    textSize: TextUnit = 12.sp,
+    hPad: Dp = 10.dp,
 ) {
     if (!badge) {
-        ChipFace(text, background, color, action, modifier.height(height), bold, alignStart, height)
+        ChipFace(text, background, color, action, modifier.height(height), bold, alignStart, height, textSize, hPad)
         return
     }
     // Only a chip whose width is given (a weighted one) can carry the dot: the face then fills the box the dot sits on.
     Box(modifier = modifier.height(height), contentAlignment = Alignment.TopEnd) {
-        ChipFace(text, background, color, action, GlanceModifier.fillMaxSize(), bold, alignStart, height)
+        ChipFace(text, background, color, action, GlanceModifier.fillMaxSize(), bold, alignStart, height, textSize, hPad)
         Box(modifier = GlanceModifier.padding(top = 1.dp, end = 6.dp)) {
             Box(modifier = GlanceModifier.size(11.dp).background(rgb(android.graphics.Color.rgb(255, 59, 48))).cornerRadius(6.dp).clickable(action)) { }
         }
@@ -185,14 +188,16 @@ private fun ChipFace(
     bold: Boolean,
     alignStart: Boolean,
     height: Dp,
+    textSize: TextUnit,
+    hPad: Dp,
 ) {
     Box(
-        modifier = modifier.background(background).cornerRadius(height / 2).padding(horizontal = 10.dp).clickable(action),
+        modifier = modifier.background(background).cornerRadius(height / 2).padding(horizontal = hPad).clickable(action),
         contentAlignment = if (alignStart) Alignment.CenterStart else Alignment.Center,
     ) {
         Text(
             text = text,
-            style = TextStyle(color = color, fontSize = 12.sp, fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium),
+            style = TextStyle(color = color, fontSize = textSize, fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium),
             maxLines = 1,
         )
     }
@@ -607,7 +612,9 @@ private fun GlassesContent(state: AiwaState) {
     val inner = w * 0.355f
     val middle = w - 2 * outer - 2 * inner
     val top = h * 0.17f
-    val itemH = ((h * 0.83f - 4f - 4f) / 5f).coerceIn(16f, 34f)       // five things share what is inside the lenses
+    // Every chip is VERY small (a thin pill, small text, only as wide as its text); the microphone is the one big thing
+    val itemH = ((h * 0.83f - 4f - 4f) / 5f).coerceIn(12f, 17f)
+    val micH = (itemH * 2.4f).coerceIn(30f, 40f)
     val textRoom = inner - 12f
     val band = bandInfo(state, textRoom - itemH - GAP)
     val repoName = state.repo?.substringAfter('/')
@@ -633,52 +640,52 @@ private fun GlassesContent(state: AiwaState) {
                             description = if (state.loopPair.isNotEmpty()) "Boucle ${state.loopPair} en cours" else "Boucles builder / critique",
                             background = if (state.loopPair.isNotEmpty()) rgb(android.graphics.Color.rgb(46, 125, 90)) else pill,
                             action = actionStartActivity<LoopsActivity>(),
-                            diameter = (itemH + 2f).dp,
+                            diameter = (itemH + 4f).dp,
                         )
                         Spacer(GlanceModifier.width(GAP.dp))
                         Column(modifier = GlanceModifier.defaultWeight().clickable(band.action), verticalAlignment = Alignment.CenterVertically) {
-                            Text(band.title, style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-                            Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 10.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
+                            Text(band.title, style = TextStyle(color = fg, fontSize = 9.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                            Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 8.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
                         }
                     }
-                    Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = !hasRepo)
-                    Chip(settingsText, if (locked) PILL_DIM else if (workflowFailed(state)) alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-                    Chip(modeText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-                    Chip(claudeText, if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange, fg, actionStartActivity<OpenClaudeActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+                    Chip(repoText, if (locked) PILL_DIM else if (!hasRepo) alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier, alignStart = true, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
+                    Chip(settingsText, if (locked) PILL_DIM else if (workflowFailed(state)) alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier, alignStart = true, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
+                    Chip(modeText, if (locked) (if (state.deploy != "none") GREEN_DIM else PILL_DIM) else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<DeployPickerActivity>()), GlanceModifier, alignStart = true, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
+                    Chip(claudeText, if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange, fg, actionStartActivity<OpenClaudeActivity>(), GlanceModifier, alignStart = true, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
                 }
                 // ---- the bridge: nothing on it, it is the frame ------------------------
                 Spacer(GlanceModifier.width(middle.dp))
                 // ---- the right lens: the application, the microphone, then what the work gives ----
                 Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight(), verticalAlignment = Alignment.Top) {
-                    Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 4f).dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(modifier = GlanceModifier.fillMaxWidth().height((micH + 4f).dp), verticalAlignment = Alignment.CenterVertically) {
                         Image(
                             provider = ImageProvider(R.drawable.logo_round),
                             contentDescription = "Ouvrir Aiwa",
-                            modifier = GlanceModifier.size((itemH + 2f).dp).clickable(actionStartActivity<StoreActivity>()),
+                            modifier = GlanceModifier.size((itemH + 8f).dp).clickable(actionStartActivity<StoreActivity>()),
                         )
                         Spacer(GlanceModifier.width(GAP.dp))
                         Box(
-                            modifier = GlanceModifier.defaultWeight().height((itemH + 2f).dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(((itemH + 2f) / 2).dp).clickable(micAct),
+                            modifier = GlanceModifier.defaultWeight().height(micH.dp).background(if (locked) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
                             contentAlignment = Alignment.Center,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(14.dp))
-                                Spacer(GlanceModifier.width(5.dp))
-                                Text("Dicter", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                                Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(18.dp))
+                                Spacer(GlanceModifier.width(6.dp))
+                                Text("Dicter", style = TextStyle(color = fg, fontSize = 15.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                             }
                         }
                     }
-                    if (campaignMode) Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-                    else if (showSite && site != null) Chip(if (state.siteKind == "apk") "⇩ APK" else "🌐 Site", if (live) claudeOrange else pill, fg, siteAction, GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = state.ciFresh)
+                    if (campaignMode) Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier, alignStart = true, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
+                    else if (showSite && site != null) Chip(if (state.siteKind == "apk") "⇩ APK" else "🌐 Site", if (live) claudeOrange else pill, fg, siteAction, GlanceModifier, alignStart = true, height = itemH.dp, badge = false, textSize = 8.sp, hPad = 5.dp)
                     if (storeMode) {
                         Row(modifier = GlanceModifier.fillMaxWidth().height(itemH.dp)) {
-                            Chip("▦ App", if (storeReady) claudeOrange else pill, fg, actionStartActivity<OpenStoreActivity>(), GlanceModifier.defaultWeight(), height = itemH.dp)
+                            Chip("▦ App", if (storeReady) claudeOrange else pill, fg, actionStartActivity<OpenStoreActivity>(), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
                             Spacer(GlanceModifier.width(GAP.dp))
-                            Chip("</>", if (storeReady) claudeOrange else pill, fg, codeAction, GlanceModifier.defaultWeight(), height = itemH.dp)
+                            Chip("</>", if (storeReady) claudeOrange else pill, fg, codeAction, GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
                         }
                     }
-                    if (hasRepo) Chip("🎬 Vidéos", pill, fg, actionStartActivity<VideosActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
-                    if (hasRepo && state.ciHintTitle != null) Chip("⚠ Réglage GitHub", alertRed, fg, actionStartActivity<PagesHelpActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
+                    if (hasRepo) Chip("🎬 Vidéos", pill, fg, actionStartActivity<VideosActivity>(), GlanceModifier, alignStart = true, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
+                    if (hasRepo && state.ciHintTitle != null) Chip("⚠ Réglage GitHub", alertRed, fg, actionStartActivity<PagesHelpActivity>(), GlanceModifier, alignStart = true, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
                 }
                 Spacer(GlanceModifier.width(outer.dp))
             }
