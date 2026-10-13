@@ -227,11 +227,22 @@ private fun Content(state: AiwaState) {
 // What the top of the widget says (the session and what is going on) and what a tap on it opens: the fix for what is wrong, else the sessions. Shared by both shapes.
 private class BandInfo(val title: String, val statusText: String, val statusColor: ColorProvider, val statusBold: Boolean, val action: Action)
 
-// The four rows have a name: Spécialiste (the session that works), Domaine (the repository), Agence (what the mode delivers), User (the person, who speaks).
-private const val ROW_SPECIALIST = "Spécialiste · "
-private const val ROW_DOMAIN = "Domaine "
-private const val ROW_AGENCY = "Agence · "
-private const val ROW_USER = "User · "
+// The four rows have a name, top to bottom: Domaine, Spécialiste, Agences, User. The name is in a small column of its own at the left of the row, NOT in the chips.
+private const val ROW_NAME_W = 46f
+private const val ROW_DOMAIN = "Domaine"
+private const val ROW_SPECIALIST = "Spécialiste"
+private const val ROW_AGENCIES = "Agences"
+private const val ROW_USER = "User"
+
+@Composable
+private fun RowName(text: String) {
+    Text(
+        text,
+        style = TextStyle(color = rgb(android.graphics.Color.rgb(150, 150, 166)), fontSize = 9.sp),
+        maxLines = 1,
+        modifier = GlanceModifier.width(ROW_NAME_W.dp),
+    )
+}
 
 @Composable
 private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
@@ -300,7 +311,7 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         accessNotice(state, 1) != null -> "Accès réservé ▸"
         state.backend == "missing" -> "Installer le backend ▸"
         needsLogin -> "Connecter Claude ▸"
-        else -> ROW_SPECIALIST + fitLabel(state.session, titleRoom - textWidth(ROW_SPECIALIST + " ▾", fontScale * 1.25f), fontScale * 1.25f) + " ▾"
+        else -> fitLabel(state.session, titleRoom - textWidth(" ▾", fontScale * 1.25f), fontScale * 1.25f) + " ▾"
     }
     val statusText = fitLabel(status, titleRoom, fontScale * 0.92f)
     // What a tap on the name and the status line opens: the fix for what is wrong, else the sessions.
@@ -360,7 +371,7 @@ private fun FullContent(state: AiwaState) {
     // The "Store" and "Aiwa" modes end with an app Claude sends to the phone: when it has come and was not opened yet, it is waiting.
     val storeMode = deliversApp(state.deploy)
     val storeReady = storeMode && state.sentApp?.seen == false
-    val band1 = bandInfo(state, avail - 2 * avatar - 16f)
+    val band1 = bandInfo(state, avail - ROW_NAME_W - 2 * avatar - 16f)
     val title = band1.title
     val statusText = band1.statusText
     val statusColor = band1.statusColor
@@ -370,11 +381,11 @@ private fun FullContent(state: AiwaState) {
     // ---- band 2: repository and model, half the width each -----------------
     // The push chip sits at the end of this band, as short as it can be ("main" / "branche"); the repository and the model share the rest.
     val pushText = if (state.pushMain) "main" else "branche"
-    val half = (avail - GAP) / 2f - 20f
+    val half = (avail - ROW_NAME_W - GAP) / 2f - 20f
     val repoName = state.repo?.substringAfter('/')
     // "+2": two more repositories Claude may work on (see the repository picker).
     val extraSuffix = if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""
-    val repoText = ROW_DOMAIN + "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", half - textWidth(ROW_DOMAIN + "⎇  ▾", fontScale) - textWidth(extraSuffix, fontScale), fontScale) + extraSuffix + " ▾"
+    val repoText = "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", half - textWidth("⎇  ▾", fontScale) - textWidth(extraSuffix, fontScale), fontScale) + extraSuffix + " ▾"
     // Model, effort, push, the state of the workflow and the menu of Aiwa are ONE list: this pill says them in a few words and opens it.
     val settingsText = fitLabel(settingsSummary(state), half - textWidth(" ▾", fontScale), fontScale) + " ▾"
 
@@ -393,8 +404,8 @@ private fun FullContent(state: AiwaState) {
     val showCode = showStore
     val showActions = false      // the state of the workflow is in the settings pill and its list
     val fixed = (if (showSite || showProposals) GAP + chipH else 0f) + (if (showStore) GAP + chipH else 0f) + (if (showCode) GAP + chipH else 0f) + (if (showActions) GAP + chipH else 0f) + (if (hasRepo) GAP + chipH else 0f)
-    val each = avail - fixed - 20f
-    val deployText = fitLabel(ROW_AGENCY + deployLabel(state.deploy), each, fontScale)
+    val each = avail - ROW_NAME_W - fixed - 20f
+    val deployText = fitLabel(deployLabel(state.deploy), each, fontScale)
 
     Column(
         modifier = GlanceModifier.fillMaxSize()
@@ -402,6 +413,7 @@ private fun FullContent(state: AiwaState) {
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            RowName(ROW_DOMAIN)
             // The loop between two sessions (builder and critic), at the left of the list of sessions: green while one is running
             RoundButton(
                 icon = R.drawable.ic_loop,
@@ -431,6 +443,7 @@ private fun FullContent(state: AiwaState) {
             )
         }
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            RowName(ROW_SPECIALIST)
             Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, badge = state.repo == null)
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(settingsText, if (locked) PILL_DIM else if (workflowFailed(state)) alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
@@ -440,6 +453,7 @@ private fun FullContent(state: AiwaState) {
         // work itself.
         run {
             Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                RowName(ROW_AGENCIES)
                 if (hasRepo && state.ciHintTitle != null) {
                     // A setting of GitHub to change by hand: its own button (the guide), instead of changing what the other buttons do.
                     RoundButton(
@@ -529,6 +543,7 @@ private fun FullContent(state: AiwaState) {
         }
         // The main action, big: dictate. The grey button with its red recording dot.
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            RowName(ROW_USER)
             Box(
                 modifier = GlanceModifier.defaultWeight().height(micH.dp)
                     .background(if (locked) MIC_DIM else micGrey)
@@ -543,7 +558,7 @@ private fun FullContent(state: AiwaState) {
                         modifier = GlanceModifier.size(16.dp),
                     )
                     Spacer(GlanceModifier.width(8.dp))
-                    Text(ROW_USER + "Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                    Text("Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 }
             }
             // To the right of the mic. Always there: with a session it opens that conversation in Claude, without one it opens Claude's
@@ -596,9 +611,9 @@ private fun GlassesContent(state: AiwaState) {
     val textRoom = inner - 12f
     val band = bandInfo(state, textRoom - itemH - GAP)
     val repoName = state.repo?.substringAfter('/')
-    val repoText = ROW_DOMAIN + "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", textRoom - textWidth(ROW_DOMAIN + "⎇  ▾", fontScale), fontScale) + " ▾"
+    val repoText = "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", textRoom - textWidth("⎇  ▾", fontScale), fontScale) + " ▾"
     val settingsText = fitLabel(settingsSummary(state), textRoom - textWidth(" ▾", fontScale), fontScale) + " ▾"
-    val modeText = fitLabel(ROW_AGENCY + deployLabel(state.deploy), textRoom, fontScale)
+    val modeText = fitLabel(deployLabel(state.deploy), textRoom, fontScale)
     val claudeText = if (state.waiting) "● Claude attend" else if (state.silenceMinutes > 0) "⏳ Rien depuis ${state.silenceMinutes} min" else if (hasSession) "Claude ↗" else "Ouvrir Claude"
     val micAct = lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))
 
@@ -649,7 +664,7 @@ private fun GlassesContent(state: AiwaState) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(14.dp))
                                 Spacer(GlanceModifier.width(5.dp))
-                                Text("User", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                                Text("Dicter", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                             }
                         }
                     }
