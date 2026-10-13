@@ -844,13 +844,16 @@ private fun AiwaContent(state: AiwaState) {
         // ---- the modes ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             val shown = AIWA_MODES.filter { it.id == "video" || state.accessLevel >= 2 || !deliversApp(it.id) }
+            // The width each of them has: the words shrink, and the longest is cut short, before one of the buttons would leave the screen
+            val each = (avail - 3f * (shown.size - 1)) / shown.size
+            val wordSize = when { each >= 56f -> 11.sp; each >= 48f -> 10.sp; else -> 9.sp }
             shown.forEachIndexed { i, mode ->
                 if (i > 0) Spacer(GlanceModifier.width(3.dp))
                 val on = mode.id == view
                 Chip(
-                    mode.word, if (on) green else pill, fg,
+                    if (mode.id == "campaign" && each < 50f) "Camp." else mode.word, if (on) green else pill, fg,
                     actionRunCallback<PickModeCallback>(actionParametersOf(MODE_KEY to mode.id)),
-                    GlanceModifier.defaultWeight(), bold = on, height = chipH.dp, textSize = 10.sp, hPad = 2.dp,
+                    GlanceModifier.defaultWeight(), bold = on, height = chipH.dp, textSize = wordSize, hPad = 1.dp,
                 )
             }
         }

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Aiwa-shaped widget: the six mode buttons shrink their words to the width they have (and « Campagne » becomes « Camp. » when it is narrow), so that none leaves the screen.
+
 - Aiwa-shaped widget: the model, the push and the state of the workflow are no longer in the settings list (they are buttons of the widget; the workflow one says « ⚙ réussi ✓ / échec ✗ / en cours … »). The other shapes keep them in the list.
 
 - Aiwa-shaped widget: the mode buttons answer at once (the choice is held in the state the widget redraws from, the backend follows; the Vidéo button used to work only when something else happened to redraw the widget), the title band is gone: the session and the repository are two pills at the top (what is wrong replaces the session's name, and a status line shows only when it is not « Prêt »), and they are no longer in the settings list.
