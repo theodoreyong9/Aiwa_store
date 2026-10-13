@@ -266,6 +266,7 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
     val status: String
     val statusColor: ColorProvider
     var statusBold = false
+    var batteryLine = false
     when {
         needsSetup -> { status = "Touche ici pour autoriser Aiwa (une seule fois)"; statusColor = alertText; statusBold = true }
         accessNotice(state, 1) != null -> { status = "⚠ Accès réservé — touche ici"; statusColor = alertText; statusBold = true }
@@ -311,6 +312,8 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         state.needsRepo -> { status = "Choisis un dépôt (⎇) pour commencer"; statusColor = warm; statusBold = true }
         // A session with no repository (added by a branch that exists in several of them: none is guessed): it is told which when one is chosen.
         state.repo == null && state.cloudSessionId != null -> { status = "Choisis le dépôt de cette session (⎇)"; statusColor = warm; statusBold = true }
+        // Android may stop Aiwa in the background: said, and one tap shows its own question
+        state.batteryRestricted -> { status = "⚠ Autorise Aiwa en arrière-plan — touche ici"; statusColor = warm; statusBold = true; batteryLine = true }
         else -> { status = "Prêt"; statusColor = subtle }
     }
     val title = when {
@@ -323,6 +326,7 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
     val statusText = fitLabel(status, titleRoom, fontScale * 0.92f)
     // What a tap on the name and the status line opens: the fix for what is wrong, else the sessions.
     val bandAction: Action = when {
+        batteryLine -> actionStartActivity<BatteryActivity>()
         needsSetup -> actionStartActivity<SetupActivity>()
         accessNotice(state, 1) != null -> actionStartActivity<AccessActivity>()
         state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()

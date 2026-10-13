@@ -155,6 +155,8 @@ data class AiwaState(
     val storeUpdateReady: Boolean = false,
     // A newer build of the app itself has been downloaded: the widget says so, one tap opens the system installer.
     val appUpdateReady: Boolean = false,
+    // Android may stop Aiwa's background service (no exemption from the battery's optimisation): the widget says so, one tap asks.
+    val batteryRestricted: Boolean = false,
     val repoAccessMissing: String? = null,
     val sourceRepos: List<String> = emptyList(),
     val githubAppUrl: String? = null,
