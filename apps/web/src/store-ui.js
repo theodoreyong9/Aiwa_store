@@ -4,7 +4,9 @@ import { config } from './config.js';
 import { $, switchView } from './ui.js';
 import { setCatalog, session, onSession } from './session.js';
 import { openViewer } from './viewer.js';
-import { knownLogin, ensureToken, postComment } from './github.js';
+import { knownLogin, ensureToken, forgetToken } from './github.js';
+import { buildSubmission, evidenceFor, sendSubmission, slug } from './publish.js';
+import { hostAvailable } from './host.js';
 import { parseAccount, accountKey, listAccount, loadLibrary, filterLibrary, loadLink, savedAccounts, saveAccounts, localStore, savedFavorites, saveFavorites, isFavorite, toggleFavorite } from './library.js';
 
 const cache = openCache('aiwa-store-cache');
@@ -256,15 +258,25 @@ export function initComments() {
   $('comment-close').addEventListener('click', () => { $('commentsheet').hidden = true; });
   $('comment-send').addEventListener('click', async () => {
     const button = $('comment-send');
+    const say = (text) => { $('comment-status').textContent = text; };
+    const text = $('comment-text').value.trim();
+    if (!text) return say('The comment is empty.');
+    const aiwa = session.aiwa;
+    if (!aiwa?.identity) return say('A comment is signed with your wallet: open the Wallet tab first.');
+    if (!hostAvailable()) return say('Sending a comment needs the Android app (it signs in to GitHub).');
     button.disabled = true;
-    $('comment-status').textContent = 'Sending…';
     try {
-      const token = await ensureToken({ clientId: config.github?.clientId, onCode: ({ userCode, verificationUri }) => { $('comment-status').textContent = `Type ${userCode} at ${verificationUri}`; } });
-      const done = await postComment({ token, text: $('comment-text').value });
+      say('Signing with your wallet…');
+      const evidence = await evidenceFor(aiwa, { registryUrl: config.registryUrl });
+      const id = slug(`c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`);
+      const submission = await buildSubmission(aiwa, { kind: 'comment', id, name: text.replace(/\s+/g, ' ').slice(0, 40), version: '1.0.0', text }, evidence);
+      const token = await ensureToken({ clientId: config.github?.clientId, onCode: ({ userCode, verificationUri }) => say(`Type ${userCode} at ${verificationUri}`) });
+      await sendSubmission({ token, repository: config.repository, submission, onStep: say });
       $('comment-text').value = '';
-      $('comment-status').textContent = `Written in github.com/${done.login}/aiwa-apps/${done.path}. The critic reads it at its next turn.`;
+      say('Sent. The registry checks it within a minute or two: once accepted, it is ranked by what you have mined and the critic reads the best ranked at its next turn.');
     } catch (error) {
-      $('comment-status').textContent = String(error.message ?? error);
+      if (error.status === 401) await forgetToken().catch(() => {});
+      say(String(error.message ?? error));
     } finally {
       button.disabled = false;
     }

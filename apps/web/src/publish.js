@@ -39,6 +39,10 @@ export async function buildSubmission(aiwa, app, evidence) {
     const pkg = await buildAppPackage(aiwa.identity, { id, name, version, description, manifestId });
     return { format: SUBMISSION_FORMAT, kind: 'publish', package: pkg, bundle, evidence };
   }
+  if (app.kind === 'comment') {
+    const pkg = await buildAppPackage(aiwa.identity, { id, name, version, description: '', text: app.text });
+    return { format: SUBMISSION_FORMAT, kind: 'publish', package: pkg, evidence };
+  }
   const pkg = await buildAppPackage(aiwa.identity, { id, name, version, description, html: app.html });
   return { format: SUBMISSION_FORMAT, kind: 'publish', package: pkg, evidence };
 }

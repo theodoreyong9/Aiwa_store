@@ -5,6 +5,9 @@
 //          every file of the app by hash (aiwa-platform's bundle). The store resolves the pointer through Aiwa and
 //          verifies it (bundle.js): the code is immutable, and exactly what its author published, whoever serves it.
 //
+//   comment a comment for the critic of the loops: TEXT (at most 2000 characters), signed like code and ranked like it, by what its author has mined
+//          (the sacrifice is the weight). It is never code and never runs.
+//
 // What is signed is not the content but its hash, so the registry, the store and anyone with the package can check that
 // what runs is exactly what the author published:
 //
@@ -26,10 +29,11 @@ import { base58Encode, deriveId } from 'aiwa-core';
 import { signedAction, verifySignedAction } from 'aiwa-lib';
 
 export const APP_FORMAT = 'aiwa-app/1';
-export const APP_KINDS = ['code', 'aiwa'];
+export const APP_KINDS = ['code', 'aiwa', 'comment'];
 
 export const APP_LIMITS = {
   htmlBytes: 512 * 1024,
+  commentChars: 2000,
   nameChars: 60,
   descriptionChars: 280,
   idPattern: /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/,
@@ -41,7 +45,7 @@ const hexToBytes = (hex) => Uint8Array.from(hex.match(/.{2}/g) ?? [], (b) => par
 const utf8 = (text) => new TextEncoder().encode(text);
 
 /** The content a package stands for: the HTML (code) or the manifest id (aiwa). */
-export const contentOf = (pkg) => (pkg.kind === 'aiwa' ? pkg.manifestId : pkg.html);
+export const contentOf = (pkg) => (pkg.kind === 'aiwa' ? pkg.manifestId : pkg.kind === 'comment' ? pkg.text : pkg.html);
 
 /** The hash that identifies an app's content: sha256 of the JSON array [id, name, version, description, kind, content]. */
 export function bundleHashOf(pkg) {
@@ -76,6 +80,9 @@ export function appPackageProblem(pkg) {
     if (typeof pkg.html !== 'string') return 'The package has no html';
     if (pkg.html.trim().length === 0) return 'The app is empty';
     if (utf8(pkg.html).length > APP_LIMITS.htmlBytes) return `The app is larger than ${APP_LIMITS.htmlBytes / 1024} KB`;
+  } else if (pkg.kind === 'comment') {
+    if (typeof pkg.text !== 'string' || pkg.text.trim().length === 0) return 'The comment is empty';
+    if (pkg.text.length > APP_LIMITS.commentChars) return `The comment is longer than ${APP_LIMITS.commentChars} characters`;
   } else if (typeof pkg.manifestId !== 'string' || !APP_LIMITS.manifestIdPattern.test(pkg.manifestId)) {
     return 'The pointer is the id of a manifest: 64 hexadecimal characters';
   }
@@ -87,12 +94,12 @@ export function appPackageProblem(pkg) {
  * Builds and signs a package with `identity` (an aiwa-core identity holding its secret key). `html` makes a code app,
  * `manifestId` an aiwa one.
  */
-export async function buildAppPackage(identity, { id, name, version, description = '', html, manifestId }, { now = Date.now() } = {}) {
-  const content = manifestId ? { kind: 'aiwa', manifestId } : { kind: 'code', html };
+export async function buildAppPackage(identity, { id, name, version, description = '', html, manifestId, text }, { now = Date.now() } = {}) {
+  const content = text !== undefined ? { kind: 'comment', text } : manifestId ? { kind: 'aiwa', manifestId } : { kind: 'code', html };
   const base = { id, name, version, description, ...content };
   const bundleHash = bundleHashOf(base);
   const authorization = await signedAction(identity, { from: identity.id, action: 'publish-app', appId: id, version, bundleHash }, { now });
-  const pkg = { format: APP_FORMAT, kind: content.kind, id, name, version, description, ...(manifestId ? { manifestId } : { html }), author: base58Encode(hexToBytes(identity.publicKey)), bundleHash, authorization };
+  const pkg = { format: APP_FORMAT, kind: content.kind, id, name, version, description, ...(content.kind === 'comment' ? { text } : manifestId ? { manifestId } : { html }), author: base58Encode(hexToBytes(identity.publicKey)), bundleHash, authorization };
   const problem = appPackageProblem(pkg);
   if (problem) throw new Error(problem);
   return pkg;

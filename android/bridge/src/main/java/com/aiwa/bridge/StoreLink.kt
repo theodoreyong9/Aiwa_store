@@ -56,7 +56,7 @@ fun storeCodeUrl(id: String, base: String = STORE_APP_URL): String? = if (APP_ID
 fun storeSearchUrl(text: String, base: String = STORE_APP_URL): String? =
     text.trim().take(300).takeIf { it.isNotEmpty() }?.let { "$base#q=" + java.net.URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
 
-/** The Store's comment sheet: the comment is written on the person's own GitHub repository, like everybody's. */
+/** The Store's comment sheet: the comment is published like code, signed with the wallet. */
 fun storeCommentUrl(base: String = STORE_APP_URL): String = "$base#comment"
 
 /** The Store's tab of the apps published with the wallet (`mine`) or starred (`favorites`); null for any other name. */

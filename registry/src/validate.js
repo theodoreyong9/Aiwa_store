@@ -28,9 +28,11 @@ export const POLICY = {
   minGapBetweenNewAppsMs: 5 * 60 * 1000,        // one author, one new app per five minutes
   maxAppsPerAuthor: 20,
   maxSubmissionBytes: 40 * 1024 * 1024,
+  minGapBetweenCommentsMs: 60 * 1000,          // one author, one new comment per minute (the weight of a comment is the author's mining, not their number)
+  maxCommentsPerAuthor: 200,
 };
 
-export const emptyStore = () => ({ index: { format: 'aiwa-store-index/1', apps: [] }, baselines: {}, witnesses: {} });
+export const emptyStore = () => ({ index: { format: 'aiwa-store-index/1', apps: [], comments: [] }, baselines: {}, witnesses: {} });
 
 /** domain -> the epoch this registry already validated for it, from baselines kept by author address. */
 export function baselineEpochOf(baselines) {
@@ -77,6 +79,7 @@ async function validatePublish({ submission, store, deployment, connection, now 
   const verified = await verifyAppPackage(pkg);
   if (!verified.ok) return refuse(verified.reason);
   const domain = verified.domain;
+  if (pkg.kind === 'comment') return validateComment({ submission, pkg, domain, store, deployment, connection, now });
   if (domain !== await domainOfAddress(pkg.author)) return refuse('The author\'s address and domain do not match');
   if (Math.abs(now - pkg.authorization.timestamp) > POLICY.maxAuthorizationAgeMs) return refuse('The author\'s signature is too old or dated in the future: sign again');
 
@@ -127,6 +130,38 @@ async function validatePublish({ submission, store, deployment, connection, now 
   return { ok: true, reason: 'ok', accepted: { kind: 'publish', entry, package: pkg, bundle, baseline, author: pkg.author, domain, witnesses: witnesses.accepted } };
 }
 
+/**
+ * A comment is published like code: signed by the author's wallet, with the author's mining evidence, ranked by the figure frozen at acceptance. It needs
+ * the evidence (nothing claimable, no comment: the sacrifice is the weight); new author or old, the wallet is what counts. A comment is immutable; an edit is
+ * a higher version of the same id, by the same author. The index keeps no text (it is read by every Store): the package does, at `path`.
+ */
+async function validateComment({ submission, pkg, domain, store, deployment, connection, now }) {
+  if (domain !== await domainOfAddress(pkg.author)) return refuse('The author\'s address and domain do not match');
+  if (Math.abs(now - pkg.authorization.timestamp) > POLICY.maxAuthorizationAgeMs) return refuse('The author\'s signature is too old or dated in the future: sign again');
+  const comments = store.index.comments ?? [];
+  const existing = comments.find((c) => c.id === pkg.id) ?? null;
+  const mine = comments.filter((c) => c.author === pkg.author);
+  if (existing) {
+    if (existing.author !== pkg.author) return refuse(`The id ${pkg.id} belongs to another author`);
+    if (compareVersions(pkg.version, existing.version) <= 0) return refuse(`The version must be higher than ${existing.version}`);
+  } else {
+    if (mine.length >= POLICY.maxCommentsPerAuthor) return refuse(`An author has at most ${POLICY.maxCommentsPerAuthor} comments`);
+    const last = [...mine].sort((a, b) => b.publishedAt - a.publishedAt)[0];
+    if (last && now - last.publishedAt < POLICY.minGapBetweenCommentsMs) return refuse('One new comment per author every minute');
+  }
+  const { problem, assessed } = await assess({ deployment, evidence: submission.evidence, author: pkg.author, domain, store, connection });
+  if (problem) return refuse(problem);
+  const ranking = { score: Number(assessed.mining.claimable), laps: Math.max(1, assessed.mining.sinceLastAction) };
+  const witnesses = await witnessesFrom(submission.evidence, domain, store);
+  const entry = {
+    id: pkg.id, name: pkg.name, version: pkg.version, kind: 'comment',
+    author: pkg.author, domain, bundleHash: pkg.bundleHash, path: `comments/${pkg.id}/${pkg.version}.json`,
+    score: ranking.score, laps: ranking.laps,
+    publishedAt: existing ? existing.publishedAt : now, updatedAt: now,
+  };
+  return { ok: true, reason: 'ok', accepted: { kind: 'publish', entry, package: pkg, bundle: null, baseline: assessed.baseline, author: pkg.author, domain, witnesses: witnesses.accepted } };
+}
+
 async function validateRefresh({ submission, store, deployment, connection, now }) {
   const existing = store.index.apps.find((app) => app.id === submission.appId) ?? null;
   if (!existing) return refuse('No such app');
@@ -142,10 +177,11 @@ async function validateRefresh({ submission, store, deployment, connection, now 
 
 /** The store after an accepted submission (pure): the entry replaced or added, the baseline and witnesses kept. */
 export function applyAccepted(store, accepted) {
-  const apps = store.index.apps.filter((app) => app.id !== accepted.entry.id);
-  apps.push(accepted.entry);
+  const isComment = accepted.entry.kind === 'comment';
+  const apps = isComment ? store.index.apps : [...store.index.apps.filter((app) => app.id !== accepted.entry.id), accepted.entry];
+  const comments = isComment ? [...(store.index.comments ?? []).filter((c) => c.id !== accepted.entry.id), accepted.entry] : (store.index.comments ?? []);
   const baselines = { ...store.baselines };
   if (accepted.baseline) baselines[accepted.author] = accepted.baseline;
   const witnesses = mergeWitnessStore(store.witnesses, accepted.witnesses ?? [], baselineEpochOf(baselines));
-  return { index: { ...store.index, apps }, baselines, witnesses };
+  return { index: { ...store.index, apps, comments }, baselines, witnesses };
 }

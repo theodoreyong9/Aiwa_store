@@ -2220,8 +2220,8 @@ def _loops_save():
 
 
 COMMENTS_SEEN_FILE = LOOPS_FILE.with_name("aiwa-comments-seen.json")
-CONTRIBUTORS_SEARCH = "https://api.github.com/search/repositories?q=aiwa-apps+in:name&sort=updated&order=desc&per_page=60"
-comments_seen = {}   # "login/name" -> sha already given to the critic: a comment edited afterwards (another sha) is given again
+REGISTRY_URL = "https://theodoreyong9.github.io/Aiwa_store/store"
+comments_seen = {}   # "id@version" -> True: given to the critic already (an edit is a higher version: given again)
 
 
 def _comments_seen_load():
@@ -2230,52 +2230,49 @@ def _comments_seen_load():
         raw = json.loads(COMMENTS_SEEN_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         raw = {}
-    comments_seen = {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)} if isinstance(raw, dict) else {}
+    comments_seen = {k: True for k in raw if isinstance(k, str)} if isinstance(raw, (dict, list)) else {}
 
 
 def _fetch_text(url):
     request = urllib.request.Request(url, headers={"User-Agent": "aiwa"})
     with urllib.request.urlopen(request, timeout=15) as reply:
-        return reply.read(200_000).decode("utf-8", "replace")
+        return reply.read(300_000).decode("utf-8", "replace")
 
 
-def _user_comments():
-    """The comments the contributors wrote on THEIR OWN repositories (aiwa-apps/aiwa-comments), not given to the critic yet. Nobody is special and nobody lists the accounts: those that own a
-    repository named aiwa-apps (found by GitHub's search) take part, the owner of this project like the others. Public data, no token."""
+def _registry_comments():
+    """The best-ranked comments of the registry the critic has not read: [(key, view)]. A comment is code the registry has verified (signed by a wallet that
+    showed its mining); the owner of this project is one wallet like the others. Public data, no token."""
     try:
-        logins = loops_lib.contributor_logins(_github_json(CONTRIBUTORS_SEARCH))
-    except Exception:
+        index = json.loads(_fetch_text(f"{REGISTRY_URL}/index.json"))
+    except (OSError, ValueError):
         return []
     found = []
-    for login in logins:
-        try:
-            listing = _github_json(f"https://api.github.com/repos/{login}/aiwa-apps/contents/aiwa-comments")
-        except Exception:
+    for key, entry in loops_lib.comments_to_read(index, comments_seen):
+        path = str(entry.get("path") or "")
+        if not path.startswith("comments/") or ".." in path:
             continue
-        for name, sha in loops_lib.comment_files(listing):
-            if comments_seen.get(f"{login}/{name}") == sha:
-                continue
-            try:
-                text = _fetch_text(f"https://raw.githubusercontent.com/{login}/aiwa-apps/{sha}/aiwa-comments/{name}")
-            except OSError:
-                continue
-            found.append((f"{login}/{name}", sha, loops_lib.comment_entry(login, name, sha, text)))
+        try:
+            package = json.loads(_fetch_text(f"{REGISTRY_URL}/{path}"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(package, dict) and isinstance(package.get("text"), str) and package.get("author") == entry["author"]:
+            found.append((key, loops_lib.comment_view(entry, package["text"])))
     return found
 
 
 def _comments_take():
     """The block of new comments for the critic's message; they are marked as given."""
-    found = _user_comments()
+    found = _registry_comments()
     if not found:
         return ""
     with loops_lock:
-        for key, sha, _entry in found:
-            comments_seen[key] = sha
+        for key, _view in found:
+            comments_seen[key] = True
         try:
-            COMMENTS_SEEN_FILE.write_text(json.dumps(comments_seen), encoding="utf-8")
+            COMMENTS_SEEN_FILE.write_text(json.dumps(sorted(comments_seen)), encoding="utf-8")
         except OSError:
             pass
-    return loops_lib.comments_block([entry for _k, _s, entry in sorted(found, key=lambda f: f[2]["at"])])
+    return loops_lib.comments_block([view for _k, view in found])
 
 
 def _loops_relay_url():

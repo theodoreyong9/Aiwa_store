@@ -9,7 +9,7 @@ name: Pages
 on:
   push:
     branches: [main]
-    paths: ['apps/web/**', 'packages/**', 'registry/**', 'scripts/describe-site.mjs', 'deployment.json', 'store/index.json', 'store/apps/**', 'store/baselines/**', '.github/workflows/pages.yml']
+    paths: ['apps/web/**', 'packages/**', 'registry/**', 'scripts/describe-site.mjs', 'deployment.json', 'store/index.json', 'store/apps/**', 'store/comments/**', 'store/baselines/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -52,7 +52,7 @@ jobs:
         run: |
           mkdir -p apps/web/dist/store
           cp store/index.json apps/web/dist/store/
-          cp -r store/apps store/baselines apps/web/dist/store/ 2>/dev/null || true
+          cp -r store/apps store/comments store/baselines apps/web/dist/store/ 2>/dev/null || true
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

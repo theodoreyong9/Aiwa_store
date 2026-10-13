@@ -5,8 +5,8 @@ import androidx.activity.ComponentActivity
 import com.aiwa.bridge.storeCommentUrl
 
 /**
- * The widget's comment button: opens the Store's comment sheet. A comment is written on the person's OWN GitHub repository (aiwa-apps/aiwa-comments),
- * the same way for everybody; the critic reads the comments of the listed accounts at the start of its turns. It starts nothing. No UI of its own.
+ * The widget's comment button: opens the Store's comment sheet. A comment is published like code: signed with the person's wallet, accepted by the registry
+ * and ranked by what its author mined; the critic reads the best ranked at the start of its turns. It starts nothing. No UI of its own.
  */
 class CommentActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

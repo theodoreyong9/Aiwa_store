@@ -93,22 +93,3 @@ export async function openPullRequest({ token, upstream, path, text, title, body
   const pull = await call(`/repos/${upstream}/pulls`, { method: 'POST', body: { title, body, head: `${fork.split('/')[0]}:${branch}`, base } });
   return { url: pull.html_url, number: pull.number };
 }
-
-/**
- * A comment for the critic of the loops: a file of the person's OWN repository `aiwa-apps` (made when it is not there), folder `aiwa-comments/`.
- * Everybody comments the same way, on their own repository; nothing is written anywhere else.
- * @returns {Promise<{ login: string, path: string }>}
- */
-export async function postComment({ token, text, fetchFn, now = Date.now() }) {
-  const call = (route, options) => api(token, route, { ...options, fetchFn });
-  const body = String(text ?? '').trim().slice(0, 2000);
-  if (!body) throw new Error('The comment is empty.');
-  const login = (await call('/user')).login;
-  try { await call(`/repos/${login}/aiwa-apps`); } catch (error) {
-    if (error.status !== 404) throw error;
-    await call('/user/repos', { method: 'POST', body: { name: 'aiwa-apps', description: 'My Aiwa apps and comments', auto_init: true } });
-  }
-  const path = `aiwa-comments/${now}-${Math.random().toString(36).slice(2, 6)}.md`;
-  await call(`/repos/${login}/aiwa-apps/contents/${path}`, { method: 'PUT', body: { message: 'Comment for the critic', content: toBase64(body) } });
-  return { login, path };
-}

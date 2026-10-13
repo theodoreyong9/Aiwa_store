@@ -343,3 +343,51 @@ test('the files of an app: an index, safe names, a size', async () => {
   assert.match(filesProblem([]), /no files/);
   assert.match(filesProblem([{ path: 'index.html', content: '  \n' }]), /index\.html is empty/);
 });
+
+// --- a comment is published like code: signed, ranked by what its author mined ---------------------------------------
+
+const publishComment = async (aiwa, { text = 'garde les clés sur le téléphone', id = 'c1', version = '1.0.0' } = {}) => ({
+  format: 'aiwa-submission/1', kind: 'publish',
+  package: await buildAppPackage(aiwa.identity, { id, name: text.slice(0, 40), version, description: '', text }),
+  evidence: await aiwa.submissionEvidence(),
+});
+
+test('a comment is signed like code, ranked by the figure frozen at acceptance, and kept apart from the apps', async () => {
+  const connection = fakeSolana();
+  const alice = await minedWallet(connection);
+  const submission = await publishComment(alice);
+  assert.equal(submission.package.kind, 'comment');
+  assert.equal(submission.package.html, undefined);
+  assert.equal((await verifyAppPackage(submission.package)).ok, true);
+  assert.match((await verifyAppPackage({ ...submission.package, text: 'autre chose' })).reason, /hash does not match/, 'the text cannot be changed without the author');
+  const { result, store } = await accept(submission, emptyStore(), connection, 1_000);
+  assert.equal(store.index.apps.length, 0, 'a comment is not an app');
+  const entry = store.index.comments[0];
+  assert.equal(entry.kind, 'comment');
+  assert.ok(entry.score > 0 && entry.laps >= 1);
+  assert.equal(entry.text, undefined, 'the index carries no text: every Store reads it');
+  assert.equal(entry.path, 'comments/c1/1.0.0.json');
+  const dir = mkdtempSync(join(tmpdir(), 'store-'));
+  writeStore(dir, store, result.accepted);
+  assert.equal(JSON.parse(readFileSync(join(dir, entry.path), 'utf8')).text, 'garde les clés sur le téléphone');
+  assert.equal(readStore(dir).index.comments.length, 1);
+});
+
+test('a comment needs mining evidence, an edit is a higher version by the same author, and the rate is bounded', async () => {
+  const connection = fakeSolana();
+  const alice = await minedWallet(connection);
+  const bob = await minedWallet(connection);
+  const noEvidence = { ...(await publishComment(alice)), evidence: undefined };
+  assert.equal((await validateSubmission({ submission: noEvidence, store: emptyStore(), deployment, connection, now: T0 })).ok, false);
+  let { store } = await accept(await publishComment(alice), emptyStore(), connection, 1_000);
+  const sameId = await validateSubmission({ submission: await publishComment(alice, { text: 'bis' }), store, deployment, connection, now: T0 + 2_000 });
+  assert.match(sameId.reason, /version must be higher/);
+  const stolen = await validateSubmission({ submission: await publishComment(bob, { version: '1.0.1' }), store, deployment, connection, now: T0 + 2_000 });
+  assert.match(stolen.reason, /belongs to another author/);
+  const fast = await validateSubmission({ submission: await publishComment(alice, { id: 'c2' }), store, deployment, connection, now: T0 + 2_000 });
+  assert.match(fast.reason, /every minute/);
+  ({ store } = await accept(await publishComment(alice, { id: 'c2' }), store, connection, 120_000));
+  ({ store } = await accept(await publishComment(alice, { text: 'corrigé', version: '1.0.1' }), store, connection, 130_000));
+  assert.equal(store.index.comments.length, 2);
+  assert.equal((await validateSubmission({ submission: await publishComment(alice, { text: 'x'.repeat(2001), id: 'c3' }).catch((e) => ({ bad: e.message })), store, deployment, connection, now: T0 + 400_000 })).ok, false);
+});
