@@ -227,13 +227,13 @@ private fun Content(state: AiwaState) {
 // What the top of the widget says (the session and what is going on) and what a tap on it opens: the fix for what is wrong, else the sessions. Shared by both shapes.
 private class BandInfo(val title: String, val statusText: String, val statusColor: ColorProvider, val statusBold: Boolean, val action: Action)
 
-@Composable
 // The four rows have a name: Spécialiste (the session that works), Domaine (the repository), Agence (what the mode delivers), User (the person, who speaks).
 private const val ROW_SPECIALIST = "Spécialiste · "
 private const val ROW_DOMAIN = "Domaine "
 private const val ROW_AGENCY = "Agence · "
 private const val ROW_USER = "User · "
 
+@Composable
 private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
     val fg = rgb(android.graphics.Color.rgb(240, 240, 245))
     val subtle = rgb(android.graphics.Color.rgb(160, 160, 174))
@@ -602,10 +602,11 @@ private fun GlassesContent(state: AiwaState) {
     val claudeText = if (state.waiting) "● Claude attend" else if (state.silenceMinutes > 0) "⏳ Rien depuis ${state.silenceMinutes} min" else if (hasSession) "Claude ↗" else "Ouvrir Claude"
     val micAct = lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))
 
+    // No card behind: the widget IS the glasses, and the home screen shows between and around the lenses. Red rims while Claude waits.
     Box(
-        modifier = GlanceModifier.fillMaxSize().background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg)),
+        modifier = GlanceModifier.fillMaxSize(),
     ) {
-        Box(modifier = GlanceModifier.fillMaxSize().background(ImageProvider(R.drawable.glasses_frame))) {
+        Box(modifier = GlanceModifier.fillMaxSize().background(ImageProvider(if (state.waiting) R.drawable.glasses_frame_alert else R.drawable.glasses_frame))) {
             Row(modifier = GlanceModifier.fillMaxSize().padding(top = top.dp, bottom = 4.dp)) {
                 Spacer(GlanceModifier.width(outer.dp))
                 // ---- the left lens: the context ----------------------------------
