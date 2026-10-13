@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Backend: the brain updates itself (authorised by the owner): every three hours it fetches main, fast-forwards when the install has no local change, and restarts.
+
 - App: a newer build is looked for every two hours and downloaded in the background; a notification "Mise à jour d'Aiwa prête" opens the system installer (one tap on Installer; Android allows nothing more).
 
 - Store: the search field says it finds an app by name, id or the author's Aiwa address, and tapping an author filters on them.

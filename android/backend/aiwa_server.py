@@ -30,6 +30,7 @@ import secrets
 import shutil
 import signal
 import struct
+import sys
 import subprocess
 import termios
 import threading
@@ -2930,10 +2931,46 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
 
 
+# ---------- the brain updates itself (authorised by the owner) ----------
+SELF_UPDATE_EVERY = 3 * 3600
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _self_update_once(run=subprocess.run, root=REPO_ROOT):
+    """Fetches the install's repository; when main moved and the tree is untouched, fast-forwards it. Returns 'updated', 'current' or why nothing happened."""
+    def git(*args):
+        return run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=120)
+    try:
+        if not (Path(root) / ".git").exists():
+            return "not a git install"
+        if git("status", "--porcelain").stdout.strip():
+            return "local changes"
+        if git("fetch", "--quiet", "origin", "main").returncode != 0:
+            return "offline"
+        here = git("rev-parse", "HEAD").stdout.strip()
+        there = git("rev-parse", "FETCH_HEAD").stdout.strip()
+        if not here or not there or here == there:
+            return "current"
+        return "updated" if git("merge", "--ff-only", "FETCH_HEAD").returncode == 0 else "cannot fast-forward"
+    except (OSError, subprocess.SubprocessError) as err:
+        return f"failed: {err}"
+
+
+def _self_update_loop():
+    time.sleep(120)
+    while True:
+        if _self_update_once() == "updated":
+            print(f"{time.strftime('%H:%M:%S')} Aiwa backend updated itself, restarting", flush=True)
+            _save_state()
+            os.execv(sys.executable, [sys.executable, *sys.argv])
+        time.sleep(SELF_UPDATE_EVERY)
+
+
 if __name__ == "__main__":
     _load_state()
     _loops_load()
     _login_state()  # looks the login up in the background, so the first status already knows
     threading.Thread(target=_relay_listener, daemon=True).start()
+    threading.Thread(target=_self_update_loop, daemon=True).start()
     print(f"{time.strftime('%H:%M:%S')} Aiwa backend listening on http://{HOST}:{PORT}", flush=True)
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
