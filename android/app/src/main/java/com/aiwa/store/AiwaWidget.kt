@@ -945,6 +945,9 @@ private fun AiwaContent(state: AiwaState) {
                 contentDescription = "Ouvrir Aiwa",
                 modifier = GlanceModifier.size(chipH.dp).clickable(actionStartActivity<StoreActivity>()),
             )
+            // The comment for the critic of the loops (the Store's sheet: the wallet first, then the field)
+            Spacer(GlanceModifier.width(GAP.dp))
+            RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = chipH.dp)
             if (state.appUpdateReady) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)

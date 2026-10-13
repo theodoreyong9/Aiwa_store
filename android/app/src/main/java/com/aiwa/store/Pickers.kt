@@ -719,7 +719,10 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("État d'Aiwa : Claude, alertes, permissions", false, lines = 2) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
                 add(PickerEntry("Version : appli ${AppUpdater.installedVersion(applicationContext) ?: "?"} · cerveau ${AiwaRepository.state.value.backendVersion.takeIf { it > 0 } ?: "?"}${if (AppUpdater.readyFile(applicationContext) != null) " · mise à jour téléchargée" else ""}", false, lines = 2) { })
-                add(PickerEntry("Commentaire pour le critique : signé avec ton wallet, classé par ce que tu as miné", false, lines = 2) { open(CommentActivity::class.java) })
+                // In the Aiwa-shaped widget the comment is a button of the widget, next to the Aiwa app
+                if (current != WidgetStyle.AIWA) {
+                    add(PickerEntry("Commentaire pour le critique : signé avec ton wallet, classé par ce que tu as miné", false, lines = 2) { open(CommentActivity::class.java) })
+                }
                 // Only when there is no widget yet: nobody asked for a second one
                 if (!WidgetPin.hasWidget(applicationContext)) {
                     add(PickerEntry("Ajouter le widget à l'écran d'accueil (un appui sur « Ajouter »)", false, lines = 2) {
