@@ -37,7 +37,13 @@ function render() {
     desc.textContent = app.description;
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = `${shortAddress(app.author)}${app.kind === 'aiwa' ? ' · Aiwa' : ''} · score/laps ${figureOf(app)} (${Number(app.score).toPrecision(3)} / ${app.laps})`;
+    const by = document.createElement('a');
+    by.href = '#';
+    by.className = 'by';
+    by.textContent = shortAddress(app.author);
+    by.title = 'Show every app of this author';
+    by.addEventListener('click', (e) => { e.preventDefault(); $('store-search').value = app.author; render(); });
+    meta.append(by, `${app.kind === 'aiwa' ? ' · Aiwa' : ''} · score/laps ${figureOf(app)} (${Number(app.score).toPrecision(3)} / ${app.laps})`);
     body.append(title, desc, meta);
 
     const open = document.createElement('button');
@@ -388,7 +394,7 @@ export function showStoreTab(name) {
     $(`tab-${tab}`).classList.toggle('active', tab === name);
     $(`tab-${tab}`).setAttribute('aria-selected', String(tab === name));
   }
-  $('store-search').placeholder = name === 'library' ? 'Search the library' : name === 'favorites' ? 'Search the favourites' : name === 'mine' ? 'Search my apps' : 'Search Aiwa apps';
+  $('store-search').placeholder = name === 'library' ? 'Search the library or a GitHub account' : name === 'favorites' ? 'Search the favourites' : name === 'mine' ? 'Search my apps' : 'Name, id or author’s Aiwa address';
   if (name === 'favorites') renderFavorites();
   if (name === 'mine') renderMine();
 }

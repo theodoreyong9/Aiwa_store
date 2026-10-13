@@ -316,3 +316,4 @@ details.plain > * + * { margin-top: 8px; }
 #store-tabs { margin: 8px 0; }
 .app .star { flex: none; align-self: flex-start; color: var(--accent); }
 .app .star { flex: none; align-self: flex-start; background: none; border: 0; font-size: 18px; cursor: pointer; color: var(--accent); }
+.app .meta .by { color: inherit; text-decoration: underline dotted; }
