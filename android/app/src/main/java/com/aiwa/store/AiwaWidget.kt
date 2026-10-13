@@ -228,6 +228,12 @@ private fun Content(state: AiwaState) {
 private class BandInfo(val title: String, val statusText: String, val statusColor: ColorProvider, val statusBold: Boolean, val action: Action)
 
 @Composable
+// The four rows have a name: Spécialiste (the session that works), Domaine (the repository), Agence (what the mode delivers), User (the person, who speaks).
+private const val ROW_SPECIALIST = "Spécialiste · "
+private const val ROW_DOMAIN = "Domaine "
+private const val ROW_AGENCY = "Agence · "
+private const val ROW_USER = "User · "
+
 private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
     val fg = rgb(android.graphics.Color.rgb(240, 240, 245))
     val subtle = rgb(android.graphics.Color.rgb(160, 160, 174))
@@ -294,7 +300,7 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         accessNotice(state, 1) != null -> "Accès réservé ▸"
         state.backend == "missing" -> "Installer le backend ▸"
         needsLogin -> "Connecter Claude ▸"
-        else -> fitLabel(state.session, titleRoom - textWidth(" ▾", fontScale * 1.25f), fontScale * 1.25f) + " ▾"
+        else -> ROW_SPECIALIST + fitLabel(state.session, titleRoom - textWidth(ROW_SPECIALIST + " ▾", fontScale * 1.25f), fontScale * 1.25f) + " ▾"
     }
     val statusText = fitLabel(status, titleRoom, fontScale * 0.92f)
     // What a tap on the name and the status line opens: the fix for what is wrong, else the sessions.
@@ -368,7 +374,7 @@ private fun FullContent(state: AiwaState) {
     val repoName = state.repo?.substringAfter('/')
     // "+2": two more repositories Claude may work on (see the repository picker).
     val extraSuffix = if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""
-    val repoText = "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", half - textWidth("⎇  ▾", fontScale) - textWidth(extraSuffix, fontScale), fontScale) + extraSuffix + " ▾"
+    val repoText = ROW_DOMAIN + "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", half - textWidth(ROW_DOMAIN + "⎇  ▾", fontScale) - textWidth(extraSuffix, fontScale), fontScale) + extraSuffix + " ▾"
     // Model, effort, push, the state of the workflow and the menu of Aiwa are ONE list: this pill says them in a few words and opens it.
     val settingsText = fitLabel(settingsSummary(state), half - textWidth(" ▾", fontScale), fontScale) + " ▾"
 
@@ -388,7 +394,7 @@ private fun FullContent(state: AiwaState) {
     val showActions = false      // the state of the workflow is in the settings pill and its list
     val fixed = (if (showSite || showProposals) GAP + chipH else 0f) + (if (showStore) GAP + chipH else 0f) + (if (showCode) GAP + chipH else 0f) + (if (showActions) GAP + chipH else 0f) + (if (hasRepo) GAP + chipH else 0f)
     val each = avail - fixed - 20f
-    val deployText = fitLabel(deployLabel(state.deploy), each, fontScale)
+    val deployText = fitLabel(ROW_AGENCY + deployLabel(state.deploy), each, fontScale)
 
     Column(
         modifier = GlanceModifier.fillMaxSize()
@@ -537,7 +543,7 @@ private fun FullContent(state: AiwaState) {
                         modifier = GlanceModifier.size(16.dp),
                     )
                     Spacer(GlanceModifier.width(8.dp))
-                    Text("Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                    Text(ROW_USER + "Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 }
             }
             // To the right of the mic. Always there: with a session it opens that conversation in Claude, without one it opens Claude's
@@ -590,9 +596,9 @@ private fun GlassesContent(state: AiwaState) {
     val textRoom = inner - 12f
     val band = bandInfo(state, textRoom - itemH - GAP)
     val repoName = state.repo?.substringAfter('/')
-    val repoText = "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", textRoom - textWidth("⎇  ▾", fontScale), fontScale) + " ▾"
+    val repoText = ROW_DOMAIN + "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", textRoom - textWidth(ROW_DOMAIN + "⎇  ▾", fontScale), fontScale) + " ▾"
     val settingsText = fitLabel(settingsSummary(state), textRoom - textWidth(" ▾", fontScale), fontScale) + " ▾"
-    val modeText = fitLabel(deployLabel(state.deploy), textRoom, fontScale)
+    val modeText = fitLabel(ROW_AGENCY + deployLabel(state.deploy), textRoom, fontScale)
     val claudeText = if (state.waiting) "● Claude attend" else if (state.silenceMinutes > 0) "⏳ Rien depuis ${state.silenceMinutes} min" else if (hasSession) "Claude ↗" else "Ouvrir Claude"
     val micAct = lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))
 
@@ -642,7 +648,7 @@ private fun GlassesContent(state: AiwaState) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(14.dp))
                                 Spacer(GlanceModifier.width(5.dp))
-                                Text("Dicter", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                                Text("User", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                             }
                         }
                     }
