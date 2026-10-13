@@ -311,8 +311,6 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         state.needsRepo -> { status = "Choisis un dépôt (⎇) pour commencer"; statusColor = warm; statusBold = true }
         // A session with no repository (added by a branch that exists in several of them: none is guessed): it is told which when one is chosen.
         state.repo == null && state.cloudSessionId != null -> { status = "Choisis le dépôt de cette session (⎇)"; statusColor = warm; statusBold = true }
-        // A newer build is downloaded: one tap opens the installer
-        state.appUpdateReady -> { status = "⬆ Mise à jour prête — touche ici"; statusColor = fg; statusBold = true }
         else -> { status = "Prêt"; statusColor = subtle }
     }
     val title = when {
@@ -328,7 +326,6 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         needsSetup -> actionStartActivity<SetupActivity>()
         accessNotice(state, 1) != null -> actionStartActivity<AccessActivity>()
         state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
-        state.appUpdateReady && state.status != AiwaState.Status.WORKING && state.ask == null && !state.waiting && state.silenceMinutes == 0 && state.repo != null && !state.needsRepo -> actionStartActivity<InstallUpdateActivity>()
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
         state.ask != null && state.status != AiwaState.Status.WORKING -> actionStartActivity<AskActivity>()
         state.silenceMinutes > 0 && state.status != AiwaState.Status.WORKING -> actionStartActivity<OpenClaudeActivity>()
@@ -554,6 +551,11 @@ private fun FullContent(state: AiwaState) {
         // The main action, big: dictate. The grey button with its red recording dot.
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             RowName(ROW_SPECIALIST)
+            // A newer build is downloaded: one tap opens the installer
+            if (state.appUpdateReady) {
+                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = 34.dp)
+                Spacer(GlanceModifier.width(GAP.dp))
+            }
             Box(
                 modifier = GlanceModifier.defaultWeight().height(micH.dp)
                     .background(if (locked) MIC_DIM else micGrey)
@@ -665,15 +667,21 @@ private fun GlassesContent(state: AiwaState) {
                         Spacer(GlanceModifier.width(GAP.dp))
                         Chip(claudeText, if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange, fg, actionStartActivity<OpenClaudeActivity>(), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
                     }
-                    // The one big thing: the microphone
-                    Box(
-                        modifier = GlanceModifier.fillMaxWidth().height(micH.dp).background(if (locked) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(18.dp))
-                            Spacer(GlanceModifier.width(6.dp))
-                            Text("Dicter", style = TextStyle(color = fg, fontSize = 15.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                    // The one big thing: the microphone; at its left the update, when a newer build is downloaded (one tap opens the installer)
+                    Row(modifier = GlanceModifier.fillMaxWidth().height(micH.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (state.appUpdateReady) {
+                            RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = rgb(android.graphics.Color.rgb(46, 125, 90)), action = actionStartActivity<InstallUpdateActivity>(), diameter = (itemH + 6f).dp)
+                            Spacer(GlanceModifier.width(GAP.dp))
+                        }
+                        Box(
+                            modifier = GlanceModifier.defaultWeight().height(micH.dp).background(if (locked) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(18.dp))
+                                Spacer(GlanceModifier.width(6.dp))
+                                Text("Dicter", style = TextStyle(color = fg, fontSize = 15.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                            }
                         }
                     }
                     Row(modifier = GlanceModifier.fillMaxWidth().height(itemH.dp)) {
@@ -810,6 +818,10 @@ private fun CompactContent(state: AiwaState) {
                 diameter = 36.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
+            if (state.appUpdateReady) {
+                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = 36.dp)
+                Spacer(GlanceModifier.width(GAP.dp))
+            }
             Box(
                 modifier = GlanceModifier.size(40.dp)
                     .background(if (locked) MIC_DIM else micGrey)

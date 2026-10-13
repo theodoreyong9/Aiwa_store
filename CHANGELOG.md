@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-- Settings: « Mettre à jour le cerveau » and « Mettre à jour l'application » are gone (the brain updates itself; the app downloads its update in the background). The widget's status line says « ⬆ Mise à jour prête — touche ici » and one tap opens the installer (it asks once for the permission to install). The comment button left the widget: it is an entry of the settings.
+- Loops: « Historique des critiques » on each pair opens the list of what the critic wrote on the corpus (`aiwa-loop/<pair>/critique-<turn>.md` on its branch, last turn first, and its `resume.md`), read from GitHub through the backend (`/api/critiques`).
+- The update is a green button at the left of the microphone (all three widget shapes) when a newer build is downloaded; one tap opens the installer. The status-line version of it is gone.
+
+- Settings: « Mettre à jour le cerveau » and « Mettre à jour l'application » are gone (the brain updates itself; the app downloads its update in the background). The widget shows a button for it (see below) and one tap opens the installer (it asks once for the permission to install). The comment button left the widget: it is an entry of the settings.
 
 - The comment sheet looks for the wallet first: the field and Send appear only once a wallet is connected; without one it says so and offers to open the Wallet tab.
 

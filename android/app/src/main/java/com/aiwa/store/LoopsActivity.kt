@@ -81,6 +81,7 @@ private fun stateLabel(p: LoopPair): String = when (p.state) {
 
 @Composable
 private fun LoopsWindow(onClose: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val bridge = remember { LocalClaudeBridge() }
     val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
@@ -194,6 +195,10 @@ private fun LoopsWindow(onClose: () -> Unit) {
                                             OutlinedButton(onClick = { act("start", mapOf("id" to p.id), "Nouvelle boucle ${p.id} : nouveau départ.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Nouvelle boucle") }
                                         }
                                     }
+                                    OutlinedButton(
+                                        onClick = { context.startActivity(android.content.Intent(context, CritiquesActivity::class.java).putExtra("pair", p.id)) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) { Text("Historique des critiques") }
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         if (p.started != null) OutlinedButton(onClick = { rollbackOf = p }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Revenir en arrière") }
                                         if (p.state != "running") OutlinedButton(onClick = { act("delete", mapOf("id" to p.id)) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Supprimer") }

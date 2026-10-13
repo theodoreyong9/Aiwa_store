@@ -300,3 +300,18 @@ def comments_block(entries):
         "-----\n" + lines + "\n-----\n"
         "Range chacun dans `aiwa-comments/` de ta branche (un fichier par commentaire), juge-le selon tes règles fixes et mets `aiwa-loop/resume.md` à jour."
     )
+
+
+# ---------- the critiques of a pair, as the app lists them ----------
+CRITIQUE_NAME_RE = re.compile(r"critique-(\d{1,4})\.md")
+
+
+def critique_items(listing):
+    """The critique files of a folder listing of GitHub, the last turn first: [{n, name, size}]."""
+    items = []
+    for item in listing if isinstance(listing, list) else []:
+        if isinstance(item, dict) and item.get("type") == "file" and isinstance(item.get("name"), str):
+            m = CRITIQUE_NAME_RE.fullmatch(item["name"])
+            if m:
+                items.append({"n": int(m.group(1)), "name": item["name"], "size": int(item.get("size") or 0)})
+    return sorted(items, key=lambda i: -i["n"])

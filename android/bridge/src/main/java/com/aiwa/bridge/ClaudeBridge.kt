@@ -28,6 +28,9 @@ data class LoopPair(
     val state: String, val turn: String, val rounds: Int, val limit: Int, val started: Long?, val created: Long?, val rolledBack: Long?,
 )
 data class LoopChainEntry(val id: String, val started: Long?, val created: Long?, val state: String)
+/** The critiques the critic of a pair wrote on the corpus, the last turn first; `resume` is true when its summary of facts exists. */
+data class CritiqueItem(val n: Int, val name: String, val size: Long)
+data class CritiqueList(val branch: String, val items: List<CritiqueItem>, val resume: Boolean)
 data class LoopsInfo(val limit: Int, val pairs: List<LoopPair>, val chains: List<List<LoopChainEntry>>)
 /** The running loop that began last, for the widget: which pair, the round it is at, the limit, whose turn it is. */
 /** A cast waiting for its video: the television as said (may be empty), and the video that has just been made. */
@@ -173,6 +176,8 @@ interface ClaudeBridge {
 
     suspend fun videos(): VideoList { throw UnsupportedOperationException("videos") }
     suspend fun inputs(): InputList { throw UnsupportedOperationException("inputs") }
+    suspend fun critiques(pairId: String): CritiqueList { throw UnsupportedOperationException("critiques") }
+    suspend fun critiqueText(pairId: String, name: String): String { throw UnsupportedOperationException("critiqueText") }
     suspend fun loops(): LoopsInfo { throw UnsupportedOperationException("loops") }
     /** The person asked for the video to go to the television once Claude has made it. */
     suspend fun castPending(tv: String) { throw UnsupportedOperationException("castPending") }

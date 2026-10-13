@@ -2462,6 +2462,46 @@ def _loop_signal(raw):
     return True
 
 
+def _critique_target(pair_id):
+    """(repo, critic branch) of a pair, or None."""
+    with loops_lock:
+        pair = dict(loops_lib.find(loops_store, pair_id) or {})
+    if not pair:
+        return None
+    repo = pair.get("repo") or (_session_entry(pair["critic"]) or {}).get("repo")
+    if not (isinstance(repo, str) and github.REPO_RE.fullmatch(repo)):
+        return None
+    return repo, _loop_branch(pair["critic"])[0]
+
+
+def loops_critiques(pair_id):
+    """The critiques the critic of a pair wrote (aiwa-loop/<pair>/critique-<turn>.md on its branch), the last first, and whether its resume.md exists."""
+    target = _critique_target(pair_id)
+    if target is None:
+        return {"ok": False, "error": "paire ou dépôt inconnu"}
+    repo, branch = target
+    ref = urllib.parse.quote(branch, safe="")
+    try:
+        listing = _github_json(f"https://api.github.com/repos/{repo}/contents/aiwa-loop/{pair_id}?ref={ref}")
+        folder = _github_json(f"https://api.github.com/repos/{repo}/contents/aiwa-loop?ref={ref}")
+    except GithubUnavailable as err:
+        return {"ok": False, "error": f"GitHub ne répond pas ({err})"}
+    resume = any(isinstance(i, dict) and i.get("name") == "resume.md" for i in (folder if isinstance(folder, list) else []))
+    return {"ok": True, "branch": branch, "items": loops_lib.critique_items(listing), "resume": resume}
+
+
+def loops_critique_text(pair_id, name):
+    target = _critique_target(pair_id)
+    if target is None or not (loops_lib.CRITIQUE_NAME_RE.fullmatch(name) or name == "resume.md"):
+        return {"ok": False, "error": "critique inconnue"}
+    repo, branch = target
+    path = "aiwa-loop/resume.md" if name == "resume.md" else f"aiwa-loop/{pair_id}/{name}"
+    try:
+        return {"ok": True, "text": _fetch_text(f"https://raw.githubusercontent.com/{repo}/{urllib.parse.quote(branch, safe='/')}/{path}")}
+    except OSError as err:
+        return {"ok": False, "error": f"lecture impossible ({err})"}
+
+
 def _loops_snapshot():
     titles = _loops_titles()
     with loops_lock:
@@ -2694,6 +2734,10 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(_videos_snapshot())
         elif self.path == "/api/loops":
             self.reply_json(_loops_snapshot())
+        elif self.path.startswith("/api/critiques"):
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            pair_id, name = (query.get("pair") or [""])[0], (query.get("name") or [""])[0]
+            self.reply_json(loops_critique_text(pair_id, name) if name else loops_critiques(pair_id))
         elif self.path == "/api/inputs":
             self.reply_json(_inputs_snapshot())
         elif self.path == "/api/proposals":

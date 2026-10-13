@@ -41,3 +41,16 @@ class Comments(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CritiqueList(unittest.TestCase):
+    def test_critique_items(self):
+        listing = [
+            {"type": "file", "name": "critique-1.md", "size": 900},
+            {"type": "file", "name": "critique-12.md", "size": 1200},
+            {"type": "file", "name": "notes.md", "size": 5},
+            {"type": "dir", "name": "critique-3.md"},
+        ]
+        self.assertEqual([i["n"] for i in L.critique_items(listing)], [12, 1])
+        self.assertEqual(L.critique_items(None), [])
+        self.assertIsNone(L.CRITIQUE_NAME_RE.fullmatch("../critique-1.md"))

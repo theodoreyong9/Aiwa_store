@@ -318,6 +318,23 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         )
     }
 
+    override suspend fun critiques(pairId: String): CritiqueList = withContext(Dispatchers.IO) {
+        val json = JSONObject(getText("/api/critiques?pair=" + java.net.URLEncoder.encode(pairId, "UTF-8")))
+        if (!json.optBoolean("ok", false)) throw IllegalStateException(json.optString("error").ifBlank { "critiques illisibles" })
+        val array = json.optJSONArray("items")
+        CritiqueList(
+            json.optString("branch"),
+            if (array == null) emptyList() else (0 until array.length()).map { val i = array.getJSONObject(it); CritiqueItem(i.optInt("n"), i.optString("name"), i.optLong("size", 0L)) },
+            json.optBoolean("resume", false),
+        )
+    }
+
+    override suspend fun critiqueText(pairId: String, name: String): String = withContext(Dispatchers.IO) {
+        val json = JSONObject(getText("/api/critiques?pair=" + java.net.URLEncoder.encode(pairId, "UTF-8") + "&name=" + java.net.URLEncoder.encode(name, "UTF-8")))
+        if (!json.optBoolean("ok", false)) throw IllegalStateException(json.optString("error").ifBlank { "lecture impossible" })
+        json.optString("text")
+    }
+
     override suspend fun loopsAction(action: String, fields: Map<String, String>): String? = withContext(Dispatchers.IO) {
         val body = JSONObject()
         fields.forEach { (k, v) -> body.put(k, v) }
