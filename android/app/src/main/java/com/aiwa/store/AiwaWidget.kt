@@ -821,22 +821,6 @@ private fun AiwaContent(state: AiwaState) {
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        // ---- the session and the repository, as pills (what is wrong replaces the session's name, and its tap is the fix) ----
-        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            val half = (avail - GAP) / 2f - 20f
-            val repoName = state.repo?.substringAfter('/')
-            val extraSuffix = if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""
-            Chip(
-                band.title, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, band.action,
-                GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
-            )
-            Spacer(GlanceModifier.width(GAP.dp))
-            Chip(
-                "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", half - textWidth("⎇  ▾", fontScale) - textWidth(extraSuffix, fontScale), fontScale) + extraSuffix + " ▾",
-                if (locked) PILL_DIM else if (!hasRepo) alertRed else pill, if (locked) TEXT_DIM else fg,
-                lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
-            )
-        }
         // What is going on, only when it is not « Prêt » (sending, the silence of Claude, what to fix…)
         if (band.statusText != "Prêt") {
             Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 10.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
@@ -916,6 +900,22 @@ private fun AiwaContent(state: AiwaState) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
             }
+        }
+        // ---- the session and the repository, as pills (what is wrong replaces the session's name, and its tap is the fix) ----
+        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            val half = (avail - GAP) / 2f - 20f
+            val repoName = state.repo?.substringAfter('/')
+            val extraSuffix = if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""
+            Chip(
+                band.title, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, band.action,
+                GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
+            Chip(
+                "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", half - textWidth("⎇  ▾", fontScale) - textWidth(extraSuffix, fontScale), fontScale) + extraSuffix + " ▾",
+                if (locked) PILL_DIM else if (!hasRepo) alertRed else pill, if (locked) TEXT_DIM else fg,
+                lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
+            )
         }
         // ---- the model and the push ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {

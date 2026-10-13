@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Aiwa-shaped widget: the row of modes is the first one again; the session and the repository are pills in the zone of the mode, just above the model and the push (the status line, when it is not « Prêt », stays on top).
+
 - Aiwa-shaped widget: the comment button (💬) is in the bottom row, next to the Aiwa app; it is no longer in the settings list for this shape.
 
 - Aiwa-shaped widget: the six mode buttons shrink their words to the width they have (and « Campagne » becomes « Camp. » when it is narrow), so that none leaves the screen.
