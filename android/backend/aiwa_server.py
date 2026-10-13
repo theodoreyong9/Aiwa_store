@@ -54,7 +54,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 78
+BACKEND_VERSION = 79
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -288,7 +288,8 @@ def _load_state():
     ask = None
     if isinstance(pending, dict) and isinstance(pending.get("question"), str) and isinstance(pending.get("id"), str):
         ask = {"id": pending["id"], "question": pending["question"], "options": [o for o in pending.get("options", []) if isinstance(o, str)][:ASK_OPTIONS],
-               "ts": int(pending.get("ts") or 0), "answered": pending.get("answered") is True}
+               "ts": int(pending.get("ts") or 0), "answered": pending.get("answered") is True,
+               "session": pending.get("session") if isinstance(pending.get("session"), str) else None}
     handled = data.get("relay_seen")
     if isinstance(handled, dict):
         relay_seen.update(id=handled.get("id") if isinstance(handled.get("id"), str) else None,
@@ -2153,7 +2154,8 @@ def _ask_set(raw, event_id=None):
         # The same question that came by the other road (the relay AND GitHub are both used): one question, not two
         if ask is not None and ask["question"] == text and time.time() - ask["ts"] < 1200:
             return False
-        ask = {"id": identifier, "question": data["question"].strip()[:ASK_QUESTION_MAX], "options": options, "ts": int(time.time()), "answered": False}
+        # The question belongs to the session being used when it came (the relay and the branch watched are the current session's): another session does not show it
+        ask = {"id": identifier, "question": data["question"].strip()[:ASK_QUESTION_MAX], "options": options, "ts": int(time.time()), "answered": False, "session": current_cloud}
         _save_state()
     print(f"[{_ts()}] question from Claude kept ({len(options)} choices)", flush=True)
     return True
@@ -2523,9 +2525,19 @@ def _loops_running():
         return {"pair": newest["id"], "rounds": newest["rounds"], "limit": newest["limit"], "turn": newest["turn"], "running": len(running)}
 
 
+def _ask_for_current_session():
+    """The pending question when it is the one of the session in use (a question of no known session is shown to any), else None. Call with `lock` held."""
+    if ask is None or ask["answered"]:
+        return None
+    if ask.get("session") and ask["session"] != current_cloud:
+        return None
+    return ask
+
+
 def _ask_snapshot():
     with lock:
-        return {k: ask[k] for k in ("id", "question", "options", "ts")} if ask is not None and not ask["answered"] else None
+        shown = _ask_for_current_session()
+        return {k: shown[k] for k in ("id", "question", "options", "ts")} if shown is not None else None
 
 
 def _ask_answer(body):
@@ -2536,7 +2548,8 @@ def _ask_answer(body):
         return {"ok": False, "error": "réponse illisible"}
     text = str(data.get("answer", "")).strip()[:2000] if isinstance(data, dict) else ""
     with lock:
-        pending = dict(ask) if ask is not None else None
+        shown = _ask_for_current_session()
+        pending = dict(shown) if shown is not None else None
     if pending is None or pending["answered"] or str(data.get("id")) != pending["id"]:
         return {"ok": False, "error": "cette question n'est plus d'actualité"}
     if not text:

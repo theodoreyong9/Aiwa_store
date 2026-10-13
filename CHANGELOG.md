@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A question from Claude belongs to the session in use when it came: the red ❓ button and the line disappear when another session is chosen (and cannot be answered there), and come back in their own session. The widget redraws when the question changes.
+
 - The voice commands help (settings > Commandes vocales) lists the new way to change repository (« mets-toi sur le dépôt X » at the start of a sentence, no trigger phrase).
 
 - Settings: a « Version : appli 0.1.<commit> · cerveau <n> » line (and « mise à jour téléchargée » when one waits), now that the update entries are gone.

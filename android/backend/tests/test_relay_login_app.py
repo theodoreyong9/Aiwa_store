@@ -763,6 +763,17 @@ class AskAndVideoTests(Base):
         self.assertIsNone(srv._ask_snapshot())
         self.assertTrue(srv._ask_set(json.dumps({"question": "Autre chose ?"}), "relay-2"))        # a different question is a new one
 
+    def test_a_question_belongs_to_the_session_it_came_in_and_is_not_shown_in_another(self):
+        with unittest.mock.patch.object(srv, "current_cloud", "session_AAA"):
+            self.assertTrue(srv._ask_set(json.dumps({"question": "Quelle couleur ?"}), "q-a"))
+            self.assertIsNotNone(srv._ask_snapshot())
+        with unittest.mock.patch.object(srv, "current_cloud", "session_BBB"):
+            self.assertIsNone(srv._ask_snapshot(), "another session does not show it")
+            with unittest.mock.patch.object(srv, "cloud_send", lambda text, command=False: {"ok": True}):
+                self.assertFalse(srv._ask_answer(json.dumps({"id": "q-a", "answer": "Bleu"}))["ok"], "and cannot answer it")
+        with unittest.mock.patch.object(srv, "current_cloud", "session_AAA"):
+            self.assertIsNotNone(srv._ask_snapshot(), "back in its own session, it is there again")
+
     def test_the_instruction_asks_for_both_roads_at_once(self):
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["ask"]
         self.assertIn("TOUJOURS par les DEUX voies", text)
