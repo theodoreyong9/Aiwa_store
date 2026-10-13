@@ -227,12 +227,12 @@ private fun Content(state: AiwaState) {
 // What the top of the widget says (the session and what is going on) and what a tap on it opens: the fix for what is wrong, else the sessions. Shared by both shapes.
 private class BandInfo(val title: String, val statusText: String, val statusColor: ColorProvider, val statusBold: Boolean, val action: Action)
 
-// The four rows have a name, top to bottom: Domaine, Spécialiste, Agences, User. The name is in a small column of its own at the left of the row, NOT in the chips.
-private const val ROW_NAME_W = 46f
+// The four rows have a name, top to bottom: Activité, Domaine, Agence, Spécialiste. The name is in a small column of its own at the left of the row, NOT in the chips.
+private const val ROW_NAME_W = 56f
+private const val ROW_ACTIVITY = "Activité"
 private const val ROW_DOMAIN = "Domaine"
+private const val ROW_AGENCY = "Agence"
 private const val ROW_SPECIALIST = "Spécialiste"
-private const val ROW_AGENCIES = "Agences"
-private const val ROW_USER = "User"
 
 @Composable
 private fun RowName(text: String) {
@@ -413,7 +413,7 @@ private fun FullContent(state: AiwaState) {
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            RowName(ROW_DOMAIN)
+            RowName(ROW_ACTIVITY)
             // The loop between two sessions (builder and critic), at the left of the list of sessions: green while one is running
             RoundButton(
                 icon = R.drawable.ic_loop,
@@ -443,7 +443,7 @@ private fun FullContent(state: AiwaState) {
             )
         }
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            RowName(ROW_SPECIALIST)
+            RowName(ROW_DOMAIN)
             Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, badge = state.repo == null)
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(settingsText, if (locked) PILL_DIM else if (workflowFailed(state)) alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp)
@@ -453,7 +453,7 @@ private fun FullContent(state: AiwaState) {
         // work itself.
         run {
             Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-                RowName(ROW_AGENCIES)
+                RowName(ROW_AGENCY)
                 if (hasRepo && state.ciHintTitle != null) {
                     // A setting of GitHub to change by hand: its own button (the guide), instead of changing what the other buttons do.
                     RoundButton(
@@ -543,7 +543,7 @@ private fun FullContent(state: AiwaState) {
         }
         // The main action, big: dictate. The grey button with its red recording dot.
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            RowName(ROW_USER)
+            RowName(ROW_SPECIALIST)
             Box(
                 modifier = GlanceModifier.defaultWeight().height(micH.dp)
                     .background(if (locked) MIC_DIM else micGrey)

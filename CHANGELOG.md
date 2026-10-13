@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **The row names, once more: Activité, Domaine, Agence, Spécialiste** (top to bottom: the session and what is going on, the repository and the settings, the mode and what it delivers, the microphone). Same place as before (a small grey column at the left of each row, not in the chips), a little wider (56 dp) for « Spécialiste ». Compiled by CI, **not tried on a phone**.
+
 - **The row names, in the order asked and out of the chips.** Top to bottom the rows are named **Domaine, Spécialiste, Agences, User** (the order of the previous version was wrong). The name is no longer in the text of a chip: it is a small grey column of its own (46 dp, 9 sp) at the left of each row of the classic shape, so the chips keep their text and lose only that width. The glasses shape has no named rows (its two lenses hold the things), so it shows none, and the prefixes added to its chips are removed. Compiled by CI, **not tried on a phone**.
 
 - **Glasses: no card behind the frame.** The glasses shape drew the dark rounded card of the classic shape behind its frame; it is gone, so the widget is the glasses alone and the home screen shows around and between the lenses (the lenses stay dark, so the text is readable). While Claude waits for an answer, the rims turn red (it was the card's edge). Also fixed: the commit that named the four rows did not compile (the constants had been put between an annotation and its function) and I had merged it to `main` before the build finished; this commit fixes it, and `main` is only merged after the build is green.
