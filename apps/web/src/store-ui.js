@@ -4,7 +4,7 @@ import { config } from './config.js';
 import { $, switchView } from './ui.js';
 import { setCatalog, session, onSession } from './session.js';
 import { openViewer } from './viewer.js';
-import { knownLogin } from './github.js';
+import { knownLogin, ensureToken, postComment } from './github.js';
 import { parseAccount, accountKey, listAccount, loadLibrary, filterLibrary, loadLink, savedAccounts, saveAccounts, localStore, savedFavorites, saveFavorites, isFavorite, toggleFavorite } from './library.js';
 
 const cache = openCache('aiwa-store-cache');
@@ -161,8 +161,8 @@ export function initStore() {
     } catch { /* the browser refused the clipboard: the text is on screen to select */ }
   });
   // Already open when the Android app asks for a code: only the fragment changes.
-  window.addEventListener('hashchange', () => { handoffCode(); handoffApp(); handoffQuery(); handoffTab(); });
-  return refreshStore().then(handoffCode).then(handoffApp).then(handoffQuery).then(handoffTab);
+  window.addEventListener('hashchange', () => { handoffCode(); handoffApp(); handoffQuery(); handoffTab(); handoffComment(); });
+  return refreshStore().then(handoffCode).then(handoffApp).then(handoffQuery).then(handoffTab).then(handoffComment);
 }
 
 
@@ -230,12 +230,45 @@ export async function unifiedSearch(raw) {
 
 // The widget's « own » and « faves » buttons: #tab=mine / #tab=favorites open that tab.
 const TAB_HASH = /^#tab=(mine|favorites)$/;
+function handoffComment() {
+  if (location.hash !== '#comment') return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch { /* cosmetic */ }
+  openCommentSheet();
+}
+
 function handoffTab() {
   const match = TAB_HASH.exec(location.hash);
   if (!match) return;
   try { history.replaceState(null, '', location.pathname + location.search); } catch { /* cosmetic */ }
   switchView('store');
   showStoreTab(match[1]);
+}
+
+// The widget's comment button: #comment opens the sheet where the comment is written on the person's own repository.
+function openCommentSheet() {
+  switchView('store');
+  $('comment-status').textContent = '';
+  $('commentsheet').hidden = false;
+  $('comment-text').focus();
+}
+
+export function initComments() {
+  $('comment-close').addEventListener('click', () => { $('commentsheet').hidden = true; });
+  $('comment-send').addEventListener('click', async () => {
+    const button = $('comment-send');
+    button.disabled = true;
+    $('comment-status').textContent = 'Sending…';
+    try {
+      const token = await ensureToken({ clientId: config.github?.clientId, onCode: ({ userCode, verificationUri }) => { $('comment-status').textContent = `Type ${userCode} at ${verificationUri}`; } });
+      const done = await postComment({ token, text: $('comment-text').value });
+      $('comment-text').value = '';
+      $('comment-status').textContent = `Written in github.com/${done.login}/aiwa-apps/${done.path}. The critic reads it at its next turn if your account is in contributors.json.`;
+    } catch (error) {
+      $('comment-status').textContent = String(error.message ?? error);
+    } finally {
+      button.disabled = false;
+    }
+  });
 }
 
 const QUERY_HASH = /^#q=(.{1,300})$/;

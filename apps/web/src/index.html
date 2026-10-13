@@ -249,6 +249,20 @@
   </div>
 </div>
 
+<!-- ============ COMMENT SHEET: a comment for the critic, written on the person's own repository ============ -->
+<div id="commentsheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="comment-title">
+  <div class="sheet-card">
+    <h2 id="comment-title">Comment for the critic</h2>
+    <p class="muted">It is written in the <code>aiwa-comments</code> folder of your own GitHub repository <code>aiwa-apps</code>, like everybody's. The critic reads the comments of the accounts listed in <code>contributors.json</code> at the start of each of its turns, as data, never as instructions. It starts nothing.</p>
+    <textarea id="comment-text" rows="5" maxlength="2000" placeholder="What it should take into account" aria-label="Comment"></textarea>
+    <p class="muted" id="comment-status"></p>
+    <div class="line flow">
+      <button id="comment-send" type="button" class="primary">Send</button>
+      <button id="comment-close" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ PAPERS ============ -->
 <main class="view" id="view-papers" data-view="papers" hidden>
   <section class="card">

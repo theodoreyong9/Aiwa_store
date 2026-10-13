@@ -1,6 +1,6 @@
 import { config } from './config.js';
 import { $, switchView } from './ui.js';
-import { initStore, initLibrary } from './store-ui.js';
+import { initStore, initLibrary, initComments } from './store-ui.js';
 import { initWallet } from './wallet-ui.js';
 import { initPublish, sheetIsOpen, closeSheet } from './publish-ui.js';
 import { closeViewer } from './viewer.js';
@@ -25,6 +25,7 @@ $('papers-video-vision').src = $('papers-video-vision-link').href = `https://raw
 initPublish();
 initStore();
 initLibrary();
+initComments();
 initWallet();
 
 // Inside the Android app: a back button that closes what is open first, then leaves the tab.

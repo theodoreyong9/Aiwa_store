@@ -76,3 +76,25 @@ test('the next version is the author\'s own next patch, 1.0.0 for a new app; ids
   assert.equal(slug('  Split the Bill! '), 'split-the-bill');
   assert.equal(slug('é'), '');
 });
+
+test('a comment goes to the commenter\'s own aiwa-apps repository, which is made when it is missing', async () => {
+  const { postComment } = await import('../src/github.js');
+  const calls = [];
+  let repoMade = false;
+  const fetchFn = async (url, { method = 'GET', body } = {}) => {
+    const path = new URL(url).pathname;
+    calls.push({ method, path, data: body ? JSON.parse(body) : null });
+    const reply = (value, status = 200) => ({ ok: status < 400, status, json: async () => value });
+    if (path === '/user') return reply({ login: 'bob' });
+    if (path === '/repos/bob/aiwa-apps' && method === 'GET') return repoMade ? reply({}) : reply({ message: 'Not Found' }, 404);
+    if (path === '/user/repos') { repoMade = true; return reply({}, 201); }
+    return reply({}, 201);
+  };
+  const done = await postComment({ token: 't', text: '  garde tout sur ton appareil  ', fetchFn, now: 1700000000000 });
+  assert.equal(done.login, 'bob');
+  assert.match(done.path, /^aiwa-comments\/1700000000000-[a-z0-9]+\.md$/);
+  assert.ok(calls.some((c) => c.path === '/user/repos' && c.data.name === 'aiwa-apps'));
+  const put = calls.find((c) => c.method === 'PUT');
+  assert.equal(Buffer.from(put.data.content, 'base64').toString('utf8'), 'garde tout sur ton appareil');
+  await assert.rejects(() => postComment({ token: 't', text: '   ', fetchFn }), /empty/);
+});

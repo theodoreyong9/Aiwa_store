@@ -2219,48 +2219,63 @@ def _loops_save():
             pass
 
 
-COMMENTS_FILE = LOOPS_FILE.with_name("aiwa-comments.json")
-comments_queue = []
+COMMENTS_SEEN_FILE = LOOPS_FILE.with_name("aiwa-comments-seen.json")
+CONTRIBUTORS_URL = "https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/contributors.json"
+comments_seen = {}   # "login/name" -> sha already given to the critic: a comment edited afterwards (another sha) is given again
 
 
-def _comments_load():
-    global comments_queue
+def _comments_seen_load():
+    global comments_seen
     try:
-        raw = json.loads(COMMENTS_FILE.read_text(encoding="utf-8"))
+        raw = json.loads(COMMENTS_SEEN_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        raw = []
-    with loops_lock:
-        comments_queue = [c for c in raw if isinstance(c, dict) and isinstance(c.get("text"), str) and isinstance(c.get("at"), (int, float)) and isinstance(c.get("id"), str)] if isinstance(raw, list) else []
+        raw = {}
+    comments_seen = {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)} if isinstance(raw, dict) else {}
 
 
-def _comments_save():
+def _fetch_text(url):
+    request = urllib.request.Request(url, headers={"User-Agent": "aiwa"})
+    with urllib.request.urlopen(request, timeout=15) as reply:
+        return reply.read(200_000).decode("utf-8", "replace")
+
+
+def _user_comments():
+    """The comments the contributors wrote on THEIR OWN repositories (aiwa-apps/aiwa-comments), not given to the critic yet. Nobody is special: the owner of
+    this project is one more account of contributors.json. Public data, no token."""
     try:
-        COMMENTS_FILE.write_text(json.dumps(comments_queue), encoding="utf-8")
-    except OSError:
-        pass
-
-
-def comments_add(text):
-    """The person's comment is kept; it reaches the critic with ITS next turn (nothing is sent now: only the person starts a loop)."""
-    global comments_queue
-    with loops_lock:
-        added = loops_lib.add_comment(comments_queue, text)
-        if added is None:
-            return {"ok": False, "error": "commentaire vide ou file pleine"}
-        comments_queue = added
-        _comments_save()
-        return {"ok": True, "pending": len(comments_queue)}
+        logins = loops_lib.contributor_logins(json.loads(_fetch_text(CONTRIBUTORS_URL)))
+    except (OSError, ValueError):
+        return []
+    found = []
+    for login in logins:
+        try:
+            listing = _github_json(f"https://api.github.com/repos/{login}/aiwa-apps/contents/aiwa-comments")
+        except Exception:
+            continue
+        for name, sha in loops_lib.comment_files(listing):
+            if comments_seen.get(f"{login}/{name}") == sha:
+                continue
+            try:
+                text = _fetch_text(f"https://raw.githubusercontent.com/{login}/aiwa-apps/{sha}/aiwa-comments/{name}")
+            except OSError:
+                continue
+            found.append((f"{login}/{name}", sha, loops_lib.comment_entry(login, name, sha, text)))
+    return found
 
 
 def _comments_take():
-    """The block of waiting comments for the critic's message, and the queue emptied."""
-    global comments_queue
+    """The block of new comments for the critic's message; they are marked as given."""
+    found = _user_comments()
+    if not found:
+        return ""
     with loops_lock:
-        block = loops_lib.comments_block(comments_queue)
-        if comments_queue:
-            comments_queue = []
-            _comments_save()
-        return block
+        for key, sha, _entry in found:
+            comments_seen[key] = sha
+        try:
+            COMMENTS_SEEN_FILE.write_text(json.dumps(comments_seen), encoding="utf-8")
+        except OSError:
+            pass
+    return loops_lib.comments_block([entry for _k, _s, entry in sorted(found, key=lambda f: f[2]["at"])])
 
 
 def _loops_relay_url():
@@ -2840,8 +2855,6 @@ class Handler(BaseHTTPRequestHandler):
                     relay_cloud.update(before)  # nothing was asked after all
                     _save_state()
             self.reply_json({"accepted": sent.get("ok") is True, "reason": sent.get("error")})
-        elif self.path == "/api/comments":
-            self.reply_json(comments_add(body))
         elif self.path == "/api/ask/answer":
             self.reply_json(_ask_answer(body))
         elif self.path == "/api/sent-app/seen":
@@ -3015,7 +3028,7 @@ def _self_update_loop():
 if __name__ == "__main__":
     _load_state()
     _loops_load()
-    _comments_load()
+    _comments_seen_load()
     _login_state()  # looks the login up in the background, so the first status already knows
     threading.Thread(target=_relay_listener, daemon=True).start()
     threading.Thread(target=_self_update_loop, daemon=True).start()

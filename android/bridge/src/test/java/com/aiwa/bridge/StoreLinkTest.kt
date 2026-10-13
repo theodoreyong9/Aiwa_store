@@ -74,6 +74,10 @@ class StoreLinkTest {
         assertEquals("https://example.com/", servedAddress("https://example.com/", downloaded = true))
     }
 
+    @Test fun theCommentSheetIsOpenedByItsFragment() {
+        assertEquals("$STORE_APP_URL#comment", storeCommentUrl())
+    }
+
     @Test fun theWidgetOpensTheOwnAndFavouriteTabs() {
         assertEquals("$STORE_APP_URL#tab=mine", storeTabUrl("mine"))
         assertEquals("$STORE_APP_URL#tab=favorites", storeTabUrl("favorites"))

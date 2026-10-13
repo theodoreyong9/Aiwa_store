@@ -171,9 +171,6 @@ interface ClaudeBridge {
     // Sends the answer to the question `id` to the session, as its next message. Throws with the reason.
     suspend fun askAnswer(id: String, answer: String) { throw UnsupportedOperationException("askAnswer") }
 
-    // A comment for the critic of a loop: kept by the backend and given to the critic with ITS next turn (it starts nothing).
-    suspend fun comment(text: String) { throw UnsupportedOperationException("comment") }
-
     suspend fun videos(): VideoList { throw UnsupportedOperationException("videos") }
     suspend fun inputs(): InputList { throw UnsupportedOperationException("inputs") }
     suspend fun loops(): LoopsInfo { throw UnsupportedOperationException("loops") }
