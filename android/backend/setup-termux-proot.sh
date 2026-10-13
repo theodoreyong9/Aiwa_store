@@ -150,6 +150,7 @@ for i in $(seq 1 90); do
 done
 if curl -sf http://127.0.0.1:8787/api/status >/dev/null 2>&1; then
   echo "The Aiwa backend is running in the background (log: ~/aiwa_backend.log)."
+  echo "== RUNNING NOW: brain version $(curl -sf http://127.0.0.1:8787/api/status | sed -n 's/.*"version" *: *\([0-9]*\).*/\1/p') =="
   echo "You can close Termux: the app starts the backend again by itself when it is down."
 else
   echo "The backend did not answer within 90 seconds. Last lines of ~/aiwa_backend.log:"

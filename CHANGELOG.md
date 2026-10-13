@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The Termux command (`bootstrap.sh`) now says what it did: `NEW VERSION DOWNLOADED: <old> -> <new>` or `Already on the latest version`, the brain version on disk, and the brain version running at the end; it stops with a clear message when GitHub cannot be reached or the install cannot be moved forward.
+
 - Backend version 78 (self-update, the critic's rules and the registry's comments): the app restarts an older brain by itself once it is installed.
 
 - `aiwa-papers/`: the critic's reference folder (an index of the papers of `docs/` that count, and the principles the critic defends); the critic re-reads it at every turn.

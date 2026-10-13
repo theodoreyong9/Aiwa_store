@@ -18,13 +18,30 @@ REPO_DIR="$HOME/aiwa_store"
 SOURCE="${AIWA_SOURCE:-https://github.com/theodoreyong9/Aiwa_store}"
 if [ -d "$REPO_DIR/.git" ] && [ "$(git -C "$REPO_DIR" remote get-url origin 2>/dev/null)" = "$SOURCE" ]; then
   echo "== Updating the existing install at $REPO_DIR =="
-  git -C "$REPO_DIR" pull --ff-only
+  BEFORE="$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo none)"
+  if ! git -C "$REPO_DIR" fetch origin main; then
+    echo "!! Could not reach GitHub: nothing was downloaded. Check the network and run this command again."
+    exit 1
+  fi
+  if ! git -C "$REPO_DIR" merge --ff-only FETCH_HEAD; then
+    echo "!! The install at $REPO_DIR has changes of its own and cannot be moved forward."
+    echo "!! To start over from GitHub (your data lives in \$HOME, not there):  rm -rf $REPO_DIR  and run this command again."
+    exit 1
+  fi
+  AFTER="$(git -C "$REPO_DIR" rev-parse --short HEAD)"
+  if [ "$BEFORE" = "$AFTER" ]; then
+    echo "== Already on the latest version: $AFTER (nothing new on GitHub) =="
+  else
+    echo "== NEW VERSION DOWNLOADED: $BEFORE -> $AFTER ($(git -C "$REPO_DIR" rev-list --count "$BEFORE..$AFTER" 2>/dev/null || echo '?') changes) =="
+  fi
 else
   [ -d "$REPO_DIR" ] && echo "== Replacing the install at $REPO_DIR (it now comes from Aiwa_store) ==" && rm -rf "$REPO_DIR"
   echo "== Installing into $REPO_DIR =="
   pkg install -y git
   git clone --depth 1 "$SOURCE" "$REPO_DIR"
+  echo "== VERSION DOWNLOADED: $(git -C "$REPO_DIR" rev-parse --short HEAD) =="
 fi
+echo "== Brain code on disk: version $(sed -n 's/^BACKEND_VERSION = \([0-9]*\).*/\1/p' "$REPO_DIR/android/backend/aiwa_server.py") (commit $(git -C "$REPO_DIR" rev-parse --short HEAD)) =="
 
 # The widget/app's "▶ Démarrer" button needs Termux's own separate
 # opt-in for RUN_COMMAND (reported live: "Need allow external apps in
