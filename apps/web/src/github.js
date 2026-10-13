@@ -44,6 +44,14 @@ export async function ensureToken({ clientId, onCode, fetchFn } = {}) {
   return token;
 }
 
+/** The GitHub login of the person when they are already signed in (the token kept), else null. Never starts a sign-in. */
+export async function knownLogin({ fetchFn } = {}) {
+  try {
+    const kept = await loadSecret(TOKEN);
+    return kept ? await userOf(kept, { fetchFn }) : null;
+  } catch { return null; }
+}
+
 export const forgetToken = () => deleteSecret(TOKEN);
 
 function toBase64(text) {

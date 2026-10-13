@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Store: « My apps » also lists the apps of the person's own GitHub account (its aiwa-apps repository) when they are already signed in; never asks to sign in for it.
+- Glasses widget: an « ✉ inviter » button opens the share sheet with an invitation (the Store and the APK page).
+
 - Glasses widget, right lens: under the search field, « own » (the apps published with the wallet) and « ★ faves » open those tabs of the Store; the picture is gone.
 
 - Glasses widget: every button and pill is in the left lens, very small and two to a row (the microphone stays big); the right lens holds a search field (links or Aiwas: an Aiwa address, an id, an author, a GitHub account) above the Aiwa picture that opens the app. The Store reads `#q=` and does the right search.

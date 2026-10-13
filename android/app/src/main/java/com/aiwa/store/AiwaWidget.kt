@@ -714,6 +714,7 @@ private fun GlassesContent(state: AiwaState) {
                         Spacer(GlanceModifier.width(GAP.dp))
                         Chip("★ faves", pill, fg, storeTab("favorites"), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
                     }
+                    Chip("✉ inviter", pill, fg, actionStartActivity<InviteActivity>(), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
                 }
                 Spacer(GlanceModifier.width(outer.dp))
             }

@@ -4,7 +4,8 @@ import { config } from './config.js';
 import { $, switchView } from './ui.js';
 import { setCatalog, session, onSession } from './session.js';
 import { openViewer } from './viewer.js';
-import { parseAccount, accountKey, loadLibrary, filterLibrary, loadLink, savedAccounts, saveAccounts, localStore, savedFavorites, saveFavorites, isFavorite, toggleFavorite } from './library.js';
+import { knownLogin } from './github.js';
+import { parseAccount, accountKey, listAccount, loadLibrary, filterLibrary, loadLink, savedAccounts, saveAccounts, localStore, savedFavorites, saveFavorites, isFavorite, toggleFavorite } from './library.js';
 
 const cache = openCache('aiwa-store-cache');
 let apps = [];
@@ -248,33 +249,46 @@ function handoffQuery() {
 }
 
 // ---------- my apps: those published with this wallet, each with its address ----------
-function renderMine() {
+let ownLinks = null;   // the library apps of the person's own GitHub account (when they are signed in), read once per page
+
+async function loadOwnLinks() {
+  if (ownLinks) return ownLinks;
+  ownLinks = [];
+  const login = await knownLogin();
+  if (!login) return ownLinks;
+  try { ownLinks = (await listAccount({ owner: login, repo: 'aiwa-apps', dir: '' }, { store: localStore })).apps; } catch { /* no aiwa-apps repository: none */ }
+  return ownLinks;
+}
+
+function mineRow(entry) {
+  const row = document.createElement('div');
+  row.className = 'app';
+  row.dataset.id = entry.id;
+  const body = document.createElement('div');
+  body.className = 'body';
+  const title = document.createElement('div');
+  title.className = 'title';
+  title.textContent = entry.name;
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.textContent = `${entry.kind === 'link' ? 'Library' : `Aiwa v${entry.version}`} · ${appAddress(entry)}`;
+  body.append(title, meta);
+  const open = document.createElement('button');
+  open.type = 'button';
+  open.className = 'primary';
+  open.textContent = 'Open';
+  open.addEventListener('click', () => (entry.kind === 'link' ? openLink(entry, open, false) : openApp(entry, open)));
+  row.append(body, open, shareButton(entry));
+  return row;
+}
+
+async function renderMine() {
   const list = $('mine-list');
-  list.replaceChildren();
   const aiwa = session.aiwa;
   const mine = aiwa?.identity ? apps.filter((app) => app.author === aiwa.address) : [];
-  $('mine-status').textContent = !aiwa?.identity ? 'Open the Wallet tab: your apps are the ones published with it.' : mine.length ? '' : 'No app published with this wallet yet.';
-  for (const entry of mine) {
-    const row = document.createElement('div');
-    row.className = 'app';
-    row.dataset.id = entry.id;
-    const body = document.createElement('div');
-    body.className = 'body';
-    const title = document.createElement('div');
-    title.className = 'title';
-    title.textContent = entry.name;
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    meta.textContent = `v${entry.version} · ${appAddress(entry)}`;
-    body.append(title, meta);
-    const open = document.createElement('button');
-    open.type = 'button';
-    open.className = 'primary';
-    open.textContent = 'Open';
-    open.addEventListener('click', () => openApp(entry, open));
-    row.append(body, open, shareButton(entry));
-    list.append(row);
-  }
+  const links = await loadOwnLinks();
+  list.replaceChildren(...mine.map(mineRow), ...links.map(mineRow));
+  $('mine-status').textContent = mine.length || links.length ? '' : 'Nothing of yours yet: the Aiwa apps published with your wallet, and the apps of your own GitHub account (its aiwa-apps repository, when you are signed in), appear here.';
 }
 
 // ---------- favourites: the apps starred, from either tab ----------

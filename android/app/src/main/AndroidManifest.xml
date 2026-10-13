@@ -225,6 +225,10 @@
             android:taskAffinity=""
             android:excludeFromRecents="true" />
         <!-- The widget's site and Actions buttons: no UI, they open what the state of the moment says (and the red dot is looked at). -->
+        <activity android:name=".InviteActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <activity android:name=".SiteButtonActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""

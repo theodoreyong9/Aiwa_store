@@ -18,3 +18,12 @@ fun looksLikeApk(firstBytes: ByteArray, size: Long): Boolean = size > 1_000_000 
 /** An mp4 or a mov starts with a box whose type, "ftyp", sits at bytes 4 to 8; a web page or an error is not that. */
 fun looksLikeVideo(firstBytes: ByteArray, size: Long): Boolean =
     size > 10_000 && firstBytes.size >= 8 && String(firstBytes, 4, 4, Charsets.ISO_8859_1) == "ftyp"
+
+/** The page of the rolling release where the APK is, and the Store on the web: what an invitation carries. */
+const val APP_RELEASE_PAGE = "https://github.com/theodoreyong9/Aiwa_store/releases/tag/android-latest"
+const val STORE_WEB_URL = "https://theodoreyong9.github.io/Aiwa_store/"
+
+/** The text of an invitation to open an app (its Aiwa address) or, with no app, to join Aiwa. */
+fun inviteText(appName: String?, address: String?): String =
+    if (appName != null && address != null) "Je t'invite à ouvrir « $appName » dans Aiwa : $address\nAiwa (Android) : $APP_RELEASE_PAGE"
+    else "Je t'invite sur Aiwa : $STORE_WEB_URL\nAiwa (Android) : $APP_RELEASE_PAGE"
