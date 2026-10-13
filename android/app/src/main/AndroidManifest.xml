@@ -157,7 +157,7 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
-        <activity android:name=".VoiceHelpActivity" android:exported="false"
+        <activity android:name=".VoiceCommandsHelpActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />

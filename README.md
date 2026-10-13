@@ -96,11 +96,11 @@ The widget talks to Claude Code, which runs in **Termux** on the same phone. You
    curl -fsSL https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh | bash
    ```
    Run the same line again later to update.
-3. On the home screen: the app offers to add the widget the first time it opens (one tap on **Ajouter**; the menu before the mic offers it again). By hand: press and hold → **Widgets** → **Aiwa Store** → drag the 4×2 widget. Android opens a short setup: allow Aiwa to run
+3. On the home screen: the app offers to add the widget when it opens and there is none (one tap on **Ajouter**; the settings list offers it again). By hand: press and hold → **Widgets** → **Aiwa Store** → drag the 4×2 widget. Android opens a short setup: allow Aiwa to run
    Termux commands, and notifications.
 4. Tap **Connecter Claude** on the widget and log in with your Claude account (a page opens, the code goes back into the same window).
    Claude reaches your repositories through its GitHub app: on github.com/settings/installations, open **Claude** and choose **All repositories** once. Then every repository you make later works without any setting; with only some repositories chosen, a new one starts an empty session and the widget says Claude has no access to it.
-5. Tap **Dicter un message** and say what the app should do. The project-type chip says what Claude produces: a site (Pages), an APK (Android), an app for the Store that stays in **your own GitHub** (Store: no registry, no wallet; the Store's Library lists the accounts you follow), a frozen and ranked app published through Aiwa (Aiwa), or a campaign from one file (Campaign: site, video and proposals you send yourself). Press **▦** when Claude has written the app. The menu before the mic updates the brain (Termux) and the application itself. Details: [docs/ANDROID.md](docs/ANDROID.md).
+5. Tap **Dicter un message** and say what the app should do. The project-type chip says what Claude produces: a site (Pages), an APK (Android), an app for the Store that stays in **your own GitHub** (Store: no registry, no wallet; the Store's Library lists the accounts you follow), a frozen and ranked app published through Aiwa (Aiwa), or a campaign from one file (Campaign: site, video and proposals you send yourself). Press **▦** when Claude has written the app. The settings pill holds the model, the push, the workflow, the updates of the brain (Termux) and of the application, the listening and the voice commands. Details: [docs/ANDROID.md](docs/ANDROID.md).
 
 The widget's logo opens the app. The Store has no Dictate tab: dictating is what the widget is for.
 

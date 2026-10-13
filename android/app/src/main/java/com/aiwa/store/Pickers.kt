@@ -473,79 +473,12 @@ class SourceReposPickerActivity : ComponentActivity() {
  * The widget's voice button (before the mic): the voice commands, written out, and the switch of the always-on listening. The list is the one
  * place the commands are given in the app; VoiceCommands.kt (the bridge) is what understands them.
  */
-class VoiceHelpActivity : ComponentActivity() {
-    private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) turnOn() else toastOnMain(applicationContext, "Écoute permanente : sans la permission du micro, rien à faire.")
-    }
-
-    private fun turnOn() {
-        ListenSettings.setEnabled(this, true)
-        WakeWordService.start(this)
-    }
-
-    private fun toggle() {
-        if (ListenSettings.enabled(this)) {
-            ListenSettings.setEnabled(this, false)
-            WakeWordService.stop(this)
-        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            turnOn()
-        } else {
-            micPermission.launch(Manifest.permission.RECORD_AUDIO)
-        }
-    }
-
-    private fun open(screen: Class<*>) {
-        finish()
-        startActivity(Intent(this, screen))
-    }
-
-    /** The same start the app makes by itself when the brain is older than expected or down, with a restart: it pulls the code and starts the server again. */
-    private fun updateBrain() {
-        val app = applicationContext
-        val started = startAiwaBackendViaTermux(app, forceRestart = true)
-        toastOnMain(app, if (started.isSuccess) "Mise à jour demandée à Termux : environ 30 secondes. Je te dis quand c'est fait." else "Termux n'a pas pu être lancé : ${started.exceptionOrNull()?.message ?: "?"} (l'autorisation « exécuter des commandes » et allow-external-apps=true sont à régler une fois).")
-        if (started.isSuccess) {
-            // Said at the end, whatever happened: the person was left wondering whether it had worked
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                val up = awaitBackendVersion(LocalClaudeBridge(), EXPECTED_BACKEND_VERSION, 150_000)
-                toastOnMain(
-                    app,
-                    if (up != null) "Cerveau à jour : version ${up.version} ✓"
-                    else "Le cerveau n'a pas répondu après 2 minutes et demie. Ouvre Termux : il affiche l'erreur (réseau, ou la commande bootstrap.sh à relancer).",
-                )
-            }
-        }
-        finish()
-    }
-
+class VoiceCommandsHelpActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
         setContent {
-            val state by AiwaRepository.state.collectAsState()
-            // the switch is the person's wish; "listening" is whether the service is running (after a restart of the phone it is not, until the app is opened)
-            val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
-                add(PickerEntry("Aiwa", false, header = true) { })
-                add(PickerEntry("Mon mot d'éveil : le choisir ou le changer, même « Aiwa »", false, lines = 2) { open(WakeWordEnrollActivity::class.java) })
-                add(PickerEntry("État d'Aiwa : Claude, alertes, permissions", false, lines = 2) { open(HealthActivity::class.java) })
-                add(PickerEntry("Mettre à jour le cerveau d'Aiwa (Termux)", false, lines = 2) { updateBrain() })
-                // Only when there is no widget yet: nobody asked for a second one
-                if (!WidgetPin.hasWidget(applicationContext)) {
-                    add(PickerEntry("Ajouter le widget à l'écran d'accueil (un appui sur « Ajouter »)", false, lines = 2) {
-                        WidgetPin.request(applicationContext, explain = true)
-                        finish()
-                    })
-                }
-                add(PickerEntry("Mettre à jour l'application (version ${AppUpdater.installedVersion(applicationContext) ?: "?"}) : télécharge la dernière et ouvre l'installation", false, lines = 3) { AppUpdater.update(applicationContext); finish() })
-
-                add(PickerEntry("Écoute permanente", false, header = true) { })
-                add(PickerEntry(if (wanted) "✓  Allumée : le téléphone écoute « mon agent », « instruction » et « stop Claude » — toucher pour l'éteindre" else "Éteinte — toucher pour l'allumer", wanted, lines = 3) { toggle() })
-                if (ListenSettings.enabled(this@VoiceHelpActivity) && !state.listening) {
-                    add(PickerEntry("⚠  Allumée mais arrêtée (le téléphone a redémarré ?) — toucher pour la relancer", false, lines = 3) { turnOn() })
-                }
-                add(PickerEntry("Elle reste sur le téléphone (rien n'est envoyé). Le point vert du micro reste affiché et la batterie baisse plus vite. 41 Mo à télécharger la première fois.", false, lines = 4) { })
-
                 add(PickerEntry("Dictée (le micro)", false, header = true) { })
                 add(PickerEntry("Parle : c'est du texte pour Claude. « C'est bon vas-y » envoie.", false, lines = 3) { })
                 add(PickerEntry("« Non, c'est pas bon, arrête » ou « annule », à la fin : tout est abandonné.", false, lines = 3) { })
@@ -566,11 +499,6 @@ class VoiceHelpActivity : ComponentActivity() {
             }
             PickerSheet(entries) { finish() }
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        WakeWordService.instance?.let { AiwaRepository.update { s -> s.copy(listening = true) } }
     }
 }
 
@@ -713,13 +641,53 @@ class DeployPickerActivity : ComponentActivity() {
 
 
 /**
- * The settings button of the widget: ONE list for what used to be four buttons (the model, the push, the state of the workflow and the menu of Aiwa), and the choice of the
- * shape of the widget, classic or glasses. The pill on the widget says the state in a few words; this is where it is changed.
+ * The settings button of the widget: ONE list. What used to be four buttons (the model, the push, the state of the workflow) AND the whole menu d'Aiwa (the wake word, the state
+ * of Aiwa, the updates, the always-on listening), then ONE button for everything that can be said (the dictation instructions: VoiceCommandsHelpActivity), then the shape of
+ * the widget, classic or glasses. The pill on the widget says the state in a few words; this is where it is changed.
  */
 class SettingsActivity : ComponentActivity() {
+    private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) turnOn() else toastOnMain(applicationContext, "Écoute permanente : sans la permission du micro, rien à faire.")
+    }
+
+    private fun turnOn() {
+        ListenSettings.setEnabled(this, true)
+        WakeWordService.start(this)
+    }
+
+    private fun toggle() {
+        if (ListenSettings.enabled(this)) {
+            ListenSettings.setEnabled(this, false)
+            WakeWordService.stop(this)
+        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            turnOn()
+        } else {
+            micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
     private fun open(screen: Class<*>) {
         finish()
         startActivity(Intent(this, screen))
+    }
+
+    /** The same start the app makes by itself when the brain is older than expected or down, with a restart: it pulls the code and starts the server again. */
+    private fun updateBrain() {
+        val app = applicationContext
+        val started = startAiwaBackendViaTermux(app, forceRestart = true)
+        toastOnMain(app, if (started.isSuccess) "Mise à jour demandée à Termux : environ 30 secondes. Je te dis quand c'est fait." else "Termux n'a pas pu être lancé : ${started.exceptionOrNull()?.message ?: "?"} (l'autorisation « exécuter des commandes » et allow-external-apps=true sont à régler une fois).")
+        if (started.isSuccess) {
+            // Said at the end, whatever happened: the person was left wondering whether it had worked
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                val up = awaitBackendVersion(LocalClaudeBridge(), EXPECTED_BACKEND_VERSION, 150_000)
+                toastOnMain(
+                    app,
+                    if (up != null) "Cerveau à jour : version ${up.version} ✓"
+                    else "Le cerveau n'a pas répondu après 2 minutes et demie. Ouvre Termux : il affiche l'erreur (réseau, ou la commande bootstrap.sh à relancer).",
+                )
+            }
+        }
+        finish()
     }
 
     private fun shape(shape: String) {
@@ -742,6 +710,8 @@ class SettingsActivity : ComponentActivity() {
             val state by AiwaRepository.state.collectAsState()
             val current = WidgetStyle.current(applicationContext)
             val ci = when (state.ciState) { "success" -> "réussi ✓"; "failure" -> "échec ✗"; "running" -> "en cours …"; else -> "état inconnu" }
+            // the switch is the person's wish; "listening" is whether the service is running (after a restart of the phone it is not, until the app is opened)
+            val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
                 add(PickerEntry("Réglages", false, header = true) { })
                 add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
@@ -752,12 +722,39 @@ class SettingsActivity : ComponentActivity() {
                 if (workflowShown(state)) {
                     add(PickerEntry(workflowName(state.deploy) + (if (workflowStateKnown(state)) " : $ci" else "") + " — ouvrir", false, lines = 2) { open(OpenActionsActivity::class.java) })
                 }
-                add(PickerEntry("Menu d'Aiwa : écoute, mot d'éveil, état, mises à jour, fichier", false, lines = 2) { open(VoiceHelpActivity::class.java) })
+
+                add(PickerEntry("Aiwa", false, header = true) { })
+                add(PickerEntry("Mon mot d'éveil : le choisir ou le changer, même « Aiwa »", false, lines = 2) { open(WakeWordEnrollActivity::class.java) })
+                add(PickerEntry("État d'Aiwa : Claude, alertes, permissions", false, lines = 2) { open(HealthActivity::class.java) })
+                add(PickerEntry("Mettre à jour le cerveau d'Aiwa (Termux)", false, lines = 2) { updateBrain() })
+                add(PickerEntry("Mettre à jour l'application (version ${AppUpdater.installedVersion(applicationContext) ?: "?"}) : télécharge la dernière et ouvre l'installation", false, lines = 3) { AppUpdater.update(applicationContext); finish() })
+                // Only when there is no widget yet: nobody asked for a second one
+                if (!WidgetPin.hasWidget(applicationContext)) {
+                    add(PickerEntry("Ajouter le widget à l'écran d'accueil (un appui sur « Ajouter »)", false, lines = 2) {
+                        WidgetPin.request(applicationContext, explain = true)
+                        finish()
+                    })
+                }
+
+                add(PickerEntry("Écoute permanente", false, header = true) { })
+                add(PickerEntry(if (wanted) "✓  Allumée : le téléphone écoute « mon agent », « instruction » et « stop Claude » — toucher pour l'éteindre" else "Éteinte — toucher pour l'allumer", wanted, lines = 3) { toggle() })
+                if (ListenSettings.enabled(this@SettingsActivity) && !state.listening) {
+                    add(PickerEntry("⚠  Allumée mais arrêtée (le téléphone a redémarré ?) — toucher pour la relancer", false, lines = 3) { turnOn() })
+                }
+                add(PickerEntry("Elle reste sur le téléphone (rien n'est envoyé). Le point vert du micro reste affiché et la batterie baisse plus vite. 41 Mo à télécharger la première fois.", false, lines = 4) { })
+                // ONE button for everything that can be said
+                add(PickerEntry("Commandes vocales : tout ce qu'on peut dire (dictée, « instruction », mots de réveil)", false, lines = 2) { open(VoiceCommandsHelpActivity::class.java) })
+
                 add(PickerEntry("Forme du widget", false, header = true) { })
                 add(PickerEntry("Classic — les bandes, comme avant", current == WidgetStyle.CLASSIC, lines = 2) { shape(WidgetStyle.CLASSIC) })
-                add(PickerEntry("Glasses — des lunettes : un verre pour le contexte, un pour le travail, le micro sur le pont", current == WidgetStyle.GLASSES, lines = 3) { shape(WidgetStyle.GLASSES) })
+                add(PickerEntry("Glasses — des lunettes : un verre pour le contexte, un pour le travail, le micro à droite", current == WidgetStyle.GLASSES, lines = 3) { shape(WidgetStyle.GLASSES) })
             }
             PickerSheet(entries) { finish() }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        WakeWordService.instance?.let { AiwaRepository.update { s -> s.copy(listening = true) } }
     }
 }

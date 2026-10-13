@@ -743,9 +743,9 @@ private fun CompactContent(state: AiwaState) {
             Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(
                 icon = R.drawable.ic_voice,
-                description = if (state.listening) "Menu d'Aiwa : l'écoute permanente est allumée" else "Menu d'Aiwa : écoute, mot d'éveil, état, mise à jour, fichier, propositions",
+                description = if (state.listening) "Réglages : l'écoute permanente est allumée" else "Réglages : modèle, push, workflow, écoute, mot d'éveil, mises à jour",
                 background = if (state.listening) green else pill,
-                action = actionStartActivity<VoiceHelpActivity>(),
+                action = actionStartActivity<SettingsActivity>(),
                 diameter = 36.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
