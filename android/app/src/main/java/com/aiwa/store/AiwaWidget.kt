@@ -877,15 +877,14 @@ private fun AiwaContent(state: AiwaState) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_warning, description = "Un réglage de GitHub à faire : le guide", background = alertRed, action = actionStartActivity<PagesHelpActivity>(), diameter = chipH.dp)
             }
-            // The state of the workflow of the mode (its colour: green, red, grey)
+            // The state of the workflow of the mode (the build, the deployment, the check of the app, the registry's check): its word and its colour
             if (workflowShown(state)) {
                 Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(
-                    icon = R.drawable.ic_actions,
-                    description = "Workflow : " + when (state.ciState) { "success" -> "réussi"; "failure" -> "échec"; "running" -> "en cours"; else -> "état inconnu" },
-                    background = if (state.deploy == "aiwa") pill else when (state.ciState) { "success" -> green; "failure" -> alertRed; else -> pill },
-                    action = actionStartActivity<OpenActionsActivity>(),
-                    diameter = chipH.dp,
+                val ci = if (!workflowStateKnown(state)) "?" else when (state.ciState) { "success" -> "réussi ✓"; "failure" -> "échec ✗"; "running" -> "en cours …"; else -> "?" }
+                Chip(
+                    "⚙ $ci",
+                    if (state.deploy == "aiwa") pill else when (state.ciState) { "success" -> green; "failure" -> alertRed; else -> pill }, fg,
+                    actionStartActivity<OpenActionsActivity>(), GlanceModifier, height = chipH.dp, textSize = 11.sp, hPad = 8.dp, badge = false,
                 )
             }
         }

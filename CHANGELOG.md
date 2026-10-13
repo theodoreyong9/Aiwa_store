@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Aiwa-shaped widget: the model, the push and the state of the workflow are no longer in the settings list (they are buttons of the widget; the workflow one says « ⚙ réussi ✓ / échec ✗ / en cours … »). The other shapes keep them in the list.
+
 - Aiwa-shaped widget: the mode buttons answer at once (the choice is held in the state the widget redraws from, the backend follows; the Vidéo button used to work only when something else happened to redraw the widget), the title band is gone: the session and the repository are two pills at the top (what is wrong replaces the session's name, and a status line shows only when it is not « Prêt »), and they are no longer in the settings list.
 
 - A third widget shape, « Aiwa » (settings > Forme du widget; the classic one is unchanged): a row of modes at the top (Vidéo · Page · Campagne · App · Store · Aiwa; a tap on a mode IS the deploy selector, Vidéo only changes what is shown), what the chosen mode needs (the site or the APK, the app and its code, the proposals, the videos, the guide of a GitHub setting, the state of the workflow), the microphone with Claude and the question, the model and the push, and a bottom row (loop, the Aiwa app, the update when one is downloaded, the settings). The settings list now opens with « Session » and « Dépôt ».

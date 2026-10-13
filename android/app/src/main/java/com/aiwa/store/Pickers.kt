@@ -702,15 +702,18 @@ class SettingsActivity : ComponentActivity() {
             val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
                 add(PickerEntry("Réglages", false, header = true) { })
-                add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
-                if (state.repo != null) {
-                    add(PickerEntry(if (state.pushMain) "Push : direct sur main — toucher pour passer sur une branche" else "Push : sur une branche — toucher pour passer sur main", false, lines = 2) { togglePush(state.pushMain) })
-                }
-                // The workflow that matters for the mode chosen (the build, the deployment, the check of the app, the registry's check)
-                if (workflowShown(state)) {
-                    add(PickerEntry(workflowName(state.deploy) + (if (workflowStateKnown(state)) " : $ci" else "") + " — ouvrir", false, lines = 2) { open(OpenActionsActivity::class.java) })
-                }
+                // In the Aiwa-shaped widget the model, the push and the state of the workflow are buttons of the widget itself: they are not repeated here
+                if (current != WidgetStyle.AIWA) {
+                    add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
+                    if (state.repo != null) {
+                        add(PickerEntry(if (state.pushMain) "Push : direct sur main — toucher pour passer sur une branche" else "Push : sur une branche — toucher pour passer sur main", false, lines = 2) { togglePush(state.pushMain) })
+                    }
+                    // The workflow that matters for the mode chosen (the build, the deployment, the check of the app, the registry's check)
+                    if (workflowShown(state)) {
+                        add(PickerEntry(workflowName(state.deploy) + (if (workflowStateKnown(state)) " : $ci" else "") + " — ouvrir", false, lines = 2) { open(OpenActionsActivity::class.java) })
+                    }
 
+                }
                 add(PickerEntry("Aiwa", false, header = true) { })
                 add(PickerEntry("Mon mot d'éveil : le choisir ou le changer, même « Aiwa »", false, lines = 2) { open(WakeWordEnrollActivity::class.java) })
                 add(PickerEntry("État d'Aiwa : Claude, alertes, permissions", false, lines = 2) { open(HealthActivity::class.java) })
