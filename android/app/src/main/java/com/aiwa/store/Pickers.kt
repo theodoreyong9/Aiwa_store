@@ -752,7 +752,6 @@ class SettingsActivity : ComponentActivity() {
                 if (workflowShown(state)) {
                     add(PickerEntry(workflowName(state.deploy) + (if (workflowStateKnown(state)) " : $ci" else "") + " — ouvrir", false, lines = 2) { open(OpenActionsActivity::class.java) })
                 }
-                add(PickerEntry("Boucles builder / critique : paires, limite, relance, retour en arrière", false, lines = 2) { open(LoopsActivity::class.java) })
                 add(PickerEntry("Menu d'Aiwa : écoute, mot d'éveil, état, mises à jour, fichier", false, lines = 2) { open(VoiceHelpActivity::class.java) })
                 add(PickerEntry("Forme du widget", false, header = true) { })
                 add(PickerEntry("Classic — les bandes, comme avant", current == WidgetStyle.CLASSIC, lines = 2) { shape(WidgetStyle.CLASSIC) })

@@ -354,7 +354,7 @@ private fun FullContent(state: AiwaState) {
     // The "Store" and "Aiwa" modes end with an app Claude sends to the phone: when it has come and was not opened yet, it is waiting.
     val storeMode = deliversApp(state.deploy)
     val storeReady = storeMode && state.sentApp?.seen == false
-    val band1 = bandInfo(state, avail - avatar - 8f)
+    val band1 = bandInfo(state, avail - 2 * avatar - 16f)
     val title = band1.title
     val statusText = band1.statusText
     val statusColor = band1.statusColor
@@ -396,6 +396,15 @@ private fun FullContent(state: AiwaState) {
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            // The loop between two sessions (builder and critic), at the left of the list of sessions: green while one is running
+            RoundButton(
+                icon = R.drawable.ic_loop,
+                description = if (state.loopPair.isNotEmpty()) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
+                background = if (state.loopPair.isNotEmpty()) green else pill,
+                action = actionStartActivity<LoopsActivity>(),
+                diameter = avatar.dp,
+            )
+            Spacer(GlanceModifier.width(8.dp))
             Column(
                 modifier = GlanceModifier.defaultWeight().clickable(bandAction),
                 verticalAlignment = Alignment.CenterVertically,
@@ -531,15 +540,6 @@ private fun FullContent(state: AiwaState) {
                     Text("Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 }
             }
-            // The loop between two sessions (builder and critic): green while one is running
-            Spacer(GlanceModifier.width(GAP.dp))
-            RoundButton(
-                icon = R.drawable.ic_loop,
-                description = if (state.loopPair.isNotEmpty()) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
-                background = if (state.loopPair.isNotEmpty()) green else pill,
-                action = actionStartActivity<LoopsActivity>(),
-                diameter = micH.dp,
-            )
             // To the right of the mic. Always there: with a session it opens that conversation in Claude, without one it opens Claude's
             // Code tab, where a session can be made or found. Red while Claude waits for an answer.
             Spacer(GlanceModifier.width(GAP.dp))
@@ -588,7 +588,7 @@ private fun GlassesContent(state: AiwaState) {
     val top = h * 0.17f
     val itemH = ((h * 0.83f - 4f - 4f) / 5f).coerceIn(16f, 34f)       // five things share what is inside the lenses
     val textRoom = inner - 12f
-    val band = bandInfo(state, textRoom)
+    val band = bandInfo(state, textRoom - itemH - GAP)
     val repoName = state.repo?.substringAfter('/')
     val repoText = "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", textRoom - textWidth("⎇  ▾", fontScale), fontScale) + " ▾"
     val settingsText = fitLabel(settingsSummary(state), textRoom - textWidth(" ▾", fontScale), fontScale) + " ▾"
@@ -604,9 +604,20 @@ private fun GlassesContent(state: AiwaState) {
                 Spacer(GlanceModifier.width(outer.dp))
                 // ---- the left lens: the context ----------------------------------
                 Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight(), verticalAlignment = Alignment.Top) {
-                    Column(modifier = GlanceModifier.fillMaxWidth().height((itemH + 4f).dp).clickable(band.action), verticalAlignment = Alignment.CenterVertically) {
-                        Text(band.title, style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-                        Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 10.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
+                    Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 4f).dp), verticalAlignment = Alignment.CenterVertically) {
+                        // The loop between two sessions, at the left of the session: green while one runs
+                        RoundButton(
+                            icon = R.drawable.ic_loop,
+                            description = if (state.loopPair.isNotEmpty()) "Boucle ${state.loopPair} en cours" else "Boucles builder / critique",
+                            background = if (state.loopPair.isNotEmpty()) rgb(android.graphics.Color.rgb(46, 125, 90)) else pill,
+                            action = actionStartActivity<LoopsActivity>(),
+                            diameter = (itemH + 2f).dp,
+                        )
+                        Spacer(GlanceModifier.width(GAP.dp))
+                        Column(modifier = GlanceModifier.defaultWeight().clickable(band.action), verticalAlignment = Alignment.CenterVertically) {
+                            Text(band.title, style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                            Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 10.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
+                        }
                     }
                     Chip(repoText, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = !hasRepo)
                     Chip(settingsText, if (locked) PILL_DIM else if (workflowFailed(state)) alertRed else pill, if (locked) TEXT_DIM else fg, lockable(locked, actionStartActivity<SettingsActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
@@ -634,15 +645,6 @@ private fun GlassesContent(state: AiwaState) {
                                 Text("Dicter", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                             }
                         }
-                        // The loop between two sessions: green while one runs
-                        Spacer(GlanceModifier.width(GAP.dp))
-                        RoundButton(
-                            icon = R.drawable.ic_loop,
-                            description = if (state.loopPair.isNotEmpty()) "Boucle ${state.loopPair} en cours" else "Boucles builder / critique",
-                            background = if (state.loopPair.isNotEmpty()) rgb(android.graphics.Color.rgb(46, 125, 90)) else pill,
-                            action = actionStartActivity<LoopsActivity>(),
-                            diameter = (itemH + 2f).dp,
-                        )
                     }
                     if (campaignMode) Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp)
                     else if (showSite && site != null) Chip(if (state.siteKind == "apk") "⇩ APK" else "🌐 Site", if (live) claudeOrange else pill, fg, siteAction, GlanceModifier.fillMaxWidth(), alignStart = true, height = itemH.dp, badge = state.ciFresh)
