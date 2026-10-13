@@ -57,8 +57,10 @@ if ! grep -q "^allow-external-apps *= *true" "$PROPS" 2>/dev/null; then
   termux-reload-settings || true
 fi
 
-# No APK download here any more. This command is the one the installed app gives (and the one that updates the brain): the app is already on the phone, and it updates ITSELF
-# (menu d'Aiwa > Mettre à jour l'application), which opens the system's own installer. An APK saved by Termux in Downloads opened a choice between Termux and the installer.
-# install-apk.sh stays, for a phone that has no Aiwa yet and wants the file from Termux.
+# The latest APK is downloaded too (install-apk.sh): to Downloads/Aiwa_store.apk, replaced each time, checked before it is kept. It is NOT opened from here:
+# opening a file from Termux offers Termux itself ("save in ~/downloads"). The Files app opens it with Android's installer; inside Aiwa, « Mettre à jour
+# l'application » does the same without any file. What it said is kept, and repeated at the end of the setup, where it would have scrolled away.
+echo "== Downloading the latest Aiwa APK =="
+bash "$REPO_DIR/android/backend/install-apk.sh" 2>&1 | tee "$HOME/.aiwa_apk_last.txt" || true
 
 exec bash "$REPO_DIR/android/backend/setup-termux-proot.sh"

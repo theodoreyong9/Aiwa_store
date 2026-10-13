@@ -29,6 +29,9 @@ if [ "$got" -ne 1 ]; then
   exit 1
 fi
 mv -f "$PART" "$APK_PATH"
+# Which build it is, when GitHub says (the release names its commit): to compare with the version shown in Aiwa's settings (0.1.<commit>).
+build=$(curl -fsSL --connect-timeout 10 "${AIWA_RELEASE_API:-https://api.github.com/repos/theodoreyong9/Aiwa_store/releases/tags/android-latest}" 2>/dev/null | sed -n 's/.*"target_commitish" *: *"\([0-9a-f]\{7\}\).*/\1/p' | head -n 1)
+[ -n "$build" ] && echo "APK: this is the build $build — Aiwa's settings show 0.1.$build once it is installed."
 size=$(( $(wc -c < "$APK_PATH") / 1024 / 1024 ))
 echo "APK: downloaded, ${size} MB -> $APK_PATH"
 

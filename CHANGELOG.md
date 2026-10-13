@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The Termux command downloads the latest APK again (install-apk.sh: Downloads/Aiwa_store.apk, replaced each time, checked, with its build number to compare with Aiwa's settings, repeated at the end of the setup). It is still not opened from Termux (that offers Termux itself): the Files app, or « Mettre à jour l'application » in Aiwa, opens the installer.
+
 - The Termux command (`bootstrap.sh`) now says what it did: `NEW VERSION DOWNLOADED: <old> -> <new>` or `Already on the latest version`, the brain version on disk, and the brain version running at the end; it stops with a clear message when GitHub cannot be reached or the install cannot be moved forward.
 
 - Backend version 78 (self-update, the critic's rules and the registry's comments): the app restarts an older brain by itself once it is installed.
