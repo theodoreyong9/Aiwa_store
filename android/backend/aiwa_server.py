@@ -54,7 +54,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 82
+BACKEND_VERSION = 83
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -173,7 +173,7 @@ cloud_progress = ""          # what the running send is doing right now (a step 
 # wait for an answer) is always there — it is mandatory, not a switch.
 current_repo = None
 push_main = True
-DEPLOY_MODES = ("none", "pages", "android", "store", "aiwa", "campaign")
+DEPLOY_MODES = ("none", "pages", "android", "store", "aiwa", "campaign", "documents")
 deploy_mode = "pages"
 video_quality = "moyen"   # simple, moyen, extra: how far a video goes (see _video_line)
 # Other repositories Claude may ALSO work on (checked in the widget's picker):
@@ -858,6 +858,16 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             "Si le projet a une interface, contrôle aussi l'UX avec Playwright : en local puis, après un déploiement, à l'adresse publiée ; en mobile (~390 px) puis en bureau ; avec des captures ; "
             "sans débordement ni élément cassé, et les parcours principaux fonctionnels. "
             "Dis-moi ce que tu as lu et vérifié, ce que tu n'as pas pu consulter (logs inaccessibles) et ce qui reste douteux.",
+        ))
+    if deploy == "documents":
+        lines.append((
+            "deploy",
+            "Documents : le livrable est un ou plusieurs DOCUMENTS (lettre, CV, rapport, contrat, présentation, brochure, tableur…) que je te demande de créer. "
+            "Choisis le format qui sert l'usage : Word (.docx) ou PDF pour un document à envoyer ou imprimer, Markdown pour un texte, .xlsx pour un tableur, .pptx pour une présentation ; "
+            "si je ne le précise pas, dis en une phrase le format choisi et pourquoi. Écris chaque document dans le dossier `aiwa-documents/` du dépôt en cours, un fichier par document, "
+            "avec un nom clair (en minuscules, tirets), et pousse-le avec la consigne Push. N'invente aucun fait, chiffre, nom ni date : ce que je ne t'ai pas donné, laisse-le marqué à compléter. "
+            "Avant de dire que c'est fini, rouvre le fichier produit pour vérifier qu'il s'ouvre et que sa mise en page tient (un PDF converti en image par exemple). "
+            "L'appli ouvre ce dossier depuis le bouton Documents du widget.",
         ))
     if deploy == "store":
         # Not tied to a repository: an app is written, checked and sent to the phone, where the user reads it, tries it

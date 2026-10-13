@@ -776,7 +776,7 @@ class SettingsActivity : ComponentActivity() {
 
                 add(PickerEntry("Forme du widget", false, header = true) { })
                 add(PickerEntry("Classic — les bandes, comme avant", current == WidgetStyle.CLASSIC, lines = 2) { shape(WidgetStyle.CLASSIC) })
-                add(PickerEntry("Aiwa — les modes en haut (Vidéo, Page, Campagne, App, Store, Aiwa), puis le micro, Claude, la question, le modèle, le push, et en bas la boucle, l'app Aiwa, la mise à jour et les réglages", current == WidgetStyle.AIWA, lines = 5) { shape(WidgetStyle.AIWA) })
+                add(PickerEntry("Aiwa — les modes en haut (Média : vidéo, campagne, documents ; Page, App, Store, Aiwa), puis le micro avec le contexte (session, dépôt, modèle, push), Claude et la question, et en bas la boucle, l'app Aiwa, le commentaire, la mise à jour et les réglages", current == WidgetStyle.AIWA, lines = 5) { shape(WidgetStyle.AIWA) })
                 add(PickerEntry("Glasses — des lunettes : un verre pour le contexte, un pour le travail, le micro à droite", current == WidgetStyle.GLASSES, lines = 3) { shape(WidgetStyle.GLASSES) })
             }
             PickerSheet(entries) { finish() }

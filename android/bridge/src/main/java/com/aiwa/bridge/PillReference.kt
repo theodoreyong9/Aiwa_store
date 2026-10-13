@@ -40,6 +40,7 @@ object PillReference {
         PillValue("store", "Store", setOf("store")),
         PillValue("aiwa", "Aiwa", emptySet()),
         PillValue("campaign", "Campagne", setOf("campagne", "campagnes")),
+        PillValue("documents", "Documents", setOf("document", "documents")),
         PillValue("none", "aucun", setOf("aucun", "aucune", "rien", "desactive", "desactiver", "non", "zero", "stop", "arret"), listed = false),
     )
 

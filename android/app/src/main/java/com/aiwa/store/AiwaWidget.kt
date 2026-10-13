@@ -145,6 +145,7 @@ private fun deployLabel(mode: String) = when (mode) {
     "store" -> "Store ▾"
     "aiwa" -> "Aiwa ▾"
     "campaign" -> "Campagne ▾"
+    "documents" -> "Documents ▾"
     else -> "Deploy ▾"
 }
 
@@ -757,39 +758,46 @@ private fun GlassesContent(state: AiwaState) {
 }
 
 // ================================================================================================
-// The third shape, « Aiwa »: the modes in a row at the top (Vidéo · Page · Campagne · App · Store · Aiwa); what the chosen mode needs; the mic, Claude, the question,
+// The third shape, « Aiwa »: the modes in a row at the top (Média · Page · App · Store · Aiwa; Média holds Vidéo, Campagne and Documents); what the chosen mode needs; the mic, Claude, the question,
 // the model, the push and the state of the workflow; and a bottom row (loop, the Aiwa app, the update when there is one, the settings). Session and repository
-// are in the settings menu. A tap on a mode IS the deploy selector (Vidéo only changes what is shown).
+// are in the list of the « contexte » button. A tap on a mode IS the deploy selector (Média and Vidéo only change what is shown).
 // ================================================================================================
 
 private val MODE_KEY = ActionParameters.Key<String>("aiwa-mode")
 
-/** A mode of the top row: the deploy selector's value (or "video": only the view), and its word. */
+/** A tab of the top row: the deploy selector's value (or "media": the group of Vidéo, Campagne and Documents), and its word. */
 private class AiwaMode(val id: String, val word: String)
 private val AIWA_MODES = listOf(
-    AiwaMode("video", "Vidéo"), AiwaMode("pages", "Page"), AiwaMode("campaign", "Campagne"),
-    AiwaMode("android", "App"), AiwaMode("store", "Store"), AiwaMode("aiwa", "Aiwa"),
+    AiwaMode("media", "Média"), AiwaMode("pages", "Page"), AiwaMode("android", "App"), AiwaMode("store", "Store"), AiwaMode("aiwa", "Aiwa"),
 )
+/** The modes of the selector that belong to the Média tab (the Vidéo one is no mode: only a view). */
+private val MEDIA_DEPLOYS = setOf("campaign", "documents")
 
-/** What the third shape shows: the mode of the selector, or "video" when the Vidéo button was the last one touched. */
-private fun aiwaView(state: AiwaState): String = if (state.videoView) "video" else state.deploy
+/** The tab shown: Média while Vidéo is the view or while the selector is on Campagne or Documents; else the mode of the selector. */
+private fun aiwaTab(state: AiwaState): String = if (state.videoView || state.deploy in MEDIA_DEPLOYS) "media" else state.deploy
+
+/** In the Média tab, what is shown: "video" (the view) or the mode of the selector (campaign, documents). */
+private fun mediaSub(state: AiwaState): String = if (state.videoView) "video" else state.deploy
 
 class PickModeCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val mode = parameters[MODE_KEY] ?: return
         val app = context.applicationContext
+        val before = AiwaRepository.state.value
         // The widget shows the choice AT ONCE (the backend takes its time): what is held here is what a recomposition reads
-        if (mode == "video") {
-            WidgetStyle.setVideoView(app, true)
-            AiwaRepository.update { it.copy(videoView = true) }
+        if (mode == "media" || mode == "video") {
+            // Média alone leaves what the selector is on when it already belongs to it; else it shows the videos (a view, no mode)
+            if (mode == "video" || before.deploy !in MEDIA_DEPLOYS) {
+                WidgetStyle.setVideoView(app, true)
+                AiwaRepository.update { it.copy(videoView = true) }
+            }
             AiwaWidget().updateAll(app)
             return
         }
-        val before = AiwaRepository.state.value.deploy
         WidgetStyle.setVideoView(app, false)
         AiwaRepository.update { it.copy(videoView = false, deploy = mode) }
         AiwaWidget().updateAll(app)
-        if (before != mode) switchOptions(app, LocalClaudeBridge(), deploy = mode)
+        if (before.deploy != mode) switchOptions(app, LocalClaudeBridge(), deploy = mode)
         // the campaign mode simply asks for a file: its window opens at once (as in the list of the selector)
         if (mode == "campaign") app.startActivity(Intent(app, FileCreationActivity::class.java).putExtra("campaign", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
@@ -809,9 +817,10 @@ private fun AiwaContent(state: AiwaState) {
     val fontScale = context.resources.configuration.fontScale
     val avail = size.width.value - 20f
     val hasRepo = state.repo != null
-    val view = aiwaView(state)
+    val tab = aiwaTab(state)
+    val sub = mediaSub(state)
     val storeReady = deliversApp(state.deploy) && state.sentApp?.seen == false
-    val rows = 5
+    val rows = if (tab == "media") 6 else 5
     val rowH = ((size.height.value - 16f) / rows).coerceIn(26f, 42f)
     val chipH = (rowH - 4f).coerceAtLeast(22f)
     val band = bandInfo(state, avail - 20f)
@@ -828,54 +837,68 @@ private fun AiwaContent(state: AiwaState) {
         }
         // ---- the modes ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            val shown = AIWA_MODES.filter { it.id == "video" || state.accessLevel >= 2 || !deliversApp(it.id) }
+            val shown = AIWA_MODES.filter { it.id == "media" || state.accessLevel >= 2 || !deliversApp(it.id) }
             // The width each of them has: the words shrink, and the longest is cut short, before one of the buttons would leave the screen
             val each = (avail - 3f * (shown.size - 1)) / shown.size
             val wordSize = when { each >= 56f -> 11.sp; each >= 48f -> 10.sp; else -> 9.sp }
             shown.forEachIndexed { i, mode ->
                 if (i > 0) Spacer(GlanceModifier.width(3.dp))
-                val on = mode.id == view
+                val on = mode.id == tab
                 Chip(
-                    if (mode.id == "campaign" && each < 50f) "Camp." else mode.word, if (on) green else pill, fg,
+                    mode.word, if (on) green else pill, fg,
                     actionRunCallback<PickModeCallback>(actionParametersOf(MODE_KEY to mode.id)),
                     GlanceModifier.defaultWeight(), bold = on, height = chipH.dp, textSize = wordSize, hPad = 1.dp,
                     // the red dot of the news (a build, a deployment finished) is on the tab of the mode it is about, whichever tab is shown
-                    badge = state.ciFresh && mode.id == state.deploy,
+                    badge = state.ciFresh && mode.id == (if (state.deploy in MEDIA_DEPLOYS) "media" else state.deploy),
                 )
+            }
+        }
+        // ---- Média: its three kinds ----
+        if (tab == "media") {
+            Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                listOf("video" to "Vidéo", "campaign" to "Campagne", "documents" to "Documents").forEachIndexed { i, (id, word) ->
+                    if (i > 0) Spacer(GlanceModifier.width(3.dp))
+                    val on = id == sub
+                    Chip(
+                        word, if (on) green else pill, fg, actionRunCallback<PickModeCallback>(actionParametersOf(MODE_KEY to id)),
+                        GlanceModifier.defaultWeight(), bold = on, height = chipH.dp, textSize = 11.sp, hPad = 2.dp,
+                        badge = state.ciFresh && id == state.deploy,
+                    )
+                }
             }
         }
         // ---- what the mode needs ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             when {
-                view == "video" -> {
+                tab == "media" && sub == "video" -> {
                     if (hasRepo) Chip("🎬 Vidéos", pill, fg, actionStartActivity<VideosActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
-                    else Chip("Choisis un dépôt (réglages)", pill, fg, actionStartActivity<SettingsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                    else Chip("Choisis un dépôt (bouton de gauche)", pill, fg, actionStartActivity<ContextActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
                 }
-                view == "campaign" -> Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
-                deliversApp(view) -> {
-                    Chip("▦ App", if (storeReady) claudeOrange else pill, fg, actionStartActivity<OpenStoreActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                tab == "media" && sub == "campaign" -> Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                tab == "media" -> {
+                    if (hasRepo) Chip("📄 Mes documents", pill, fg, actionStartActivity<DocumentsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                    else Chip("Choisis un dépôt (bouton de gauche)", pill, fg, actionStartActivity<ContextActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                }
+                deliversApp(tab) -> {
+                    Chip("▦ App", if (storeReady) claudeOrange else pill, fg, actionStartActivity<OpenStoreActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, badge = state.ciFresh)
                     Spacer(GlanceModifier.width(GAP.dp))
                     Chip("</> Code", if (storeReady) claudeOrange else pill, fg, codeAction, GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
                 }
                 else -> {
                     val live = state.siteState == "live"
                     if (hasRepo && state.siteUrl != null) Chip(if (state.siteKind == "apk") "⇩ APK" else "🌐 Site", if (live) claudeOrange else pill, fg, siteAction, GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, badge = state.ciFresh)
-                    else Chip(if (hasRepo) "Pas encore de site" else "Choisis un dépôt (réglages)", pill, fg, actionStartActivity<SettingsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                    else Chip(if (hasRepo) "Pas encore de site" else "Choisis un dépôt (bouton de gauche)", pill, fg, actionStartActivity<ContextActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
                 }
             }
             if (hasRepo && state.ciHintTitle != null) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_warning, description = "Un réglage de GitHub à faire : le guide", background = alertRed, action = actionStartActivity<PagesHelpActivity>(), diameter = chipH.dp)
             }
-            // The state of the workflow of the mode (the build, the deployment, the check of the app, the registry's check): its word and its colour
+            // The workflow of the mode (the build, the deployment, the check of the app, the registry's check): a button to look at where it is, nothing more.
+            // Its success is told by the red dot on the button of what was made.
             if (workflowShown(state)) {
                 Spacer(GlanceModifier.width(GAP.dp))
-                val ci = if (!workflowStateKnown(state)) "?" else when (state.ciState) { "success" -> "réussi ✓"; "failure" -> "échec ✗"; "running" -> "en cours …"; else -> "?" }
-                Chip(
-                    "⚙ $ci",
-                    if (state.deploy == "aiwa") pill else when (state.ciState) { "success" -> green; "failure" -> alertRed; else -> pill }, fg,
-                    actionStartActivity<OpenActionsActivity>(), GlanceModifier, height = chipH.dp, textSize = 11.sp, hPad = 8.dp, badge = false,
-                )
+                Chip("⚙ Workflow", pill, fg, actionStartActivity<OpenActionsActivity>(), GlanceModifier, height = chipH.dp, textSize = 11.sp, hPad = 8.dp)
             }
         }
         // ---- the microphone, Claude, the question ----

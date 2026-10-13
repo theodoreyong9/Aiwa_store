@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 82
+const val EXPECTED_BACKEND_VERSION = 83
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -51,6 +51,7 @@ val DEPLOY_CHOICES = listOf(
     ModelChoice("android", "Application Android — l'APK dans une release GitHub"),
     ModelChoice("store", "Store — une app écrite par Claude, qui reste dans ton GitHub (bibliothèque du Store, sans registre ni wallet)"),
     ModelChoice("campaign", "Campagne — un fichier devient un site (arborescence), une vidéo et des propositions à valider, semi-automatique"),
+    ModelChoice("documents", "Documents — Claude écrit des documents (Word, PDF, texte, tableur, présentation) dans le dossier aiwa-documents de ton dépôt"),
     ModelChoice("aiwa", "App Aiwa — un contrat figé, signé et classé par minage, publié par Aiwa (registre)"),
 )
 
@@ -279,7 +280,7 @@ object AiwaRepository {
 // (Store), and, for Aiwa, the registry's check of the pull request (it has no state of its own here: the page it opens says). It was a button of its own that adapted;
 // now that it is in the settings list, it adapts the same way.
 fun workflowShown(state: AiwaState): Boolean =
-    state.deploy == "aiwa" || (state.repo != null && (state.deploy in setOf("pages", "android", "campaign", "store") || state.ciState != null))
+    state.deploy != "documents" && (state.deploy == "aiwa" || (state.repo != null && (state.deploy in setOf("pages", "android", "campaign", "store") || state.ciState != null)))
 
 /** Whether the state of the last run (green, red, running) is the one of what the mode produces. */
 fun workflowStateKnown(state: AiwaState): Boolean = state.deploy != "aiwa" && workflowShown(state)
@@ -290,6 +291,7 @@ fun workflowName(deploy: String): String = when (deploy) {
     "pages" -> "Déploiement Pages"
     "android" -> "Build de l'APK"
     "campaign" -> "Déploiement des maquettes (Pages)"
+    "documents" -> "Documents"
     "store" -> "Contrôle de l'app"
     "aiwa" -> "Registre : vérification de ta publication"
     else -> "GitHub Actions"
