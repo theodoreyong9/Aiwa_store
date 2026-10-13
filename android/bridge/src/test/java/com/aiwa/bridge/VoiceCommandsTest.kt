@@ -20,6 +20,26 @@ class VoiceCommandsTest {
 
     private fun parse(text: String) = parseDictation(text, models, sessions, repos)
 
+    @Test fun anOrderThatStartsTheSentenceAndNamesARepositoryNeedsNoTrigger() {
+        val d = parse("mets-toi sur le dépôt Aiwa store")
+        assertEquals(listOf<VoiceCommand>(VoiceCommand.Repo("theodoreyong9/Aiwa_store")), d.commands)
+        assertEquals("", d.message)
+        val withText = parse("passe sur le repo Jobber et ajoute une page")
+        assertEquals(listOf<VoiceCommand>(VoiceCommand.Repo("theodoreyong9/Jobber")), withText.commands)
+        assertEquals("ajoute une page", withText.message)
+    }
+
+    @Test fun aSentenceThatOnlyMentionsARepositoryStaysForClaude() {
+        val d = parse("fais une page, sur le dépôt Jobber il y a un bug")
+        assertTrue(d.commands.isEmpty())
+        assertEquals("fais une page, sur le dépôt Jobber il y a un bug", d.message)
+        val unknown = parse("change le dépôt des tests")
+        assertTrue(unknown.commands.isEmpty())
+        assertEquals("change le dépôt des tests", unknown.message)
+        val notLeading = parse("regarde le dépôt Jobber")
+        assertTrue(notLeading.commands.isEmpty())
+    }
+
     @Test fun aDictationWithoutTheKeywordsIsAllForClaude() {
         val d = parse("fais-moi une page d'accueil avec un modèle de formulaire et un push sur la branche")
         assertEquals("fais-moi une page d'accueil avec un modèle de formulaire et un push sur la branche", d.message)

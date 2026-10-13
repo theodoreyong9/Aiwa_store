@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Voice: an order that STARTS the sentence and names one of the repositories (« mets-toi sur le dépôt Aiwa store », « passe sur le repo Jobber ») is a command without « instruction Aiwa »; it is read back and confirmed like the others. A name that is not a repository leaves the sentence for Claude.
+
 - Widget: the question Claude asks is a red ❓ button at the right of the session (classic and glasses), so the session's name keeps opening the list of sessions (it used to open the question).
 
 - Battery: when Android may stop Aiwa in the background (no exemption from the battery's optimisation), the widget's status line says « ⚠ Autorise Aiwa en arrière-plan — touche ici » and one tap shows Android's own question; shown at most twice if refused.

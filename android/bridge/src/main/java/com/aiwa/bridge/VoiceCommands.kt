@@ -98,6 +98,18 @@ private val CAST_NAME_LEAD = setOf("du", "de", "d", "la", "le", "chez", "au")
 private val CAST_NAME_STOP = setOf("et", "puis", "ensuite", "quand", "apres", "avec", "pour", "mais")
 private val CONNECTORS = setOf("et", "puis", "ensuite", "aussi", "apres")
 
+// Verbs that start « mets-toi sur le dépôt X », and the little words between the verb and « dépôt ».
+private val LEAD_VERBS = setOf("mets", "met", "mets-toi", "met-toi", "passe", "passe-toi", "va", "vas", "bascule", "change", "changer", "reviens", "retourne", "travaille", "bosse", "utilise", "prends")
+private val LEAD_FILLERS = setOf("toi", "sur", "vers", "dans", "a", "au", "le", "la", "les", "l", "mon", "ton", "notre", "de", "du")
+
+/** The index of « dépôt » when the sentence STARTS with an order that leads to it (« mets-toi sur le dépôt X »), else -1. */
+private fun leadingRepoCommandAt(all: List<Word>): Int {
+    if (all.isEmpty() || all[0].plain !in LEAD_VERBS) return -1
+    var k = 1
+    while (k < all.size && k <= 4 && all[k].plain in LEAD_FILLERS) k++
+    return if (k < all.size && all[k].plain in REPO_WORDS) k else -1
+}
+
 private fun startsCommand(word: Word, next: Word?): Boolean =
     word.plain in MODEL_WORDS || word.plain in PUSH_WORDS || word.plain in EFFORT_WORDS || word.plain in QUALITY_WORDS || word.plain in DEPLOY_WORDS || word.plain in SESSION_WORDS ||
         word.plain in REPO_WORDS || (word.plain in NEW_WORDS && next?.plain in SESSION_WORDS) || (word.plain in TRIGGER)
@@ -155,7 +167,16 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
                 if (n > 0) { trigger = i; triggerLength = 1 + n; break }
             }
         }
-        if (trigger < 0) return Dictation(heard.trim(), emptyList(), emptyList(), false)
+        if (trigger < 0) {
+            // « mets-toi sur le dépôt Aiwa store »: an order that starts the sentence and names a repository needs no « instruction Aiwa » (it is read back and confirmed like the others)
+            val repoAt = leadingRepoCommandAt(all)
+            if (repoAt >= 0) {
+                val asOrder = parseDictation(all.subList(repoAt, all.size).joinToString(" ") { it.original }, models, sessions, repos, startInInstructions = true)
+                // Only when the name is one of the repositories: « change le dépôt des tests » (a sentence for Claude) stays one
+                if (asOrder.commands.any { it is VoiceCommand.Repo }) return asOrder
+            }
+            return Dictation(heard.trim(), emptyList(), emptyList(), false)
+        }
     }
 
     val before = if (startInInstructions) emptyList() else all.subList(0, trigger).map { it.original }
