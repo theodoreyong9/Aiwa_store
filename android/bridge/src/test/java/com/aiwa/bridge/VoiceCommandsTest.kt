@@ -93,8 +93,10 @@ class VoiceCommandsTest {
     @Test fun theKeywordIsRecognisedWithAccentsCapitalsAndAsTwoWords() {
         assertEquals(1, parse("Instructions Aïwa push main").commands.size)
         assertEquals(1, parse("instruction ai wa push branche").commands.size)
-        assertEquals(0, parse("instruction push main").commands.size)
-        assertEquals("instruction push main", parse("instruction push main").message)
+        // « instruction » alone, at the start of the sentence, is the pill mode (« Aiwa » is no longer needed); in the middle of a sentence it still needs « Aiwa »
+        assertEquals(1, parse("instruction push main").commands.size)
+        assertEquals("", parse("instruction push main").message)
+        assertEquals(0, parse("fais ça avec une instruction push main").commands.size)
     }
 
     @Test fun wordsAfterTheKeywordThatAreNotCommandsStayTextForClaude() {
