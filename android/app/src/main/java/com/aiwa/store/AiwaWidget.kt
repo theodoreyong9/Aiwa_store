@@ -29,6 +29,8 @@ import androidx.glance.layout.*
 import androidx.glance.text.*
 import androidx.glance.unit.*
 import com.aiwa.bridge.LocalClaudeBridge
+import com.aiwa.bridge.STORE_APP_URL
+import com.aiwa.bridge.storeTabUrl
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.sample
 
@@ -698,14 +700,20 @@ private fun GlassesContent(state: AiwaState) {
                         modifier = GlanceModifier.fillMaxWidth().height((itemH + 6f).dp).background(pill).cornerRadius(((itemH + 6f) / 2).dp).clickable(actionStartActivity<SearchActivity>()),
                         contentAlignment = Alignment.CenterStart,
                     ) {
-                        Text("  🔍 chercher liens ou aiwas", style = TextStyle(color = rgb(android.graphics.Color.rgb(160, 160, 174)), fontSize = 8.sp), maxLines = 1)
+                        Text("  🔍 id ou compte", style = TextStyle(color = rgb(android.graphics.Color.rgb(160, 160, 174)), fontSize = 8.sp), maxLines = 1)
                     }
-                    Spacer(GlanceModifier.height(6.dp))
-                    Image(
-                        provider = ImageProvider(R.drawable.logo_round),
-                        contentDescription = "Ouvrir Aiwa",
-                        modifier = GlanceModifier.size(((h * 0.83f - itemH - 18f).coerceIn(40f, 90f)).dp).clickable(actionStartActivity<StoreActivity>()),
+                    Spacer(GlanceModifier.height(4.dp))
+                    // « own »: the apps published with this wallet; « faves »: the starred ones. Each opens that tab of the Store.
+                    val context = LocalContext.current
+                    fun storeTab(tab: String): Action = actionStartActivity(
+                        Intent(context, StoreActivity::class.java).setData(Uri.parse("aiwa://store/$tab"))
+                            .putExtra(StoreActivity.EXTRA_URL, storeTabUrl(tab) ?: STORE_APP_URL),
                     )
+                    Row(modifier = GlanceModifier.fillMaxWidth().height(itemH.dp)) {
+                        Chip("own", pill, fg, storeTab("mine"), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
+                        Spacer(GlanceModifier.width(GAP.dp))
+                        Chip("★ faves", pill, fg, storeTab("favorites"), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
+                    }
                 }
                 Spacer(GlanceModifier.width(outer.dp))
             }

@@ -74,6 +74,12 @@ class StoreLinkTest {
         assertEquals("https://example.com/", servedAddress("https://example.com/", downloaded = true))
     }
 
+    @Test fun theWidgetOpensTheOwnAndFavouriteTabs() {
+        assertEquals("$STORE_APP_URL#tab=mine", storeTabUrl("mine"))
+        assertEquals("$STORE_APP_URL#tab=favorites", storeTabUrl("favorites"))
+        assertNull(storeTabUrl("library"))
+    }
+
     @Test fun theUnifiedSearchTravelsInTheAddress() {
         assertEquals("$STORE_APP_URL#q=bob%2Fmy%20app", storeSearchUrl("  bob/my app "))
         assertNull(storeSearchUrl("   "))

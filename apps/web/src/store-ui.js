@@ -160,8 +160,8 @@ export function initStore() {
     } catch { /* the browser refused the clipboard: the text is on screen to select */ }
   });
   // Already open when the Android app asks for a code: only the fragment changes.
-  window.addEventListener('hashchange', () => { handoffCode(); handoffApp(); handoffQuery(); });
-  return refreshStore().then(handoffCode).then(handoffApp).then(handoffQuery);
+  window.addEventListener('hashchange', () => { handoffCode(); handoffApp(); handoffQuery(); handoffTab(); });
+  return refreshStore().then(handoffCode).then(handoffApp).then(handoffQuery).then(handoffTab);
 }
 
 
@@ -225,6 +225,16 @@ export async function unifiedSearch(raw) {
   }
   showStoreTab('library');
   followAccount(text);
+}
+
+// The widget's « own » and « faves » buttons: #tab=mine / #tab=favorites open that tab.
+const TAB_HASH = /^#tab=(mine|favorites)$/;
+function handoffTab() {
+  const match = TAB_HASH.exec(location.hash);
+  if (!match) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch { /* cosmetic */ }
+  switchView('store');
+  showStoreTab(match[1]);
 }
 
 const QUERY_HASH = /^#q=(.{1,300})$/;

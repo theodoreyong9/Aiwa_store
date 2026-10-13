@@ -56,6 +56,9 @@ fun storeCodeUrl(id: String, base: String = STORE_APP_URL): String? = if (APP_ID
 fun storeSearchUrl(text: String, base: String = STORE_APP_URL): String? =
     text.trim().take(300).takeIf { it.isNotEmpty() }?.let { "$base#q=" + java.net.URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
 
+/** The Store's tab of the apps published with the wallet (`mine`) or starred (`favorites`); null for any other name. */
+fun storeTabUrl(tab: String, base: String = STORE_APP_URL): String? = if (tab == "mine" || tab == "favorites") "$base#tab=$tab" else null
+
 // The kinds of app the Store takes: its code in the package ("code": one HTML file), or published through Aiwa ("aiwa").
 private val KINDS = setOf("code", "aiwa", "link")
 
