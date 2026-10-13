@@ -20,6 +20,41 @@ class VoiceCommandsTest {
 
     private fun parse(text: String) = parseDictation(text, models, sessions, repos)
 
+    @Test fun theTwoSpokenSectionsInstructionThenCommande() {
+        val both = parse("instruction modèle Fable push main commande fais une page d'accueil")
+        assertEquals("fais une page d'accueil", both.message)
+        assertEquals(2, both.commands.size)
+        assertTrue(both.problems.isEmpty())
+        assertTrue(both.instructions)
+
+        val direct = parse("commande directe fais une page d'accueil")
+        assertEquals("fais une page d'accueil", direct.message)
+        assertTrue(direct.commands.isEmpty())
+
+        val pillsOnly = parse("instruction push main")
+        assertEquals("", pillsOnly.message)
+        assertEquals(1, pillsOnly.commands.size)
+
+        val withTrailing = parse("commande fais une page instruction Aiwa push main")
+        assertEquals("fais une page", withTrailing.message)
+        assertEquals(1, withTrailing.commands.size)
+
+        val notUnderstood = parse("instruction push main bla bla commande fais ça")
+        assertEquals("fais ça", notUnderstood.message)
+        assertTrue(notUnderstood.problems.any { it.contains("bla bla") })
+
+        val wakeMode = parseDictation("push main commande fais une page", models, sessions, repos, startInInstructions = true)
+        assertEquals("fais une page", wakeMode.message)
+        assertEquals(1, wakeMode.commands.size)
+    }
+
+    @Test fun theWordCommandeInAMessageIsJustText() {
+        val d = parse("ajoute une page de commande avec un bouton")
+        assertEquals("ajoute une page de commande avec un bouton", d.message)
+        assertTrue(d.commands.isEmpty())
+        assertFalse(d.instructions)
+    }
+
     @Test fun anOrderThatStartsTheSentenceAndNamesARepositoryNeedsNoTrigger() {
         val d = parse("mets-toi sur le dépôt Aiwa store")
         assertEquals(listOf<VoiceCommand>(VoiceCommand.Repo("theodoreyong9/Aiwa_store")), d.commands)

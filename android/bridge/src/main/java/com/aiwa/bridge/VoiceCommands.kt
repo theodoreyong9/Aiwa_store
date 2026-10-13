@@ -98,6 +98,32 @@ private val CAST_NAME_LEAD = setOf("du", "de", "d", "la", "le", "chez", "au")
 private val CAST_NAME_STOP = setOf("et", "puis", "ensuite", "quand", "apres", "avec", "pour", "mais")
 private val CONNECTORS = setOf("et", "puis", "ensuite", "aussi", "apres")
 
+private val COMMAND_WORDS = setOf("commande")
+private val DIRECT_WORDS = setOf("directe", "direct")
+
+/**
+ * The two spoken sections: « instruction … » changes the pills, « commande … » is what goes to Claude, then « c'est bon vas-y » (cut off before this runs).
+ *   « instruction modèle Opus push main commande fais une page »   pills, then the message
+ *   « commande directe fais une page »                             the message only (the pills as they are go along anyway)
+ *   « instruction modèle Opus »                                    the pills only
+ * « instruction » alone STARTS the pill mode (what it says that is not a command stays text for Claude when no « commande » follows). « commande » is a keyword only when it STARTS the sentence or follows an instruction section (« une page de commande » is text). In the wake-word mode, where
+ * everything is instruction, it is one wherever it is said. Returns (the instruction words, the command words or null), or null when the sentence has none of it.
+ */
+private fun explicitSections(all: List<Word>, startInInstructions: Boolean): Pair<List<Word>, List<Word>?>? {
+    fun afterCommand(from: Int): List<Word> = all.subList(from, all.size).let { rest -> if (rest.firstOrNull()?.plain in DIRECT_WORDS) rest.drop(1) else rest }
+    if (startInInstructions) {
+        val k = all.indexOfFirst { it.plain in COMMAND_WORDS }
+        return if (k < 0) null else all.subList(0, k) to afterCommand(k + 1)
+    }
+    val first = all.firstOrNull() ?: return null
+    if (first.plain in COMMAND_WORDS) return emptyList<Word>() to afterCommand(1)
+    if (first.plain in TRIGGER) {
+        val k = all.indexOfFirst { it.plain in COMMAND_WORDS }
+        return if (k < 0) all.subList(1, all.size) to null else all.subList(1, k) to afterCommand(k + 1)
+    }
+    return null
+}
+
 // Verbs that start « mets-toi sur le dépôt X », and the little words between the verb and « dépôt ».
 private val LEAD_VERBS = setOf("mets", "met", "mets-toi", "met-toi", "passe", "passe-toi", "va", "vas", "bascule", "change", "changer", "reviens", "retourne", "travaille", "bosse", "utilise", "prends")
 private val LEAD_FILLERS = setOf("toi", "sur", "vers", "dans", "a", "au", "le", "la", "les", "l", "mon", "ton", "notre", "de", "du")
@@ -158,6 +184,17 @@ private fun isVersion(word: String) = Regex("^\\d+([.,]\\d+)?$").matches(word)
  */
 fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<VoiceSession>, repos: List<String>, startInInstructions: Boolean = false): Dictation {
     val all = words(heard)
+    // « instruction … commande … »: the spoken sections (see explicitSections)
+    explicitSections(all, startInInstructions)?.let { (instructionPart, commandPart) ->
+        fun text(part: List<Word>) = part.joinToString(" ") { it.original }
+        val instruction = if (instructionPart.isEmpty()) Dictation("", emptyList(), emptyList(), false) else parseDictation(text(instructionPart), models, sessions, repos, startInInstructions = true)
+        val command = if (commandPart == null) null else parseDictation(text(commandPart), models, sessions, repos)
+        val problems = instruction.problems + (command?.problems ?: emptyList()) +
+            // What the instruction section said that is not a command is text for Claude when no « commande » follows; with one, it is reported (nothing is guessed)
+            (if (command != null && instruction.message.isNotBlank()) listOf("Pas compris dans l'instruction : « ${instruction.message} »") else emptyList())
+        val message = if (command != null) command.message else instruction.message
+        return Dictation(message, instruction.commands + (command?.commands ?: emptyList()), problems, instructionPart.isNotEmpty() || command?.instructions == true)
+    }
     var trigger = -1
     var triggerLength = 0
     if (!startInInstructions) {

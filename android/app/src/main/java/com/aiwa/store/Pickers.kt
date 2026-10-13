@@ -483,6 +483,10 @@ class VoiceCommandsHelpActivity : ComponentActivity() {
                 add(PickerEntry("Parle : c'est du texte pour Claude. « C'est bon vas-y » envoie.", false, lines = 3) { })
                 add(PickerEntry("« Non, c'est pas bon, arrête » ou « annule », à la fin : tout est abandonné.", false, lines = 3) { })
 
+                add(PickerEntry("Les deux mots : « instruction » et « commande »", false, header = true) { })
+                add(PickerEntry("« Instruction » change les pastilles (modèle, push, dépôt…), tout de suite lu et confirmé. « Commande » commence ce qui part à Claude. Puis « c'est bon vas-y ». Exemples : « instruction modèle Fable push main commande fais une page d'accueil », « commande directe fais une page d'accueil » (les pastilles telles qu'elles sont partent avec), « instruction push main » (pastilles seules).", false, lines = 6) { })
+                add(PickerEntry("« Commande » n'est un mot-clé qu'en début de phrase ou après une instruction : « une page de commande » reste du texte.", false, lines = 3) { })
+
                 add(PickerEntry("Changer de dépôt, directement", false, header = true) { })
                 add(PickerEntry("En début de phrase : « mets-toi sur le dépôt Aiwa store », « passe sur le repo Jobber » (mets, passe, va, bascule, change, reviens, retourne, travaille, utilise, prends). Ce qui suit le nom reste pour Claude. Un nom qui n'est pas un de tes dépôts : la phrase part telle quelle.", false, lines = 5) { })
 

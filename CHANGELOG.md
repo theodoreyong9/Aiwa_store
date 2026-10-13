@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Voice: two spoken sections. « instruction … » changes the pills (what it says that is not a command stays text for Claude), « commande … » (or « commande directe … ») starts what goes to Claude; « instruction modèle Fable push main commande fais une page », « commande directe fais une page », « instruction push main ». « commande » is a keyword only at the start of a sentence or after an instruction (« une page de commande » is text); in the wake-word mode it is one wherever it is said. What the instruction section says that is not a command is reported when a « commande » follows. Listed in the voice help.
+
 - A question from Claude belongs to the session in use when it came: the red ❓ button and the line disappear when another session is chosen (and cannot be answered there), and come back in their own session. The widget redraws when the question changes.
 
 - The voice commands help (settings > Commandes vocales) lists the new way to change repository (« mets-toi sur le dépôt X » at the start of a sentence, no trigger phrase).
