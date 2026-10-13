@@ -32,6 +32,7 @@
   <nav class="tabs" id="store-tabs" role="tablist" aria-label="Store">
     <button type="button" id="tab-aiwa" class="active" role="tab" aria-selected="true">Aiwa</button>
     <button type="button" id="tab-library" role="tab" aria-selected="false">Library</button>
+    <button type="button" id="tab-favorites" role="tab" aria-selected="false">Favourites</button>
   </nav>
   <p class="muted" id="store-status"></p>
   <section id="pane-aiwa" role="tabpanel">
@@ -45,6 +46,10 @@
     <div id="library-accounts"></div>
     <p class="muted" id="library-status"></p>
     <div id="library-list"></div>
+  </section>
+  <section id="pane-favorites" role="tabpanel" hidden>
+    <p class="muted" id="favorites-status"></p>
+    <div id="favorites-list"></div>
   </section>
 </main>
 

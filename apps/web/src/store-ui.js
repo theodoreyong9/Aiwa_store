@@ -4,7 +4,7 @@ import { config } from './config.js';
 import { $, switchView } from './ui.js';
 import { setCatalog } from './session.js';
 import { openViewer } from './viewer.js';
-import { parseAccount, accountKey, loadLibrary, filterLibrary, loadLink, savedAccounts, saveAccounts, localStore } from './library.js';
+import { parseAccount, accountKey, loadLibrary, filterLibrary, loadLink, savedAccounts, saveAccounts, localStore, savedFavorites, saveFavorites, isFavorite, toggleFavorite } from './library.js';
 
 const cache = openCache('aiwa-store-cache');
 let apps = [];
@@ -55,7 +55,7 @@ function render() {
     code.setAttribute('aria-label', `Read the published code of ${app.name}`);
     code.addEventListener('click', () => showCode(app, code));
 
-    row.append(rank, body, open, code);
+    row.append(rank, body, open, code, starButton(app));
     list.append(row);
   }
 }
@@ -157,6 +157,60 @@ export function initStore() {
   return refreshStore().then(handoffCode);
 }
 
+
+// ---------- favourites: the apps starred, from either tab ----------
+let favorites = savedFavorites();
+
+function starButton(entry) {
+  const star = document.createElement('button');
+  star.type = 'button';
+  star.className = 'icon star';
+  const paint = () => {
+    const on = isFavorite(favorites, entry);
+    star.textContent = on ? '★' : '☆';
+    star.title = on ? 'Remove from the favourites' : 'Add to the favourites';
+    star.setAttribute('aria-label', `${on ? 'Remove' : 'Add'} ${entry.name} ${on ? 'from' : 'to'} the favourites`);
+  };
+  paint();
+  star.addEventListener('click', () => { favorites = toggleFavorite(favorites, entry); saveFavorites(favorites); paint(); renderFavorites(); });
+  return star;
+}
+
+function renderFavorites() {
+  const list = $('favorites-list');
+  list.replaceChildren();
+  $('favorites-status').textContent = favorites.length ? '' : 'No favourite yet. Press ☆ on an app of the Aiwa or Library tab.';
+  for (const { entry } of favorites) {
+    if (!filterLibrary([{ ...entry, repo: entry.repo ?? '' }], $('store-search').value).length) continue;
+    const link = entry.kind === 'link';
+    const row = document.createElement('div');
+    row.className = 'app';
+    row.dataset.id = entry.id;
+    const body = document.createElement('div');
+    body.className = 'body';
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = entry.name;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = link ? `Library · github.com/${entry.repo}` : `Aiwa · ${shortAddress(entry.author)} · v${entry.version}`;
+    body.append(title, meta);
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'primary';
+    open.textContent = 'Open';
+    open.addEventListener('click', () => (link ? openLink(entry, open, false) : openApp(entry, open)));
+    const code = document.createElement('button');
+    code.type = 'button';
+    code.className = 'icon';
+    code.textContent = '</>';
+    code.setAttribute('aria-label', `Read the code of ${entry.name}`);
+    code.addEventListener('click', () => (link ? openLink(entry, code, true) : showCode(entry, code)));
+    row.append(body, open, code, starButton(entry));
+    list.append(row);
+  }
+}
+
 // ---------- the library: the GitHub accounts the user follows ----------
 
 let accounts = savedAccounts();
@@ -207,7 +261,7 @@ function renderLibrary() {
     code.title = 'Read the code in its repository';
     code.setAttribute('aria-label', `Read the code of ${entry.name}`);
     code.addEventListener('click', () => openLink(entry, code, true));
-    row.append(body, open, code);
+    row.append(body, open, code, starButton(entry));
     list.append(row);
   }
 }
@@ -254,25 +308,25 @@ export function followAccount(text) {
 
 /** The Store has two tabs: the Aiwa apps (ranked, from the registry) and the Library (the GitHub accounts followed). */
 export function showStoreTab(name) {
-  const library = name === 'library';
-  $('pane-aiwa').hidden = library;
-  $('pane-library').hidden = !library;
-  $('tab-aiwa').classList.toggle('active', !library);
-  $('tab-library').classList.toggle('active', library);
-  $('tab-aiwa').setAttribute('aria-selected', String(!library));
-  $('tab-library').setAttribute('aria-selected', String(library));
-  $('store-search').placeholder = library ? 'Search the library' : 'Search Aiwa apps';
+  for (const tab of ['aiwa', 'library', 'favorites']) {
+    $(`pane-${tab}`).hidden = tab !== name;
+    $(`tab-${tab}`).classList.toggle('active', tab === name);
+    $(`tab-${tab}`).setAttribute('aria-selected', String(tab === name));
+  }
+  $('store-search').placeholder = name === 'library' ? 'Search the library' : name === 'favorites' ? 'Search the favourites' : 'Search Aiwa apps';
+  if (name === 'favorites') renderFavorites();
 }
 
 export function initLibrary() {
   $('tab-aiwa').addEventListener('click', () => showStoreTab('aiwa'));
   $('tab-library').addEventListener('click', () => showStoreTab('library'));
+  $('tab-favorites').addEventListener('click', () => showStoreTab('favorites'));
   const add = () => {
     if (followAccount($('library-add').value)) $('library-add').value = '';
     else $('library-status').textContent = 'A GitHub login, or login/repo.';
   };
   $('library-add-go').addEventListener('click', add);
   $('library-add').addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
-  $('store-search').addEventListener('input', renderLibrary);
+  $('store-search').addEventListener('input', () => { renderLibrary(); renderFavorites(); });
   return refreshLibrary();
 }

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Store: a ☆ on every app (Aiwa and Library) and a Favourites tab, kept on the phone.
+
 - Glasses widget: all pills are now very small (wrap width, 8sp); only the microphone button stays large.
 
 - **The row names, once more: Activité, Domaine, Agence, Spécialiste** (top to bottom: the session and what is going on, the repository and the settings, the mode and what it delivers, the microphone). Same place as before (a small grey column at the left of each row, not in the chips), a little wider (56 dp) for « Spécialiste ». Compiled by CI, **not tried on a phone**.

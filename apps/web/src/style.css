@@ -314,3 +314,4 @@ details.plain > * + * { margin-top: 8px; }
 #library-list > * + * { margin-top: 8px; }
 
 #store-tabs { margin: 8px 0; }
+.app .star { flex: none; align-self: flex-start; color: var(--accent); }

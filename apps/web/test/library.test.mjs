@@ -43,3 +43,16 @@ test('the code is read as it is now', async () => {
   assert.equal(urls[0], 'https://raw.githubusercontent.com/alice/tools/HEAD/aiwa-apps/t.app.html');
   await assert.rejects(loadLink({ entry, fetchFn: async () => ({ ok: false }) }), /does not serve/);
 });
+
+test('favourites: toggling adds then removes, Aiwa and link ids stay apart', async () => {
+  const { toggleFavorite, isFavorite } = await import('../src/library.js');
+  const link = { id: 'bob/x', kind: 'link', name: 'x', repo: 'bob/aiwa-apps' };
+  const aiwa = { id: 'bob/x', kind: 'aiwa', name: 'x' };
+  let favs = toggleFavorite([], link);
+  assert.equal(isFavorite(favs, link), true);
+  assert.equal(isFavorite(favs, aiwa), false);
+  favs = toggleFavorite(favs, aiwa);
+  assert.equal(favs.length, 2);
+  favs = toggleFavorite(favs, link);
+  assert.deepEqual(favs.map((f) => f.source), ['aiwa']);
+});

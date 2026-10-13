@@ -85,3 +85,18 @@ export const localStore = {
   get: (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* cache only */ } },
 };
+
+// The favourites: apps (Aiwa or library) the user starred, kept whole in this browser so they open from the Favourites tab without any list.
+const FAV_KEY = 'aiwa-favorites';
+export function savedFavorites() {
+  try { return (JSON.parse(localStorage.getItem(FAV_KEY)) ?? []).filter((f) => f && (f.entry?.kind === 'link') === (f.source === 'link') && typeof f.entry?.id === 'string'); } catch { return []; }
+}
+export function saveFavorites(favorites) {
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(favorites)); } catch { /* private window: the favourites last until the page closes */ }
+}
+export const isFavorite = (favorites, entry) => favorites.some((f) => f.entry.id === entry.id && (f.entry.kind === 'link') === (entry.kind === 'link'));
+/** The list with `entry` added, or removed when it was there. `source` is 'aiwa' (registry) or 'link' (library). */
+export function toggleFavorite(favorites, entry) {
+  if (isFavorite(favorites, entry)) return favorites.filter((f) => !(f.entry.id === entry.id && (f.entry.kind === 'link') === (entry.kind === 'link')));
+  return [...favorites, { source: entry.kind === 'link' ? 'link' : 'aiwa', entry }];
+}
