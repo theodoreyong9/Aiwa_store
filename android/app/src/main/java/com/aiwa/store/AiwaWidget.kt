@@ -292,7 +292,7 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
             statusColor = if (refused) warm else fg
             statusBold = refused
         }
-        state.ask != null -> { status = "❓ Claude te pose une question — touche ici"; statusColor = alertText; statusBold = true }
+        state.ask != null -> { status = "❓ Claude te pose une question — touche le bouton ❓"; statusColor = alertText; statusBold = true }
         state.ciHintTitle != null -> { status = "⚠ GitHub : un réglage à faire — touche ⚠"; statusColor = alertText; statusBold = true }
         state.waiting -> { status = "● Claude attend ta réponse"; statusColor = alertText; statusBold = true }
         // Nothing came back by any road for a while after a message: only « go and look » can be said (the answer cannot be read from here)
@@ -331,7 +331,6 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         accessNotice(state, 1) != null -> actionStartActivity<AccessActivity>()
         state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
-        state.ask != null && state.status != AiwaState.Status.WORKING -> actionStartActivity<AskActivity>()
         state.silenceMinutes > 0 && state.status != AiwaState.Status.WORKING -> actionStartActivity<OpenClaudeActivity>()
         state.status == AiwaState.Status.ERROR && state.notice != null -> actionStartActivity<MainActivity>()
         state.needsRepo || state.repo == null -> actionStartActivity<RepoPickerActivity>()
@@ -444,6 +443,11 @@ private fun FullContent(state: AiwaState) {
                     style = TextStyle(color = statusColor, fontSize = 11.sp, fontWeight = if (statusBold) FontWeight.Bold else FontWeight.Normal),
                     maxLines = 1,
                 )
+            }
+            // The question Claude asks: a button of its own, at the right of the session, so that the session's name keeps opening the list of sessions
+            if (state.ask != null && state.status != AiwaState.Status.WORKING) {
+                Spacer(GlanceModifier.width(8.dp))
+                RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = avatar.dp)
             }
             // The logo (a round PNG with real transparency), on the right: opens the app, the Store.
             Spacer(GlanceModifier.width(8.dp))
@@ -659,6 +663,11 @@ private fun GlassesContent(state: AiwaState) {
                         Column(modifier = GlanceModifier.defaultWeight().clickable(band.action), verticalAlignment = Alignment.CenterVertically) {
                             Text(band.title, style = TextStyle(color = fg, fontSize = 9.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                             Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 8.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
+                        }
+                        // The question Claude asks has a button of its own, at the right of the session (the session keeps opening the list of sessions)
+                        if (state.ask != null && !locked) {
+                            Spacer(GlanceModifier.width(GAP.dp))
+                            RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = (itemH + 4f).dp)
                         }
                     }
                     Row(modifier = GlanceModifier.fillMaxWidth().height(itemH.dp)) {

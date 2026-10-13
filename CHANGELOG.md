@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: the question Claude asks is a red ❓ button at the right of the session (classic and glasses), so the session's name keeps opening the list of sessions (it used to open the question).
+
 - Battery: when Android may stop Aiwa in the background (no exemption from the battery's optimisation), the widget's status line says « ⚠ Autorise Aiwa en arrière-plan — touche ici » and one tap shows Android's own question; shown at most twice if refused.
 
 - Glasses widget, right lens: « Store » and « Wallet » buttons (a widget cannot show a web page: they open it; `#tab=wallet` opens the Wallet page).
