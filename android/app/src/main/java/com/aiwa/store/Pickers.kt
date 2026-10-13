@@ -701,6 +701,9 @@ class SettingsActivity : ComponentActivity() {
             // the switch is the person's wish; "listening" is whether the service is running (after a restart of the phone it is not, until the app is opened)
             val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
+                add(PickerEntry("Session et dépôt", false, header = true) { })
+                add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
+                add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
                 add(PickerEntry("Réglages", false, header = true) { })
                 add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
                 if (state.repo != null) {
@@ -736,6 +739,7 @@ class SettingsActivity : ComponentActivity() {
 
                 add(PickerEntry("Forme du widget", false, header = true) { })
                 add(PickerEntry("Classic — les bandes, comme avant", current == WidgetStyle.CLASSIC, lines = 2) { shape(WidgetStyle.CLASSIC) })
+                add(PickerEntry("Aiwa — les modes en haut (Vidéo, Page, Campagne, App, Store, Aiwa), puis le micro, Claude, la question, le modèle, le push, et en bas la boucle, l'app Aiwa, la mise à jour et les réglages", current == WidgetStyle.AIWA, lines = 5) { shape(WidgetStyle.AIWA) })
                 add(PickerEntry("Glasses — des lunettes : un verre pour le contexte, un pour le travail, le micro à droite", current == WidgetStyle.GLASSES, lines = 3) { shape(WidgetStyle.GLASSES) })
             }
             PickerSheet(entries) { finish() }

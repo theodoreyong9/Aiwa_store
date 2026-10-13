@@ -23,6 +23,8 @@ import androidx.glance.appwidget.action.actionRunCallback
 // The Intent overload of actionStartActivity lives in the appwidget module.
 import androidx.glance.appwidget.action.actionStartActivity as actionStartIntent
 import androidx.glance.appwidget.cornerRadius
+import androidx.glance.appwidget.updateAll
+import androidx.glance.action.actionParametersOf
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.*
@@ -227,8 +229,12 @@ private fun Content(state: AiwaState) {
     // that share the whole height, so there is never an empty strip. The compact
     // two-row layout below is only a safety net for a launcher whose cells are so
     // small that four bands would not fit.
-    val glasses = WidgetStyle.current(LocalContext.current) == WidgetStyle.GLASSES && LocalSize.current.height >= 100.dp
-    if (glasses) GlassesContent(state) else if (LocalSize.current.height >= 150.dp) FullContent(state) else CompactContent(state)
+    val shape = WidgetStyle.current(LocalContext.current)
+    val glasses = shape == WidgetStyle.GLASSES && LocalSize.current.height >= 100.dp
+    if (glasses) GlassesContent(state)
+    else if (shape == WidgetStyle.AIWA && LocalSize.current.height >= 150.dp) AiwaContent(state)
+    else if (LocalSize.current.height >= 150.dp) FullContent(state)
+    else CompactContent(state)
 }
 
 // What the top of the widget says (the session and what is going on) and what a tap on it opens: the fix for what is wrong, else the sessions. Shared by both shapes.
@@ -746,6 +752,191 @@ private fun GlassesContent(state: AiwaState) {
                 }
                 Spacer(GlanceModifier.width(outer.dp))
             }
+        }
+    }
+}
+
+// ================================================================================================
+// The third shape, « Aiwa »: the modes in a row at the top (Vidéo · Page · Campagne · App · Store · Aiwa); what the chosen mode needs; the mic, Claude, the question,
+// the model, the push and the state of the workflow; and a bottom row (loop, the Aiwa app, the update when there is one, the settings). Session and repository
+// are in the settings menu. A tap on a mode IS the deploy selector (Vidéo only changes what is shown).
+// ================================================================================================
+
+private val MODE_KEY = ActionParameters.Key<String>("aiwa-mode")
+
+/** A mode of the top row: the deploy selector's value (or "video": only the view), and its word. */
+private class AiwaMode(val id: String, val word: String)
+private val AIWA_MODES = listOf(
+    AiwaMode("video", "Vidéo"), AiwaMode("pages", "Page"), AiwaMode("campaign", "Campagne"),
+    AiwaMode("android", "App"), AiwaMode("store", "Store"), AiwaMode("aiwa", "Aiwa"),
+)
+
+/** What the third shape shows: the mode of the selector, or "video" when the Vidéo button was the last one touched. */
+private fun aiwaView(context: Context, state: AiwaState): String = if (WidgetStyle.videoView(context)) "video" else state.deploy
+
+class PickModeCallback : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        val mode = parameters[MODE_KEY] ?: return
+        val app = context.applicationContext
+        if (mode == "video") {
+            WidgetStyle.setVideoView(app, true)
+        } else {
+            WidgetStyle.setVideoView(app, false)
+            if (AiwaRepository.state.value.deploy != mode) switchOptions(app, LocalClaudeBridge(), deploy = mode)
+            // the campaign mode simply asks for a file: its window opens at once (as in the list of the selector)
+            if (mode == "campaign") app.startActivity(Intent(app, FileCreationActivity::class.java).putExtra("campaign", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+        AiwaWidget().updateAll(app)
+    }
+}
+
+@Composable
+private fun AiwaContent(state: AiwaState) {
+    val fg = rgb(android.graphics.Color.rgb(240, 240, 245))
+    val pill = rgb(android.graphics.Color.rgb(44, 44, 54))
+    val micGrey = rgb(android.graphics.Color.rgb(84, 84, 94))
+    val claudeOrange = rgb(android.graphics.Color.rgb(204, 120, 92))
+    val alertRed = rgb(android.graphics.Color.rgb(214, 69, 65))
+    val green = rgb(android.graphics.Color.rgb(46, 125, 90))
+    val locked = state.status == AiwaState.Status.WORKING
+    val context = LocalContext.current
+    val size = LocalSize.current
+    val fontScale = context.resources.configuration.fontScale
+    val avail = size.width.value - 20f
+    val hasRepo = state.repo != null
+    val view = aiwaView(context, state)
+    val storeReady = deliversApp(state.deploy) && state.sentApp?.seen == false
+    val rows = 6
+    val rowH = ((size.height.value - 16f) / rows).coerceIn(26f, 42f)
+    val chipH = (rowH - 4f).coerceAtLeast(22f)
+    val band = bandInfo(state, avail - 20f)
+
+    Column(
+        modifier = GlanceModifier.fillMaxSize()
+            .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+    ) {
+        // ---- the session and what is going on (a tap: the fix for what is wrong, else the sessions) ----
+        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = GlanceModifier.defaultWeight().clickable(band.action), verticalAlignment = Alignment.CenterVertically) {
+                Text(band.title, style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 11.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
+            }
+        }
+        // ---- the modes ----
+        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            val shown = AIWA_MODES.filter { it.id == "video" || state.accessLevel >= 2 || !deliversApp(it.id) }
+            shown.forEachIndexed { i, mode ->
+                if (i > 0) Spacer(GlanceModifier.width(3.dp))
+                val on = mode.id == view
+                Chip(
+                    mode.word, if (on) green else pill, fg,
+                    actionRunCallback<PickModeCallback>(actionParametersOf(MODE_KEY to mode.id)),
+                    GlanceModifier.defaultWeight(), bold = on, height = chipH.dp, textSize = 10.sp, hPad = 2.dp,
+                )
+            }
+        }
+        // ---- what the mode needs ----
+        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            when {
+                view == "video" -> {
+                    if (hasRepo) Chip("🎬 Vidéos", pill, fg, actionStartActivity<VideosActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                    else Chip("Choisis un dépôt (réglages)", pill, fg, actionStartActivity<SettingsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                }
+                view == "campaign" -> Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                deliversApp(view) -> {
+                    Chip("▦ App", if (storeReady) claudeOrange else pill, fg, actionStartActivity<OpenStoreActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                    Spacer(GlanceModifier.width(GAP.dp))
+                    Chip("</> Code", if (storeReady) claudeOrange else pill, fg, codeAction, GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                }
+                else -> {
+                    val live = state.siteState == "live"
+                    if (hasRepo && state.siteUrl != null) Chip(if (state.siteKind == "apk") "⇩ APK" else "🌐 Site", if (live) claudeOrange else pill, fg, siteAction, GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, badge = state.ciFresh)
+                    else Chip(if (hasRepo) "Pas encore de site" else "Choisis un dépôt (réglages)", pill, fg, actionStartActivity<SettingsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                }
+            }
+            if (hasRepo && state.ciHintTitle != null) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(icon = R.drawable.ic_warning, description = "Un réglage de GitHub à faire : le guide", background = alertRed, action = actionStartActivity<PagesHelpActivity>(), diameter = chipH.dp)
+            }
+            // The state of the workflow of the mode (its colour: green, red, grey)
+            if (workflowShown(state)) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(
+                    icon = R.drawable.ic_actions,
+                    description = "Workflow : " + when (state.ciState) { "success" -> "réussi"; "failure" -> "échec"; "running" -> "en cours"; else -> "état inconnu" },
+                    background = if (state.deploy == "aiwa") pill else when (state.ciState) { "success" -> green; "failure" -> alertRed; else -> pill },
+                    action = actionStartActivity<OpenActionsActivity>(),
+                    diameter = chipH.dp,
+                )
+            }
+        }
+        // ---- the microphone, Claude, the question ----
+        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
+                    .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(16.dp))
+                    Spacer(GlanceModifier.width(8.dp))
+                    Text("Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                }
+            }
+            Spacer(GlanceModifier.width(GAP.dp))
+            RoundButton(
+                icon = R.drawable.ic_claude,
+                description = if (state.waiting) "Claude attend ta réponse : ouvrir" else "Ouvrir la conversation dans Claude",
+                background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
+                action = actionStartActivity<OpenClaudeActivity>(),
+                diameter = chipH.dp,
+            )
+            if (state.ask != null) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
+            }
+        }
+        // ---- the model and the push ----
+        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            val half = (avail - GAP) / 2f - 20f
+            Chip(
+                fitLabel(modelLabel(state.model), half - textWidth(" ▾", fontScale), fontScale) + " ▾", if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
+                lockable(locked, actionStartActivity<ModelPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
+            Chip(
+                if (state.pushMain) "Push : main" else "Push : branche", if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
+                lockable(locked, actionRunCallback<TogglePushMainCallback>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
+            )
+        }
+        // ---- the bottom row: the loop, the Aiwa app, the update when there is one, the settings ----
+        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            RoundButton(
+                icon = R.drawable.ic_loop,
+                description = if (state.loopPair.isNotEmpty()) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
+                background = if (state.loopPair.isNotEmpty()) green else pill,
+                action = actionStartActivity<LoopsActivity>(),
+                diameter = chipH.dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
+            Image(
+                provider = ImageProvider(R.drawable.logo_round),
+                contentDescription = "Ouvrir Aiwa",
+                modifier = GlanceModifier.size(chipH.dp).clickable(actionStartActivity<StoreActivity>()),
+            )
+            if (state.appUpdateReady) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
+            }
+            Spacer(GlanceModifier.defaultWeight())
+            RoundButton(
+                icon = R.drawable.ic_settings,
+                description = "Réglages : session, dépôt, modèle, voix, mises à jour…",
+                background = if (workflowFailed(state)) alertRed else pill,
+                action = actionStartActivity<SettingsActivity>(),
+                diameter = chipH.dp,
+            )
         }
     }
 }
