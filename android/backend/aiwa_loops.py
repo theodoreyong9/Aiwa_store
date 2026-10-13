@@ -265,10 +265,18 @@ def clean_comment(text):
     return " ".join(str(text or "").split())[:COMMENT_MAX_CHARS]
 
 
-def contributor_logins(data):
-    """The accounts of contributors.json that are valid logins (at most MAX_ACCOUNTS)."""
-    accounts = data.get("accounts") if isinstance(data, dict) else None
-    return [a for a in (accounts if isinstance(accounts, list) else []) if isinstance(a, str) and LOGIN_RE.fullmatch(a)][:MAX_ACCOUNTS]
+def contributor_logins(search):
+    """The accounts that own a repository named exactly aiwa-apps (GitHub's repository search answer), not forks, newest activity first, at most MAX_ACCOUNTS.
+    Nobody lists them: making that repository (what the comment button does) is how an account takes part."""
+    items = search.get("items") if isinstance(search, dict) else None
+    found = []
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict) or item.get("name") != "aiwa-apps" or item.get("fork") or item.get("private"):
+            continue
+        owner = (item.get("owner") or {}).get("login") if isinstance(item.get("owner"), dict) else None
+        if isinstance(owner, str) and LOGIN_RE.fullmatch(owner) and owner not in found:
+            found.append(owner)
+    return found[:MAX_ACCOUNTS]
 
 
 def comment_files(listing):

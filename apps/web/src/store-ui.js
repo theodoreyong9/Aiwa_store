@@ -262,7 +262,7 @@ export function initComments() {
       const token = await ensureToken({ clientId: config.github?.clientId, onCode: ({ userCode, verificationUri }) => { $('comment-status').textContent = `Type ${userCode} at ${verificationUri}`; } });
       const done = await postComment({ token, text: $('comment-text').value });
       $('comment-text').value = '';
-      $('comment-status').textContent = `Written in github.com/${done.login}/aiwa-apps/${done.path}. The critic reads it at its next turn if your account is in contributors.json.`;
+      $('comment-status').textContent = `Written in github.com/${done.login}/aiwa-apps/${done.path}. The critic reads it at its next turn.`;
     } catch (error) {
       $('comment-status').textContent = String(error.message ?? error);
     } finally {

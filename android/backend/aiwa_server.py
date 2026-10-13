@@ -2220,7 +2220,7 @@ def _loops_save():
 
 
 COMMENTS_SEEN_FILE = LOOPS_FILE.with_name("aiwa-comments-seen.json")
-CONTRIBUTORS_URL = "https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/contributors.json"
+CONTRIBUTORS_SEARCH = "https://api.github.com/search/repositories?q=aiwa-apps+in:name&sort=updated&order=desc&per_page=60"
 comments_seen = {}   # "login/name" -> sha already given to the critic: a comment edited afterwards (another sha) is given again
 
 
@@ -2240,11 +2240,11 @@ def _fetch_text(url):
 
 
 def _user_comments():
-    """The comments the contributors wrote on THEIR OWN repositories (aiwa-apps/aiwa-comments), not given to the critic yet. Nobody is special: the owner of
-    this project is one more account of contributors.json. Public data, no token."""
+    """The comments the contributors wrote on THEIR OWN repositories (aiwa-apps/aiwa-comments), not given to the critic yet. Nobody is special and nobody lists the accounts: those that own a
+    repository named aiwa-apps (found by GitHub's search) take part, the owner of this project like the others. Public data, no token."""
     try:
-        logins = loops_lib.contributor_logins(json.loads(_fetch_text(CONTRIBUTORS_URL)))
-    except (OSError, ValueError):
+        logins = loops_lib.contributor_logins(_github_json(CONTRIBUTORS_SEARCH))
+    except Exception:
         return []
     found = []
     for login in logins:

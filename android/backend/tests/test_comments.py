@@ -8,7 +8,9 @@ import aiwa_loops as L  # noqa: E402
 
 class Comments(unittest.TestCase):
     def test_contributors_and_files(self):
-        self.assertEqual(L.contributor_logins({"accounts": ["bob", "bad login", 3, "a-b"]}), ["bob", "a-b"])
+        repo = lambda name, owner, **kw: {"name": name, "owner": {"login": owner}, **kw}
+        found = L.contributor_logins({"items": [repo("aiwa-apps", "bob"), repo("aiwa-apps", "forker", fork=True), repo("aiwa-apps-old", "eve"), repo("aiwa-apps", "bad login"), repo("aiwa-apps", "bob"), repo("aiwa-apps", "a-b")]})
+        self.assertEqual(found, ["bob", "a-b"])
         self.assertEqual(L.contributor_logins([]), [])
         listing = [
             {"type": "file", "name": "1700000000000-ab12.md", "sha": "a" * 40},
