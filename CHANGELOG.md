@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Aiwa-shaped widget: the red dot of the news (a build or a deployment that just finished) is also on the tab of its mode in the row of modes, whichever tab is shown; it goes away as before, by opening the site or the workflow.
+
 - The state of the workflow of every mode comes from ONE request (and is kept): changing the mode and coming back shows the verdict at once instead of « ? » until it is looked up again. Backend 82.
 
 - Aiwa-shaped widget: the session, the repository, the model and the push are ONE button at the left of the microphone (« ⎇ repo ▾ »: red without a repository); its tap opens them as a list (the push changes at once). What is wrong (Aiwa not allowed, no backend, Claude not connected…) replaces its word and its tap is the fix; the status line, when it is not « Prêt », is a tap too.

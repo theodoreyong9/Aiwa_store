@@ -839,6 +839,8 @@ private fun AiwaContent(state: AiwaState) {
                     if (mode.id == "campaign" && each < 50f) "Camp." else mode.word, if (on) green else pill, fg,
                     actionRunCallback<PickModeCallback>(actionParametersOf(MODE_KEY to mode.id)),
                     GlanceModifier.defaultWeight(), bold = on, height = chipH.dp, textSize = wordSize, hPad = 1.dp,
+                    // the red dot of the news (a build, a deployment finished) is on the tab of the mode it is about, whichever tab is shown
+                    badge = state.ciFresh && mode.id == state.deploy,
                 )
             }
         }
