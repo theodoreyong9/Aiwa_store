@@ -752,6 +752,22 @@ class AskAndVideoTests(Base):
         self.assertEqual(sent, ["Ma réponse à ta demande « Quelle couleur ? » : Bleu"])
         self.assertIsNone(srv._ask_snapshot())
 
+    def test_the_same_question_by_the_relay_and_by_github_is_one_question(self):
+        # Claude is asked to send it by BOTH roads: the second arrival must not bring back a question already answered
+        self.assertTrue(srv._ask_set(json.dumps({"question": "Quelle couleur ?"}), "relay-1"))
+        self.assertFalse(srv._ask_set(json.dumps({"question": "Quelle couleur ?"}), "github:o/r@w:99"))
+        shown = srv._ask_snapshot()
+        with unittest.mock.patch.object(srv, "cloud_send", lambda text, command=False: {"ok": True}):
+            self.assertTrue(srv._ask_answer(json.dumps({"id": shown["id"], "answer": "Bleu"}))["ok"])
+        self.assertFalse(srv._ask_set(json.dumps({"question": "Quelle couleur ?"}), "github:o/r@w:100"))
+        self.assertIsNone(srv._ask_snapshot())
+        self.assertTrue(srv._ask_set(json.dumps({"question": "Autre chose ?"}), "relay-2"))        # a different question is a new one
+
+    def test_the_instruction_asks_for_both_roads_at_once(self):
+        text = dict(srv._instruction_lines("o/r", "w", "main", True))["ask"]
+        self.assertIn("TOUJOURS par les DEUX voies", text)
+        self.assertIn("aiwa-out/ask.json", text)
+
     def test_a_failed_send_keeps_the_question_so_that_it_can_be_answered_again(self):
         srv._ask_set(json.dumps({"question": "Oui ou non ?"}), "e2")
         with unittest.mock.patch.object(srv, "cloud_send", lambda text, command=False: {"ok": False, "error": "busy"}):

@@ -53,7 +53,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 75
+BACKEND_VERSION = 76
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -562,7 +562,7 @@ def _game_line():
 def _ask_line(repo, work, topic):
     """How Claude asks something: through the widget, because the widget never sees what is said in the conversation."""
     fallback = (
-        f" Si la commande échoue (réseau bloqué), repli : écris le même JSON dans `aiwa-out/ask.json`, puis `echo \"ask $(date +%s)\" > aiwa-out/SIGNAL`, commite les deux sur ta branche {work} "
+        f" Envoie-la TOUJOURS par les DEUX voies, sans attendre que la première échoue (le relais peut être bloqué sans que la commande te le dise) : en plus de la commande, écris le même JSON dans `aiwa-out/ask.json`, puis `echo \"ask $(date +%s)\" > aiwa-out/SIGNAL`, commite les deux sur ta branche {work} "
         f"et pousse-la (`git push origin {work}`), jamais sur la branche principale."
         if repo and work else ""
     )
@@ -2144,8 +2144,12 @@ def _ask_set(raw, event_id=None):
         return False
     options = [o.strip()[:ASK_OPTION_MAX] for o in data.get("options", []) if isinstance(o, str) and o.strip()][:ASK_OPTIONS] if isinstance(data.get("options"), list) else []
     identifier = str(event_id or data.get("id") or hashlib.sha1((data["question"] + str(time.time())).encode()).hexdigest()[:12])
+    text = data["question"].strip()[:ASK_QUESTION_MAX]
     with lock:
         if ask is not None and ask["id"] == identifier:
+            return False
+        # The same question that came by the other road (the relay AND GitHub are both used): one question, not two
+        if ask is not None and ask["question"] == text and time.time() - ask["ts"] < 1200:
             return False
         ask = {"id": identifier, "question": data["question"].strip()[:ASK_QUESTION_MAX], "options": options, "ts": int(time.time()), "answered": False}
         _save_state()
