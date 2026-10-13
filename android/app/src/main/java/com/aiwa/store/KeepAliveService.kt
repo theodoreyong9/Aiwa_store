@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // A new channel: the old one ("aiwa_keepalive") was created with the lowest
 // importance, which keeps a notification off the lock screen, and a channel's
@@ -34,6 +35,7 @@ private const val APP_NOTIFICATION_ID = 2
 private const val ASK_NOTIFICATION_ID = 3
 private const val PAGES_NOTIFICATION_ID = 4
 private const val CAST_NOTIFICATION_ID = 5
+private const val UPDATE_NOTIFICATION_ID = 6
 
 /** What the lock-screen card says, and what a tap on it opens. */
 private data class Card(val title: String, val status: String, val detail: String, val target: Class<*>)
@@ -208,6 +210,25 @@ class KeepAliveService : Service() {
         getSystemService(NotificationManager::class.java).notify(APP_NOTIFICATION_ID, notification)
     }
 
+    // A new build, already downloaded: tapping the notification opens the system's installer.
+    private fun announceAppUpdate(file: java.io.File) {
+        val prefs = getSharedPreferences("aiwa_hints", MODE_PRIVATE)
+        if (prefs.getString("update_told", null) == file.name) return
+        prefs.edit().putString("update_told", file.name).apply()
+        val tap = PendingIntent.getActivity(
+            this, 6, AppUpdater.installIntent(this, file),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val notification = Notification.Builder(this, APP_CHANNEL_ID)
+            .setContentTitle("Mise à jour d'Aiwa prête")
+            .setContentText("Touche pour l'installer (un seul tap sur « Installer »)")
+            .setSmallIcon(R.drawable.ic_store)
+            .setContentIntent(tap)
+            .setAutoCancel(true)
+            .build()
+        getSystemService(NotificationManager::class.java).notify(UPDATE_NOTIFICATION_ID, notification)
+    }
+
     // A question from Claude (not yet answered, not yet announced): a notification that opens the window where it is answered.
     private fun announceAsk(state: AiwaState) {
         val manager = getSystemService(NotificationManager::class.java)
@@ -307,6 +328,7 @@ class KeepAliveService : Service() {
         var lastLaunch = 0L
         var versionKicked = false
         var lastSiteCheck = 0L
+        var lastAppCheck = 0L
         while (true) {
             try {
                 BackendSync.refresh(bridge)
@@ -332,6 +354,12 @@ class KeepAliveService : Service() {
                 if (lastSiteCheck == 0L || clock - lastSiteCheck > 10 * 60 * 1000L) {
                     lastSiteCheck = clock
                     downloadSiteRelease(applicationContext)
+                }
+                // The app itself: a newer build is looked for every two hours and downloaded; one notification, one tap on the system's « Installer ».
+                if (lastAppCheck == 0L || clock - lastAppCheck > 2 * 3600 * 1000L) {
+                    lastAppCheck = clock
+                    val ready = withContext(Dispatchers.IO) { AppUpdater.prepareQuietly(applicationContext) }
+                    if (ready != null) announceAppUpdate(ready)
                 }
                 val waiting = storeUpdateWaiting(applicationContext)
                 if (waiting != AiwaRepository.state.value.storeUpdateReady) AiwaRepository.update { it.copy(storeUpdateReady = waiting) }

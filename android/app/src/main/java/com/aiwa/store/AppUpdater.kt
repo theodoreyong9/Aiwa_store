@@ -31,6 +31,36 @@ object AppUpdater {
 
     fun installedVersion(app: Context): String? = try { app.packageManager.getPackageInfo(app.packageName, 0).versionName } catch (e: Exception) { null }
 
+    /** The installer for a downloaded build. INSTALL_PACKAGE, not VIEW: see below. */
+    fun installIntent(app: Context, file: File): Intent {
+        val uri = FileProvider.getUriForFile(app, "${app.packageName}.updates", file)
+        return Intent(Intent.ACTION_INSTALL_PACKAGE).setDataAndType(uri, "application/vnd.android.package-archive")
+            .putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
+    /**
+     * In the background, without a word: when a newer build exists it is downloaded (once per build) and returned, ready for the installer.
+     * Null when the app is up to date, when it may not install apps yet, or when anything fails (the next round tries again).
+     */
+    fun prepareQuietly(app: Context): File? = try {
+        val release = JSONObject(get(APP_RELEASE_API, "application/vnd.github+json").inputStream.bufferedReader().use { it.readText() })
+        val sha = release.getString("target_commitish")
+        val apkUrl = release.getJSONArray("assets").getJSONObject(0).getString("browser_download_url")
+        if (isUpToDate(installedVersion(app), sha) || !app.packageManager.canRequestPackageInstalls()) null
+        else {
+            val dir = File(app.cacheDir, "update").apply { mkdirs() }
+            val target = File(dir, "Aiwa_store_${sha.take(7)}.apk")
+            if (!target.exists()) {
+                dir.listFiles()?.forEach { it.delete() }
+                val part = File(dir, "download.part")
+                get(apkUrl).inputStream.use { input -> part.outputStream().use { input.copyTo(it) } }
+                val head = part.inputStream().use { st -> ByteArray(2).also { st.read(it) } }
+                if (!looksLikeApk(head, part.length())) { part.delete(); null } else { part.renameTo(target); target }
+            } else target
+        }
+    } catch (e: Exception) { null }
+
     /** Looks for the latest build, downloads it and opens the installer; says each step with a toast. */
     fun update(context: Context) {
         val app = context.applicationContext
@@ -62,14 +92,9 @@ object AppUpdater {
                     check(looksLikeApk(head, target.length())) { "le fichier téléchargé n'est pas un APK" }
                     target
                 }
-                val uri = FileProvider.getUriForFile(app, "${app.packageName}.updates", file)
                 // INSTALL_PACKAGE, not VIEW: only the system's installer answers it. A plain VIEW of a file also matches the applications that take any file
                 // (Termux offers to « save the file in ~/downloads »), which is not an installation.
-                app.startActivity(
-                    Intent(Intent.ACTION_INSTALL_PACKAGE).setDataAndType(uri, "application/vnd.android.package-archive")
-                        .putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION),
-                )
+                app.startActivity(installIntent(app, file))
             } catch (e: Exception) {
                 toastOnMain(app, "Mise à jour impossible : ${e.message ?: e.javaClass.simpleName}")
             }
