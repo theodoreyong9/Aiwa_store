@@ -99,7 +99,7 @@ private val CAST_NAME_STOP = setOf("et", "puis", "ensuite", "quand", "apres", "a
 private val CONNECTORS = setOf("et", "puis", "ensuite", "aussi", "apres")
 
 private val COMMAND_WORDS = setOf("commande")
-private val DIRECT_WORDS = setOf("directe", "direct")
+private val COMMAND_DIRECT_WORDS = setOf("directe", "direct")
 
 /**
  * The two spoken sections: « instruction … » changes the pills, « commande … » is what goes to Claude, then « c'est bon vas-y » (cut off before this runs).
@@ -110,7 +110,7 @@ private val DIRECT_WORDS = setOf("directe", "direct")
  * everything is instruction, it is one wherever it is said. Returns (the instruction words, the command words or null), or null when the sentence has none of it.
  */
 private fun explicitSections(all: List<Word>, startInInstructions: Boolean): Pair<List<Word>, List<Word>?>? {
-    fun afterCommand(from: Int): List<Word> = all.subList(from, all.size).let { rest -> if (rest.firstOrNull()?.plain in DIRECT_WORDS) rest.drop(1) else rest }
+    fun afterCommand(from: Int): List<Word> = all.subList(from, all.size).let { rest -> if (rest.firstOrNull()?.plain in COMMAND_DIRECT_WORDS) rest.drop(1) else rest }
     if (startInInstructions) {
         val k = all.indexOfFirst { it.plain in COMMAND_WORDS }
         return if (k < 0) null else all.subList(0, k) to afterCommand(k + 1)
