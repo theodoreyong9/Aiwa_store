@@ -725,6 +725,11 @@ private fun GlassesContent(state: AiwaState) {
                         Spacer(GlanceModifier.width(GAP.dp))
                         Chip("★ faves", pill, fg, storeTab("favorites"), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
                     }
+                    Row(modifier = GlanceModifier.fillMaxWidth().height(itemH.dp)) {
+                        Chip("Store", pill, fg, actionStartActivity<StoreActivity>(), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
+                        Spacer(GlanceModifier.width(GAP.dp))
+                        Chip("Wallet", pill, fg, storeTab("wallet"), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
+                    }
                     Chip("✉ inviter", pill, fg, actionStartActivity<InviteActivity>(), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
                 }
                 Spacer(GlanceModifier.width(outer.dp))

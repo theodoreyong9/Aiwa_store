@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Glasses widget, right lens: « Store » and « Wallet » buttons (a widget cannot show a web page: they open it; `#tab=wallet` opens the Wallet page).
+
 - The check for a newer build of the app runs every three minutes with a conditional request (ETag: GitHub answers 304, which does not count in its limit), so the update button shows up a few minutes after a build is published, nothing to open.
 
 - The app looks for a newer build of itself every half hour (was two hours), in the background service: nothing has to be opened.
