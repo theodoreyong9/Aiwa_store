@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Store: every app has an Aiwa address (`#app=<id>` / `#link=<login>/<name>`) that opens it directly, a 🔗 button copies it, and a My apps tab lists the apps published with the wallet.
+
 - Store: a ☆ on every app (Aiwa and Library) and a Favourites tab, kept on the phone.
 
 - Glasses widget: all pills are now very small (wrap width, 8sp); only the microphone button stays large.

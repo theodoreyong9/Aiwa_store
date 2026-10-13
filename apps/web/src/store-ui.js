@@ -2,7 +2,7 @@ import { loadIndex, loadApp, filterApps, shortAddress, figureOf } from './store.
 import { openCache } from './kv.js';
 import { config } from './config.js';
 import { $, switchView } from './ui.js';
-import { setCatalog } from './session.js';
+import { setCatalog, session, onSession } from './session.js';
 import { openViewer } from './viewer.js';
 import { parseAccount, accountKey, loadLibrary, filterLibrary, loadLink, savedAccounts, saveAccounts, localStore, savedFavorites, saveFavorites, isFavorite, toggleFavorite } from './library.js';
 
@@ -55,7 +55,7 @@ function render() {
     code.setAttribute('aria-label', `Read the published code of ${app.name}`);
     code.addEventListener('click', () => showCode(app, code));
 
-    row.append(rank, body, open, code, starButton(app));
+    row.append(rank, body, open, code, starButton(app), shareButton(app));
     list.append(row);
   }
 }
@@ -139,6 +139,7 @@ export async function refreshStore() {
     $('store-status').textContent = `The registry could not be read: ${err.message}`;
   }
   render();
+  renderMine();
 }
 
 export function initStore() {
@@ -153,10 +154,84 @@ export function initStore() {
     } catch { /* the browser refused the clipboard: the text is on screen to select */ }
   });
   // Already open when the Android app asks for a code: only the fragment changes.
-  window.addEventListener('hashchange', () => handoffCode());
-  return refreshStore().then(handoffCode);
+  window.addEventListener('hashchange', () => { handoffCode(); handoffApp(); });
+  return refreshStore().then(handoffCode).then(handoffApp);
 }
 
+
+
+// ---------- the Aiwa address of an app: opens it directly ----------
+// #app=<id> is a registry app; #link=<login>/<name> or <login>/<repo>/<name> is a library app (its file is derived from the address, no list needed).
+export const appAddress = (entry) => `${config.siteUrl ?? ''}#${entry.kind === 'link' ? 'link' : 'app'}=${entry.id}`;
+
+function shareButton(entry) {
+  const share = document.createElement('button');
+  share.type = 'button';
+  share.className = 'star';
+  share.textContent = '🔗';
+  share.title = 'Copy the Aiwa address of this app';
+  share.setAttribute('aria-label', `Copy the address of ${entry.name}`);
+  share.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(appAddress(entry)); share.textContent = '✓'; } catch { prompt('Address', appAddress(entry)); }
+    setTimeout(() => { share.textContent = '🔗'; }, 1500);
+  });
+  return share;
+}
+
+/** The library entry an address names, or null. */
+export function linkEntryOf(id) {
+  const m = /^([A-Za-z0-9][A-Za-z0-9-]{0,38})(?:\/([A-Za-z0-9._-]{1,100}))?\/([a-z0-9][a-z0-9-]{0,38}[a-z0-9]?)$/.exec(id);
+  if (!m) return null;
+  const [, owner, repo, name] = m;
+  return { id, name, kind: 'link', owner, repo: `${owner}/${repo ?? 'aiwa-apps'}`, file: `${repo ? 'aiwa-apps/' : ''}${name}.app.html`, ref: 'HEAD' };
+}
+
+const ADDRESS_HASH = /^#(app|link)=([A-Za-z0-9._/-]{1,200})$/;
+async function handoffApp() {
+  const match = ADDRESS_HASH.exec(location.hash);
+  if (!match) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch { /* cosmetic */ }
+  switchView('store');
+  const button = document.createElement('button');
+  if (match[1] === 'link') {
+    const entry = linkEntryOf(match[2]);
+    if (entry) await openLink(entry, button, false); else $('store-status').textContent = 'This address is not an app address.';
+    return;
+  }
+  const entry = apps.find((app) => app.id === match[2]);
+  if (entry) await openApp(entry, button);
+  else if (apps.length > 0) $('store-status').textContent = `"${match[2]}" is not in the registry (yet).`;
+}
+
+// ---------- my apps: those published with this wallet, each with its address ----------
+function renderMine() {
+  const list = $('mine-list');
+  list.replaceChildren();
+  const aiwa = session.aiwa;
+  const mine = aiwa?.identity ? apps.filter((app) => app.author === aiwa.address) : [];
+  $('mine-status').textContent = !aiwa?.identity ? 'Open the Wallet tab: your apps are the ones published with it.' : mine.length ? '' : 'No app published with this wallet yet.';
+  for (const entry of mine) {
+    const row = document.createElement('div');
+    row.className = 'app';
+    row.dataset.id = entry.id;
+    const body = document.createElement('div');
+    body.className = 'body';
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = entry.name;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = `v${entry.version} · ${appAddress(entry)}`;
+    body.append(title, meta);
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'primary';
+    open.textContent = 'Open';
+    open.addEventListener('click', () => openApp(entry, open));
+    row.append(body, open, shareButton(entry));
+    list.append(row);
+  }
+}
 
 // ---------- favourites: the apps starred, from either tab ----------
 let favorites = savedFavorites();
@@ -164,7 +239,7 @@ let favorites = savedFavorites();
 function starButton(entry) {
   const star = document.createElement('button');
   star.type = 'button';
-  star.className = 'icon star';
+  star.className = 'star';
   const paint = () => {
     const on = isFavorite(favorites, entry);
     star.textContent = on ? '★' : '☆';
@@ -206,7 +281,7 @@ function renderFavorites() {
     code.textContent = '</>';
     code.setAttribute('aria-label', `Read the code of ${entry.name}`);
     code.addEventListener('click', () => (link ? openLink(entry, code, true) : showCode(entry, code)));
-    row.append(body, open, code, starButton(entry));
+    row.append(body, open, code, starButton(entry), shareButton(entry));
     list.append(row);
   }
 }
@@ -261,7 +336,7 @@ function renderLibrary() {
     code.title = 'Read the code in its repository';
     code.setAttribute('aria-label', `Read the code of ${entry.name}`);
     code.addEventListener('click', () => openLink(entry, code, true));
-    row.append(body, open, code, starButton(entry));
+    row.append(body, open, code, starButton(entry), shareButton(entry));
     list.append(row);
   }
 }
@@ -308,19 +383,22 @@ export function followAccount(text) {
 
 /** The Store has two tabs: the Aiwa apps (ranked, from the registry) and the Library (the GitHub accounts followed). */
 export function showStoreTab(name) {
-  for (const tab of ['aiwa', 'library', 'favorites']) {
+  for (const tab of ['aiwa', 'library', 'favorites', 'mine']) {
     $(`pane-${tab}`).hidden = tab !== name;
     $(`tab-${tab}`).classList.toggle('active', tab === name);
     $(`tab-${tab}`).setAttribute('aria-selected', String(tab === name));
   }
-  $('store-search').placeholder = name === 'library' ? 'Search the library' : name === 'favorites' ? 'Search the favourites' : 'Search Aiwa apps';
+  $('store-search').placeholder = name === 'library' ? 'Search the library' : name === 'favorites' ? 'Search the favourites' : name === 'mine' ? 'Search my apps' : 'Search Aiwa apps';
   if (name === 'favorites') renderFavorites();
+  if (name === 'mine') renderMine();
 }
 
 export function initLibrary() {
   $('tab-aiwa').addEventListener('click', () => showStoreTab('aiwa'));
   $('tab-library').addEventListener('click', () => showStoreTab('library'));
   $('tab-favorites').addEventListener('click', () => showStoreTab('favorites'));
+  $('tab-mine').addEventListener('click', () => showStoreTab('mine'));
+  onSession(renderMine);
   const add = () => {
     if (followAccount($('library-add').value)) $('library-add').value = '';
     else $('library-status').textContent = 'A GitHub login, or login/repo.';
