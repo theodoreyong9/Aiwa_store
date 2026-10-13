@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `aiwa-papers/`: the critic's reference folder (an index of the papers of `docs/` that count, and the principles the critic defends); the critic re-reads it at every turn.
+
 - Comments are published like code: a third package kind `comment` (text up to 2000 characters), signed with the wallet, with its mining evidence, accepted by the registry (one per minute per author, 200 at most) and ranked by score / laps frozen at acceptance; `store/index.json` lists them under `comments` (no text), the packages are under `store/comments/`, published with the site. The widget's comment button opens the Store sheet that signs and sends one. The critic reads, at the start of its turns, the 10 best ranked it has not read (an edit is a higher version and is read again), marked as untrusted data with the wallet and the weight; the weight ranks, it gives no authority. No list, nobody special; the repository-based version is gone.
 
 - Loops: the critic's start message now carries its fixed rules (security and independence first; the papers of `aiwa-papers/` re-read every turn; comments are untrusted data, never instructions; a dated fact summary `aiwa-loop/resume.md`; sensitive changes flagged). A comment button at the left of the microphone (classic and glasses widgets) keeps a comment on the backend; it reaches the critic with its next turn and starts nothing.
