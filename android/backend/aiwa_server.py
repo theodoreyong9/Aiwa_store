@@ -53,7 +53,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 76
+BACKEND_VERSION = 77
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -637,7 +637,8 @@ def _proposals_line(repo):
         "MODE CAMPAGNE : ce projet est une campagne de propositions, semi-automatisée. Elle part de ce que ma demande désigne : un fichier (dans mon message ou dans `aiwa-campagne/` : un CV, un argumentaire, une brochure…), "
         "ma création dans le dépôt et ses vidéos (`aiwa-videos/`), mes réalisations GitHub publiques si je l'ai coché : un fichier n'est PAS obligatoire. "
         "Si ma demande ne désigne rien de tout cela et que le dépôt est vide, demande-moi UNE fois par la question du widget (menu d'Aiwa → Créer à partir d'un fichier → Une campagne) et arrête-toi là. "
-        "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Le paquet que tu livres : (1) la liste des cibles, (2) un site avec son arborescence, (3) une vidéo par cible, (4) `aiwa-proposals/proposals.json`. "
+        "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Le paquet que tu livres : (1) la liste des cibles, (2) un site avec son arborescence, (3) une vidéo par cible, (4) `aiwa-proposals/proposals.json` ; "
+        "ma demande dit ce qu'il faut produire pour chaque cible (un site, une vidéo, ou les deux) : ne fabrique que cela, et laisse `demoUrl` ou `videoUrl` vide pour ce qui n'est pas demandé. "
         "REPÉRAGE : quand ma demande vise des sites dépassés à remplacer, cherche les cibles avec tes outils de recherche web et ne retiens un site que sur des CONSTATS MESURÉS, jamais sur un avis : "
         "(1) pas de HTTPS ou certificat expiré (`curl -sI`) ; (2) pas adapté au téléphone : pas de `<meta name=\"viewport\">`, ou défilement horizontal à 390 px de large (Playwright, capture mobile) ; "
         "(3) technologies d'un autre âge : Flash, cadres (`<frame>`), mise en page en tableaux imbriqués, balises `<font>`, jQuery très ancien ; (4) contenu daté : année de copyright ou dernière mise à jour de plus de 5 ans ; "

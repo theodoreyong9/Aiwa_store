@@ -459,7 +459,7 @@ class ProposalsTests(unittest.TestCase):
         srv.deploy_mode = "campaign"
         self.addCleanup(setattr, srv, "deploy_mode", "pages")
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
-        for wanted in ("REPÉRAGE", "CONSTATS MESURÉS", "POINTS DE CONTACT", "maquette REMPLAÇANTE", "currentUrl", "reasons", "contacts", "CANAL PAR CANAL", "« classique »", "« innovante »", "chatBody", "xBody", "un fichier n'est PAS obligatoire", "n'ENVOIES JAMAIS", "aiwa-proposals/proposals.json", "Maquette de démonstration, pas le site officiel", "au plus 20 cibles", "n'invente rien", "ATTENDS ma réponse"):
+        for wanted in ("ne fabrique que cela", "REPÉRAGE", "CONSTATS MESURÉS", "POINTS DE CONTACT", "maquette REMPLAÇANTE", "currentUrl", "reasons", "contacts", "CANAL PAR CANAL", "« classique »", "« innovante »", "chatBody", "xBody", "un fichier n'est PAS obligatoire", "n'ENVOIES JAMAIS", "aiwa-proposals/proposals.json", "Maquette de démonstration, pas le site officiel", "au plus 20 cibles", "n'invente rien", "ATTENDS ma réponse"):
             self.assertIn(wanted, text)
 
 

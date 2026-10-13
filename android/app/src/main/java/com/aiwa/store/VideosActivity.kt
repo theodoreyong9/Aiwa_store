@@ -138,6 +138,11 @@ private fun VideosWindow(onClose: () -> Unit) {
                     }
                     Text("Nouvelle vidéo de ma création", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     QualityChoice(quality) { quality = it }
+                    // A video made from a file (a CV, a pitch, a brochure): it belongs here, with the videos of the creation. The campaign (a site and a video for each target) is the envelope's.
+                    OutlinedButton(
+                        onClick = { context.startActivity(android.content.Intent(context, FileCreationActivity::class.java).putExtra("video", true)); onClose() },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Une vidéo à partir d'un fichier") }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { ask("9:16 (vertical)") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("9:16") }
                         Button(onClick = { ask("16:9 (horizontal)") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("16:9") }

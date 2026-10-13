@@ -91,10 +91,14 @@ fun documentVideoRequest(doc: PickedDocument?, format: String, withGithub: Boole
         "Si un choix ne t'appartient pas, demande-le moi par la question du widget." + documentBlock(doc)
 
 /** The request for a campaign of proposals from a document and/or files: the agent proposes the list of targets first and WAITS for my answer; nothing is sent by it. */
-fun campaignRequest(doc: PickedDocument?, targets: String, withGithub: Boolean, repoFiles: List<String> = emptyList(), repoKnown: Boolean = false, channels: String = ""): String =
+fun campaignRequest(doc: PickedDocument?, targets: String, withGithub: Boolean, repoFiles: List<String> = emptyList(), repoKnown: Boolean = false, channels: String = "", produce: String = "both"): String =
     "Prépare une campagne de propositions à partir de " + campaignSources(doc, repoFiles, repoKnown, withGithub) + ". Les cibles : ${targets.trim()}. " + githubPhrase(withGithub) +
         "Établis d'abord la liste des cibles et envoie-la moi pour validation par la question du widget : ATTENDS ma réponse avant de fabriquer quoi que ce soit. " +
-        "Ensuite, pour chaque cible : une maquette, une vidéo, un prix, sous `aiwa-proposals/`. Tu n'envoies rien : je valide chaque proposition dans l'application (Propositions à valider). " + channels + documentBlock(doc)
+        when (produce) {
+            "site" -> "Pour chaque cible, je veux SEULEMENT un site (la maquette) et un prix, pas de vidéo, sous `aiwa-proposals/`. "
+            "video" -> "Pour chaque cible, je veux SEULEMENT une vidéo et un prix, pas de maquette de site, sous `aiwa-proposals/`. "
+            else -> "Ensuite, pour chaque cible : une maquette, une vidéo, un prix, sous `aiwa-proposals/`. "
+        } + "Tu n'envoies rien : je valide chaque proposition dans l'application (Propositions à valider). " + channels + documentBlock(doc)
 
 /** The three qualities of a video, chosen where the video is asked for: a button each, the one in use filled. */
 @Composable
@@ -127,18 +131,20 @@ class FileCreationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
-        setContent { FileCreationWindow(startCampaign = intent?.getBooleanExtra("campaign", false) == true, onClose = { finish() }) }
+        // « campaign »: the campaign only (targets, a site and a video for each). « video »: one video from a file, which belongs to the video button. Neither: both, as before.
+        setContent { FileCreationWindow(startCampaign = intent?.getBooleanExtra("campaign", false) == true, videoOnly = intent?.getBooleanExtra("video", false) == true, onClose = { finish() }) }
     }
 }
 
 @Composable
-private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
+private fun FileCreationWindow(startCampaign: Boolean, videoOnly: Boolean, onClose: () -> Unit) {
     val context = LocalContext.current
     val bridge = remember { LocalClaudeBridge() }
     val scope = rememberCoroutineScope()
     var document by remember { mutableStateOf<PickedDocument?>(null) }
     var withGithub by remember { mutableStateOf(false) }
-    var campaign by remember { mutableStateOf(startCampaign) }
+    var campaign by remember { mutableStateOf(startCampaign && !videoOnly) }
+    val choice = !startCampaign && !videoOnly       // only a window opened with neither asks which of the two
     var targets by remember { mutableStateOf("") }
     var quality by remember { mutableStateOf(AiwaRepository.state.value.videoQuality) }
     var busy by remember { mutableStateOf(false) }
@@ -150,6 +156,8 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
     val chosen = remember { mutableStateListOf<String>() }
     // The campaign's creation: « classique » (the style of the last send on each channel) or « innovante » (something else), channel by channel
     var innovative by remember { mutableStateOf(false) }
+    // What the campaign makes for each target: a site, a video, or both
+    var produce by remember { mutableStateOf("both") }
     var proposalList by remember { mutableStateOf<List<com.aiwa.bridge.Proposal>>(emptyList()) }
     fun loadFiles() {
         scope.launch {
@@ -199,7 +207,7 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().heightIn(max = 680.dp).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Créer à partir d'un fichier", style = MaterialTheme.typography.titleLarge)
+                    Text(if (videoOnly) "Une vidéo à partir d'un fichier" else if (startCampaign) "Une campagne à partir d'un fichier" else "Créer à partir d'un fichier", style = MaterialTheme.typography.titleLarge)
                     OutlinedButton(onClick = { picker.launch(arrayOf("text/*", "application/json", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) {
                         Text(document?.let { "Fichier du téléphone : ${it.name} · changer" } ?: "Choisir un fichier texte du téléphone (CV, argumentaire, notes…)")
                     }
@@ -225,10 +233,12 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
                             Text("Dépôts publics seulement. Décoché : le fichier seul compte.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    Text("Que veux-tu en faire ?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (!campaign) Button(onClick = { campaign = false }, modifier = Modifier.weight(1f)) { Text("Une vidéo") } else OutlinedButton(onClick = { campaign = false }, modifier = Modifier.weight(1f)) { Text("Une vidéo") }
-                        if (campaign) Button(onClick = { campaign = true }, modifier = Modifier.weight(1f)) { Text("Une campagne") } else OutlinedButton(onClick = { campaign = true }, modifier = Modifier.weight(1f)) { Text("Une campagne") }
+                    if (choice) {
+                        Text("Que veux-tu en faire ?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (!campaign) Button(onClick = { campaign = false }, modifier = Modifier.weight(1f)) { Text("Une vidéo") } else OutlinedButton(onClick = { campaign = false }, modifier = Modifier.weight(1f)) { Text("Une vidéo") }
+                            if (campaign) Button(onClick = { campaign = true }, modifier = Modifier.weight(1f)) { Text("Une campagne") } else OutlinedButton(onClick = { campaign = true }, modifier = Modifier.weight(1f)) { Text("Une campagne") }
+                        }
                     }
                     QualityChoice(quality) { quality = it }
                     val doc = document
@@ -245,6 +255,13 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
                             value = targets, onValueChange = { targets = it }, modifier = Modifier.fillMaxWidth(),
                             label = { Text("À qui ? Décris la liste (métier, ville, critère…)") },
                         )
+                        Text("Pour chaque cible, la campagne produit :", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("both" to "Site + vidéo", "site" to "Un site", "video" to "Une vidéo").forEach { (id, label) ->
+                                if (produce == id) Button(onClick = { produce = id }, modifier = Modifier.weight(1f)) { Text(label, maxLines = 1) }
+                                else OutlinedButton(onClick = { produce = id }, modifier = Modifier.weight(1f)) { Text(label, maxLines = 1) }
+                            }
+                        }
                         Text("La création : classique ou innovante ?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (!innovative) Button(onClick = { innovative = false }, modifier = Modifier.weight(1f)) { Text("Classique") } else OutlinedButton(onClick = { innovative = false }, modifier = Modifier.weight(1f)) { Text("Classique") }
@@ -258,7 +275,7 @@ private fun FileCreationWindow(startCampaign: Boolean, onClose: () -> Unit) {
                             "Un fichier n'est pas obligatoire : ta création du dépôt, ses vidéos et (si tu coches) tes réalisations GitHub peuvent suffire. Claude te propose d'abord la liste : tu la valides. Il prépare ensuite, pour chaque cible, une maquette, une vidéo et un prix. Rien n'est envoyé : tu valides chaque proposition et tu l'envoies toi-même depuis ta messagerie.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Button(onClick = { send(campaignRequest(doc, targets, withGithub, chosen.toList(), repoKnown, CampaignChannels.phrase(innovative, state.repo?.let { lastSentByChannel(context, it, proposalList) } ?: emptyMap()))) }, enabled = (hasSource || repoKnown || withGithub) && targets.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Proposer la liste des cibles") }
+                        Button(onClick = { send(campaignRequest(doc, targets, withGithub, chosen.toList(), repoKnown, CampaignChannels.phrase(innovative, state.repo?.let { lastSentByChannel(context, it, proposalList) } ?: emptyMap()), produce)) }, enabled = (hasSource || repoKnown || withGithub) && targets.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Proposer la liste des cibles") }
                     }
                     OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
                 }
