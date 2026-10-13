@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Settings: « Mettre à jour le cerveau » and « Mettre à jour l'application » are gone (the brain updates itself; the app downloads its update in the background). The widget's status line says « ⬆ Mise à jour prête — touche ici » and one tap opens the installer (it asks once for the permission to install). The comment button left the widget: it is an entry of the settings.
+
 - The comment sheet looks for the wallet first: the field and Send appear only once a wallet is connected; without one it says so and offers to open the Wallet tab.
 
 - The Termux command downloads the latest APK again (install-apk.sh: Downloads/Aiwa_store.apk, replaced each time, checked, with its build number to compare with Aiwa's settings, repeated at the end of the setup). It is still not opened from Termux (that offers Termux itself): the Files app, or « Mettre à jour l'application » in Aiwa, opens the installer.

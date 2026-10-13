@@ -311,6 +311,8 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         state.needsRepo -> { status = "Choisis un dépôt (⎇) pour commencer"; statusColor = warm; statusBold = true }
         // A session with no repository (added by a branch that exists in several of them: none is guessed): it is told which when one is chosen.
         state.repo == null && state.cloudSessionId != null -> { status = "Choisis le dépôt de cette session (⎇)"; statusColor = warm; statusBold = true }
+        // A newer build is downloaded: one tap opens the installer
+        state.appUpdateReady -> { status = "⬆ Mise à jour prête — touche ici"; statusColor = fg; statusBold = true }
         else -> { status = "Prêt"; statusColor = subtle }
     }
     val title = when {
@@ -326,6 +328,7 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         needsSetup -> actionStartActivity<SetupActivity>()
         accessNotice(state, 1) != null -> actionStartActivity<AccessActivity>()
         state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
+        state.appUpdateReady && state.status != AiwaState.Status.WORKING && state.ask == null && !state.waiting && state.silenceMinutes == 0 && state.repo != null && !state.needsRepo -> actionStartActivity<InstallUpdateActivity>()
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
         state.ask != null && state.status != AiwaState.Status.WORKING -> actionStartActivity<AskActivity>()
         state.silenceMinutes > 0 && state.status != AiwaState.Status.WORKING -> actionStartActivity<OpenClaudeActivity>()
@@ -551,9 +554,6 @@ private fun FullContent(state: AiwaState) {
         // The main action, big: dictate. The grey button with its red recording dot.
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             RowName(ROW_SPECIALIST)
-            // The comment for the critic of the loops, at the left of the microphone
-            RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = 34.dp)
-            Spacer(GlanceModifier.width(GAP.dp))
             Box(
                 modifier = GlanceModifier.defaultWeight().height(micH.dp)
                     .background(if (locked) MIC_DIM else micGrey)
@@ -665,12 +665,9 @@ private fun GlassesContent(state: AiwaState) {
                         Spacer(GlanceModifier.width(GAP.dp))
                         Chip(claudeText, if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange, fg, actionStartActivity<OpenClaudeActivity>(), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
                     }
-                    // The one big thing: the microphone, with the comment button (for the critic of the loops) at its left
-                    Row(modifier = GlanceModifier.fillMaxWidth().height(micH.dp), verticalAlignment = Alignment.CenterVertically) {
-                    RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = (itemH + 6f).dp)
-                    Spacer(GlanceModifier.width(GAP.dp))
+                    // The one big thing: the microphone
                     Box(
-                        modifier = GlanceModifier.defaultWeight().height(micH.dp).background(if (locked) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
+                        modifier = GlanceModifier.fillMaxWidth().height(micH.dp).background(if (locked) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
                         contentAlignment = Alignment.Center,
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -678,7 +675,6 @@ private fun GlassesContent(state: AiwaState) {
                             Spacer(GlanceModifier.width(6.dp))
                             Text("Dicter", style = TextStyle(color = fg, fontSize = 15.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                         }
-                    }
                     }
                     Row(modifier = GlanceModifier.fillMaxWidth().height(itemH.dp)) {
                         if (campaignMode) Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)

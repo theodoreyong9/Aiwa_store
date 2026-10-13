@@ -39,15 +39,22 @@ object AppUpdater {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 
+    /** The downloaded build that is not the installed one (named Aiwa_store_<commit>.apk), or null. No network. */
+    fun readyFile(app: Context): File? {
+        val installed = installedVersion(app)?.substringAfterLast('.') ?: return null
+        return File(app.cacheDir, "update").listFiles()
+            ?.firstOrNull { it.name.matches(Regex("Aiwa_store_[0-9a-f]{7}\\.apk")) && it.length() > 1_000_000 && it.name.removePrefix("Aiwa_store_").removeSuffix(".apk") != installed }
+    }
+
     /**
      * In the background, without a word: when a newer build exists it is downloaded (once per build) and returned, ready for the installer.
-     * Null when the app is up to date, when it may not install apps yet, or when anything fails (the next round tries again).
+     * Null when the app is up to date or when anything fails (the next round tries again). The permission to install is asked at the tap, not here.
      */
     fun prepareQuietly(app: Context): File? = try {
         val release = JSONObject(get(APP_RELEASE_API, "application/vnd.github+json").inputStream.bufferedReader().use { it.readText() })
         val sha = release.getString("target_commitish")
         val apkUrl = release.getJSONArray("assets").getJSONObject(0).getString("browser_download_url")
-        if (isUpToDate(installedVersion(app), sha) || !app.packageManager.canRequestPackageInstalls()) null
+        if (isUpToDate(installedVersion(app), sha)) null
         else {
             val dir = File(app.cacheDir, "update").apply { mkdirs() }
             val target = File(dir, "Aiwa_store_${sha.take(7)}.apk")
@@ -78,7 +85,7 @@ object AppUpdater {
                 }
                 if (!app.packageManager.canRequestPackageInstalls()) {
                     // Asked once: the setting where Aiwa may install apps. The person comes back and presses the entry again.
-                    toastOnMain(app, "Autorise Aiwa à installer des applications, puis reviens appuyer sur « Mettre à jour l'application ».")
+                    toastOnMain(app, "Autorise Aiwa à installer des applications, puis reviens toucher « Mise à jour prête » sur le widget.")
                     app.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${app.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     return@launch
                 }
