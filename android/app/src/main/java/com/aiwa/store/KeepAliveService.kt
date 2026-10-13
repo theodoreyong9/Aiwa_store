@@ -355,8 +355,8 @@ class KeepAliveService : Service() {
                     lastSiteCheck = clock
                     downloadSiteRelease(applicationContext)
                 }
-                // The app itself: a newer build is looked for every two hours and downloaded; one notification, one tap on the system's « Installer ».
-                if (lastAppCheck == 0L || clock - lastAppCheck > 2 * 3600 * 1000L) {
+                // The app itself: a newer build is looked for every half hour and downloaded; one notification, one tap on the system's « Installer ».
+                if (lastAppCheck == 0L || clock - lastAppCheck > 30 * 60 * 1000L) {
                     lastAppCheck = clock
                     val ready = withContext(Dispatchers.IO) { AppUpdater.prepareQuietly(applicationContext) }
                     if (ready != null) announceAppUpdate(ready)
