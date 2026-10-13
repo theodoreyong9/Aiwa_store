@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A session made elsewhere (in Claude, with no branch yet) is added by its link alone (claude.ai/code/session_…) once a repository is chosen in the widget: it gets a work branch of its own (aiwa/…) like the sessions Aiwa makes, never the main one. A branch name still works.
+
 - The state of the workflow is the one of the mode's own workflow (Pages → the Pages one, Android → the APK build, Campagne → the mockups' Pages deployment, Store → the app check), no longer the latest run of whatever workflow of the repository; changing the mode looks it up again, and the button opens that run. A mode with no workflow of its own (Aiwa: the registry's) is unchanged. Backend 81.
 
 - Aiwa-shaped widget: the row of modes is the first one again; the session and the repository are pills in the zone of the mode, just above the model and the push (the status line, when it is not « Prêt », stays on top).

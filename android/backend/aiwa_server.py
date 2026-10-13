@@ -1019,10 +1019,26 @@ def cloud_add(text):
     None), or (None, why not)."""
     global current_cloud, current_repo, last_cloud
     branch_match = re.search(r"claude/[A-Za-z0-9._/-]+", text)
+    link_only = CLOUD_ID_RE.search(text)
+    if branch_match is None and link_only is not None and current_repo:
+        # A session whose link is all there is (one just made in Claude, with no branch yet, a critic for instance): it is added on the repository in use,
+        # and given its own work branch (aiwa/…) like the sessions Aiwa makes; the alert by GitHub follows once it has pushed there.
+        session_id = link_only.group(0)
+        url_match = CLOUD_URL_RE.search(text)
+        _save_cloud_session(
+            session_id, "Session " + session_id[-6:], url_match.group(0) if url_match else None,
+            repo=current_repo, base=github.default_branch(current_repo), direct=False, imported=True,
+        )
+        with lock:
+            current_cloud = last_cloud = session_id
+            _save_state()
+        print(f"[{_ts()}] import by link {session_id} on {current_repo}", flush=True)
+        return session_id, None
     if branch_match is None:
         return None, (
-            "Une session s'ajoute par le nom de sa branche (claude/…), pas par son lien : sans la branche, Aiwa ne connaît ni le dépôt "
-            "ni l'endroit où Claude pousse, et ne pourrait pas recevoir l'alerte par GitHub. Copie le nom de la branche dans Claude Code."
+
+            "Une session s'ajoute par son lien (claude.ai/code/session_…) quand un dépôt est choisi dans le widget, ou par le nom de sa branche (claude/…). "
+            "Choisis d'abord le dépôt, puis colle le lien."
         )
     branch = branch_match.group(0).rstrip("/.")
     found, tried = github.find_branch_session(_branch_candidates(), branch)

@@ -1586,13 +1586,26 @@ class HttpTests(Base):
              unittest.mock.patch.object(gh, "default_branch", lambda repo: "main"):
             return self.call("/api/cloud/add", text)
 
-    def test_a_session_is_added_by_its_branch_and_not_by_its_link(self):
+    def test_a_session_is_added_by_its_branch_or_by_its_link_once_a_repository_is_chosen(self):
         self.addCleanup(self.forget_sessions)
+        self.addCleanup(setattr, srv, "current_repo", srv.current_repo)
         self.forget_sessions()
+        srv.current_repo = None
         refused = self.call("/api/cloud/add", "https://claude.ai/code/session_01ABCDEFGHIJKLMNOPQR")
         self.assertFalse(refused["accepted"])
-        self.assertIn("branche", refused["reason"])
-        self.assertEqual(self.call("/api/cloud/sessions"), [], "a link alone adds nothing")
+        self.assertIn("dépôt", refused["reason"])
+        self.assertEqual(self.call("/api/cloud/sessions"), [], "a link with no repository chosen adds nothing")
+
+        srv.current_repo = "o/r"
+        with unittest.mock.patch.object(gh, "default_branch", lambda repo: "main"):
+            linked = self.call("/api/cloud/add", "https://claude.ai/code/session_01ABCDEFGHIJKLMNOPQR")
+        self.assertTrue(linked["accepted"], linked)
+        entry = srv._session_entry("session_01ABCDEFGHIJKLMNOPQR")
+        self.assertEqual((entry["repo"], entry["base"]), ("o/r", "main"))
+        work, base = srv._session_targets("session_01ABCDEFGHIJKLMNOPQR", entry)
+        self.assertTrue(work.startswith("aiwa/"), "it gets its own work branch, never the main one")
+        self.assertEqual(base, "main")
+        self.forget_sessions()
 
         answer = self.add_by_branch("claude/fix-widget-AbC12")
         self.assertTrue(answer["accepted"], answer)
