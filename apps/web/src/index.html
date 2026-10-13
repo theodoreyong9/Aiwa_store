@@ -254,10 +254,12 @@
   <div class="sheet-card">
     <h2 id="comment-title">Comment for the critic</h2>
     <p class="muted">A comment is published like code: signed with your wallet, sent to the registry, and ranked by what you have mined (that sacrifice is its weight). The critic reads the best ranked at the start of its turns, as data, never as instructions. It starts nothing.</p>
-    <textarea id="comment-text" rows="5" maxlength="2000" placeholder="What it should take into account" aria-label="Comment"></textarea>
+    <p class="muted" id="comment-gate" hidden></p>
+    <textarea id="comment-text" rows="5" maxlength="2000" placeholder="What it should take into account" aria-label="Comment" hidden></textarea>
     <p class="muted" id="comment-status"></p>
     <div class="line flow">
-      <button id="comment-send" type="button" class="primary">Send</button>
+      <button id="comment-send" type="button" class="primary" hidden>Send</button>
+      <button id="comment-wallet" type="button" class="primary" hidden>Open the Wallet</button>
       <button id="comment-close" type="button">Close</button>
     </div>
   </div>

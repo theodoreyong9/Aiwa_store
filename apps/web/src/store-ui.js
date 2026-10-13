@@ -2,7 +2,7 @@ import { loadIndex, loadApp, filterApps, shortAddress, figureOf } from './store.
 import { openCache } from './kv.js';
 import { config } from './config.js';
 import { $, switchView } from './ui.js';
-import { setCatalog, session, onSession } from './session.js';
+import { setCatalog, session, onSession, connected } from './session.js';
 import { openViewer } from './viewer.js';
 import { knownLogin, ensureToken, forgetToken } from './github.js';
 import { buildSubmission, evidenceFor, sendSubmission, slug } from './publish.js';
@@ -246,16 +246,33 @@ function handoffTab() {
   showStoreTab(match[1]);
 }
 
-// The widget's comment button: #comment opens the sheet where the comment is written on the person's own repository.
+// The widget's comment button: #comment opens the sheet. The field only appears once the wallet is connected: a comment is signed with it.
+function paintCommentSheet() {
+  if ($('commentsheet').hidden) return;
+  const gate = $('comment-gate');
+  const ready = connected();
+  const checking = !ready && session.starting;
+  gate.hidden = ready;
+  gate.textContent = checking ? 'Looking for your wallet…'
+    : !hostAvailable() ? 'Sending a comment needs the Android app (it signs in to GitHub).'
+    : 'No wallet is connected. A comment is signed with your wallet, and ranked by what you have mined: connect it first.';
+  $('comment-text').hidden = !ready;
+  $('comment-send').hidden = !ready;
+  $('comment-wallet').hidden = ready || checking;
+}
+
 function openCommentSheet() {
   switchView('store');
   $('comment-status').textContent = '';
   $('commentsheet').hidden = false;
-  $('comment-text').focus();
+  paintCommentSheet();
+  if (connected()) $('comment-text').focus();
 }
 
 export function initComments() {
   $('comment-close').addEventListener('click', () => { $('commentsheet').hidden = true; });
+  $('comment-wallet').addEventListener('click', () => { $('commentsheet').hidden = true; switchView('wallet'); });
+  onSession(paintCommentSheet);
   $('comment-send').addEventListener('click', async () => {
     const button = $('comment-send');
     const say = (text) => { $('comment-status').textContent = text; };
