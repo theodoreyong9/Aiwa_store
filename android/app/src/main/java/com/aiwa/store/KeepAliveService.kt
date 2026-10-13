@@ -33,6 +33,7 @@ private const val APP_CHANNEL_ID = "aiwa_app"
 private const val APP_NOTIFICATION_ID = 2
 private const val ASK_NOTIFICATION_ID = 3
 private const val PAGES_NOTIFICATION_ID = 4
+private const val CAST_NOTIFICATION_ID = 5
 
 /** What the lock-screen card says, and what a tap on it opens. */
 private data class Card(val title: String, val status: String, val detail: String, val target: Class<*>)
@@ -180,7 +181,7 @@ class KeepAliveService : Service() {
             val notification = Notification.Builder(this, APP_CHANNEL_ID)
                 .setContentTitle("La vidéo est prête : ${state.castName}").setContentText("Touche pour l'envoyer à la TV")
                 .setSmallIcon(R.drawable.ic_video).setContentIntent(tap).setAutoCancel(true).build()
-            getSystemService(NotificationManager::class.java).notify(APP_NOTIFICATION_ID + 1, notification)
+            getSystemService(NotificationManager::class.java).notify(CAST_NOTIFICATION_ID, notification)
         }
         CoroutineScope(Dispatchers.IO).launch { try { LocalClaudeBridge().castClear() } catch (e: Exception) { } }
     }
