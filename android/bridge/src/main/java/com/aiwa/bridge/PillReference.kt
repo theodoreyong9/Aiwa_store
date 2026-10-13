@@ -74,6 +74,7 @@ object PillReference {
         "qualité vidéo" to VIDEO_QUALITY.joinToString(" · ") { it.label },
         "nouvelle session · session" to "+ un bout du titre d'une session existante",
         "dépôt" to "+ son nom (comparé à tes dépôts à la volée, même mal entendu)",
+        "TV" to "« envoie la vidéo sur la TV du salon » (tout de suite, ou quand Claude a fini s'il y a un message avant) · « arrête la TV »",
     )
 }
 
@@ -99,6 +100,6 @@ fun applyCommands(pills: Pills, commands: List<VoiceCommand>): Pills = commands.
         is VoiceCommand.Repo -> p.copy(repo = c.name)
         is VoiceCommand.NewSession -> p.copy(session = null)
         is VoiceCommand.SelectSession -> p.copy(session = c.title)
-        is VoiceCommand.Report, is VoiceCommand.StopClaude -> p
+        is VoiceCommand.Report, is VoiceCommand.StopClaude, is VoiceCommand.Cast, is VoiceCommand.CastStop -> p
     }
 }

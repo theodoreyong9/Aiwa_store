@@ -109,6 +109,7 @@ class KeepAliveService : Service() {
             AiwaRepository.state.collect {
                 publish(cardFor(it), first = false)
                 announceApp(it)
+                startCastIfAsked(it)
                 announceAsk(it)
                 announcePagesHint(it)
                 announceReady(it)
@@ -160,6 +161,28 @@ class KeepAliveService : Service() {
         }
         val detail = state.repo?.let { "⎇ ${it.substringAfter('/')} · " + (if (state.pushMain) "Push main" else "Push branche") + " · $deploy" } ?: "Aucun dépôt choisi"
         return Card(state.session, status, detail, target)
+    }
+
+    // The video asked for « sur la TV » has been made (the backend says so): the cast starts by itself, with no screen. If Android refuses to start it from here, a notification
+    // that opens the cast window is left (a tap is allowed to start it).
+    private fun startCastIfAsked(state: AiwaState) {
+        if (state.castUrl.isEmpty()) return
+        val prefs = getSharedPreferences("aiwa_hints", MODE_PRIVATE)
+        if (prefs.getString("cast_started", "") == state.castUrl) return
+        prefs.edit().putString("cast_started", state.castUrl).apply()
+        try {
+            CastService.start(this, state.castUrl, state.castTv, state.castName)
+        } catch (err: Exception) {
+            val tap = PendingIntent.getActivity(
+                this, 2, Intent(this, CastActivity::class.java).putExtra(CastActivity.EXTRA_URL, state.castUrl).putExtra(CastActivity.EXTRA_TITLE, state.castName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            val notification = Notification.Builder(this, APP_CHANNEL_ID)
+                .setContentTitle("La vidéo est prête : ${state.castName}").setContentText("Touche pour l'envoyer à la TV")
+                .setSmallIcon(R.drawable.ic_video).setContentIntent(tap).setAutoCancel(true).build()
+            getSystemService(NotificationManager::class.java).notify(APP_NOTIFICATION_ID + 1, notification)
+        }
+        CoroutineScope(Dispatchers.IO).launch { try { LocalClaudeBridge().castClear() } catch (e: Exception) { } }
     }
 
     // A new app (not yet opened, not yet announced): a notification that opens it in the Store.

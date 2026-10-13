@@ -30,6 +30,8 @@ data class LoopPair(
 data class LoopChainEntry(val id: String, val started: Long?, val created: Long?, val state: String)
 data class LoopsInfo(val limit: Int, val pairs: List<LoopPair>, val chains: List<List<LoopChainEntry>>)
 /** The running loop that began last, for the widget: which pair, the round it is at, the limit, whose turn it is. */
+/** A cast waiting for its video: the television as said (may be empty), and the video that has just been made. */
+data class CastWish(val tv: String, val name: String, val url: String)
 data class LoopRunning(val pair: String, val rounds: Int, val limit: Int, val turn: String, val running: Int)
 data class InputList(val repo: String?, val files: List<InputFile>)
 
@@ -74,6 +76,7 @@ data class BackendStatus(
     // Minutes since a message went with no sign of Claude by any road (0 = nothing to say): the widget then asks to go and look in the conversation.
     val silenceMinutes: Int = 0,
     val loop: LoopRunning? = null,
+    val cast: CastWish? = null,
     val site: SiteInfo = SiteInfo(null, "off"),
     val ci: CiInfo? = null,
     val githubError: String? = null,
@@ -171,6 +174,9 @@ interface ClaudeBridge {
     suspend fun videos(): VideoList { throw UnsupportedOperationException("videos") }
     suspend fun inputs(): InputList { throw UnsupportedOperationException("inputs") }
     suspend fun loops(): LoopsInfo { throw UnsupportedOperationException("loops") }
+    /** The person asked for the video to go to the television once Claude has made it. */
+    suspend fun castPending(tv: String) { throw UnsupportedOperationException("castPending") }
+    suspend fun castClear() { throw UnsupportedOperationException("castClear") }
     /** create (builder, critic), start / stop / relaunch / rollback / delete (id), limit (limit). Returns the reason when refused, null when done. */
     suspend fun loopsAction(action: String, fields: Map<String, String> = emptyMap()): String? { throw UnsupportedOperationException("loopsAction") }
     // The proposals a session prepared (`aiwa-proposals/proposals.json` of the repository): to read, validate and send by hand.

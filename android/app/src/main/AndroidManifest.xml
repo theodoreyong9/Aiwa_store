@@ -259,5 +259,10 @@
                 android:value="Garde Aiwa actif pour que le micro du widget reste instantane" />
         </service>
         <service android:name=".WakeWordService" android:exported="false" android:foregroundServiceType="microphone" />
+        <!-- « Envoyer à la TV » without the screen (CastService.kt): serves the video to a television while it plays. -->
+        <service android:name=".CastService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Envoie une video a une television du reseau local et la sert pendant la lecture" />
+        </service>
     </application>
 </manifest>

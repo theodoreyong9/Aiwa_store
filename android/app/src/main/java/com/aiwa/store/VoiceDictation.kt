@@ -189,6 +189,8 @@ class VoiceDictation(
                 is VoiceCommand.VideoQuality -> 6
                 is VoiceCommand.Report -> 7
                 is VoiceCommand.StopClaude -> 8
+                is VoiceCommand.CastStop -> 9
+                is VoiceCommand.Cast -> 10
             }
         }
         for (command in ordered) {
@@ -202,6 +204,21 @@ class VoiceDictation(
                 is VoiceCommand.Deploy -> switchOptions(appContext, bridge, deploy = command.mode)
                 is VoiceCommand.Report -> report = true
                 is VoiceCommand.StopClaude -> {}   // done above
+                is VoiceCommand.CastStop -> {
+                    CastService.stop(appContext)
+                    try { bridge.castClear() } catch (err: Exception) { }
+                }
+                is VoiceCommand.Cast -> {
+                    if (dictation.message.isNotBlank()) {
+                        // With a message: the video does not exist yet. The wish waits at the backend for the video Claude is going to make.
+                        try { bridge.castPending(command.tv) } catch (err: Exception) { toastOnMain(appContext, "Envoi à la TV non enregistré : ${err.message ?: "?"}") }
+                    } else {
+                        // Alone: the latest video goes at once
+                        val latest = try { bridge.videos().videos.firstOrNull() } catch (err: Exception) { null }
+                        if (latest == null) toastOnMain(appContext, "Aucune vidéo à envoyer à la TV.")
+                        else try { CastService.start(appContext, latest.url, command.tv, latest.name) } catch (err: Exception) { toastOnMain(appContext, "Envoi à la TV impossible : ${err.message ?: "?"}") }
+                    }
+                }
                 is VoiceCommand.Repo -> {
                     // A repository is never changed on a guess: the phone asks aloud and the answer is the same phrase.
                     if (repoConfirmed || confirmRepo(command.name)) {

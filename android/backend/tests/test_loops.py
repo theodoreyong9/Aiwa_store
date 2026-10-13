@@ -2,6 +2,7 @@
 what a rollback does to a chain). No network and no real `claude`: the messages are captured."""
 import os
 import sys
+import time
 import tempfile
 import unittest
 import unittest.mock
@@ -175,6 +176,34 @@ class Courier(unittest.TestCase):
         self.assertEqual(len(snapshot["chains"]), 1)
         self.assertEqual(len(snapshot["chains"][0]), 2)
         self.assertEqual(snapshot["pairs"][0]["builder_title"], "Titre A")
+
+
+class CastWish(unittest.TestCase):
+    def setUp(self):
+        self.videos = [{"name": "old.mp4", "ts": "2026-10-01T10:00:00Z", "url": "https://github.com/o/r/releases/download/videos/old.mp4", "size": 1}]
+        self.patch = unittest.mock.patch.object(srv, "_videos_snapshot", side_effect=lambda: {"repo": "o/r", "videos": list(self.videos)})
+        self.patch.start()
+        srv.cast_clear()
+
+    def tearDown(self):
+        self.patch.stop()
+
+    def test_a_video_made_after_the_request_is_the_one_to_cast(self):
+        self.assertIsNone(srv._cast_ready())                                     # no wish
+        srv.cast_register("salon")
+        self.assertIsNone(srv._cast_ready())                                     # the old video is not the one
+        self.videos.insert(0, {"name": "new.mp4", "ts": "2026-10-12T22:00:00Z", "url": "https://github.com/o/r/releases/download/videos/new.mp4", "size": 2})
+        ready = srv._cast_ready()
+        self.assertEqual((ready["tv"], ready["name"]), ("salon", "new.mp4"))
+        self.assertTrue(ready["url"].startswith("https://"))
+        srv.cast_clear()
+        self.assertIsNone(srv._cast_ready())                                     # the phone cleared it once it started
+
+    def test_a_wish_is_forgotten_after_a_while(self):
+        srv.cast_register("")
+        self.videos.insert(0, {"name": "new.mp4", "ts": "x", "url": "https://github.com/o/r/releases/download/videos/new.mp4", "size": 2})
+        self.assertIsNone(srv._cast_ready(now=time.time() + srv.CAST_WAIT_SECONDS + 5))
+        self.assertFalse(srv.cast_pending["on"])
 
 
 if __name__ == "__main__":

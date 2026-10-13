@@ -18,6 +18,10 @@ sealed class VoiceCommand {
     data class Model(val id: String?, val label: String) : VoiceCommand()
     data class Effort(val id: String?, val label: String) : VoiceCommand()
     data class VideoQuality(val id: String, val label: String) : VoiceCommand()
+    /** « envoie la vidéo sur la TV du salon »: `tv` is the name as said (« salon », or empty). With a message it is done when the video is ready, without one at once. */
+    data class Cast(val tv: String) : VoiceCommand()
+    /** « arrête la TV ». */
+    object CastStop : VoiceCommand()
     data class PushMain(val direct: Boolean) : VoiceCommand()
     data class Deploy(val mode: String, val label: String) : VoiceCommand()
     object NewSession : VoiceCommand()
@@ -40,6 +44,8 @@ fun describeCommand(command: VoiceCommand): String = when (command) {
     is VoiceCommand.Model -> "modèle " + command.label.substringBefore(" (")
     is VoiceCommand.Effort -> "effort " + command.label
     is VoiceCommand.VideoQuality -> "qualité vidéo " + command.label
+    is VoiceCommand.Cast -> "vidéo sur la TV" + (if (command.tv.isBlank()) "" else " « ${command.tv} »")
+    is VoiceCommand.CastStop -> "arrêt de la TV"
     is VoiceCommand.PushMain -> if (command.direct) "push main" else "push branche"
     is VoiceCommand.Deploy -> "déploiement " + command.label
     is VoiceCommand.NewSession -> "nouvelle session"
@@ -82,10 +88,47 @@ private val BRANCH_WORDS = PillReference.PUSH_BRANCH
 private val EFFORT_WORDS = setOf("effort")
 private val QUALITY_WORDS = setOf("qualite")
 private val VIDEO_WORDS = setOf("video", "videos")
+private val CAST_VERBS = setOf("envoie", "envoi", "envoyer", "diffuse", "diffuser", "caste", "caster", "lance", "lancer", "joue", "jouer", "passe", "projette", "mets", "met")
+private val CAST_STOP_VERBS = setOf("arrete", "stoppe", "stop", "coupe", "termine")
+private val TV_WORDS = setOf("tv", "tele", "teles", "television", "televisions")
+private val CAST_PREPOSITIONS = setOf("sur", "a", "au", "vers", "dans")
+private val CAST_OBJECT = setOf("la", "le", "les", "l", "une", "un", "video", "videos", "film", "ca", "resultat", "derniere", "dernier", "premiere", "nouvelle")
+private val CAST_ARTICLES = setOf("la", "le", "les", "l", "ma", "mon", "notre")
+private val CAST_NAME_LEAD = setOf("du", "de", "d", "la", "le", "chez", "au")
+private val CAST_NAME_STOP = setOf("et", "puis", "ensuite", "quand", "apres", "avec", "pour", "mais")
+private val CONNECTORS = setOf("et", "puis", "ensuite", "aussi", "apres")
 
 private fun startsCommand(word: Word, next: Word?): Boolean =
     word.plain in MODEL_WORDS || word.plain in PUSH_WORDS || word.plain in EFFORT_WORDS || word.plain in QUALITY_WORDS || word.plain in DEPLOY_WORDS || word.plain in SESSION_WORDS ||
         word.plain in REPO_WORDS || (word.plain in NEW_WORDS && next?.plain in SESSION_WORDS) || (word.plain in TRIGGER)
+
+/** « envoie la vidéo sur la TV du salon »: the name said after « TV » and the index after it, or null when these words are not that (« envoie le mail à Paul »). */
+private fun castAhead(segment: List<Word>, at: Int): Pair<String, Int>? {
+    var k = at + 1
+    var steps = 0
+    while (k < segment.size && segment[k].plain in CAST_OBJECT && steps < 5) { k++; steps++ }
+    if (segment.getOrNull(k)?.plain !in CAST_PREPOSITIONS) return null
+    k++
+    while (segment.getOrNull(k)?.plain in CAST_ARTICLES) k++
+    if (segment.getOrNull(k)?.plain !in TV_WORDS) return null
+    k++
+    val name = mutableListOf<String>()
+    while (k < segment.size && name.size < 3) {
+        val w = segment[k]
+        if (w.plain in CAST_NAME_STOP || startsCommand(w, segment.getOrNull(k + 1))) break
+        if (name.isEmpty() && w.plain in CAST_NAME_LEAD) { k++; continue }
+        name.add(w.original)
+        k++
+    }
+    return name.joinToString(" ") to k
+}
+
+/** « arrête la TV »: the index after « TV », or null. */
+private fun castStopAhead(segment: List<Word>, at: Int): Int? {
+    var k = at + 1
+    while (segment.getOrNull(k)?.plain in CAST_ARTICLES) k++
+    return if (segment.getOrNull(k)?.plain in TV_WORDS) k + 1 else null
+}
 
 private fun isAiwa(list: List<Word>, at: Int): Int {
     // number of words that say "Aiwa" from `at` (0 = they do not)
@@ -145,6 +188,19 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
                 i += 3
                 while (leftover.isNotEmpty() && plainWord(leftover.last()) in QUESTION_WORDS) leftover.removeAt(leftover.size - 1)
                 while (wordAt(i)?.plain in QUESTION_WORDS) i++
+                afterCommand = true
+            }
+
+            // « arrête la TV », « envoie la vidéo sur la TV du salon » (before « stop Claude »: they share the verb)
+            w.plain in CAST_STOP_VERBS && castStopAhead(segment, i) != null -> {
+                commands.add(VoiceCommand.CastStop)
+                i = castStopAhead(segment, i)!!
+                afterCommand = true
+            }
+            w.plain in CAST_VERBS && castAhead(segment, i) != null -> {
+                val (name, next) = castAhead(segment, i)!!
+                commands.add(VoiceCommand.Cast(name))
+                i = next
                 afterCommand = true
             }
 
@@ -289,11 +345,17 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
             else -> { leftover.add(w.original); afterCommand = false; i++ }
         }
     }
+    // « fais un site et une vidéo et envoie la vidéo sur la TV »: the « et » that led to the cast is not part of the message
+    if (commands.any { it is VoiceCommand.Cast }) {
+        while (leftover.isNotEmpty() && plainWord(leftover.last()) in CONNECTORS) leftover.removeAt(leftover.size - 1)
+    }
     val message = (before + leftover).joinToString(" ").trim()
     return Dictation(message, commands, problems, true)
 }
 
 /** 1.0 for the same text, towards 0 as the edits needed to turn one into the other grow (Levenshtein over the longer length). */
+fun similarityOf(a: String, b: String): Double = similarity(a, b)
+
 internal fun similarity(a: String, b: String): Double {
     if (a == b) return 1.0
     if (a.isEmpty() || b.isEmpty()) return 0.0

@@ -312,4 +312,23 @@ class VoiceCommandsTest {
         assertTrue(similarity("aiwastor", "aiwastore") > 0.85)
         assertTrue(similarity("banane", "aiwastore") < 0.3)
     }
+
+    @Test fun theVideoIsSentToTheTvWhenClaudeHasFinished() {
+        val d = parse("instruction aiwa fais un site et une vidéo et envoie la vidéo sur la tv")
+        assertEquals(listOf<VoiceCommand>(VoiceCommand.Cast("")), d.commands)
+        assertEquals("fais un site et une vidéo", d.message)                       // the « et » that led to the cast is not the message's
+        val named = parse("instruction aiwa envoie la dernière vidéo à la télé du salon")
+        assertEquals(listOf<VoiceCommand>(VoiceCommand.Cast("salon")), named.commands)
+        assertEquals("", named.message)
+        assertEquals(listOf<VoiceCommand>(VoiceCommand.Cast("chambre parents")), parse("instruction aiwa diffuse sur la TV chambre parents").commands)
+    }
+
+    @Test fun onlyAVideoOnATvIsACastAndTheTvCanBeStopped() {
+        val mail = parse("instruction aiwa envoie le mail à Paul")
+        assertTrue(mail.commands.isEmpty())
+        assertEquals("envoie le mail à Paul", mail.message)
+        assertEquals(listOf<VoiceCommand>(VoiceCommand.CastStop), parse("instruction aiwa arrête la tv").commands)
+        assertEquals(listOf<VoiceCommand>(VoiceCommand.StopClaude), parse("instruction aiwa arrête Claude").commands)
+        assertEquals(listOf<VoiceCommand>(VoiceCommand.Model("claude-opus-5-5", "Opus 5.5"), VoiceCommand.Cast("salon")), parse("instruction aiwa modèle opus envoie la vidéo sur la tv du salon").commands)
+    }
 }

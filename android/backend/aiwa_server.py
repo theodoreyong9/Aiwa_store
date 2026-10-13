@@ -53,7 +53,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 74
+BACKEND_VERSION = 75
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2153,6 +2153,42 @@ def _ask_set(raw, event_id=None):
     return True
 
 
+# ---- « envoie la vidéo sur la TV quand c'est fini »: a cast asked together with a message waits here for the video to exist ----
+CAST_WAIT_SECONDS = 3 * 3600      # after three hours the wish is forgotten
+cast_pending = {"on": False, "tv": "", "since": 0.0, "known": []}
+
+
+def cast_register(tv):
+    """The person asked for the video to go to the television (named `tv`, or empty) as soon as Claude has made it: the videos that exist now are not the ones."""
+    snapshot = _videos_snapshot().get("videos", [])
+    with lock:
+        cast_pending.update(on=True, tv=str(tv or "").strip()[:60], since=time.time(), known=[[v.get("name"), v.get("ts")] for v in snapshot])
+    return {"ok": True}
+
+
+def cast_clear():
+    with lock:
+        cast_pending.update(on=False)
+    return {"ok": True}
+
+
+def _cast_ready(now=None):
+    """{tv, name, url} when a video that was not there at the request now is, else None. The phone then casts it and clears the wish."""
+    now = time.time() if now is None else now
+    with lock:
+        pending = dict(cast_pending)
+    if not pending["on"]:
+        return None
+    if now - pending["since"] > CAST_WAIT_SECONDS:
+        cast_clear()
+        return None
+    known = {(k[0], k[1]) for k in pending["known"]}
+    for video in _videos_snapshot().get("videos", []):
+        if (video.get("name"), video.get("ts")) not in known and str(video.get("url", "")).startswith("https://"):
+            return {"tv": pending["tv"], "name": video["name"], "url": video["url"]}
+    return None
+
+
 # ---- loops between two sessions (aiwa_loops.py): the backend is the courier ----
 LOOPS_FILE = Path.home() / ".aiwa_loops.json"
 loops_lock = threading.RLock()
@@ -2578,7 +2614,7 @@ class Handler(BaseHTTPRequestHandler):
                 "version": BACKEND_VERSION, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "video_quality": vquality, "extra": own, "extra_repos": more, "source_repos": inspiration,
-                "waiting": is_waiting, "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(),
+                "waiting": is_waiting, "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(), "cast": _cast_ready(),
                 "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
                 "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(), "ask": _ask_snapshot(),
             })
@@ -2695,6 +2731,14 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/waiting/clear":
             _clear_waiting()
             self.reply_json({"accepted": True})
+        elif self.path == "/api/cast/pending":
+            try:
+                data = json.loads(body) if body.strip() else {}
+            except ValueError:
+                data = {}
+            self.reply_json(cast_register(data.get("tv") if isinstance(data, dict) else ""))
+        elif self.path == "/api/cast/clear":
+            self.reply_json(cast_clear())
         elif self.path.startswith("/api/loops/"):
             try:
                 data = json.loads(body) if body.strip() else {}

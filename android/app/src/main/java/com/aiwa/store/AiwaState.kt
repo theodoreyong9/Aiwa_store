@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 74
+const val EXPECTED_BACKEND_VERSION = 75
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -113,6 +113,10 @@ data class AiwaState(
     val loopRounds: Int = 0,
     val loopLimit: Int = 0,
     val loopTurn: String = "",
+    // A cast waiting for its video, and the video that has just come: the keep-alive service starts the cast (CastService).
+    val castTv: String = "",
+    val castUrl: String = "",
+    val castName: String = "",
     val effort: String? = null,
     val siteUrl: String? = null,
     val siteState: String = "off",

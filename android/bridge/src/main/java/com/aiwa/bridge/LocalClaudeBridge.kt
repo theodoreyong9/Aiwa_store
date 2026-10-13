@@ -80,6 +80,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             extra = json.str("extra") ?: "",
             waiting = json.optBoolean("waiting", false),
             silenceMinutes = json.optInt("silence_minutes", 0),
+            cast = json.optJSONObject("cast")?.let { CastWish(it.optString("tv"), it.optString("name"), it.optString("url")) },
             loop = json.optJSONObject("loop")?.let { LoopRunning(it.optString("pair"), it.optInt("rounds", 0), it.optInt("limit", 0), it.optString("turn"), it.optInt("running", 1)) },
             alertLast = if (json.isNull("alert_last")) null else json.optLong("alert_last"),
             site = SiteInfo(site?.str("url"), site?.str("state") ?: "off", site?.str("kind") ?: "site", site?.str("termux")),
@@ -283,6 +284,14 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                 Proposal(v.optString("id"), v.optString("name"), v.optString("email"), v.optString("subject"), v.optString("body"), v.optString("price"), v.optString("videoUrl"), v.optString("demoUrl"), v.optString("phone"), v.optString("chatBody"), v.optString("xBody"), v.optString("style"), v.optString("currentUrl"), v.optString("reasons"), v.optString("contacts"))
             },
         )
+    }
+
+    override suspend fun castPending(tv: String) = withContext(Dispatchers.IO) {
+        requireAccepted(postText("/api/cast/pending", JSONObject().put("tv", tv).toString()))
+    }
+
+    override suspend fun castClear() = withContext(Dispatchers.IO) {
+        requireAccepted(postText("/api/cast/clear", ""))
     }
 
     override suspend fun loops(): LoopsInfo = withContext(Dispatchers.IO) {
