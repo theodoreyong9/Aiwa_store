@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The check for a newer build of the app runs every three minutes with a conditional request (ETag: GitHub answers 304, which does not count in its limit), so the update button shows up a few minutes after a build is published, nothing to open.
+
 - The app looks for a newer build of itself every half hour (was two hours), in the background service: nothing has to be opened.
 
 - The comment field waits for the wallet to be initialised: « Waiting for initialisation » while it is looked for, « Waiting for initialisation. Meanwhile, start your wallet first » without one, and a wallet that has mined nothing yet is told to start mining first (the registry would refuse the comment); the field appears only once all of it holds.

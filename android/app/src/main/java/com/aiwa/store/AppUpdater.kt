@@ -51,9 +51,21 @@ object AppUpdater {
      * Null when the app is up to date or when anything fails (the next round tries again). The permission to install is asked at the tap, not here.
      */
     fun prepareQuietly(app: Context): File? = try {
-        val release = JSONObject(get(APP_RELEASE_API, "application/vnd.github+json").inputStream.bufferedReader().use { it.readText() })
-        val sha = release.getString("target_commitish")
-        val apkUrl = release.getJSONArray("assets").getJSONObject(0).getString("browser_download_url")
+        // A conditional request (the ETag of the last answer): GitHub answers 304 when nothing changed, which does not count in its limit of requests, so this can be asked every few minutes.
+        val prefs = app.getSharedPreferences("aiwa_update", Context.MODE_PRIVATE)
+        val connection = get(APP_RELEASE_API, "application/vnd.github+json")
+        prefs.getString("etag", null)?.let { if (prefs.getString("sha", null) != null) connection.setRequestProperty("If-None-Match", it) }
+        val sha: String
+        val apkUrl: String
+        if (connection.responseCode == 304) {
+            sha = prefs.getString("sha", null) ?: return null
+            apkUrl = prefs.getString("url", null) ?: return null
+        } else {
+            val release = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+            sha = release.getString("target_commitish")
+            apkUrl = release.getJSONArray("assets").getJSONObject(0).getString("browser_download_url")
+            prefs.edit().putString("etag", connection.getHeaderField("ETag")).putString("sha", sha).putString("url", apkUrl).apply()
+        }
         if (isUpToDate(installedVersion(app), sha)) null
         else {
             val dir = File(app.cacheDir, "update").apply { mkdirs() }
