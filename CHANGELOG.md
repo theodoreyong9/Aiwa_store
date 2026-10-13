@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Backend version 78 (self-update, the critic's rules and the registry's comments): the app restarts an older brain by itself once it is installed.
+
 - `aiwa-papers/`: the critic's reference folder (an index of the papers of `docs/` that count, and the principles the critic defends); the critic re-reads it at every turn.
 
 - Comments are published like code: a third package kind `comment` (text up to 2000 characters), signed with the wallet, with its mining evidence, accepted by the registry (one per minute per author, 200 at most) and ranked by score / laps frozen at acceptance; `store/index.json` lists them under `comments` (no text), the packages are under `store/comments/`, published with the site. The widget's comment button opens the Store sheet that signs and sends one. The critic reads, at the start of its turns, the 10 best ranked it has not read (an edit is a higher version and is read again), marked as untrusted data with the wallet and the weight; the weight ranks, it gives no authority. No list, nobody special; the repository-based version is gone.
