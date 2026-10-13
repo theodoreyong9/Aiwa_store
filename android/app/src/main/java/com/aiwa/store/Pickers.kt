@@ -701,9 +701,6 @@ class SettingsActivity : ComponentActivity() {
             // the switch is the person's wish; "listening" is whether the service is running (after a restart of the phone it is not, until the app is opened)
             val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
-                add(PickerEntry("Session et dépôt", false, header = true) { })
-                add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
-                add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
                 add(PickerEntry("Réglages", false, header = true) { })
                 add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
                 if (state.repo != null) {

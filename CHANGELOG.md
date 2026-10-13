@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Aiwa-shaped widget: the mode buttons answer at once (the choice is held in the state the widget redraws from, the backend follows; the Vidéo button used to work only when something else happened to redraw the widget), the title band is gone: the session and the repository are two pills at the top (what is wrong replaces the session's name, and a status line shows only when it is not « Prêt »), and they are no longer in the settings list.
+
 - A third widget shape, « Aiwa » (settings > Forme du widget; the classic one is unchanged): a row of modes at the top (Vidéo · Page · Campagne · App · Store · Aiwa; a tap on a mode IS the deploy selector, Vidéo only changes what is shown), what the chosen mode needs (the site or the APK, the app and its code, the proposals, the videos, the guide of a GitHub setting, the state of the workflow), the microphone with Claude and the question, the model and the push, and a bottom row (loop, the Aiwa app, the update when one is downloaded, the settings). The settings list now opens with « Session » and « Dépôt ».
 
 - Questions of Claude: the ones of every session wait together (the backend keeps a list); the ❓ button is shown whatever the session in use (the one of the session in use first) and the window says which session asks and how many others wait; the answer goes to the session it came from, not to the one in use. The line « Claude te pose une question » is gone from the widget (the button says it). Backend 80.

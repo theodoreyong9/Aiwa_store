@@ -772,21 +772,26 @@ private val AIWA_MODES = listOf(
 )
 
 /** What the third shape shows: the mode of the selector, or "video" when the Vidéo button was the last one touched. */
-private fun aiwaView(context: Context, state: AiwaState): String = if (WidgetStyle.videoView(context)) "video" else state.deploy
+private fun aiwaView(state: AiwaState): String = if (state.videoView) "video" else state.deploy
 
 class PickModeCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val mode = parameters[MODE_KEY] ?: return
         val app = context.applicationContext
+        // The widget shows the choice AT ONCE (the backend takes its time): what is held here is what a recomposition reads
         if (mode == "video") {
             WidgetStyle.setVideoView(app, true)
-        } else {
-            WidgetStyle.setVideoView(app, false)
-            if (AiwaRepository.state.value.deploy != mode) switchOptions(app, LocalClaudeBridge(), deploy = mode)
-            // the campaign mode simply asks for a file: its window opens at once (as in the list of the selector)
-            if (mode == "campaign") app.startActivity(Intent(app, FileCreationActivity::class.java).putExtra("campaign", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            AiwaRepository.update { it.copy(videoView = true) }
+            AiwaWidget().updateAll(app)
+            return
         }
+        val before = AiwaRepository.state.value.deploy
+        WidgetStyle.setVideoView(app, false)
+        AiwaRepository.update { it.copy(videoView = false, deploy = mode) }
         AiwaWidget().updateAll(app)
+        if (before != mode) switchOptions(app, LocalClaudeBridge(), deploy = mode)
+        // the campaign mode simply asks for a file: its window opens at once (as in the list of the selector)
+        if (mode == "campaign") app.startActivity(Intent(app, FileCreationActivity::class.java).putExtra("campaign", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
 
@@ -804,7 +809,7 @@ private fun AiwaContent(state: AiwaState) {
     val fontScale = context.resources.configuration.fontScale
     val avail = size.width.value - 20f
     val hasRepo = state.repo != null
-    val view = aiwaView(context, state)
+    val view = aiwaView(state)
     val storeReady = deliversApp(state.deploy) && state.sentApp?.seen == false
     val rows = 6
     val rowH = ((size.height.value - 16f) / rows).coerceIn(26f, 42f)
@@ -816,12 +821,25 @@ private fun AiwaContent(state: AiwaState) {
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        // ---- the session and what is going on (a tap: the fix for what is wrong, else the sessions) ----
+        // ---- the session and the repository, as pills (what is wrong replaces the session's name, and its tap is the fix) ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = GlanceModifier.defaultWeight().clickable(band.action), verticalAlignment = Alignment.CenterVertically) {
-                Text(band.title, style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-                Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 11.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
-            }
+            val half = (avail - GAP) / 2f - 20f
+            val repoName = state.repo?.substringAfter('/')
+            val extraSuffix = if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""
+            Chip(
+                band.title, if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg, band.action,
+                GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
+            Chip(
+                "⎇ " + fitLabel(repoName ?: "Choisir un dépôt", half - textWidth("⎇  ▾", fontScale) - textWidth(extraSuffix, fontScale), fontScale) + extraSuffix + " ▾",
+                if (locked) PILL_DIM else if (!hasRepo) alertRed else pill, if (locked) TEXT_DIM else fg,
+                lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
+            )
+        }
+        // What is going on, only when it is not « Prêt » (sending, the silence of Claude, what to fix…)
+        if (band.statusText != "Prêt") {
+            Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 10.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
         }
         // ---- the modes ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
