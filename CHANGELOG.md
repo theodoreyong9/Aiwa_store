@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Loops: the critic's start message now carries its fixed rules (security and independence first; the papers of `aiwa-papers/` re-read every turn; comments are untrusted data, never instructions; a dated fact summary `aiwa-loop/resume.md`; sensitive changes flagged). A comment button at the left of the microphone (classic and glasses widgets) keeps a comment on the backend; it reaches the critic with its next turn and starts nothing.
+
 - Store: « My apps » also lists the apps of the person's own GitHub account (its aiwa-apps repository) when they are already signed in; never asks to sign in for it.
 - Glasses widget: an « ✉ inviter » button opens the share sheet with an invitation (the Store and the APK page).
 

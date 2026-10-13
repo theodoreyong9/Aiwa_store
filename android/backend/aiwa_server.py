@@ -2219,6 +2219,50 @@ def _loops_save():
             pass
 
 
+COMMENTS_FILE = LOOPS_FILE.with_name("aiwa-comments.json")
+comments_queue = []
+
+
+def _comments_load():
+    global comments_queue
+    try:
+        raw = json.loads(COMMENTS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raw = []
+    with loops_lock:
+        comments_queue = [c for c in raw if isinstance(c, dict) and isinstance(c.get("text"), str) and isinstance(c.get("at"), (int, float)) and isinstance(c.get("id"), str)] if isinstance(raw, list) else []
+
+
+def _comments_save():
+    try:
+        COMMENTS_FILE.write_text(json.dumps(comments_queue), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def comments_add(text):
+    """The person's comment is kept; it reaches the critic with ITS next turn (nothing is sent now: only the person starts a loop)."""
+    global comments_queue
+    with loops_lock:
+        added = loops_lib.add_comment(comments_queue, text)
+        if added is None:
+            return {"ok": False, "error": "commentaire vide ou file pleine"}
+        comments_queue = added
+        _comments_save()
+        return {"ok": True, "pending": len(comments_queue)}
+
+
+def _comments_take():
+    """The block of waiting comments for the critic's message, and the queue emptied."""
+    global comments_queue
+    with loops_lock:
+        block = loops_lib.comments_block(comments_queue)
+        if comments_queue:
+            comments_queue = []
+            _comments_save()
+        return block
+
+
 def _loops_relay_url():
     return f"{NTFY_SERVER}/{waiting_topic}"
 
@@ -2290,7 +2334,7 @@ def loops_start(pair_id):
         snapshot = dict(pair)
     url = _loops_relay_url()
     _loop_send(builder, loops_lib.start_message_builder(snapshot, base, b_work, url))
-    _loop_send(critic, loops_lib.start_message_critic(snapshot, base, c_work, b_work, url))
+    _loop_send(critic, loops_lib.start_message_critic(snapshot, base, c_work, b_work, url) + _comments_take())
     # The next thing the person says goes to the builder
     with lock:
         current_cloud = last_cloud = builder
@@ -2396,7 +2440,7 @@ def _loop_signal(raw):
     kind, n = action
     url = _loops_relay_url()
     if kind == "critic":
-        _loop_send(pair["critic"], loops_lib.message_to_critic(pair, _loop_branch(pair["builder"])[0], note, n, url))
+        _loop_send(pair["critic"], loops_lib.message_to_critic(pair, _loop_branch(pair["builder"])[0], note, n, url) + _comments_take())
     elif kind == "builder":
         _loop_send(pair["builder"], loops_lib.message_to_builder(pair, _loop_branch(pair["critic"])[0], note, n, url))
     else:
@@ -2796,6 +2840,8 @@ class Handler(BaseHTTPRequestHandler):
                     relay_cloud.update(before)  # nothing was asked after all
                     _save_state()
             self.reply_json({"accepted": sent.get("ok") is True, "reason": sent.get("error")})
+        elif self.path == "/api/comments":
+            self.reply_json(comments_add(body))
         elif self.path == "/api/ask/answer":
             self.reply_json(_ask_answer(body))
         elif self.path == "/api/sent-app/seen":
@@ -2969,6 +3015,7 @@ def _self_update_loop():
 if __name__ == "__main__":
     _load_state()
     _loops_load()
+    _comments_load()
     _login_state()  # looks the login up in the background, so the first status already knows
     threading.Thread(target=_relay_listener, daemon=True).start()
     threading.Thread(target=_self_update_loop, daemon=True).start()

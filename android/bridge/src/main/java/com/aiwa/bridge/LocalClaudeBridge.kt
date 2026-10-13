@@ -274,6 +274,11 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         }
     }
 
+    override suspend fun comment(text: String) = withContext(Dispatchers.IO) {
+        val json = JSONObject(postText("/api/comments", text))
+        if (!json.optBoolean("ok", false)) throw IllegalStateException(json.optString("error", "le commentaire n'est pas parti"))
+    }
+
     override suspend fun proposals(): ProposalList = withContext(Dispatchers.IO) {
         val json = JSONObject(getText("/api/proposals"))
         val array = json.optJSONArray("proposals")

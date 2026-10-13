@@ -551,6 +551,9 @@ private fun FullContent(state: AiwaState) {
         // The main action, big: dictate. The grey button with its red recording dot.
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             RowName(ROW_SPECIALIST)
+            // The comment for the critic of the loops, at the left of the microphone
+            RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = 34.dp)
+            Spacer(GlanceModifier.width(GAP.dp))
             Box(
                 modifier = GlanceModifier.defaultWeight().height(micH.dp)
                     .background(if (locked) MIC_DIM else micGrey)
@@ -662,9 +665,12 @@ private fun GlassesContent(state: AiwaState) {
                         Spacer(GlanceModifier.width(GAP.dp))
                         Chip(claudeText, if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange, fg, actionStartActivity<OpenClaudeActivity>(), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
                     }
-                    // The one big thing: the microphone
+                    // The one big thing: the microphone, with the comment button (for the critic of the loops) at its left
+                    Row(modifier = GlanceModifier.fillMaxWidth().height(micH.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = (itemH + 6f).dp)
+                    Spacer(GlanceModifier.width(GAP.dp))
                     Box(
-                        modifier = GlanceModifier.fillMaxWidth().height(micH.dp).background(if (locked) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
+                        modifier = GlanceModifier.defaultWeight().height(micH.dp).background(if (locked) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
                         contentAlignment = Alignment.Center,
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -672,6 +678,7 @@ private fun GlassesContent(state: AiwaState) {
                             Spacer(GlanceModifier.width(6.dp))
                             Text("Dicter", style = TextStyle(color = fg, fontSize = 15.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                         }
+                    }
                     }
                     Row(modifier = GlanceModifier.fillMaxWidth().height(itemH.dp)) {
                         if (campaignMode) Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier, height = itemH.dp, textSize = 8.sp, hPad = 5.dp)
