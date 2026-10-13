@@ -58,8 +58,8 @@ object AppUpdater {
         val sha: String
         val apkUrl: String
         if (connection.responseCode == 304) {
-            sha = prefs.getString("sha", null) ?: return null
-            apkUrl = prefs.getString("url", null) ?: return null
+            sha = prefs.getString("sha", null) ?: error("no kept release")
+            apkUrl = prefs.getString("url", null) ?: error("no kept release")
         } else {
             val release = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
             sha = release.getString("target_commitish")
