@@ -483,6 +483,9 @@ class VoiceCommandsHelpActivity : ComponentActivity() {
                 add(PickerEntry("Parle : c'est du texte pour Claude. « C'est bon vas-y » envoie.", false, lines = 3) { })
                 add(PickerEntry("« Non, c'est pas bon, arrête » ou « annule », à la fin : tout est abandonné.", false, lines = 3) { })
 
+                add(PickerEntry("Changer de dépôt, directement", false, header = true) { })
+                add(PickerEntry("En début de phrase : « mets-toi sur le dépôt Aiwa store », « passe sur le repo Jobber » (mets, passe, va, bascule, change, reviens, retourne, travaille, utilise, prends). Ce qui suit le nom reste pour Claude. Un nom qui n'est pas un de tes dépôts : la phrase part telle quelle.", false, lines = 5) { })
+
                 add(PickerEntry("Après « instruction Aiwa » (enchaîne autant que tu veux)", false, header = true) { })
                 // Generated from the reference of the pills (PillReference): a pill or a value added there is listed here
                 PillReference.helpSections(MODEL_CHOICES.map { it.label.substringBefore(" (") }).forEach { (title, what) ->

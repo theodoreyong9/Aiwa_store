@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The voice commands help (settings > Commandes vocales) lists the new way to change repository (« mets-toi sur le dépôt X » at the start of a sentence, no trigger phrase).
+
 - Settings: a « Version : appli 0.1.<commit> · cerveau <n> » line (and « mise à jour téléchargée » when one waits), now that the update entries are gone.
 
 - Voice: an order that STARTS the sentence and names one of the repositories (« mets-toi sur le dépôt Aiwa store », « passe sur le repo Jobber ») is a command without « instruction Aiwa »; it is read back and confirmed like the others. A name that is not a repository leaves the sentence for Claude.
