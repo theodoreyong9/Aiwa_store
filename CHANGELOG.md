@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The comment field waits for the wallet to be initialised: « Waiting for initialisation » while it is looked for, « Waiting for initialisation. Meanwhile, start your wallet first » without one, and a wallet that has mined nothing yet is told to start mining first (the registry would refuse the comment); the field appears only once all of it holds.
+
 - Loops: « Historique des critiques » on each pair opens the list of what the critic wrote on the corpus (`aiwa-loop/<pair>/critique-<turn>.md` on its branch, last turn first, and its `resume.md`), read from GitHub through the backend (`/api/critiques`).
 - The update is a green button at the left of the microphone (all three widget shapes) when a newer build is downloaded; one tap opens the installer. The status-line version of it is gone.
 

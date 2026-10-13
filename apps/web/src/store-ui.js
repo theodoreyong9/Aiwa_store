@@ -247,26 +247,38 @@ function handoffTab() {
 }
 
 // The widget's comment button: #comment opens the sheet. The field only appears once the wallet is connected: a comment is signed with it.
-function paintCommentSheet() {
+let paintToken = 0;
+async function paintCommentSheet() {
   if ($('commentsheet').hidden) return;
-  const gate = $('comment-gate');
-  const ready = connected();
-  const checking = !ready && session.starting;
-  gate.hidden = ready;
-  gate.textContent = checking ? 'Looking for your wallet…'
-    : !hostAvailable() ? 'Sending a comment needs the Android app (it signs in to GitHub).'
-    : 'No wallet is connected. A comment is signed with your wallet, and ranked by what you have mined: connect it first.';
-  $('comment-text').hidden = !ready;
-  $('comment-send').hidden = !ready;
-  $('comment-wallet').hidden = ready || checking;
+  const mine = ++paintToken;
+  const show = ({ message, field = false, wallet = false }) => {
+    if (mine !== paintToken) return;      // a newer look is under way
+    $('comment-gate').hidden = !message;
+    $('comment-gate').textContent = message;
+    $('comment-text').hidden = !field;
+    $('comment-send').hidden = !field;
+    $('comment-wallet').hidden = !wallet;
+  };
+  if (!hostAvailable()) return show({ message: 'Sending a comment needs the Android app (it signs in to GitHub).' });
+  if (!connected()) {
+    return show(session.starting
+      ? { message: 'Waiting for initialisation…' }
+      : { message: 'Waiting for initialisation. Meanwhile, start your wallet first: a comment is signed with it.', wallet: true });
+  }
+  // A comment is ranked by what its author has mined, and the registry refuses one without it: the field waits for that too.
+  let figure = null;
+  try { figure = await session.aiwa.ranking(); } catch { /* not ready: said below */ }
+  if (!figure || !(Number(figure.score) > 0)) {
+    return show({ message: 'Wallet started, but nothing mined yet: a comment is ranked by what you have mined, and is refused without it. Start mining in the Wallet tab first.', wallet: true });
+  }
+  show({ field: true });
 }
 
 function openCommentSheet() {
   switchView('store');
   $('comment-status').textContent = '';
   $('commentsheet').hidden = false;
-  paintCommentSheet();
-  if (connected()) $('comment-text').focus();
+  paintCommentSheet().then(() => { if (!$('comment-text').hidden) $('comment-text').focus(); });
 }
 
 export function initComments() {
