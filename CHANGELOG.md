@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Settings: a « Version : appli 0.1.<commit> · cerveau <n> » line (and « mise à jour téléchargée » when one waits), now that the update entries are gone.
+
 - Voice: an order that STARTS the sentence and names one of the repositories (« mets-toi sur le dépôt Aiwa store », « passe sur le repo Jobber ») is a command without « instruction Aiwa »; it is read back and confirmed like the others. A name that is not a repository leaves the sentence for Claude.
 
 - Widget: the question Claude asks is a red ❓ button at the right of the session (classic and glasses), so the session's name keeps opening the list of sessions (it used to open the question).

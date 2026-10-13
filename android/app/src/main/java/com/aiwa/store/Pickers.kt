@@ -707,6 +707,8 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Aiwa", false, header = true) { })
                 add(PickerEntry("Mon mot d'éveil : le choisir ou le changer, même « Aiwa »", false, lines = 2) { open(WakeWordEnrollActivity::class.java) })
                 add(PickerEntry("État d'Aiwa : Claude, alertes, permissions", false, lines = 2) { open(HealthActivity::class.java) })
+                // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
+                add(PickerEntry("Version : appli ${AppUpdater.installedVersion(applicationContext) ?: "?"} · cerveau ${AiwaRepository.state.value.backendVersion.takeIf { it > 0 } ?: "?"}${if (AppUpdater.readyFile(applicationContext) != null) " · mise à jour téléchargée" else ""}", false, lines = 2) { })
                 add(PickerEntry("Commentaire pour le critique : signé avec ton wallet, classé par ce que tu as miné", false, lines = 2) { open(CommentActivity::class.java) })
                 // Only when there is no widget yet: nobody asked for a second one
                 if (!WidgetPin.hasWidget(applicationContext)) {
