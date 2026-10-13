@@ -705,7 +705,7 @@ private fun GlassesContent(state: AiwaState) {
                     Spacer(GlanceModifier.height(4.dp))
                     // « own »: the apps published with this wallet; « faves »: the starred ones. Each opens that tab of the Store.
                     val context = LocalContext.current
-                    fun storeTab(tab: String): Action = actionStartActivity(
+                    fun storeTab(tab: String): Action = actionStartIntent(
                         Intent(context, StoreActivity::class.java).setData(Uri.parse("aiwa://store/$tab"))
                             .putExtra(StoreActivity.EXTRA_URL, storeTabUrl(tab) ?: STORE_APP_URL),
                     )
