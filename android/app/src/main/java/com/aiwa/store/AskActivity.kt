@@ -91,6 +91,8 @@ private fun AskWindow(onClose: () -> Unit) {
             ) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Claude te demande", style = MaterialTheme.typography.titleMedium)
+                    // Questions of several sessions wait together: which session asks, and how many wait
+                    ask?.let { a -> a.session?.let { Text("Session : $it" + if (a.count > 1) " · ${a.count - 1} autre(s) question(s) en attente" else "", style = MaterialTheme.typography.bodySmall) } }
                     if (ask == null) {
                         Text("Plus aucune question en attente.")
                         OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }

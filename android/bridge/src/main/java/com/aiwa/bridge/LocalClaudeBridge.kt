@@ -95,7 +95,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             sendingNote = json.str("sending_note"),
             ask = json.optJSONObject("ask")?.let { a ->
                 val choices = a.optJSONArray("options")
-                AskInfo(a.optString("id"), a.optString("question"), if (choices == null) emptyList() else (0 until choices.length()).map { choices.getString(it) }, a.optLong("ts", 0L))
+                AskInfo(a.optString("id"), a.optString("question"), if (choices == null) emptyList() else (0 until choices.length()).map { choices.getString(it) }, a.optLong("ts", 0L), a.optString("session").ifBlank { null }, a.optInt("count", 1))
             },
             sentApp = json.optJSONObject("sent_app")?.let {
                 SentApp(it.optString("name"), it.optInt("size", 0), it.optLong("ts", 0L), it.optBoolean("seen", false), it.str("kind") ?: "code", it.str("github"))

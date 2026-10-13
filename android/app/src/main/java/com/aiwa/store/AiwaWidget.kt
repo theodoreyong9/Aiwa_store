@@ -292,7 +292,6 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
             statusColor = if (refused) warm else fg
             statusBold = refused
         }
-        state.ask != null -> { status = "❓ Claude te pose une question — touche le bouton ❓"; statusColor = alertText; statusBold = true }
         state.ciHintTitle != null -> { status = "⚠ GitHub : un réglage à faire — touche ⚠"; statusColor = alertText; statusBold = true }
         state.waiting -> { status = "● Claude attend ta réponse"; statusColor = alertText; statusBold = true }
         // Nothing came back by any road for a while after a message: only « go and look » can be said (the answer cannot be read from here)
@@ -445,7 +444,7 @@ private fun FullContent(state: AiwaState) {
                 )
             }
             // The question Claude asks: a button of its own, at the right of the session, so that the session's name keeps opening the list of sessions
-            if (state.ask != null && state.status != AiwaState.Status.WORKING) {
+            if (state.ask != null) {
                 Spacer(GlanceModifier.width(8.dp))
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = avatar.dp)
             }
@@ -665,7 +664,7 @@ private fun GlassesContent(state: AiwaState) {
                             Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 8.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
                         }
                         // The question Claude asks has a button of its own, at the right of the session (the session keeps opening the list of sessions)
-                        if (state.ask != null && !locked) {
+                        if (state.ask != null) {
                             Spacer(GlanceModifier.width(GAP.dp))
                             RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = (itemH + 4f).dp)
                         }

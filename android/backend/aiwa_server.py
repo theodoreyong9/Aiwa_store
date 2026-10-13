@@ -54,7 +54,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 79
+BACKEND_VERSION = 80
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -207,7 +207,7 @@ relay_cloud = {"asked": None, "ok": None}
 # a file of APP_DIR. And the last relay event handled, to resume after a restart.
 sent_app = None
 # The last question Claude asked through the widget (`Title: aiwa-ask`, or aiwa-out/ask.json): {"id", "question", "options", "ts", "answered"}.
-ask = None
+ask_list = []   # the questions Claude asked and nobody answered yet, of every session: [{id, question, options, ts, answered, session}]
 relay_seen = {"id": None, "time": None}
 # Whether the Pages address of current_repo answers, probed in the background.
 site_lock = threading.Lock()
@@ -238,7 +238,7 @@ followup_lock = threading.Lock()
 
 def _load_state():
     global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, video_quality
-    global current_effort, waiting_topic, last_cloud, sent_app, ask, last_message_at, repo_access_missing
+    global current_effort, waiting_topic, last_cloud, sent_app, ask_list, last_message_at, repo_access_missing
     try:
         data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -284,12 +284,16 @@ def _load_state():
     if isinstance(last, dict) and isinstance(last.get("name"), str) and APP_FILE_RE.fullmatch(last["name"]):
         sent_app = {"name": last["name"], "size": int(last.get("size") or 0), "ts": int(last.get("ts") or 0),
                     "seen": last.get("seen") is True, "event": last.get("event") if isinstance(last.get("event"), str) else None}
-    pending = data.get("ask")
-    ask = None
-    if isinstance(pending, dict) and isinstance(pending.get("question"), str) and isinstance(pending.get("id"), str):
-        ask = {"id": pending["id"], "question": pending["question"], "options": [o for o in pending.get("options", []) if isinstance(o, str)][:ASK_OPTIONS],
-               "ts": int(pending.get("ts") or 0), "answered": pending.get("answered") is True,
-               "session": pending.get("session") if isinstance(pending.get("session"), str) else None}
+    pending_list = data.get("ask_list")
+    if not isinstance(pending_list, list):
+        pending_list = [data.get("ask")] if isinstance(data.get("ask"), dict) else []
+    ask_list = []
+    for pending in pending_list:
+        if isinstance(pending, dict) and isinstance(pending.get("question"), str) and isinstance(pending.get("id"), str):
+            ask_list.append({"id": pending["id"], "question": pending["question"], "options": [o for o in pending.get("options", []) if isinstance(o, str)][:ASK_OPTIONS],
+                             "ts": int(pending.get("ts") or 0), "answered": pending.get("answered") is True,
+                             "session": pending.get("session") if isinstance(pending.get("session"), str) else None})
+    ask_list = ask_list[-ASK_PENDING_MAX:]
     handled = data.get("relay_seen")
     if isinstance(handled, dict):
         relay_seen.update(id=handled.get("id") if isinstance(handled.get("id"), str) else None,
@@ -310,7 +314,7 @@ def _save_state():
             "model": current_model, "cloud": current_cloud, "repo": current_repo,
             "push_main": push_main, "deploy": deploy_mode, "video_quality": video_quality, "extra": extra, "extra_repos": extra_repos, "source_repos": source_repos,
             "effort": current_effort, "topic": waiting_topic, "last_cloud": last_cloud, "ci_seen": ci_seen,
-            "relay_cloud": relay_cloud, "sent_app": sent_app, "ask": ask, "relay_seen": relay_seen, "last_message": last_message_at,
+            "relay_cloud": relay_cloud, "sent_app": sent_app, "ask_list": ask_list, "relay_seen": relay_seen, "last_message": last_message_at,
             "repo_access_missing": repo_access_missing,
         }), encoding="utf-8")
     except OSError as err:
@@ -2129,6 +2133,7 @@ def _inputs_snapshot():
     return {"repo": repo, "files": items[:100]}
 
 
+ASK_PENDING_MAX = 10
 ASK_OPTIONS = 6
 ASK_QUESTION_MAX = 600
 ASK_OPTION_MAX = 80
@@ -2137,7 +2142,7 @@ ASK_OPTION_MAX = 80
 def _ask_set(raw, event_id=None):
     """A question from Claude: JSON {"question": "...", "options": ["...", ...]}. Kept (one at a time; a newer one replaces the older), and
     shown by the widget until it is answered. The same event twice is one question. True if it was kept."""
-    global ask
+    global ask_list
     try:
         data = json.loads(raw) if isinstance(raw, (str, bytes)) else raw
     except ValueError:
@@ -2149,13 +2154,13 @@ def _ask_set(raw, event_id=None):
     identifier = str(event_id or data.get("id") or hashlib.sha1((data["question"] + str(time.time())).encode()).hexdigest()[:12])
     text = data["question"].strip()[:ASK_QUESTION_MAX]
     with lock:
-        if ask is not None and ask["id"] == identifier:
+        if any(a["id"] == identifier for a in ask_list):
             return False
-        # The same question that came by the other road (the relay AND GitHub are both used): one question, not two
-        if ask is not None and ask["question"] == text and time.time() - ask["ts"] < 1200:
+        # The same question that came by the other road (the relay AND GitHub are both used), in the same session: one question, not two
+        if any(a["question"] == text and a.get("session") == current_cloud and time.time() - a["ts"] < 1200 for a in ask_list):
             return False
-        # The question belongs to the session being used when it came (the relay and the branch watched are the current session's): another session does not show it
-        ask = {"id": identifier, "question": data["question"].strip()[:ASK_QUESTION_MAX], "options": options, "ts": int(time.time()), "answered": False, "session": current_cloud}
+        # The question belongs to the session being used when it came (the relay and the branch watched are the current session's); questions of several sessions wait together
+        ask_list = (ask_list + [{"id": identifier, "question": text, "options": options, "ts": int(time.time()), "answered": False, "session": current_cloud}])[-ASK_PENDING_MAX:]
         _save_state()
     print(f"[{_ts()}] question from Claude kept ({len(options)} choices)", flush=True)
     return True
@@ -2525,41 +2530,56 @@ def _loops_running():
         return {"pair": newest["id"], "rounds": newest["rounds"], "limit": newest["limit"], "turn": newest["turn"], "running": len(running)}
 
 
-def _ask_for_current_session():
-    """The pending question when it is the one of the session in use (a question of no known session is shown to any), else None. Call with `lock` held."""
-    if ask is None or ask["answered"]:
-        return None
-    if ask.get("session") and ask["session"] != current_cloud:
-        return None
-    return ask
+def _asks_pending():
+    """The questions nobody answered yet, oldest first. Call with `lock` held."""
+    return [a for a in ask_list if not a["answered"]]
+
+
+def _ask_to_show():
+    """The question the widget shows: the one of the session in use when there is one, else the oldest of the others. Call with `lock` held."""
+    pending = _asks_pending()
+    return next((a for a in pending if a.get("session") == current_cloud), pending[0] if pending else None)
 
 
 def _ask_snapshot():
     with lock:
-        shown = _ask_for_current_session()
-        return {k: shown[k] for k in ("id", "question", "options", "ts")} if shown is not None else None
+        shown = _ask_to_show()
+        count = len(_asks_pending())
+        session = shown.get("session") if shown else None
+        snapshot = {k: shown[k] for k in ("id", "question", "options", "ts")} if shown is not None else None
+    if snapshot is None:
+        return None
+    entry = _session_entry(session) if session else {}
+    snapshot.update(session=(entry or {}).get("title") or session, count=count)
+    return snapshot
 
 
 def _ask_answer(body):
-    """The answer typed or chosen in the widget: sent to the session as its next message, with the question it answers."""
+    """The answer typed or chosen in the widget: sent to the session the question came from (not necessarily the one in use), with the question it answers."""
     try:
         data = json.loads(body)
     except ValueError:
         return {"ok": False, "error": "réponse illisible"}
     text = str(data.get("answer", "")).strip()[:2000] if isinstance(data, dict) else ""
     with lock:
-        shown = _ask_for_current_session()
-        pending = dict(shown) if shown is not None else None
-    if pending is None or pending["answered"] or str(data.get("id")) != pending["id"]:
+        found = next((dict(a) for a in _asks_pending() if a["id"] == str(data.get("id") if isinstance(data, dict) else "")), None)
+        in_use = current_cloud
+    if found is None:
         return {"ok": False, "error": "cette question n'est plus d'actualité"}
     if not text:
         return {"ok": False, "error": "réponse vide"}
-    result = cloud_send(f"Ma réponse à ta demande « {pending['question']} » : {text}")
+    message = f"Ma réponse à ta demande « {found['question']} » : {text}"
+    if found.get("session") in (None, in_use):
+        result = cloud_send(message)
+    else:
+        sent = _queue_followup(found["session"], message)
+        result = {"ok": bool(sent.get("ok")), "error": sent.get("error")}
     if result.get("ok"):
         with lock:
-            if ask is not None and ask["id"] == pending["id"]:
-                ask["answered"] = True
-                _save_state()
+            for a in ask_list:
+                if a["id"] == found["id"]:
+                    a["answered"] = True
+            _save_state()
     return result
 
 
@@ -2668,7 +2688,7 @@ def _silence_minutes(now=None):
     """How many minutes without a sign of Claude since the last message, or 0 when there is nothing to say."""
     now = time.time() if now is None else now
     with lock:
-        sent, busy, pending_ask, app = last_message_at, cloud_busy, ask, sent_app
+        sent, busy, pending_ask, app = last_message_at, cloud_busy, bool(_asks_pending()), sent_app
         session = current_cloud or last_cloud
         repo = current_repo
     if not sent or busy or pending_ask:

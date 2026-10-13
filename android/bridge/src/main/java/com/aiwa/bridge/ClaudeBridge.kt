@@ -13,7 +13,8 @@ data class SiteInfo(val url: String?, val state: String, val kind: String = "sit
 // github: the address of its code in the repository (aiwa-apps/<name> on Claude's branch), once it is known to be there.
 data class SentApp(val name: String, val size: Int, val ts: Long, val seen: Boolean, val kind: String = "code", val github: String? = null)
 // A question Claude asked through the widget (it never sees the conversation): the question, a few short choices, and an id the answer carries.
-data class AskInfo(val id: String, val question: String, val options: List<String>, val ts: Long)
+// `session` is the title of the session that asked, `count` how many questions wait (of every session): they wait together, each is answered in its own session.
+data class AskInfo(val id: String, val question: String, val options: List<String>, val ts: Long, val session: String? = null, val count: Int = 1)
 
 // A promotional video of the creation: a file of the GitHub release `videos` of its repository (a public repository only: Aiwa asks for no token).
 data class VideoItem(val name: String, val size: Long, val url: String, val ts: String)

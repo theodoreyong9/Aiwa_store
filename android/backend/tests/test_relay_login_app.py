@@ -371,7 +371,7 @@ class ProposalsTests(unittest.TestCase):
     def test_a_silence_after_a_message_is_said_only_when_no_sign_of_claude_came(self):
         now = 1_000_000.0
         sent = int(now - 700)         # a message sent 11 minutes ago
-        base = dict(last_message_at=sent, cloud_busy=False, ask=None, sent_app=None, current_repo="o/r", current_cloud="session_x", last_cloud=None)
+        base = dict(last_message_at=sent, cloud_busy=False, ask_list=[], sent_app=None, current_repo="o/r", current_cloud="session_x", last_cloud=None)
         entry = {"repo": "o/r", "work": "claude/work"}
 
         def minutes(commit_time=None, ping=None, ci=None, acked=0, **over):
@@ -393,7 +393,7 @@ class ProposalsTests(unittest.TestCase):
         self.assertEqual(minutes(commit_time=sent + 30), 0)                    # a commit on its branch
         self.assertEqual(minutes(ci={"state": "success", "done": sent + 60}), 0)   # a workflow ran
         self.assertEqual(minutes(sent_app={"ts": sent + 10}), 0)               # an app came
-        self.assertEqual(minutes(ask={"question": "?"}), 0)                    # a question is itself a sign
+        self.assertEqual(minutes(ask_list=[{"id": "x", "question": "?", "options": [], "ts": 0, "answered": False, "session": None}]), 0)                    # a question is itself a sign
         self.assertEqual(minutes(cloud_busy=True), 0)                          # still being sent
         self.assertEqual(minutes(acked=sent), 0)                               # the person went to look
         self.assertEqual(minutes(last_message_at=int(now - 100)), 0)           # too early
@@ -736,7 +736,7 @@ class AskAndVideoTests(Base):
     def setUp(self):
         super().setUp()
         with srv.lock:
-            srv.ask = None
+            srv.ask_list = []
 
     def test_a_question_from_claude_reaches_the_widget_and_its_answer_goes_back_to_the_session(self):
         srv._relay_event({"id": "e1", "time": int(time.time()), "title": "aiwa-ask", "message": json.dumps({"question": "Quelle couleur ?", "options": ["Bleu", "Rouge", "", 3]})})
@@ -763,16 +763,22 @@ class AskAndVideoTests(Base):
         self.assertIsNone(srv._ask_snapshot())
         self.assertTrue(srv._ask_set(json.dumps({"question": "Autre chose ?"}), "relay-2"))        # a different question is a new one
 
-    def test_a_question_belongs_to_the_session_it_came_in_and_is_not_shown_in_another(self):
+    def test_questions_of_several_sessions_wait_together_each_with_its_session_and_is_answered_there(self):
         with unittest.mock.patch.object(srv, "current_cloud", "session_AAA"):
             self.assertTrue(srv._ask_set(json.dumps({"question": "Quelle couleur ?"}), "q-a"))
-            self.assertIsNotNone(srv._ask_snapshot())
         with unittest.mock.patch.object(srv, "current_cloud", "session_BBB"):
-            self.assertIsNone(srv._ask_snapshot(), "another session does not show it")
-            with unittest.mock.patch.object(srv, "cloud_send", lambda text, command=False: {"ok": True}):
-                self.assertFalse(srv._ask_answer(json.dumps({"id": "q-a", "answer": "Bleu"}))["ok"], "and cannot answer it")
+            self.assertTrue(srv._ask_set(json.dumps({"question": "Quelle taille ?"}), "q-b"))
+            mine = srv._ask_snapshot()
+            self.assertEqual(mine["id"], "q-b", "the question of the session in use first")
+            self.assertEqual(mine["count"], 2)
+            followups = []
+            with unittest.mock.patch.object(srv, "_queue_followup", lambda sid, text: (followups.append((sid, text)), {"ok": True})[1]):
+                self.assertTrue(srv._ask_answer(json.dumps({"id": "q-a", "answer": "Bleu"}))["ok"], "the other session's question can be answered from here")
+            self.assertEqual(followups[0][0], "session_AAA", "the answer goes to the session it came from")
+            self.assertEqual(srv._ask_snapshot()["id"], "q-b")
+            self.assertEqual(srv._ask_snapshot()["count"], 1)
         with unittest.mock.patch.object(srv, "current_cloud", "session_AAA"):
-            self.assertIsNotNone(srv._ask_snapshot(), "back in its own session, it is there again")
+            self.assertEqual(srv._ask_snapshot()["id"], "q-b", "another session's question is shown when none is of this one")
 
     def test_the_instruction_asks_for_both_roads_at_once(self):
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["ask"]
