@@ -993,8 +993,8 @@ private fun AiwaContent(state: AiwaState) {
 
 // ================================================================================================
 // The fourth shape, « Light »: three rows and nothing else. (1) the mode as ONE dropdown (Média, Page, App, Store, Aiwa — the same for every mode) and the targets of the
-// mode, which are the person's own: Prod, Code, Workflow. (2) the microphone, Claude, the question (when there is one) and the update (when one is ready).
-// (3) the loop, the Aiwa app, the super agent, the comment and the settings, which hold everything else (session, repository, model, push…).
+// mode, which are the person's own: Prod, Code, Workflow. (2) the settings, the update (when one is ready), the microphone, Claude and the question (when there is one).
+// (3) the loop, the Aiwa app, the super agent and the campaign; the settings hold everything else (session, repository, model, push…).
 // ================================================================================================
 
 /** What the Prod button opens: for Média what the tab shows (videos, proposals, documents); for the modes that make an app, the app; else the site. */
@@ -1032,7 +1032,7 @@ private fun LightContent(state: AiwaState) {
     }
     val prodSite = tab != "media" && !deliversApp(state.deploy)
     val prodReady = if (prodSite) state.siteState == "live" else state.sentApp?.seen == false
-    val bottomCount = 5
+    val bottomCount = 4
     val bottomD = minOf(chipH, avail / bottomCount - 4f).coerceAtLeast(20f)
 
     Column(
@@ -1057,6 +1057,16 @@ private fun LightContent(state: AiwaState) {
         }
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            RoundButton(
+                icon = R.drawable.ic_settings,
+                description = "Réglages : session, dépôt, modèle, push, voix, commentaire, mises à jour…",
+                background = pill, action = actionStartActivity<SettingsActivity>(), diameter = chipH.dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
+            if (state.appUpdateReady) {
+                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
+                Spacer(GlanceModifier.width(GAP.dp))
+            }
             Box(
                 modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
                     .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
@@ -1079,10 +1089,6 @@ private fun LightContent(state: AiwaState) {
             if (state.ask != null) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
-            }
-            if (state.appUpdateReady) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
             }
         }
         // ---- the loop, the Aiwa app, the super agent, the comment, the settings: five equal slots ----
@@ -1107,13 +1113,6 @@ private fun LightContent(state: AiwaState) {
                 )
             }
             Slot { RoundButton(icon = R.drawable.ic_proposals, description = "Campagne : les propositions à valider", background = pill, action = actionStartActivity<ProposalsActivity>(), diameter = bottomD.dp) }
-            Slot {
-                RoundButton(
-                    icon = R.drawable.ic_settings,
-                    description = "Réglages : session, dépôt, modèle, push, voix, mises à jour…",
-                    background = pill, action = actionStartActivity<SettingsActivity>(), diameter = bottomD.dp,
-                )
-            }
         }
     }
 }
