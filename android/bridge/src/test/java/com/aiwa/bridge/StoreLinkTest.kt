@@ -82,6 +82,7 @@ class StoreLinkTest {
         assertEquals("$STORE_APP_URL#tab=mine", storeTabUrl("mine"))
         assertEquals("$STORE_APP_URL#tab=favorites", storeTabUrl("favorites"))
         assertEquals("$STORE_APP_URL#tab=wallet", storeTabUrl("wallet"))
+        assertEquals("$STORE_APP_URL#tab=papers", storeTabUrl("papers"))
         assertNull(storeTabUrl("library"))
     }
 

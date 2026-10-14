@@ -957,7 +957,7 @@ private fun AiwaContent(state: AiwaState) {
             Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(icon = R.drawable.ic_wallet, description = "Le Wallet", background = pill, action = storeDoor("wallet"), diameter = bottomD.dp)
             Spacer(GlanceModifier.width(GAP.dp))
-            RoundButton(icon = R.drawable.ic_papers, description = "Les papers (ce que le critique lit)", background = pill, action = actionStartActivity<PapersActivity>(), diameter = bottomD.dp)
+            RoundButton(icon = R.drawable.ic_papers, description = "Les papers (l'onglet Papers de l'application)", background = pill, action = storeDoor("papers"), diameter = bottomD.dp)
             // The comment for the critic of the loops (the Store's sheet: the wallet first, then the field)
             Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = bottomD.dp)

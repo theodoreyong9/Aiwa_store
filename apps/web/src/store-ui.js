@@ -230,8 +230,8 @@ export async function unifiedSearch(raw) {
   followAccount(text);
 }
 
-// The widget's « own », « faves » and « Wallet » buttons: #tab=mine / #tab=favorites open that tab of the Store, #tab=wallet the Wallet page.
-const TAB_HASH = /^#tab=(mine|favorites|wallet)$/;
+// The widget's « own », « faves » and « Wallet » buttons: #tab=mine / #tab=favorites open that tab of the Store, #tab=wallet the Wallet page, #tab=papers the Papers page.
+const TAB_HASH = /^#tab=(mine|favorites|wallet|papers)$/;
 function handoffComment() {
   if (location.hash !== '#comment') return;
   try { history.replaceState(null, '', location.pathname + location.search); } catch { /* cosmetic */ }
@@ -242,7 +242,7 @@ function handoffTab() {
   const match = TAB_HASH.exec(location.hash);
   if (!match) return;
   try { history.replaceState(null, '', location.pathname + location.search); } catch { /* cosmetic */ }
-  if (match[1] === 'wallet') { switchView('wallet'); return; }
+  if (match[1] === 'wallet' || match[1] === 'papers') { switchView(match[1]); return; }
   switchView('store');
   showStoreTab(match[1]);
 }
