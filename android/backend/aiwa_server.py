@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 90
+BACKEND_VERSION = 91
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2117,6 +2117,7 @@ def _videos_snapshot():
     try:
         release = _github_json(f"https://api.github.com/repos/{repo}/releases/tags/{VIDEO_TAG}")
         folder = _github_json(f"https://api.github.com/repos/{repo}/contents/aiwa-videos")
+        docs_folder = _github_json(f"https://api.github.com/repos/{repo}/contents/docs")
     except GithubUnavailable:
         # GitHub could not answer: what was known stays on the screen (an empty list would say the videos are gone), and it is tried again in a minute.
         with lock:
@@ -2142,6 +2143,16 @@ def _videos_snapshot():
         name = str(entry.get("name") or "") if isinstance(entry, dict) else ""
         if entry.get("type") == "file" and name.lower().endswith(VIDEO_EXT) and name not in known and "/" not in name:
             items.append({"name": name, "size": int(entry.get("size") or 0), "url": f"https://github.com/{repo}/raw/HEAD/aiwa-videos/{urllib.parse.quote(name)}", "ts": ""})
+    # The film of the project itself, if it keeps one in docs/ (aiwa-global-v9-16x9.mp4): only the latest version, never the older files next to it.
+    films = []
+    for entry in docs_folder if isinstance(docs_folder, list) else []:
+        name = str(entry.get("name") or "") if isinstance(entry, dict) else ""
+        match = re.fullmatch(r"aiwa-global-v(\d+)-16x9\.mp4", name)
+        if match and entry.get("type") == "file":
+            films.append((int(match.group(1)), name, int(entry.get("size") or 0)))
+    if films and not any(v["name"] == max(films)[1] for v in items):
+        _version, name, size = max(films)
+        items.append({"name": name, "size": size, "url": f"https://raw.githubusercontent.com/{repo}/HEAD/docs/{urllib.parse.quote(name)}", "ts": ""})
     with lock:
         video_cache.update(key=repo, items=items, at=now)
     with store_lock:
