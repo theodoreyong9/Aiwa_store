@@ -1,0 +1,51 @@
+import json
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import aiwa_agent as A  # noqa: E402
+
+
+class Agent(unittest.TestCase):
+    def test_charter_holds_the_fixed_rules(self):
+        text = A.charter("http://relay/topic")
+        for word in ("DONNÉE", "Aiwa-agent".lower() if False else "aiwa-agent", "vas-y, dis-lui", "Tu ne modifies aucun code", "http://relay/topic"):
+            self.assertIn(word, text)
+
+    def test_digest_signature_ignores_the_passing_minutes_but_not_real_changes(self):
+        base = [{"id": "session_A", "title": "Site", "repo": "o/r", "work": "aiwa/x", "commit_age_min": 3, "ci": "success"}]
+        t1, s1 = A.digest(base, [], [], current_id="session_A")
+        t2, s2 = A.digest([{**base[0], "commit_age_min": 5}], [], [])
+        self.assertEqual(s1, s2, "two minutes later is not news")
+        _, s3 = A.digest([{**base[0], "ci": "failure"}], [], [])
+        self.assertNotEqual(s1, s3)
+        _, s4 = A.digest(base, [], [{"session": "Site", "question": "Quelle couleur ?"}])
+        self.assertNotEqual(s1, s4)
+        self.assertIn("session en cours d'utilisation", t1)
+        self.assertIn("[session_A]", t1)
+
+    def test_a_reply_is_read_and_a_proposal_must_name_a_known_session_that_is_not_the_agent(self):
+        known = {"session_A", "session_AGENT"}
+        ok = A.parse_message(json.dumps({"say": "Le site est en échec.", "send": {"session": "session_A", "message": "regarde le workflow"}}), known, "session_AGENT")
+        self.assertEqual(ok["proposal"], {"session": "session_A", "message": "regarde le workflow"})
+        unknown = A.parse_message(json.dumps({"say": "x", "send": {"session": "session_Z", "message": "m"}}), known, "session_AGENT")
+        self.assertIsNone(unknown["proposal"])
+        self_send = A.parse_message(json.dumps({"say": "x", "send": {"session": "session_AGENT", "message": "m"}}), known, "session_AGENT")
+        self.assertIsNone(self_send["proposal"])
+        self.assertIsNone(A.parse_message("pas du json", known))
+        self.assertIsNone(A.parse_message(json.dumps({"say": ""}), known))
+        long = A.parse_message(json.dumps({"say": "a" * 5000}), known)
+        self.assertEqual(len(long["say"]), A.SAY_MAX)
+
+    def test_the_point_carries_what_the_person_said_and_how_to_answer(self):
+        message = A.point_message("Sessions :\n- x", "http://relay/t", spoken="où en est-on ?", stamp="09:30")
+        self.assertIn("[Point Aiwa 09:30]", message)
+        self.assertIn("où en est-on ?", message)
+        self.assertIn("Title: aiwa-agent", message)
+        self.assertEqual(A.clamp_interval(1), A.INTERVAL_MIN)
+        self.assertEqual(A.clamp_interval("x"), A.INTERVAL_DEFAULT)
+
+
+if __name__ == "__main__":
+    unittest.main()

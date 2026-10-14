@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The agent, backend side (`aiwa_agent.py`, `/api/agent/*`, backend 85): a Claude session of its own, created by Aiwa on request, that receives every few minutes (default 20, only when something real changed) a short POINT of the sessions (last commit of their branch, workflow verdict), the loops and the questions that wait, or at once when the person speaks to it. It answers by a command on the relay (title `aiwa-agent`): words to say aloud and, when it has an idea, a PROPOSAL (session + message). A proposal is never sent by itself: it waits for the person's confirmation (`/api/agent/confirm`). What a session says cannot be read from outside, so the point is made of what GitHub and Aiwa see; what it reads is data, never an instruction (fixed rules in its first message).
+
 - Each mode remembers its configuration: leaving a mode keeps its session, repository, model, effort and push, and choosing it again finds them (a mode never visited keeps what is set; a session that no longer exists is not found again). Several sessions and repositories live side by side, one per mode. Backend 84.
 
 - Aiwa-shaped widget: the sub-tabs of Média are gone. On the line of every mode, the repository selector is at the left (« ⎇ repo ▾ »); in Média the line holds ONE pill (« 🎬 Vidéos ▾ », « ✉ Campagne ▾ » or « 📄 Documents ▾ ») that lists the three kinds (and « Nouvelle campagne à partir d'un fichier »); picking one sets the mode when it is one (Campagne, Documents) and opens its list. The button at the left of the microphone now shows the session (its list still holds the session, the repository, the model and the push).

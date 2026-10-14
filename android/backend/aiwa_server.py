@@ -44,6 +44,7 @@ from pathlib import Path
 
 import aiwa_github as github
 import aiwa_loops as loops_lib
+import aiwa_agent as agent_lib
 
 
 def _ts():
@@ -54,7 +55,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 84
+BACKEND_VERSION = 85
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2339,6 +2340,201 @@ def _comments_take():
     return loops_lib.comments_block([view for _k, view in found])
 
 
+# ---------- the agent: a session of its own that follows the others and talks with the person (see aiwa_agent.py) ----------
+AGENT_FILE = LOOPS_FILE.with_name("aiwa-agent.json")
+agent_lock = threading.Lock()
+agent = {"enabled": False, "session": None, "interval": agent_lib.INTERVAL_DEFAULT, "sig": None, "last": 0.0, "say": None, "proposal": None, "creating": False, "error": None}
+
+
+def _agent_load():
+    try:
+        raw = json.loads(AGENT_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raw = {}
+    if not isinstance(raw, dict):
+        raw = {}
+    with agent_lock:
+        session = raw.get("session")
+        agent.update(
+            session=session if isinstance(session, str) and CLOUD_ID_RE.fullmatch(session) else None,
+            interval=agent_lib.clamp_interval(raw.get("interval", agent_lib.INTERVAL_DEFAULT)),
+        )
+        agent["enabled"] = bool(raw.get("enabled")) and agent["session"] is not None
+
+
+def _agent_save():
+    try:
+        AGENT_FILE.write_text(json.dumps({"enabled": agent["enabled"], "session": agent["session"], "interval": agent["interval"]}), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _agent_digest():
+    """The point: (text, signature) from what is known of the sessions (and, for their branch, what GitHub says), the loops and the questions."""
+    entries = [e for e in _load_cloud_sessions() if e.get("id") and e.get("id") != agent["session"]][:agent_lib.DIGEST_MAX_SESSIONS]
+    with lock:
+        in_use = current_cloud
+    with site_lock:
+        ci_repo, ci_info = ci_cache["repo"], ci_cache["info"]
+    sessions = []
+    for i, e in enumerate(entries):
+        repo, work = e.get("repo"), e.get("work")
+        age = None
+        if repo and work and i < 5:
+            when = _newest_commit_time(repo, work)
+            age = max(0, int((time.time() - when) // 60)) if when else None
+        sessions.append({"id": e["id"], "title": e.get("title"), "repo": repo, "work": work, "commit_age_min": age,
+                         "ci": (ci_info or {}).get("state") if ci_info and repo and repo == ci_repo else None})
+    titles = _loops_titles()
+    with loops_lock:
+        loops = [{"id": p["id"], "builder": titles.get(p["builder"], p["builder"]), "critic": titles.get(p["critic"], p["critic"]), "state": p["state"], "rounds": p["rounds"], "limit": p["limit"]}
+                 for p in loops_store["pairs"] if p["state"] in ("running", "done", "stopped")]
+    with lock:
+        pending = list(_asks_pending())
+    asks = [{"session": (_session_entry(a.get("session")) or {}).get("title") if a.get("session") else None, "question": a["question"]} for a in pending]
+    return agent_lib.digest(sessions, loops, asks, current_id=in_use)
+
+
+def agent_send(spoken=None):
+    """One point to the agent (and the person's words, when they spoke to it). {"ok", "error"}."""
+    with agent_lock:
+        session = agent["session"]
+    if not session:
+        return {"ok": False, "error": "pas d'agent : crée-le d'abord"}
+    text, sig = _agent_digest()
+    result = _queue_followup(session, agent_lib.point_message(text, _loops_relay_url(), spoken=spoken, stamp=time.strftime("%H:%M")))
+    if result["ok"]:
+        with agent_lock:
+            agent["sig"], agent["last"] = sig, time.time()
+    return result
+
+
+def _agent_loop():
+    time.sleep(90)
+    while True:
+        try:
+            with agent_lock:
+                due = agent["enabled"] and agent["session"] and time.time() - agent["last"] >= agent["interval"] * 60
+            if due:
+                _text, sig = _agent_digest()
+                with agent_lock:
+                    changed = sig != agent["sig"]
+                    if not changed:
+                        agent["last"] = time.time()
+                if changed:
+                    agent_send()
+        except Exception as err:      # a bad round must never end the watch
+            print(f"[{_ts()}] agent: {err}", flush=True)
+        time.sleep(60)
+
+
+def _agent_said(raw):
+    """The agent's reply, from the relay (title aiwa-agent): what it says aloud, and a proposal when it has one (never sent by itself)."""
+    known = {e["id"] for e in _load_cloud_sessions() if e.get("id")}
+    with agent_lock:
+        own = agent["session"]
+    parsed = agent_lib.parse_message(raw, known, own)
+    if parsed is None:
+        print(f"[{_ts()}] agent: a reply that is not one", flush=True)
+        return False
+    stamp = time.time()
+    with agent_lock:
+        if parsed["say"]:
+            agent["say"] = {"id": f"s{int(stamp * 1000)}", "text": parsed["say"], "ts": int(stamp), "spoken": False}
+        if parsed["proposal"]:
+            agent["proposal"] = {"id": f"p{int(stamp * 1000)}", "ts": int(stamp), **parsed["proposal"]}
+    print(f"[{_ts()}] agent: said {len(parsed['say'])} characters" + (", with a proposal" if parsed["proposal"] else ""), flush=True)
+    return True
+
+
+def agent_snapshot():
+    with agent_lock:
+        say = agent["say"] if agent["say"] and not agent["say"]["spoken"] else None
+        proposal = dict(agent["proposal"]) if agent["proposal"] else None
+        out = {"enabled": agent["enabled"], "session": agent["session"], "interval": agent["interval"], "creating": agent["creating"], "error": agent["error"],
+               "say": {k: say[k] for k in ("id", "text", "ts")} if say else None}
+    if proposal:
+        entry = _session_entry(proposal["session"]) or {}
+        proposal["session_title"] = entry.get("title") or proposal["session"]
+        proposal["read_back"] = agent_lib.read_back(proposal["session_title"], proposal["message"])
+    out["proposal"] = proposal
+    return out
+
+
+def agent_create():
+    """Creates the agent session (on the repository in use, which is only an address: the agent changes nothing), then switches it on."""
+    with agent_lock:
+        if agent["creating"]:
+            return {"ok": False, "error": "la création est en cours"}
+        if agent["session"]:
+            return {"ok": False, "error": "l'agent existe déjà"}
+        agent.update(creating=True, error=None)
+
+    def run():
+        global current_cloud, last_cloud
+        with lock:
+            previous = (current_cloud, last_cloud)
+            current_cloud = None            # a new session is made, and the one in use stays the one in use
+        try:
+            result = cloud_send(agent_lib.charter(_loops_relay_url()))
+        except Exception as err:
+            result = {"ok": False, "error": str(err)}
+        finally:
+            with lock:
+                current_cloud, last_cloud = previous
+                _save_state()
+        with agent_lock:
+            agent["creating"] = False
+            if result.get("ok"):
+                agent.update(session=result["session_id"], enabled=True, last=0.0, sig=None)
+            else:
+                agent["error"] = str(result.get("error"))[:300]
+            _agent_save()
+    threading.Thread(target=run, daemon=True).start()
+    return {"ok": True}
+
+
+def agent_set(enabled=None, interval=None):
+    with agent_lock:
+        if interval is not None:
+            agent["interval"] = agent_lib.clamp_interval(interval)
+        if enabled is not None:
+            if enabled and not agent["session"]:
+                return {"ok": False, "error": "pas d'agent : crée-le d'abord"}
+            agent["enabled"] = bool(enabled)
+        _agent_save()
+    return {"ok": True}
+
+
+def agent_confirm(proposal_id):
+    """The person confirmed (« c'est bon vas-y »): the proposal goes to its session, as the person's own message."""
+    with agent_lock:
+        proposal = dict(agent["proposal"]) if agent["proposal"] else None
+    if proposal is None or proposal["id"] != proposal_id:
+        return {"ok": False, "error": "cette proposition n'est plus d'actualité"}
+    result = _queue_followup(proposal["session"], proposal["message"] + _loop_block_for(proposal["session"]))
+    if not result["ok"]:
+        return {"ok": False, "error": result["error"]}
+    with agent_lock:
+        if agent["proposal"] and agent["proposal"]["id"] == proposal_id:
+            agent["proposal"] = None
+    return {"ok": True, "session": proposal["session"]}
+
+
+def agent_cancel(proposal_id):
+    with agent_lock:
+        if agent["proposal"] and agent["proposal"]["id"] == proposal_id:
+            agent["proposal"] = None
+    return {"ok": True}
+
+
+def agent_spoken(say_id):
+    with agent_lock:
+        if agent["say"] and agent["say"]["id"] == say_id:
+            agent["say"]["spoken"] = True
+    return {"ok": True}
+
+
 def _loops_relay_url():
     return f"{NTFY_SERVER}/{waiting_topic}"
 
@@ -2663,6 +2859,8 @@ def _relay_event(event):
         _cloud_check_seen()
     elif title == "aiwa-loop":
         _loop_signal(event.get("message"))
+    elif title == "aiwa-agent":
+        _agent_said(event.get("message"))
         _cloud_check_seen()
     elif title == "aiwa-ask":
         _ask_set(event.get("message"), event.get("id"))
@@ -2808,7 +3006,7 @@ class Handler(BaseHTTPRequestHandler):
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "video_quality": vquality, "extra": own, "extra_repos": more, "source_repos": inspiration,
                 "waiting": is_waiting, "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(), "cast": _cast_ready(),
                 "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
-                "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(), "ask": _ask_snapshot(),
+                "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(), "ask": _ask_snapshot(), "agent": agent_snapshot(),
             })
         elif self.path == "/api/cloud/sessions":
             self.reply_json(_load_cloud_sessions())
@@ -2986,6 +3184,29 @@ class Handler(BaseHTTPRequestHandler):
                     relay_cloud.update(before)  # nothing was asked after all
                     _save_state()
             self.reply_json({"accepted": sent.get("ok") is True, "reason": sent.get("error")})
+        elif self.path.startswith("/api/agent/"):
+            try:
+                data = json.loads(body) if body.strip() else {}
+            except ValueError:
+                data = {}
+            data = data if isinstance(data, dict) else {}
+            action = self.path.rsplit("/", 1)[1]
+            if action == "create":
+                self.reply_json(agent_create())
+            elif action == "set":
+                self.reply_json(agent_set(data.get("enabled") if isinstance(data.get("enabled"), bool) else None, data.get("interval")))
+            elif action == "now":
+                self.reply_json(agent_send())
+            elif action == "ask":
+                self.reply_json(agent_send(spoken=str(data.get("text") or "")[:600]))
+            elif action == "confirm":
+                self.reply_json(agent_confirm(str(data.get("id") or "")))
+            elif action == "cancel":
+                self.reply_json(agent_cancel(str(data.get("id") or "")))
+            elif action == "said":
+                self.reply_json(agent_spoken(str(data.get("id") or "")))
+            else:
+                self.send_error(404)
         elif self.path == "/api/ask/answer":
             self.reply_json(_ask_answer(body))
         elif self.path == "/api/sent-app/seen":
@@ -3165,6 +3386,8 @@ if __name__ == "__main__":
     _load_state()
     _loops_load()
     _comments_seen_load()
+    _agent_load()
+    threading.Thread(target=_agent_loop, daemon=True).start()
     _login_state()  # looks the login up in the background, so the first status already knows
     threading.Thread(target=_relay_listener, daemon=True).start()
     threading.Thread(target=_self_update_loop, daemon=True).start()

@@ -1505,6 +1505,50 @@ class HttpTests(Base):
         with urllib.request.urlopen(request, timeout=60) as reply:
             return json.loads(reply.read())
 
+    def test_the_agent_is_made_follows_the_sessions_and_never_sends_without_confirmation(self):
+        self.addCleanup(lambda: srv.agent.update(enabled=False, session=None, say=None, proposal=None, creating=False, error=None, sig=None, last=0.0))
+        known = {"session_AGENT": {"id": "session_AGENT", "title": "Agent"}, "session_WORK": {"id": "session_WORK", "title": "Site", "repo": "o/r", "work": "aiwa/x"}}
+        sent = []
+        def followup(sid, text):
+            sent.append((sid, text))
+            return {"ok": True, "url": None, "error": None}
+        with unittest.mock.patch.object(srv, "_session_entry", lambda sid: known.get(sid, {})), \
+             unittest.mock.patch.object(srv, "_load_cloud_sessions", lambda: list(known.values())), \
+             unittest.mock.patch.object(srv, "_queue_followup", followup), \
+             unittest.mock.patch.object(srv, "_newest_commit_time", lambda repo, branch: time.time() - 600), \
+             unittest.mock.patch.object(srv, "_agent_save", lambda: None), \
+             unittest.mock.patch.object(srv, "cloud_send", lambda text, command=False: {"ok": True, "session_id": "session_AGENT"}):
+            self.assertFalse(self.call("/api/agent/set", json.dumps({"enabled": True}))["ok"], "no agent yet")
+            self.assertTrue(self.call("/api/agent/create", "{}")["ok"])
+            for _ in range(50):
+                if srv.agent["session"]:
+                    break
+                time.sleep(0.05)
+            self.assertEqual(srv.agent["session"], "session_AGENT")
+            self.assertTrue(srv.agent["enabled"])
+            # a point goes to the agent, with the other session in it (not the agent itself)
+            self.assertTrue(self.call("/api/agent/ask", json.dumps({"text": "où en est-on ?"}))["ok"])
+            self.assertEqual(sent[-1][0], "session_AGENT")
+            self.assertIn("[session_WORK]", sent[-1][1])
+            self.assertNotIn("[session_AGENT]", sent[-1][1])
+            self.assertIn("où en est-on ?", sent[-1][1])
+            # its reply comes by the relay: words to say, and a proposal that waits
+            srv._relay_event({"id": "a1", "time": int(time.time()), "title": "aiwa-agent", "message": json.dumps({"say": "Le site avance.", "send": {"session": "session_WORK", "message": "ajoute un test"}})})
+            status = self.call("/api/status")["agent"]
+            self.assertEqual(status["say"]["text"], "Le site avance.")
+            self.assertEqual(status["proposal"]["session"], "session_WORK")
+            self.assertIn("Site", status["proposal"]["read_back"])
+            before = len(sent)
+            self.assertEqual(before, 1, "nothing but the point was sent: a proposal is not sent by itself")
+            wrong = self.call("/api/agent/confirm", json.dumps({"id": "other"}))
+            self.assertFalse(wrong["ok"])
+            self.assertTrue(self.call("/api/agent/confirm", json.dumps({"id": status["proposal"]["id"]}))["ok"])
+            self.assertEqual(sent[-1][0], "session_WORK")
+            self.assertTrue(sent[-1][1].startswith("ajoute un test"))
+            self.assertIsNone(self.call("/api/status")["agent"]["proposal"])
+            self.call("/api/agent/said", json.dumps({"id": status["say"]["id"]}))
+            self.assertIsNone(self.call("/api/status")["agent"]["say"], "said once, not said again")
+
     def test_each_mode_finds_its_session_repository_model_and_push_again(self):
         self.addCleanup(lambda: [setattr(srv, k, v) for k, v in saved.items()])
         saved = {k: getattr(srv, k) for k in ("current_cloud", "last_cloud", "current_repo", "current_model", "current_effort", "push_main", "deploy_mode", "mode_memory")}
