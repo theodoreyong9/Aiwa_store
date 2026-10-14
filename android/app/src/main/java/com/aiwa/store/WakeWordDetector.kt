@@ -22,6 +22,8 @@ class WakeWordDetector(
     private val model: Model,
     /** The spellings of the word the person chose (WakeWordSettings), as the engine heard them; empty = only the words of origin. */
     private val custom: List<String> = emptyList(),
+    /** The spellings of the word chosen for the super agent (slot "liaison"); empty = only « mon super agent ». */
+    private val liaison: List<String> = emptyList(),
     private val onWake: (WakeKind) -> Unit,
     private val onFailure: (String) -> Unit,
     /** True while a sound or a video plays on the phone (another app). With [pauseOnMedia], the microphone is then given back and listening waits: a video is never paused by it, and its own sound is never taken for a word. */
@@ -77,7 +79,7 @@ class WakeWordDetector(
         var interrupted = false
         var sinceCheck = 0
         try {
-            Recognizer(model, sampleRate.toFloat(), WakeWords.grammar(custom)).use { recognizer ->
+            Recognizer(model, sampleRate.toFloat(), WakeWords.grammar(custom + liaison)).use { recognizer ->
                 record.startRecording()
                 val buffer = ShortArray(2048)
                 while (running) {
@@ -87,7 +89,7 @@ class WakeWordDetector(
                     // about every second (8 reads of 128 ms): has a media started? then the microphone goes back and this listening ends
                     if (pauseOnMedia && ++sinceCheck >= 8) { sinceCheck = 0; if (mediaPlaying()) { interrupted = true; break } }
                     val heard = if (recognizer.acceptWaveForm(buffer, n)) JSONObject(recognizer.result).optString("text") else JSONObject(recognizer.partialResult).optString("partial")
-                    val kind = if (heard.isEmpty()) null else wakeKind(heard, custom)
+                    val kind = if (heard.isEmpty()) null else wakeKind(heard, custom, liaison)
                     if (kind != null) { woken = kind; running = false }
                 }
             }

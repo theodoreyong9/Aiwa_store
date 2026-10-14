@@ -41,13 +41,15 @@ object ListenSettings {
 /** The wake word the person chose (WakeWordEnrollActivity): a name for the screen, and the spellings the engine heard (com.aiwa.bridge.WakeWords). Empty = only the words of origin. */
 object WakeWordSettings {
     private const val PREFS = "aiwa_listen"
-    fun variants(context: Context): List<String> =
-        (context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("custom", "") ?: "").split('|').map { it.trim() }.filter { it.isNotEmpty() }
-    fun name(context: Context): String = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("custom_name", "") ?: ""
-    fun save(context: Context, name: String, variants: List<String>) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("custom", variants.joinToString("|")).putString("custom_name", name.trim()).apply()
+    // Two words can be chosen: slot "agent" (the wake word of the dictation, « mon agent » by default) and slot "liaison" (the call of the super agent, « mon super agent » by default).
+    private fun keys(slot: String) = if (slot == "liaison") "liaison_custom" to "liaison_name" else "custom" to "custom_name"
+    fun variants(context: Context, slot: String = "agent"): List<String> =
+        (context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(keys(slot).first, "") ?: "").split('|').map { it.trim() }.filter { it.isNotEmpty() }
+    fun name(context: Context, slot: String = "agent"): String = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(keys(slot).second, "") ?: ""
+    fun save(context: Context, name: String, variants: List<String>, slot: String = "agent") {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(keys(slot).first, variants.joinToString("|")).putString(keys(slot).second, name.trim()).apply()
     }
-    fun clear(context: Context) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("custom").remove("custom_name").apply() }
+    fun clear(context: Context, slot: String = "agent") { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(keys(slot).first).remove(keys(slot).second).apply() }
 
     /** Whether listening waits while a sound or a video plays (default: yes: a video is not paused by the microphone, and its sound is not heard as a word). */
     fun pauseOnMedia(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("pause_on_media", true)
@@ -357,6 +359,7 @@ class WakeWordService : Service() {
         detector = WakeWordDetector(
             model = current,
             custom = WakeWordSettings.variants(this),
+            liaison = WakeWordSettings.variants(this, "liaison"),
             onWake = { kind -> main.post { heardWakeWord(kind) } },
             onFailure = { reason -> main.post { fail("Écoute permanente arrêtée : $reason") } },
             mediaPlaying = { (getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager).isMusicActive },

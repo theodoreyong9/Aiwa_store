@@ -537,7 +537,7 @@ class VoiceCommandsHelpActivity : ComponentActivity() {
                 add(PickerEntry("« Mon agent » : il t'écoute, puis tu donnes tes instructions. Avant d'envoyer, le téléphone relit ce qu'il va faire et toutes les pastilles, et attend « c'est bon vas-y » ; « non » ou le silence : rien ne part (le message est copié).", false, lines = 5) { })
                 add(PickerEntry("« Instruction » : tu donnes directement tes instructions (même relecture et même confirmation).", false, lines = 3) { })
                 add(PickerEntry("« Stop Claude » ou « arrête Claude » : arrête Claude tout de suite, sans confirmation.", false, lines = 3) { })
-                add(PickerEntry("« Mon super agent » : ouvre le super agent (la deuxième écoute, voir plus bas).", false, lines = 3) { })
+                add(PickerEntry("« Mon super agent » (ou le mot que tu as choisi dans les réglages) : ouvre le super agent (la deuxième écoute, voir plus bas).", false, lines = 3) { })
 
                 add(PickerEntry("Le super agent : la deuxième écoute", false, header = true) { })
                 add(PickerEntry("L'ouvrir : dis « mon super agent » (l'écoute de réveil doit être allumée) ou touche son bouton dans le widget. L'écoute de réveil attend pendant ce temps ; tout ce que tu dis va à l'agent, et il te répond à voix haute.", false, lines = 4) { })
@@ -759,6 +759,9 @@ class SettingsActivity : ComponentActivity() {
                 }
                 add(PickerEntry("Aiwa", false, header = true) { })
                 add(PickerEntry("Mon mot d'éveil : le choisir ou le changer, même « Aiwa »", false, lines = 2) { open(WakeWordEnrollActivity::class.java) })
+                add(PickerEntry("Mon mot pour le super agent : le choisir ou le changer (« mon super agent » par défaut)", false, lines = 2) {
+                    startActivity(Intent(this@SettingsActivity, WakeWordEnrollActivity::class.java).putExtra("slot", "liaison"))
+                })
                 add(PickerEntry("État d'Aiwa : Claude, alertes, permissions", false, lines = 2) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
                 add(PickerEntry("Version : appli ${AppUpdater.installedVersion(applicationContext) ?: "?"} · cerveau ${AiwaRepository.state.value.backendVersion.takeIf { it > 0 } ?: "?"}${if (AppUpdater.readyFile(applicationContext) != null) " · mise à jour téléchargée" else ""}", false, lines = 2) { })

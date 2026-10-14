@@ -41,6 +41,9 @@ class WakeWordsTest {
         assertEquals(null, wakeKind("ail oua"))                       // without the variants: not a wake word
         assertEquals(WakeKind.STOP, wakeKind("ail oua stop claude", v))
         assertEquals(WakeKind.INSTRUCTION, wakeKind("instruction", v))
+        // the word chosen for the super agent (slot « liaison ») calls the liaison agent, whatever the other word is
+        assertEquals(WakeKind.LIAISON, wakeKind("ail oua", emptyList(), v))
+        assertEquals(WakeKind.AGENT, wakeKind("mon agent", emptyList(), v))
         assertFalse(WakeWords.heardCustom("", v))
     }
 }

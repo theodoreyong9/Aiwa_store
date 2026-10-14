@@ -33,6 +33,9 @@ import org.vosk.Recognizer
  * The always-on listening is put aside while this window is open (one microphone, one model) and given back when it is closed.
  */
 class WakeWordEnrollActivity : ComponentActivity() {
+    // "agent": the wake word of the dictation; "liaison": the call of the super agent (intent extra "slot")
+    private val slot: String by lazy { intent.getStringExtra("slot") ?: "agent" }
+    private val liaisonSlot get() = slot == "liaison"
     private val main = Handler(Looper.getMainLooper())
     private var model: Model? = null
     private var wasListening = false
@@ -67,16 +70,16 @@ class WakeWordEnrollActivity : ComponentActivity() {
     private fun buildScreen() {
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(24), dp(20), dp(24)) }
         fun text(t: String, size: Float, bold: Boolean = false) = TextView(this).apply { text = t; textSize = size; if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD); setPadding(0, dp(6), 0, dp(6)) }
-        column.addView(text("Mon mot d'éveil", 22f, true))
+        column.addView(text(if (liaisonSlot) "Mon mot pour le super agent" else "Mon mot d'éveil", 22f, true))
         column.addView(text("Dis ton mot trois fois, distinctement. Le téléphone garde la façon dont il l'entend : ça marche pour n'importe quel mot, même « Aiwa ». Tout reste sur le téléphone.", 15f))
-        name = EditText(this).apply { hint = "Comment l'appeler à l'écran (facultatif)"; inputType = InputType.TYPE_CLASS_TEXT; setText(WakeWordSettings.name(this@WakeWordEnrollActivity)) }
+        name = EditText(this).apply { hint = "Comment l'appeler à l'écran (facultatif)"; inputType = InputType.TYPE_CLASS_TEXT; setText(WakeWordSettings.name(this@WakeWordEnrollActivity, slot)) }
         column.addView(name)
         status = text("Je prépare le modèle vocal…", 16f)
         column.addView(status)
         say = Button(this).apply { text = "Dire mon mot (1/3)"; isEnabled = false; setOnClickListener { sayWord() } }
         save = Button(this).apply { text = "Enregistrer ce mot"; visibility = View.GONE; setOnClickListener { saveWord() } }
-        test = Button(this).apply { text = "Tester mon mot"; visibility = if (WakeWordSettings.variants(this@WakeWordEnrollActivity).isEmpty()) View.GONE else View.VISIBLE; isEnabled = false; setOnClickListener { testWord() } }
-        reset = Button(this).apply { text = "Remettre « mon agent »"; setOnClickListener { WakeWordSettings.clear(this@WakeWordEnrollActivity); name.setText(""); test.visibility = View.GONE; show("C'est de nouveau « mon agent » (et « instruction »).") } }
+        test = Button(this).apply { text = "Tester mon mot"; visibility = if (WakeWordSettings.variants(this@WakeWordEnrollActivity, slot).isEmpty()) View.GONE else View.VISIBLE; isEnabled = false; setOnClickListener { testWord() } }
+        reset = Button(this).apply { text = if (liaisonSlot) "Remettre « mon super agent »" else "Remettre « mon agent »"; setOnClickListener { WakeWordSettings.clear(this@WakeWordEnrollActivity, slot); name.setText(""); test.visibility = View.GONE; show(if (liaisonSlot) "C'est de nouveau « mon super agent »." else "C'est de nouveau « mon agent » (et « instruction »).") } }
         val pause = android.widget.CheckBox(this).apply {
             text = "Ne pas écouter pendant qu'un son ou une vidéo joue (la vidéo n'est plus mise en pause par le micro ; le mot d'éveil ne marche alors pas pendant la lecture)"
             isChecked = WakeWordSettings.pauseOnMedia(this@WakeWordEnrollActivity)
@@ -86,8 +89,8 @@ class WakeWordEnrollActivity : ComponentActivity() {
         val close = Button(this).apply { text = "Fermer"; setOnClickListener { closeAndResume() } }
         for (b in listOf(say, save, test, reset, close)) column.addView(b)
         setContentView(ScrollView(this).apply { addView(column) })
-        val own = WakeWordSettings.variants(this)
-        if (own.isNotEmpty()) show("Mot actuel : « " + WakeWordSettings.name(this).ifEmpty { own.first() } + " » (entendu : " + own.joinToString(" / ") + ")")
+        val own = WakeWordSettings.variants(this, slot)
+        if (own.isNotEmpty()) show("Mot actuel : « " + WakeWordSettings.name(this, slot).ifEmpty { own.first() } + " » (entendu : " + own.joinToString(" / ") + ")")
     }
 
     private fun show(message: String) { main.post { status.text = message } }
@@ -98,7 +101,7 @@ class WakeWordEnrollActivity : ComponentActivity() {
             try {
                 LibVosk.setLogLevel(LogLevel.WARNINGS)
                 model = Model(VoskModelStore.dir(this).absolutePath)
-                main.post { say.isEnabled = true; test.isEnabled = true; if (WakeWordSettings.variants(this).isEmpty()) show("Prêt. Appuie sur « Dire mon mot » et parle.") }
+                main.post { say.isEnabled = true; test.isEnabled = true; if (WakeWordSettings.variants(this, slot).isEmpty()) show("Prêt. Appuie sur « Dire mon mot » et parle.") }
             } catch (err: Throwable) { show("Le modèle vocal ne s'ouvre pas : ${err.message}") }
         }, "aiwa-enroll-model").start()
     }
@@ -165,14 +168,14 @@ class WakeWordEnrollActivity : ComponentActivity() {
     private fun saveWord() {
         if (pending.isEmpty()) return
         val label = name.text.toString().trim().ifEmpty { pending.first() }
-        WakeWordSettings.save(this, label, pending)
+        WakeWordSettings.save(this, label, pending, slot)
         save.visibility = View.GONE; test.visibility = View.VISIBLE; tests = 0; recognised = 0
         show("C'est enregistré : « $label ». Appuie sur « Tester mon mot » et dis-le plusieurs fois pour voir s'il est bien reconnu.")
     }
 
     private fun testWord() {
         if (busy) return
-        val variants = WakeWordSettings.variants(this)
+        val variants = WakeWordSettings.variants(this, slot)
         if (variants.isEmpty()) return
         busy = true; test.isEnabled = false
         show("Dis ton mot…")
