@@ -1,98 +1,114 @@
 [
  {
-  "at": 0.33,
+  "at": 0.5,
   "text": "Un widget."
  },
  {
-  "at": 2.64,
+  "at": 2.61,
   "text": "Tout tient dedans."
  },
  {
-  "at": 4.94,
-  "text": "GitHub. Claude Code. Android. Open source, à fond."
+  "at": 4.92,
+  "text": "GitHub, Claude Code, Android. Open source."
  },
  {
-  "at": 9.56,
+  "at": 9.53,
   "text": "L'esprit, à jour en direct, par tous. Le corps, en un clic."
  },
  {
-  "at": 14.18,
-  "text": "Écran éteint, ça écoute encore. Dis ton mot d'éveil."
+  "at": 14.15,
+  "text": "Écran éteint, ça écoute encore."
  },
  {
-  "at": 18.79,
+  "at": 18.76,
+  "text": "Tu choisis ton mot d'éveil. Même Aïwa."
+ },
+ {
+  "at": 23.38,
   "text": "Appelle ton agent. Donne tes instructions, tes commandes. Le widget réagit en direct, et te confirme la production."
  },
  {
-  "at": 28.02,
+  "at": 32.61,
   "text": "Pages, vidéos, applications, sandbox. Haute qualité, à la demande. Ton compte Claude Code, sans clé d'API. Claude gère git et la CI."
  },
  {
-  "at": 37.25,
-  "text": "Tes sessions se parlent entre elles. L'une construit, l'autre critique. En boucle."
+  "at": 41.84,
+  "text": "Gère tes sessions, en parallèle. Elles conversent entre elles : l'une construit, l'autre critique, en boucle."
  },
  {
-  "at": 44.18,
-  "text": "Des campagnes : base documentaire, cibles, vidéos, sites et applications pour chacun. Mail, WhatsApp, Telegram : tu valides chaque envoi."
+  "at": 48.76,
+  "text": "Des campagnes : base documentaire, cibles, vidéos sur mesure."
  },
  {
-  "at": 54.11,
-  "text": "Et si quelqu'un veillait sur tout ça ?"
+  "at": 53.38,
+  "text": "Mail, WhatsApp, Telegram : tu valides chaque envoi, un par un."
  },
  {
-  "at": 60.33,
-  "text": "Voici ton super agent. Il suit tout : agents, productions, dépôts. Il te propose des idées. Tu dis : vas-y, dis-lui. Il relit. Tu confirmes."
+  "at": 60.3,
+  "text": "Ton super agent suit agents, productions, workflows, dépôts, sessions. Il propose des idées, périodiquement. Dis : vas-y, dis-lui."
  },
  {
-  "at": 69.56,
-  "text": "Créer par la voix. Déployer à la vitesse de la pensée."
+  "at": 69.53,
+  "text": "Une création par la voix sans précédent, à la vitesse de la pensée."
  },
  {
-  "at": 74.18,
-  "text": "Aïwa se développe lui-même. Et tu peux y participer."
+  "at": 74.15,
+  "text": "Aïwa se développe seul. Tu participes. Des documents fondateurs le tiennent."
  },
  {
-  "at": 78.79,
+  "at": 78.76,
   "text": "Dans ton wallet, tu brûles du SOL. Une seule fois."
  },
  {
-  "at": 83.41,
+  "at": 83.38,
   "text": "Ça produit de l'AIWA. Tu le réclames, ou pas."
  },
  {
-  "at": 88.02,
-  "text": "On classe la production, pas le stock."
+  "at": 87.99,
+  "text": "La production, pas le stock : un nouveau classement, un nouveau type d'application."
  },
  {
-  "at": 92.64,
+  "at": 92.61,
   "text": "Un burn fait un claim. Un claim relance la production, qui ralentit avec le temps. L'accrual, c'est la règle."
  },
  {
-  "at": 99.56,
+  "at": 99.53,
   "text": "Tu héberges toi-même. Tes codes restent dans ton dépôt."
  },
  {
-  "at": 104.18,
-  "text": "Un registre distribué. On paie en session, sans réseau, avec des règles en JavaScript."
+  "at": 104.15,
+  "text": "Un registre applicatif et monétaire, distribué. On paie en session, sans limite de débit."
  },
  {
-  "at": 111.1,
+  "at": 111.07,
+  "text": "Même sans réseau, avec des règles en JavaScript."
+ },
+ {
+  "at": 115.68,
+  "text": "Pensé pour résister aux faux comptes, et à la double dépense."
+ },
+ {
+  "at": 124.92,
   "text": "Crée des jeux, d'un simple fichier jusqu'au multijoueur."
  },
  {
-  "at": 115.71,
+  "at": 129.53,
   "text": "La Terre et Mars gardent chacune leur histoire. Rien n'est réécrit."
  },
  {
-  "at": 120.33,
+  "at": 136.45,
   "text": "Demain, ce widget voudrait habiter des lunettes, pour en faire un réseau social."
  },
  {
-  "at": 124.94,
+  "at": 143.38,
+  "text": "Tu regardes quelqu'un : son profil apparaît."
+ },
+ {
+  "at": 150.3,
   "text": "Ce qui marche, ce qui reste à prouver : tout est écrit."
  },
  {
-  "at": 132.07,
+  "at": 157.22,
   "text": "Aïwa."
  }
 ]

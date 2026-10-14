@@ -125,9 +125,14 @@ const LOOP = `<svg class="k" style="left:0;top:0" width="1500" height="720" view
   <circle id="dA" r="14" fill="${ORA}"/><circle id="dB" r="14" fill="${TEA}"/></svg>
 <div class="card" id="l0" style="left:140px;top:210px;width:520px;height:300px;padding:40px"><div style="font-size:28px;letter-spacing:5px;color:${ORA};font-weight:700">SESSION</div><div style="font-size:66px;font-weight:800;letter-spacing:-2px;margin-top:10px">Construit</div><div style="font-size:32px;color:#a9a9c0;margin-top:6px">propose, écrit, pousse</div></div>
 <div class="card" id="l1" style="left:840px;top:210px;width:520px;height:300px;padding:40px"><div style="font-size:28px;letter-spacing:5px;color:${TEA};font-weight:700">SESSION</div><div style="font-size:66px;font-weight:800;letter-spacing:-2px;margin-top:10px">Critique</div><div style="font-size:32px;color:#a9a9c0;margin-top:6px">relit, cite, renvoie</div></div>
-<div class="k" id="l2" style="left:0;top:600px;width:1500px;text-align:center;font-size:44px;color:#c9c9d8">un commit, une critique, un nouveau tour</div>
-<div class="pill" id="l3" style="left:560px;top:20px;height:90px;padding:0 40px;font-size:36px;display:flex;align-items:center;gap:14px;background:#262636">${ic(I.loop, 44)}une boucle entre deux sessions</div>`;
-const loopTick = (r, t) => { rv(G('l0')(r), t, bt(0)); rv(G('l1')(r), t, bt(1)); rv(G('l3')(r), t, bt(0), 0.4, 20); rv(G('l2')(r), t, bt(7), 0.5, 20);
+<div class="k" id="l2" style="left:0;top:560px;width:1500px;text-align:center;font-size:40px;color:#c9c9d8">un commit, une critique, un nouveau tour</div>
+<div class="pill ses" style="left:260px;top:640px;height:70px;padding:0 30px;font-size:32px;display:flex;align-items:center;background:#262636"><span style="color:${ORA}">●</span>&nbsp;Site</div>
+<div class="pill ses" style="left:470px;top:640px;height:70px;padding:0 30px;font-size:32px;display:flex;align-items:center;background:#262636"><span style="color:${TEA}">●</span>&nbsp;Appli</div>
+<div class="pill ses" style="left:690px;top:640px;height:70px;padding:0 30px;font-size:32px;display:flex;align-items:center;background:#262636"><span style="color:${VIO}">●</span>&nbsp;Campagne</div>
+<div class="pill ses" style="left:950px;top:640px;height:70px;padding:0 30px;font-size:32px;display:flex;align-items:center;background:#262636"><span style="color:${GRN}">●</span>&nbsp;Vidéo</div>
+<div class="k" id="l4" style="left:1210px;top:650px;font-size:30px;color:#a9a9c0;white-space:nowrap">plusieurs sessions, en même temps</div>
+<div class="pill" id="l3" style="left:560px;top:20px;height:90px;padding:0 40px;font-size:36px;display:flex;align-items:center;gap:14px;background:#262636">${ic(I.loop, 44)}des sessions qui conversent entre elles</div>`;
+const loopTick = (r, t) => { rv(G('l0')(r), t, bt(0)); rv(G('l1')(r), t, bt(1)); rv(G('l3')(r), t, bt(0), 0.4, 20); rv(G('l2')(r), t, bt(5.5), 0.5, 20); $$(r, '.ses').forEach((e, i) => rv(e, t, bt(7 + i * 0.5), 0.4, 20)); rv(G('l4')(r), t, bt(9.2), 0.4, 10);
   const a = G('la')(r), b = G('lb')(r), A = G('dA')(r), B = G('dB')(r), on = M.prog(t, bt(2), 0.3);
   const pa = ((t - bt(2)) * 0.38) % 1, pb = ((t - bt(3.5)) * 0.38) % 1;
   const qa = a.getPointAtLength(a.getTotalLength() * Math.max(0, pa)), qb = b.getPointAtLength(b.getTotalLength() * Math.max(0, pb));
@@ -177,10 +182,11 @@ const RANKH = `<div class="k" id="rk0" style="left:0;top:0;width:760px;text-alig
 ${RK([86, 70, 52, 38], '#3a3a4e', 20, true)}${RK([60, 88, 46, 72], `linear-gradient(90deg,${VIO},${TEA})`, 860, false)}
 <svg class="k" id="rkx" style="left:0;top:40px;opacity:0" width="760" height="470" viewBox="0 0 760 470"><path d="M60 40 L700 430 M700 40 L60 430" stroke="${RED}" stroke-width="16" stroke-linecap="round"/></svg>
 <div class="k" id="rk2" style="left:0;top:540px;width:1600px;text-align:center;font-size:50px;font-weight:800">Le classement suit la production.</div>
-<div class="k" id="rk3" style="left:0;top:620px;width:1600px;text-align:center;font-size:34px;color:#a9a9c0">jusqu'à la prochaine soumission</div>`;
+<div class="k" id="rk3" style="left:0;top:620px;width:1600px;text-align:center;font-size:34px;color:#a9a9c0">jusqu'à la prochaine soumission</div>
+<div class="pill" id="rk4" style="left:460px;top:690px;height:84px;padding:0 44px;font-size:38px;display:flex;align-items:center;background:#262636">et un nouveau type d'application</div>`;
 const rankTick = (r, t) => { rv(G('rk0')(r), t, bt(0), 0.4, 20); rv(G('rk1')(r), t, bt(0), 0.4, 20); $$(r, '.rs').forEach((e, i) => { e.style.width = (M.prog(t, bt(0.3 + i * 0.25), 0.5, M.ease.outExpo) * Number(e.dataset.w) * 6.4) + 'px'; });
   $$(r, '.rb').forEach((e, i) => { e.style.width = (M.prog(t, bt(2 + i * 0.25), 0.6, M.ease.outExpo) * Number(e.dataset.w) * 6.4) + 'px'; });
-  G('rkx')(r).style.opacity = M.prog(t, bt(1.6), 0.25); rv(G('rk2')(r), t, bt(5), 0.4, 20); rv(G('rk3')(r), t, bt(6), 0.4, 20); };
+  G('rkx')(r).style.opacity = M.prog(t, bt(1.6), 0.25); rv(G('rk2')(r), t, bt(5), 0.4, 20); rv(G('rk3')(r), t, bt(6), 0.4, 20); rv(G('rk4')(r), t, bt(7), 0.4, 20); };
 
 // ---- 17. the rule: claim, burn, slowing production -----------------------------------------------------------------------------------------------
 const CURVE = (x0, w, h, k) => { let d = `M${x0} ${h}`; for (let i = 1; i <= 24; i++) { const u = i / 24; d += ` L${(x0 + w * u).toFixed(1)} ${(h - h * 0.92 * Math.pow(u, 0.62) * k).toFixed(1)}`; } return d; };
@@ -216,14 +222,15 @@ const CODE = `<div class="card" id="rg0" style="left:830px;top:20px;width:770px;
 <span style="color:#c792ea">if</span> (!(<span style="color:#c792ea">await</span> verifySignedAction(a)) <span style="color:#c792ea">return</span> state;
 <span style="color:#c792ea">if</span> (a.from <span style="color:#c792ea">in</span> state.votes) <span style="color:#c792ea">return</span> state;
 <span style="color:#c792ea">return</span> { votes: { ...state.votes, [a.from]: a.choice } };</pre></div>
-<div class="tag" id="rg1" style="left:830px;top:560px">extrait de docs/CONTRACTS.md</div>`;
+<div class="tag" id="rg1" style="left:830px;top:560px">extrait de docs/CONTRACTS.md</div>
+<div class="k" id="rg2" style="left:0;top:700px;width:1600px;text-align:center;font-size:40px;font-weight:800;color:${GRN}">Pensé pour résister aux faux comptes et à la double dépense</div>`;
 const PAY = `<div class="card pd" style="left:0;top:90px;width:340px;height:520px;border-radius:60px;padding:0;display:flex;align-items:center;justify-content:center;background:#14141c">${ic(I.phone, 150, '#fff', 1.1)}</div>
 <div class="card pd" style="left:430px;top:90px;width:340px;height:520px;border-radius:60px;padding:0;display:flex;align-items:center;justify-content:center;background:#14141c">${ic(I.phone, 150, '#fff', 1.1)}</div>
 <svg class="k" style="left:330px;top:290px" width="120" height="120" viewBox="0 0 120 120"><path id="pa" d="M10 60 H100" stroke="${GRN}" stroke-width="6" stroke-linecap="round" fill="none" stroke-dasharray="90" stroke-dashoffset="90"/><path id="pb" d="M84 40 L106 60 84 80" stroke="${GRN}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" style="opacity:0"/></svg>
 <div class="k" id="py0" style="left:0;top:640px;width:770px;text-align:center;font-size:40px;font-weight:800">Payer en session</div>
 <div class="k" id="py1" style="left:0;top:700px;width:770px;text-align:center;font-size:32px;color:#a9a9c0">sans réseau · sans limite de débit</div>`;
 const regTick = (r, t) => { $$(r, '.pd').forEach((e, i) => rv(e, t, bt(i * 0.8), 0.5, 40)); const p = M.prog(t, bt(2), 0.6, M.ease.inOutCubic); G('pa')(r).style.strokeDashoffset = 90 * (1 - p); G('pb')(r).style.opacity = p > 0.9 ? 1 : 0;
-  rv(G('py0')(r), t, bt(2.5), 0.4, 16); rv(G('py1')(r), t, bt(3.5), 0.4, 16); rv(G('rg0')(r), t, bt(4.5), 0.5, 40); rv(G('rg1')(r), t, bt(7), 0.4, 10); };
+  rv(G('py0')(r), t, bt(2.5), 0.4, 16); rv(G('py1')(r), t, bt(3.5), 0.4, 16); rv(G('rg0')(r), t, bt(4.5), 0.5, 40); rv(G('rg1')(r), t, bt(7), 0.4, 10); rv(G('rg2')(r), t, bt(9), 0.45, 20); };
 
 // ---- 20. games ------------------------------------------------------------------------------------------------------------------------
 const gm = (i, col, svg, name, sub) => `<div class="card gmc" style="left:${i * 540}px;top:20px;width:500px;height:360px;padding:38px"><div style="width:110px;height:110px;border-radius:32px;background:${col};display:flex;align-items:center;justify-content:center">${ic(svg, 62)}</div><div style="font-size:58px;font-weight:800;letter-spacing:-1.5px;margin-top:22px">${name}</div><div style="font-size:32px;color:#a9a9c0;margin-top:6px">${sub}</div></div>`;
@@ -291,11 +298,12 @@ const PLAN = [
   { bar: 23, trans: 'fade', bg: { type: 'gradient', colors: ['#0c0c1a', '#050509'], angle: 180, drift: true }, layers: [TXT("Et si quelqu'un veillait\nsur tout ça ?", 8.4, 44, 0.6, { stagger: 0.5, effect: 'rise', weight: 700, color: '#e8e8f4' }),
     { type: 'shape', kind: 'circle', x: 50, y: 78, w: 3, h: 3, color: VIO, at: 4.6, dur: 1.2, from: { s: 0.1, o: 0 } }] },
   { bar: 26, trans: 'flash', bg: BG('rgba(123,97,255,.45)', 'rgba(38,198,176,.22)', 'rgba(30,30,60,.5)'), layers: [L('super', SUPER, [1560, 760], superTick, { y: 56, w: 90 }), TXT('Ton super agent.', 5.2, 8, 0.2, { x: 50, effect: 'rise' })] },
-  { bar: 30, trans: 'zoom', bg: WARM, layers: [TXT('Créer. Déployer.', 12, 38, 0.2, { mode: 'chars', stagger: 0.04 }), TXT('À la vitesse de la pensée.', 7.2, 62, 1.8, { effect: 'blur', mode: 'words', stagger: 0.14, color: '#e8e8f4', accent: { 'pensée.': ORA } })] },
+  { bar: 30, trans: 'zoom', bg: WARM, layers: [TXT('Créer. Déployer.', 12, 38, 0.2, { mode: 'chars', stagger: 0.04 }), TXT('À la vitesse de la pensée.', 7.2, 60, 1.6, { effect: 'blur', mode: 'words', stagger: 0.14, color: '#e8e8f4', accent: { 'pensée.': ORA } }), TXT('une création par la voix sans précédent', 3.6, 80, 3.0, { effect: 'rise', weight: 600, color: '#b8b8cc' })] },
   { bar: 32, trans: 'push', bg: { type: 'gradient', colors: ['#10182a', '#090912'], angle: 170, drift: true }, layers: [
     L('auto', AUTO, [560, 700], autoTick, { w: 28, x: 21, y: 52 }),
     { type: 'image', src: 'real/papers.png', x: 68, y: 53, w: 36, enter: 'rise', at: 0.15, dur: 0.5, radius: 18, cam: { from: { s: 1, y: 1 }, to: { s: 1.06, y: -1 } } },
     { type: 'html', id: 'autotag', css: COMMON, markup: '<div class="tag" style="left:0;top:0">capture réelle de l\'appli · onglet Papers</div>', design: [700, 60], w: 28, x: 68, y: 90, at: 0.9, dur: 0.4 },
+    TXT('le corpus de documents fondateurs', 3.4, 12, 1.2, { x: 68, w: 40, effect: 'rise', weight: 700, color: '#d6d6e6' }),
   ] },
   { bar: 34, trans: 'flash', bg: BG('rgba(224,82,78,.30)', 'rgba(204,120,92,.35)', 'rgba(30,30,60,.5)'), layers: [
     { type: 'image', src: 'real/wallet.png', x: 27, y: 52, w: 34, enter: 'left', at: 0.1, dur: 0.5, radius: 22, cam: { from: { s: 1, y: 5 }, to: { s: 1.5, y: 14 } } },
@@ -312,28 +320,35 @@ const PLAN = [
   { bar: 38, trans: 'slice', bg: VB, layers: [TXT('Classer la production,\npas le stock.', 6.6, 12, 0.15, { effect: 'rise', stagger: 0.25 }), L('rank', RANKH, [1600, 700], rankTick, { y: 60 })] },
   { bar: 40, trans: 'zoom', bg: BG('rgba(204,120,92,.40)', 'rgba(123,97,255,.38)', 'rgba(30,30,60,.5)'), layers: [TXT('Un burn fait un claim. Un claim relance la production.', 3.8, 8, 0.15, { effect: 'rise', weight: 700, w: 92 }), L('rule', RULE, [1600, 780], ruleTick, { y: 58 })] },
   { bar: 43, trans: 'fade', bg: BG('rgba(46,125,90,.34)', 'rgba(38,198,176,.20)', 'rgba(20,30,30,.5)'), layers: [TXT('Tu héberges toi-même.', 6.6, 11, 0.2, { effect: 'rise' }), L('host', HOST, [1600, 760], hostTick, { y: 57 })] },
-  { bar: 45, trans: 'flash', bg: { type: 'gradient', colors: ['#130f2a', '#090912'], angle: 165, drift: true }, layers: [TXT('Un registre distribué.\nDes règles que chacun vérifie.', 5.2, 10, 0.15, { effect: 'rise', stagger: 0.25 }), L('reg', CODE + PAY, [1600, 760], regTick, { y: 56 })] },
+  { bar: 45, trans: 'flash', bg: { type: 'gradient', colors: ['#130f2a', '#090912'], angle: 165, drift: true }, layers: [TXT('Un registre applicatif et monétaire.\nDes règles que chacun vérifie.', 5.2, 10, 0.15, { effect: 'rise', stagger: 0.25 }), L('reg', CODE + PAY, [1600, 780], regTick, { y: 56 })] },
   { bar: 48, trans: 'push', bg: BG('rgba(123,97,255,.38)', 'rgba(38,198,176,.26)', 'rgba(30,30,60,.5)'), layers: [TXT('Créer des jeux.', 6.6, 10, 0.15, { effect: 'rise' }), L('games', GAMES, [1600, 640], gamesTick, { y: 56 })] },
   { bar: 50, trans: 'iris', bg: { type: 'gradient', colors: ['#0f1730', '#07070d'], angle: 170, drift: true }, layers: [TXT('La Terre. Mars.', 6.6, 9, 0.15, { effect: 'rise' }), L('mars', MARS, [1500, 720], marsTick, { y: 56, w: 88 })] },
   { bar: 52, trans: 'wipe', bg: TEAL, layers: [TXT('Demain : les lunettes.', 6.6, 10, 0.15, { effect: 'rise' }), L('gl', GL, [1560, 640], glTick, { y: 56 })] },
   { bar: 54, trans: 'fade', bg: BG('rgba(204,120,92,.30)', 'rgba(123,97,255,.30)', 'rgba(30,30,60,.5)'), layers: [L('close', CLOSE, [1560, 680], closeTick, { y: 50 })] },
-  { bar: 57, trans: 'fade', bg: BG('rgba(204,120,92,.40)', 'rgba(123,97,255,.34)', 'rgba(30,30,60,.5)'), end: 60, tail: 3.6, layers: [
+  { bar: 57, trans: 'fade', bg: BG('rgba(204,120,92,.40)', 'rgba(123,97,255,.34)', 'rgba(30,30,60,.5)'), tail: 3.6, layers: [
     TXT('Aïwa', 14, 42, 0.3, { mode: 'chars', stagger: 0.08, accent: { 'Aïwa': ORA } }),
     TXT('Tes codes restent dans ton dépôt.', 4.2, 64, 1.6, { effect: 'blur', mode: 'words', stagger: 0.12, weight: 700, color: '#e8e8f4' }),
     TXT('theodoreyong9.github.io/Aiwa_store', 3.2, 78, 3.2, { effect: 'fade', weight: 600, color: '#c9c9d8' }),
     TXT('Musique : « The Complex », Kevin MacLeod (incompetech.com), CC BY 4.0', 1.7, 95, 4, { effect: 'fade', weight: 500, color: '#7c7c92' }),
   ] },
 ];
-// the start of each shot (seconds) puts the middle of its transition on the beat of its bar; the length of a shot is what separates it from the next one, plus the transition
-window.CUTS_PLAN = PLAN.map((p) => p.bar);
-window.SHOTS = PLAN.map((p, i) => {
-  const start = (b) => (b === 0 ? 0 : T0 + b * BAR - TR / 2);
-  const next = PLAN[i + 1];
-  const seconds = next ? (start(next.bar) - start(p.bar)) + TR : (p.end - p.bar) * BAR + (p.tail || 0) + TR / 2;
-  const shot = { seconds: Math.round(seconds * 1000) / 1000, bg: p.bg, layers: p.layers };
-  if (p.trans && i > 0) shot.transition = { type: p.trans, seconds: TR };
-  return shot;
-});
+// The maximum film is made of pieces laid on the bars of the track (see build.py): the shots of this page (new scenes), the scenes of the global film v9 (pieces.html, and its 3D shots
+// cut from the film itself). Here: only the new scenes, in groups of consecutive bars: ?g=<first bar>-<end bar>. In a group every cut is on a beat of the track.
+const KEEP = [[0, 0], [1, 1], [2, 2], [3, 4], [5, 10], [6, 14], [7, 18], [10, 26], [11, 30], [12, 32], [13, 34], [14, 36], [17, 43], [19, 54], [22, 65], [23, 68]];   // [index in PLAN, the bar it starts on]
+const PLAN2 = KEEP.map(([i, b]) => Object.assign({}, PLAN[i], { bar: b }));
+{
+  const q = new URLSearchParams(location.search).get('g');
+  const [b0, b1] = q ? q.split('-').map(Number) : [0, 71];
+  const plan = PLAN2.filter((p) => p.bar >= b0 && p.bar < b1);
+  const start = (b) => (b === b0 ? 0 : (b - b0) * BAR - TR / 2);
+  window.SHOTS = plan.map((p, i) => {
+    const next = plan[i + 1];
+    const seconds = next ? start(next.bar) - start(p.bar) + TR : (b1 - b0) * BAR - start(p.bar) + (p.tail || 0);
+    const shot = { seconds: Math.round(seconds * 1000) / 1000, bg: p.bg, layers: p.layers };
+    if (p.trans && p.bar !== b0) shot.transition = { type: p.trans, seconds: TR };
+    return shot;
+  });
+}
 </script>
 <script src="../../video-kit/template/cinematic.js"></script>
 </body></html>
