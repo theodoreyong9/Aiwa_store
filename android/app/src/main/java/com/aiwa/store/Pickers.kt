@@ -757,6 +757,7 @@ class SettingsActivity : ComponentActivity() {
                 if (current != WidgetStyle.AIWA) {
                     add(PickerEntry("Commentaire pour le critique : signé avec ton wallet, classé par ce que tu as miné", false, lines = 2) { open(CommentActivity::class.java) })
                 }
+                add(PickerEntry("Agent : une session qui suit tes dépôts et te parle (écoute permanente)", false, lines = 2) { open(AgentActivity::class.java) })
                 // Only when there is no widget yet: nobody asked for a second one
                 if (!WidgetPin.hasWidget(applicationContext)) {
                     add(PickerEntry("Ajouter le widget à l'écran d'accueil (un appui sur « Ajouter »)", false, lines = 2) {

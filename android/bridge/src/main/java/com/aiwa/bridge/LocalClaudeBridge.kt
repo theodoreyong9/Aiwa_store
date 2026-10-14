@@ -97,6 +97,13 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                 val choices = a.optJSONArray("options")
                 AskInfo(a.optString("id"), a.optString("question"), if (choices == null) emptyList() else (0 until choices.length()).map { choices.getString(it) }, a.optLong("ts", 0L), a.optString("session").ifBlank { null }, a.optInt("count", 1))
             },
+            agent = json.optJSONObject("agent")?.let { a ->
+                AgentInfo(
+                    a.optBoolean("enabled", false), a.str("session"), a.optInt("interval", 20), a.optBoolean("creating", false), a.str("error"),
+                    a.optJSONObject("say")?.let { AgentSay(it.optString("id"), it.optString("text"), it.optLong("ts", 0L)) },
+                    a.optJSONObject("proposal")?.let { AgentProposal(it.optString("id"), it.optString("session"), it.optString("session_title"), it.optString("message"), it.optString("read_back")) },
+                )
+            },
             sentApp = json.optJSONObject("sent_app")?.let {
                 SentApp(it.optString("name"), it.optInt("size", 0), it.optLong("ts", 0L), it.optBoolean("seen", false), it.str("kind") ?: "code", it.str("github"))
             },
@@ -272,6 +279,13 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             if (error == "busy") throw BusyException("a message is already being sent")
             throw IllegalStateException(error)
         }
+    }
+
+    override suspend fun agent(action: String, fields: Map<String, Any>): String? = withContext(Dispatchers.IO) {
+        val body = JSONObject()
+        fields.forEach { (k, v) -> body.put(k, v) }
+        val json = JSONObject(postText("/api/agent/$action", body.toString()))
+        if (json.optBoolean("ok", false)) null else json.optString("error", "l'agent n'a pas pu")
     }
 
     override suspend fun proposals(): ProposalList = withContext(Dispatchers.IO) {

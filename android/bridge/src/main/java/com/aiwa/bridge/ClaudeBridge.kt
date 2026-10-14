@@ -14,6 +14,9 @@ data class SiteInfo(val url: String?, val state: String, val kind: String = "sit
 data class SentApp(val name: String, val size: Int, val ts: Long, val seen: Boolean, val kind: String = "code", val github: String? = null)
 // A question Claude asked through the widget (it never sees the conversation): the question, a few short choices, and an id the answer carries.
 // `session` is the title of the session that asked, `count` how many questions wait (of every session): they wait together, each is answered in its own session.
+data class AgentSay(val id: String, val text: String, val ts: Long)
+data class AgentProposal(val id: String, val session: String, val sessionTitle: String, val message: String, val readBack: String)
+data class AgentInfo(val enabled: Boolean, val session: String?, val interval: Int, val creating: Boolean, val error: String?, val say: AgentSay?, val proposal: AgentProposal?)
 data class AskInfo(val id: String, val question: String, val options: List<String>, val ts: Long, val session: String? = null, val count: Int = 1)
 
 // A promotional video of the creation: a file of the GitHub release `videos` of its repository (a public repository only: Aiwa asks for no token).
@@ -95,6 +98,8 @@ data class BackendStatus(
     val sentApp: SentApp? = null,
     // The question Claude asked and that is not answered yet, or null.
     val ask: AskInfo? = null,
+    // The agent: a dedicated session that talks with the user by voice only.
+    val agent: AgentInfo? = null,
     // The backend is working on a message right now (creating a session takes a while). It knows, whatever became of the app that sent it.
     val sending: Boolean = false,
     // When it began (epoch milliseconds), so that the widget can say how long it has lasted.
@@ -174,6 +179,9 @@ interface ClaudeBridge {
 
     // Sends the answer to the question `id` to the session, as its next message. Throws with the reason.
     suspend fun askAnswer(id: String, answer: String) { throw UnsupportedOperationException("askAnswer") }
+
+    // One action of the agent (create, set, now, ask, confirm, cancel, said). Returns the reason when it fails, else null.
+    suspend fun agent(action: String, fields: Map<String, Any> = emptyMap()): String? { throw UnsupportedOperationException("agent") }
 
     suspend fun videos(): VideoList { throw UnsupportedOperationException("videos") }
     suspend fun inputs(): InputList { throw UnsupportedOperationException("inputs") }

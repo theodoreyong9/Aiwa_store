@@ -2,6 +2,7 @@ package com.aiwa.store
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.aiwa.bridge.AgentInfo
 import com.aiwa.bridge.AskInfo
 import com.aiwa.bridge.CloudSessionInfo
 import com.aiwa.bridge.SentApp
@@ -12,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 85
+const val EXPECTED_BACKEND_VERSION = 86
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -133,6 +134,7 @@ data class AiwaState(
     val sentApp: SentApp? = null,
     // A question Claude asked through the widget and that is not answered yet (the widget says so; the window that answers it is AskActivity).
     val ask: AskInfo? = null,
+    val agent: AgentInfo? = null,
     // Who may use this build (AccessGate): the list is on or off, the level of the signed-in GitHub account (2 everything, 1 Pages and APK, 0 nothing), and its name.
     val accessEnforced: Boolean = false,
     val accessLevel: Int = 2,

@@ -24,6 +24,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.glance.appwidget.updateAll
+import com.aiwa.bridge.LocalClaudeBridge
 import com.aiwa.bridge.WakeKind
 import org.vosk.LibVosk
 import org.vosk.LogLevel
@@ -95,6 +96,9 @@ class WakeWordService : Service() {
     private var dictation: VoiceDictation? = null
     private var lock: PowerManager.WakeLock? = null
     private var paused = false
+    private var speakingAgent = false
+    private var lastAgentSaid: String? = null
+    private var agentWatch: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -140,7 +144,28 @@ class WakeWordService : Service() {
             return
         }
         model = loaded
+        agentWatch?.cancel()
+        agentWatch = scope.launch { AiwaRepository.state.collect { maybeSpeakAgent() } }
         listen()
+    }
+
+    // The agent speaks only here, with the listening on: when it has something to say and nobody is dictating, the detector lets go of the
+    // microphone, the phone says it, tells the backend it was said, then listens again.
+    private fun maybeSpeakAgent() {
+        val say = AiwaRepository.state.value.agent?.say ?: return
+        if (speakingAgent || paused || dictation != null || detector == null || say.id == lastAgentSaid) return
+        lastAgentSaid = say.id
+        speakingAgent = true
+        detector?.stop()
+        detector = null
+        holdCpu(false)
+        scope.launch {
+            say("L'agent : " + say.text)
+            Speaker.speakAndWait(applicationContext, say.text)
+            try { LocalClaudeBridge().agent("said", mapOf("id" to say.id)) } catch (err: Exception) { /* the backend will say it again only if the app asks */ }
+            speakingAgent = false
+            listen()
+        }
     }
 
     private fun listen() {

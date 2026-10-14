@@ -99,6 +99,7 @@ object BackendSync {
                     relayCloud = status.relayCloud,
                     sentApp = status.sentApp,
                     ask = status.ask,
+                    agent = status.agent,
                 )
             }
         }

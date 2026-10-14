@@ -11,6 +11,9 @@ private val STOP_PHRASE_REGEX = Regex("""\bc['\s]?est\s+bon,?\s+vas[\s-]?y\b[!.\
 // The same words anywhere in what was heard: the answer to a question ("Dépôt X, tu confirmes ?") is just that phrase.
 private val STOP_PHRASE_ANYWHERE = Regex("""\bc['\s]?est\s+bon,?\s+vas[\s-]?y\b""", RegexOption.IGNORE_CASE)
 
+// "Vas-y dis-lui": the proposal of the agent is to be sent (only listened for while one is waiting).
+private val SEND_PROPOSAL_REGEX = Regex("""\b(?:vas[\s-]?y,?\s+)?di[st][\s-]?lui\b[!.\s]*$""", RegexOption.IGNORE_CASE)
+
 fun containsStopPhrase(text: String): Boolean = STOP_PHRASE_ANYWHERE.containsMatchIn(text)
 
 private fun stripStopPhrase(text: String): String? {
@@ -44,6 +47,9 @@ class StopPhraseListener(
     private val onGiveUp: () -> Unit,
     // "Non, c'est pas bon, arrête" (or "annule") at the end of what was heard: everything is dropped
     private val onCancelPhrase: () -> Unit = {},
+    // Asked at each result: is a proposal of the agent waiting? If so "vas-y dis-lui" ends the listening and calls onSendProposal.
+    private val proposalWaiting: () -> Boolean = { false },
+    private val onSendProposal: () -> Unit = {},
 ) : RecognitionListener {
     private val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
     private val quiet = QuietSounds(context)
@@ -88,6 +94,12 @@ class StopPhraseListener(
         if (stopped) return
         val heard = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
         if (endsWithCancelPhrase(heard)) { cancelledByVoice(); return }
+        if (proposalWaiting() && SEND_PROPOSAL_REGEX.containsMatchIn(heard)) {
+            stopped = true
+            release()
+            onSendProposal()
+            return
+        }
         val beforeStopPhrase = stripStopPhrase(heard)
         if (beforeStopPhrase != null) {
             if (accumulated.isNotEmpty() && beforeStopPhrase.isNotEmpty()) accumulated.append(" ")

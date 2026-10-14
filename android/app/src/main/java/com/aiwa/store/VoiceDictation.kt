@@ -22,6 +22,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
+// "Dis à l'agent …", "demande à l'agent …", "agent, …": what follows goes to the agent, not to the working session.
+private val AGENT_REGEX = Regex("""^\s*(?:(?:dis|demande|répond\w*|parle)\s+(?:à|a)\s+l['’]?\s*|l['’]\s*)?agent\b[,:]?\s*(.+)$""", RegexOption.IGNORE_CASE)
+
 /**
  * One dictation, from the first word to the message sent and the settings applied, with nothing of a screen in it: the window of the
  * widget's mic (DictateActivity) and the always-on listening service (WakeWordService) both run it and show what they want of it.
@@ -103,6 +106,8 @@ class VoiceDictation(
             onFinalText = { text -> handleFinal(text) },
             onGiveUp = { end() },
             onCancelPhrase = { toastOnMain(appContext, "Annulé : rien n'est appliqué ni envoyé."); cancel() },
+            proposalWaiting = { AiwaRepository.state.value.agent?.proposal != null },
+            onSendProposal = { work = scope.launch { sendProposal() } },
         )
         listener?.start()
     }
@@ -130,7 +135,33 @@ class VoiceDictation(
         onFinished()
     }
 
+    // "Vas-y dis-lui": the phone reads back where the proposal of the agent goes and what it says, and only "c'est bon vas-y" sends it.
+    private suspend fun sendProposal() {
+        val bridge = LocalClaudeBridge()
+        val proposal = AiwaRepository.state.value.agent?.proposal
+        if (proposal == null) { end(); return }
+        if (!confirmSentence(proposal.readBack)) {
+            toastOnMain(appContext, "Pas confirmé : rien n'est envoyé. La proposition attend.")
+            end()
+            return
+        }
+        val error = try { bridge.agent("confirm", mapOf("id" to proposal.id)) } catch (err: Exception) { err.message ?: "?" }
+        toastOnMain(appContext, if (error == null) "Envoyé à ${proposal.sessionTitle}." else "Pas envoyé : $error")
+        try { BackendSync.refresh(bridge) } catch (err: Exception) { }
+        AiwaWidget().updateAll(appContext)
+        end()
+    }
+
     private fun handleFinal(text: String) {
+        val toAgent = AGENT_REGEX.find(text)?.groupValues?.get(1)?.trim().orEmpty()
+        if (toAgent.isNotBlank()) {
+            CoroutineScope(Dispatchers.Default).launch {
+                val error = try { LocalClaudeBridge().agent("ask", mapOf("text" to toAgent)) } catch (err: Exception) { err.message ?: "?" }
+                if (error != null) toastOnMain(appContext, "L'agent n'a pas reçu : $error")
+            }
+            end()
+            return
+        }
         val dictation = parseDictation(text, voiceModels(), voiceSessions(), repoNames, startInInstructions)
         if (!dictation.instructions) {
             sendPlain(text)

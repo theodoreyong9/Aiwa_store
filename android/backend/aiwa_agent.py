@@ -107,4 +107,4 @@ def parse_message(raw, known_ids, agent_id=None):
 
 def read_back(title, message):
     """What the phone says before sending a proposal: where it goes and what it says."""
-    return f"J'envoie à la session {title} : {message}. C'est bon, vas-y ?"
+    return f"J'envoie à la session {title} : {message}."
