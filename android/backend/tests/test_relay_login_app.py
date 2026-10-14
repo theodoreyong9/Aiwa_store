@@ -1505,6 +1505,26 @@ class HttpTests(Base):
         with urllib.request.urlopen(request, timeout=60) as reply:
             return json.loads(reply.read())
 
+    def test_each_mode_finds_its_session_repository_model_and_push_again(self):
+        self.addCleanup(lambda: [setattr(srv, k, v) for k, v in saved.items()])
+        saved = {k: getattr(srv, k) for k in ("current_cloud", "last_cloud", "current_repo", "current_model", "current_effort", "push_main", "deploy_mode", "mode_memory")}
+        srv.mode_memory = {}
+        srv.deploy_mode, srv.current_cloud, srv.last_cloud, srv.current_repo, srv.current_model, srv.current_effort, srv.push_main = "pages", "session_PAGES", "session_PAGES", "o/site", "claude-opus-5-5", "high", False
+        known = {"session_PAGES": {"id": "session_PAGES", "repo": "o/site"}, "session_APK": {"id": "session_APK", "repo": "o/apk"}}
+        with unittest.mock.patch.object(srv, "_session_entry", lambda sid: known.get(sid, {})):
+            self.call("/api/options", json.dumps({"deploy": "android"}))
+            self.assertEqual((srv.current_repo, srv.current_cloud), ("o/site", "session_PAGES"), "a mode never visited keeps what is set")
+            srv.current_cloud = srv.last_cloud = "session_APK"
+            srv.current_repo, srv.current_model, srv.push_main = "o/apk", "claude-sonnet-5-5", True
+            self.call("/api/options", json.dumps({"deploy": "pages"}))
+            self.assertEqual((srv.current_cloud, srv.current_repo, srv.current_model, srv.current_effort, srv.push_main), ("session_PAGES", "o/site", "claude-opus-5-5", "high", False))
+            self.call("/api/options", json.dumps({"deploy": "android"}))
+            self.assertEqual((srv.current_cloud, srv.current_repo, srv.current_model, srv.push_main), ("session_APK", "o/apk", "claude-sonnet-5-5", True))
+            known.pop("session_APK")
+            self.call("/api/options", json.dumps({"deploy": "pages"}))
+            self.call("/api/options", json.dumps({"deploy": "android"}))
+            self.assertIsNone(srv.current_cloud, "a session that no longer exists is not found again")
+
     def test_status_carries_the_new_fields(self):
         status = self.call("/api/status")
         self.assertEqual(status["version"], srv.BACKEND_VERSION)
