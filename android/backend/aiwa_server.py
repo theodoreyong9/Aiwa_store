@@ -55,7 +55,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 86
+BACKEND_VERSION = 87
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2359,7 +2359,7 @@ def _agent_load():
             session=session if isinstance(session, str) and CLOUD_ID_RE.fullmatch(session) else None,
             interval=agent_lib.clamp_interval(raw.get("interval", agent_lib.INTERVAL_DEFAULT)),
         )
-        agent["enabled"] = bool(raw.get("enabled")) and agent["session"] is not None
+        agent["enabled"] = False   # the agent follows only while the person has its listening open (never kept from a previous run)
 
 
 def _agent_save():
@@ -2486,7 +2486,7 @@ def agent_create():
         with agent_lock:
             agent["creating"] = False
             if result.get("ok"):
-                agent.update(session=result["session_id"], enabled=True, last=0.0, sig=None)
+                agent.update(session=result["session_id"], enabled=False, last=0.0, sig=None)
             else:
                 agent["error"] = str(result.get("error"))[:300]
             _agent_save()

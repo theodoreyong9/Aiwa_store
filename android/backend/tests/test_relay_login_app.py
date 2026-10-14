@@ -1525,7 +1525,8 @@ class HttpTests(Base):
                     break
                 time.sleep(0.05)
             self.assertEqual(srv.agent["session"], "session_AGENT")
-            self.assertTrue(srv.agent["enabled"])
+            self.assertFalse(srv.agent["enabled"], "made, but closed: it follows only while its listening is open")
+            self.assertTrue(self.call("/api/agent/set", json.dumps({"enabled": True}))["ok"])
             # a point goes to the agent, with the other session in it (not the agent itself)
             self.assertTrue(self.call("/api/agent/ask", json.dumps({"text": "où en est-on ?"}))["ok"])
             self.assertEqual(sent[-1][0], "session_AGENT")

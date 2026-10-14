@@ -9,7 +9,7 @@ package com.aiwa.bridge
  */
 object WakeWords {
     /** What the detector always listens for. */
-    val DEFAULT_PHRASES = listOf("mon agent", "instruction", "stop claude", "arrête claude")
+    val DEFAULT_PHRASES = listOf("mon agent", "mon super agent", "instruction", "stop claude", "arrête claude")
     const val MIN_LETTERS = 5
     const val MAX_VARIANTS = 6
 

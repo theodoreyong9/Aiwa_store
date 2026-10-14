@@ -957,9 +957,9 @@ private fun AiwaContent(state: AiwaState) {
             val agent = state.agent
             RoundButton(
                 icon = R.drawable.ic_agent,
-                description = "L'agent : session qui suit les dépôts et te parle",
+                description = "Agent de liaison : ouvrir ou fermer (l'écoute de réveil attend pendant ce temps)",
                 background = if (agent != null && (agent.say != null || agent.proposal != null)) alertRed else if (agent?.enabled == true) green else pill,
-                action = actionStartActivity<AgentActivity>(),
+                action = actionStartActivity<AgentToggleActivity>(),
                 diameter = chipH.dp,
             )
             if (state.appUpdateReady) {

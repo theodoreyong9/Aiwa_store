@@ -92,7 +92,7 @@ private fun AgentWindow(onClose: () -> Unit) {
                 Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("L'agent", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Une session Claude à part. Elle suit tes dépôts, tes sessions et tes boucles, et te parle à voix haute, avec l'écoute permanente. " +
+                        "Une session Claude à part. Elle suit tes dépôts, tes sessions et tes boucles, et te parle à voix haute. On l'ouvre en disant « mon super agent » (écoute de réveil allumée) ou avec le bouton ; « repasse en manuel » la ferme. " +
                             "Elle n'écrit jamais dans un dépôt et n'envoie rien toute seule : dis « vas-y dis-lui », le téléphone relit, tu dis « c'est bon vas-y ».",
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -106,15 +106,10 @@ private fun AgentWindow(onClose: () -> Unit) {
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Switch(checked = agent.enabled, enabled = !busy, onCheckedChange = { on ->
-                                act("set", mapOf("enabled" to on)) {
-                                    if (on) {
-                                        // The agent speaks through the always-on listening: it is switched on with it.
-                                        ListenSettings.setEnabled(app, true)
-                                        WakeWordService.start(app)
-                                    }
-                                }
+                                // The second listening: the first one waits while it is open, and takes over again when it is closed.
+                                if (on) WakeWordService.openAgentMode(app) else WakeWordService.closeAgentMode(app)
                             })
-                            Text(if (agent.enabled) "L'agent suit et te parle" else "L'agent est arrêté")
+                            Text(if (agent.enabled) "Agent ouvert : tout ce que tu dis va à lui (écoute de réveil en pause)" else "Agent fermé : l'écoute de réveil attend « mon super agent »")
                         }
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             OutlinedButton(onClick = { act("set", mapOf("interval" to (agent.interval - 5))) }, enabled = !busy && agent.interval > 5) { Text("−") }

@@ -63,11 +63,16 @@ object WakeWordSettings {
  * What it is not: it is off until the person turns it on; the speech model runs on the phone (VoskModelStore), nothing is sent anywhere;
  * and Android does not let a service of this kind start by itself after a restart of the phone: opening the app once starts it again.
  */
+// Said to the agent (already plain: lowercase, no accent): « repasse en manuel », and « vas-y dis-lui » (the recognizer also writes « dit lui »).
+private val MANUAL_REGEX = Regex("""\b(?:repasse|reviens|retourne|passe)\s+(?:en|au)\s+(?:mode\s+)?manuel\b|\b(?:ferme|quitte)\s+(?:l\s+)?agent\b""")
+private val SEND_REGEX = Regex("""\bdis?t?[\s-]?lui\b""")
+
 class WakeWordService : Service() {
     companion object {
         private const val CHANNEL_ID = "aiwa_listen"
         private const val NOTIFICATION_ID = 7
         private const val ACTION_STOP = "com.aiwa.store.LISTEN_STOP"
+        private const val ACTION_OPEN_AGENT = "com.aiwa.store.OPEN_AGENT"
 
         /** The running service, for the code of this same process that needs the microphone for itself (the widget's mic window). */
         @Volatile var instance: WakeWordService? = null
@@ -85,6 +90,33 @@ class WakeWordService : Service() {
             }
         }
 
+        /** From a visible screen: opens the second listening (the liaison agent); the first one is paused while it is open. Starts the service if needed. */
+        fun openAgentMode(context: Context) {
+            ListenSettings.setEnabled(context, true)
+            val running = instance
+            if (running != null) { running.openAgent(); return }
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                toastOnMain(context, "Écoute permanente : la permission du micro manque.")
+                return
+            }
+            try {
+                ContextCompat.startForegroundService(context, Intent(context, WakeWordService::class.java).setAction(ACTION_OPEN_AGENT))
+            } catch (err: Exception) {
+                toastOnMain(context, "Écoute permanente impossible : ${err.message}")
+            }
+        }
+
+        /** Closes the second listening: the first one starts again (it was never closed, only paused). Without a running service, only the agent is told. */
+        fun closeAgentMode(context: Context) {
+            val running = instance
+            if (running != null) running.closeAgent()
+            else CoroutineScope(Dispatchers.IO).launch {
+                try { LocalClaudeBridge().agent("set", mapOf("enabled" to false)) } catch (err: Exception) { }
+                AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
+                AiwaWidget().updateAll(context.applicationContext)
+            }
+        }
+
         fun stop(context: Context) { context.stopService(Intent(context, WakeWordService::class.java)) }
     }
 
@@ -96,7 +128,10 @@ class WakeWordService : Service() {
     private var dictation: VoiceDictation? = null
     private var lock: PowerManager.WakeLock? = null
     private var paused = false
-    private var speakingAgent = false
+    private var agentMode = false
+    private var agentBusy = false
+    private var openAgentWhenReady = false
+    private var agentListener: AgentListener? = null
     private var lastAgentSaid: String? = null
     private var agentWatch: Job? = null
 
@@ -116,9 +151,10 @@ class WakeWordService : Service() {
             return START_NOT_STICKY
         }
         instance = this
+        if (intent?.action == ACTION_OPEN_AGENT) { if (model != null) openAgent() else openAgentWhenReady = true }
         AiwaRepository.update { it.copy(listening = true) }
         CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
-        if (preparing?.isActive != true && detector == null && dictation == null) preparing = scope.launch { prepare() }
+        if (preparing?.isActive != true && detector == null && dictation == null && !agentMode) preparing = scope.launch { prepare() }
         // Not sticky on purpose: restarted by the system from the background, a microphone service is refused, and it would loop.
         return START_NOT_STICKY
     }
@@ -146,25 +182,118 @@ class WakeWordService : Service() {
         model = loaded
         agentWatch?.cancel()
         agentWatch = scope.launch { AiwaRepository.state.collect { maybeSpeakAgent() } }
-        listen()
+        if (openAgentWhenReady) { openAgentWhenReady = false; openAgent() } else listen()
     }
 
-    // The agent speaks only here, with the listening on: when it has something to say and nobody is dictating, the detector lets go of the
-    // microphone, the phone says it, tells the backend it was said, then listens again.
+    // ---- The second listening: the liaison agent. "Mon super agent" (heard by the first listening) or the button of the widget opens it. The first listening is
+    // only paused meanwhile, and "repasse en manuel" (or closing the agent) gives it back. Everything said goes to the agent; what it says, the phone says. ----
+
+    fun openAgent() {
+        main.post {
+            if (agentMode || model == null) return@post
+            if (AiwaRepository.state.value.agent?.session == null) {
+                detector?.stop(); detector = null
+                scope.launch {
+                    Speaker.speakAndWait(applicationContext, "L'agent n'existe pas encore. Crée-le avec le bouton agent du widget.")
+                    if (!agentMode) listen()
+                }
+                return@post
+            }
+            detector?.stop()
+            detector = null
+            agentMode = true
+            agentBusy = true
+            holdCpu(true)
+            AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = true)) }
+            scope.launch {
+                agentCall("set", mapOf("enabled" to true))
+                say("Agent de liaison : je t'écoute (dis « repasse en manuel » pour revenir)")
+                Speaker.speakAndWait(applicationContext, "Agent ouvert. Je t'écoute.")
+                agentBusy = false
+                agentListen()
+                maybeSpeakAgent()
+                CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
+            }
+        }
+    }
+
+    fun closeAgent() {
+        main.post {
+            if (!agentMode) return@post
+            agentMode = false
+            agentListener?.stop()
+            agentListener = null
+            AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
+            scope.launch {
+                agentCall("set", mapOf("enabled" to false))
+                CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
+                Speaker.speakAndWait(applicationContext, "Retour en manuel.")
+                if (!agentMode) listen()
+            }
+        }
+    }
+
+    private suspend fun agentCall(action: String, fields: Map<String, Any> = emptyMap()): String? =
+        try { withContext(Dispatchers.IO) { LocalClaudeBridge().agent(action, fields) } } catch (err: Exception) { err.message ?: "?" }
+
+    private fun agentListen() {
+        if (!agentMode || paused || agentListener != null) return
+        agentListener = AgentListener(this) { text -> main.post { heardForAgent(text) } }.also { it.start() }
+    }
+
+    private fun heardForAgent(text: String) {
+        agentListener?.stop()
+        agentListener = null
+        if (!agentMode) return
+        val plain = com.aiwa.bridge.WakeWords.plain(text)
+        agentBusy = true
+        scope.launch {
+            when {
+                MANUAL_REGEX.containsMatchIn(plain) -> { agentBusy = false; closeAgent(); return@launch }
+                AiwaRepository.state.value.agent?.proposal != null && SEND_REGEX.containsMatchIn(plain) -> sendAgentProposal()
+                else -> {
+                    say("Toi → l'agent : $text")
+                    val error = agentCall("ask", mapOf("text" to text))
+                    if (error != null) { say("L'agent n'a pas reçu : $error"); toastOnMain(applicationContext, "L'agent n'a pas reçu : $error") }
+                }
+            }
+            agentBusy = false
+            agentListen()
+            maybeSpeakAgent()
+        }
+    }
+
+    // « Vas-y dis-lui »: the phone reads where the proposal goes and what it says, and only « c'est bon vas-y » sends it.
+    private suspend fun sendAgentProposal() {
+        val proposal = AiwaRepository.state.value.agent?.proposal ?: return
+        say(proposal.readBack)
+        if (!askAloud(applicationContext, proposal.readBack)) {
+            toastOnMain(applicationContext, "Pas confirmé : rien n'est envoyé. La proposition attend.")
+            Speaker.speakAndWait(applicationContext, "Pas envoyé. La proposition attend.")
+            return
+        }
+        val error = agentCall("confirm", mapOf("id" to proposal.id))
+        toastOnMain(applicationContext, if (error == null) "Envoyé à ${proposal.sessionTitle}." else "Pas envoyé : $error")
+        Speaker.speakAndWait(applicationContext, if (error == null) "C'est envoyé." else "Je n'ai pas pu l'envoyer.")
+        try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }
+    }
+
+    // What the agent says is said only while its listening is open, and never over the person: the listening lets go, the phone speaks, the backend is told, the listening returns.
     private fun maybeSpeakAgent() {
+        if (!agentMode || agentBusy || paused) return
         val say = AiwaRepository.state.value.agent?.say ?: return
-        if (speakingAgent || paused || dictation != null || detector == null || say.id == lastAgentSaid) return
+        if (say.id == lastAgentSaid) return
         lastAgentSaid = say.id
-        speakingAgent = true
-        detector?.stop()
-        detector = null
-        holdCpu(false)
+        agentBusy = true
+        agentListener?.stop()
+        agentListener = null
         scope.launch {
             say("L'agent : " + say.text)
             Speaker.speakAndWait(applicationContext, say.text)
-            try { LocalClaudeBridge().agent("said", mapOf("id" to say.id)) } catch (err: Exception) { /* the backend will say it again only if the app asks */ }
-            speakingAgent = false
-            listen()
+            agentCall("said", mapOf("id" to say.id))
+            agentBusy = false
+            agentListen()
+            maybeSpeakAgent()
         }
     }
 
@@ -187,6 +316,7 @@ class WakeWordService : Service() {
     private fun heardWakeWord(kind: WakeKind) {
         detector = null
         if (paused) return
+        if (kind == WakeKind.LIAISON) { openAgent(); return }
         if (kind == WakeKind.STOP) {
             // Not a dictation: Claude is asked to stop, at once, and the phone says it did.
             say("J'ai demandé à Claude de s'arrêter")
@@ -217,6 +347,8 @@ class WakeWordService : Service() {
         paused = true
         detector?.stop()
         detector = null
+        agentListener?.stop()
+        agentListener = null
         dictation?.cancel()
         dictation = null
         holdCpu(false)
@@ -224,7 +356,8 @@ class WakeWordService : Service() {
 
     fun resume() {
         paused = false
-        if (model != null && detector == null && dictation == null) listen()
+        if (agentMode) agentListen()
+        else if (model != null && detector == null && dictation == null) listen()
     }
 
     private fun holdCpu(on: Boolean) {
@@ -273,6 +406,13 @@ class WakeWordService : Service() {
         CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
         detector?.stop()
         detector = null
+        agentListener?.stop()
+        agentListener = null
+        if (agentMode) {
+            agentMode = false
+            AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
+            CoroutineScope(Dispatchers.IO).launch { try { LocalClaudeBridge().agent("set", mapOf("enabled" to false)) } catch (err: Exception) { } }
+        }
         dictation?.cancel()
         dictation = null
         holdCpu(false)
