@@ -958,7 +958,7 @@ private fun AiwaContent(state: AiwaState) {
             RoundButton(
                 icon = R.drawable.ic_agent,
                 description = "Agent de liaison : ouvrir ou fermer (l'écoute de réveil attend pendant ce temps)",
-                background = if (agent != null && (agent.say != null || agent.proposal != null)) alertRed else if (agent?.enabled == true) green else pill,
+                background = if (agent != null && (agent.say != null || agent.proposal != null || agent.command != null)) alertRed else if (agent?.enabled == true) green else pill,
                 action = actionStartActivity<AgentToggleActivity>(),
                 diameter = chipH.dp,
             )

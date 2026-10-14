@@ -103,6 +103,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                     a.optJSONObject("say")?.let { AgentSay(it.optString("id"), it.optString("text"), it.optLong("ts", 0L)) },
                     a.optJSONObject("proposal")?.let { AgentProposal(it.optString("id"), it.optString("session"), it.optString("session_title"), it.optString("message"), it.optString("read_back")) },
                     a.optString("voice", "none"),
+                    a.optJSONObject("command")?.let { AgentCommand(it.optString("id"), it.optString("read_back"), it.optString("instruction")) },
                 )
             },
             sentApp = json.optJSONObject("sent_app")?.let {

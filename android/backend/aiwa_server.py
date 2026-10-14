@@ -56,7 +56,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 88
+BACKEND_VERSION = 89
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2344,7 +2344,7 @@ def _comments_take():
 # ---------- the agent: a session of its own that follows the others and talks with the person (see aiwa_agent.py) ----------
 AGENT_FILE = LOOPS_FILE.with_name("aiwa-agent.json")
 agent_lock = threading.Lock()
-agent = {"enabled": False, "session": None, "interval": agent_lib.INTERVAL_DEFAULT, "sig": None, "last": 0.0, "say": None, "proposal": None, "creating": False, "error": None}
+agent = {"command": None, "enabled": False, "session": None, "interval": agent_lib.INTERVAL_DEFAULT, "sig": None, "last": 0.0, "say": None, "proposal": None, "creating": False, "error": None}
 
 
 def _agent_load():
@@ -2444,6 +2444,8 @@ def _agent_said(raw):
             agent["say"] = {"id": f"s{int(stamp * 1000)}", "text": parsed["say"], "ts": int(stamp), "spoken": False}
         if parsed["proposal"]:
             agent["proposal"] = {"id": f"p{int(stamp * 1000)}", "ts": int(stamp), **parsed["proposal"]}
+        if parsed.get("command"):
+            agent["command"] = {"id": f"c{int(stamp * 1000)}", "ts": int(stamp), "items": parsed["command"]}
     print(f"[{_ts()}] agent: said {len(parsed['say'])} characters" + (", with a proposal" if parsed["proposal"] else ""), flush=True)
     return True
 
@@ -2462,6 +2464,12 @@ def agent_snapshot():
         proposal["session_title"] = entry.get("title") or proposal["session"]
         proposal["read_back"] = agent_lib.read_back(proposal["session_title"], proposal["message"])
     out["proposal"] = proposal
+    with agent_lock:
+        command = dict(agent["command"]) if agent["command"] else None
+    if command:
+        spoken, instruction = agent_lib.command_phrases(command["items"], lambda sid: (_session_entry(sid) or {}).get("title") or sid)
+        command = {"id": command["id"], "read_back": spoken, "instruction": instruction}
+    out["command"] = command
     return out
 
 
@@ -2526,9 +2534,12 @@ def agent_confirm(proposal_id):
 
 
 def agent_cancel(proposal_id):
+    """Drops the proposal, or the settings, that has this id (the phone also calls it once it has applied the settings: they are not applied twice)."""
     with agent_lock:
         if agent["proposal"] and agent["proposal"]["id"] == proposal_id:
             agent["proposal"] = None
+        if agent["command"] and agent["command"]["id"] == proposal_id:
+            agent["command"] = None
     return {"ok": True}
 
 

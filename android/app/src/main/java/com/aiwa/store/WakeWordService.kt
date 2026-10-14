@@ -65,6 +65,7 @@ object WakeWordSettings {
  */
 // Said to the agent (already plain: lowercase, no accent): « repasse en manuel », and « vas-y dis-lui » (the recognizer also writes « dit lui »).
 private val MANUAL_REGEX = Regex("""\b(?:repasse|reviens|retourne|passe)\s+(?:en|au)\s+(?:mode\s+)?manuel\b|\b(?:ferme|quitte)\s+(?:l\s+)?agent\b""")
+private val APPLY_REGEX = Regex("""\bfais[\s-]?le\b|\bapplique\b""")
 private val SEND_REGEX = Regex("""\bdis?t?[\s-]?lui\b""")
 
 class WakeWordService : Service() {
@@ -252,6 +253,7 @@ class WakeWordService : Service() {
         scope.launch {
             when {
                 MANUAL_REGEX.containsMatchIn(plain) -> { agentBusy = false; closeAgent(); return@launch }
+                AiwaRepository.state.value.agent?.command != null && APPLY_REGEX.containsMatchIn(plain) -> applyAgentCommand()
                 AiwaRepository.state.value.agent?.proposal != null && SEND_REGEX.containsMatchIn(plain) -> sendAgentProposal()
                 else -> {
                     say("Toi → l'agent : $text")
@@ -263,6 +265,21 @@ class WakeWordService : Service() {
             agentListen()
             maybeSpeakAgent()
         }
+    }
+
+    // « Vas-y, fais-le »: the settings the agent asked for (model, push, repository, session…) are read back and applied by the same code as the spoken instructions, after « c'est bon vas-y ».
+    private suspend fun applyAgentCommand() {
+        val command = AiwaRepository.state.value.agent?.command ?: return
+        say(command.readBack)
+        if (!askAloud(applicationContext, command.readBack) { Speaker.speakNatural(applicationContext, it) }) {
+            toastOnMain(applicationContext, "Pas confirmé : rien n'est appliqué. Les réglages attendent.")
+            Speaker.speakNatural(applicationContext, "Pas appliqué. Les réglages attendent.")
+            return
+        }
+        VoiceDictation(context = this, startInInstructions = true, onFinished = {}).applyInstruction(command.instruction)
+        agentCall("cancel", mapOf("id" to command.id))   // applied: it must not be applied twice
+        Speaker.speakNatural(applicationContext, "C'est fait.")
+        try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }
     }
 
     // « Vas-y dis-lui »: the phone reads where the proposal goes and what it says, and only « c'est bon vas-y » sends it.

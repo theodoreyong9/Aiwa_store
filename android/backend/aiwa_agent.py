@@ -31,7 +31,8 @@ def clamp_interval(value):
 def reply_command(relay_url):
     return (
         "curl -s -m 10 -H 'Title: aiwa-agent' -d '{\"say\":\"<ce que tu dis à voix haute, une ou deux phrases courtes>\","
-        "\"send\":{\"session\":\"<identifiant session_… d'une session de travail>\",\"message\":\"<le message que tu proposes de lui envoyer>\"}}' " + relay_url
+        "\"send\":{\"session\":\"<identifiant session_… d'une session de travail>\",\"message\":\"<le message que tu proposes de lui envoyer>\"},"
+        "\"do\":{\"model\":\"opus\",\"push\":\"main\"}}' " + relay_url
     )
 
 
@@ -45,7 +46,8 @@ def charter(relay_url):
         "3. Tu ne réponds QUE par cette commande shell (le seul moyen d'être entendu) : `" + reply_command(relay_url) + "`. "
         "`say` est ce que le téléphone dira : une ou deux phrases courtes, naturelles, sans liste ni symboles. Si rien ne mérite d'être dit, ne lance pas la commande. "
         "4. Les consignes de travail d'Aiwa qui accompagnent ce premier message (push, déploiement, vérification…) ne te concernent pas : tu ne produis rien. 5. `send` est facultatif : une PROPOSITION de message pour une session de travail, avec son identifiant exact tiré du point. Elle n'est jamais envoyée toute seule : la personne doit dire « vas-y, dis-lui » puis confirmer. "
-        "N'annonce jamais qu'un message est parti. 6. Prends l'initiative seulement quand c'est utile (un blocage, une question qui attend, une boucle terminée, un échec de workflow, une idée qui avance le travail) ; "
+        "N'annonce jamais qu'un message est parti. `do` est facultatif aussi : des RÉGLAGES à appliquer sur le téléphone, parmi model (opus, sonnet, haiku, fable, ou une version), effort (faible, moyen, élevé, très élevé, max), push (main ou branche), "
+        "deploy (pages, android, store, aiwa, aucun), repo (nom du dépôt), session (identifiant session_… ou « nouvelle »). Ils ne sont pas appliqués tout seuls non plus : la personne dit « vas-y, fais-le » puis confirme. Ne mets dans `do` que ce qu'elle t'a demandé de changer. 6. Prends l'initiative seulement quand c'est utile (un blocage, une question qui attend, une boucle terminée, un échec de workflow, une idée qui avance le travail) ; "
         "sinon réponds quand on te parle. 7. Quand la personne te parle (ses mots te sont transmis), réponds à ce qu'elle dit, brièvement."
     )
 
@@ -100,9 +102,54 @@ def parse_message(raw, known_ids, agent_id=None):
         session, message = str(send.get("session") or ""), str(send.get("message") or "").strip()[:MESSAGE_MAX]
         if SESSION_RE.fullmatch(session) and session in known_ids and session != agent_id and message:
             proposal = {"session": session, "message": message}
-    if not say and proposal is None:
+    command = parse_command(data.get("do"), known_ids, agent_id)
+    if not say and proposal is None and command is None:
         return None
-    return {"say": say, "proposal": proposal}
+    return {"say": say, "proposal": proposal, "command": command}
+
+
+COMMAND_KEYS = ("model", "effort", "push", "deploy", "repo", "session")
+PUSH_WORDS = {"main": "main", "branche": "branche", "branch": "branche"}
+
+
+def parse_command(raw, known_ids, agent_id=None):
+    """The settings the agent asks to change: a dict of the allowed keys with short plain values, or None. Nothing here is applied: the phone reads them back first."""
+    if not isinstance(raw, dict):
+        return None
+    out = {}
+    for key in COMMAND_KEYS:
+        value = " ".join(str(raw.get(key) or "").split())[:60]
+        if not value or re.search(r"[<>{}\\`$;|&]", value):
+            continue
+        if key == "push":
+            value = PUSH_WORDS.get(value.lower())
+            if not value:
+                continue
+        if key == "session" and value.lower() not in ("nouvelle", "new") and not (value in known_ids and value != agent_id):
+            continue
+        out[key] = value
+    return out or None
+
+
+def command_phrases(command, title_of=lambda x: x):
+    """The command as (spoken, instruction): what the phone reads back, and the sentence that its own parser of instructions understands (« instruction aiwa modèle opus … »)."""
+    spoken, said = [], []
+    labels = {"model": "modèle", "effort": "effort", "push": "push", "deploy": "déploiement", "repo": "dépôt"}
+    for key in ("session", "repo", "model", "effort", "push", "deploy"):
+        value = command.get(key)
+        if not value:
+            continue
+        if key == "session":
+            if value.lower() in ("nouvelle", "new"):
+                spoken.append("nouvelle session")
+                said.append("nouvelle session")
+            else:
+                spoken.append(f"session {title_of(value)}")
+                said.append(f"session {title_of(value)}")
+        else:
+            spoken.append(f"{labels[key]} {value}")
+            said.append(f"{labels[key]} {value}")
+    return "J'applique : " + ", ".join(spoken) + ".", "instruction aiwa " + " ".join(said)
 
 
 def read_back(title, message):

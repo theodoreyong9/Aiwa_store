@@ -49,3 +49,22 @@ class Agent(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CommandTest(unittest.TestCase):
+    def test_only_known_keys_and_plain_values_become_a_command(self):
+        known = {"session_WORK", "session_AGENT"}
+        raw = {"say": "ok", "do": {"model": "opus", "push": "Main", "deploy": "pages", "evil": "x", "repo": "a;rm -rf", "session": "session_WORK", "effort": ""}}
+        parsed = A.parse_message(raw, known, "session_AGENT")
+        self.assertEqual(parsed["command"], {"model": "opus", "push": "main", "deploy": "pages", "session": "session_WORK"})
+        self.assertIsNone(A.parse_command({"session": "session_AGENT"}, known, "session_AGENT"), "never the agent itself")
+        self.assertIsNone(A.parse_command({"session": "session_UNKNOWN", "push": "force"}, known))
+        self.assertEqual(A.parse_command({"session": "nouvelle"}, known), {"session": "nouvelle"})
+        self.assertIsNone(A.parse_command("opus", known))
+
+    def test_a_command_alone_is_a_reply_and_is_read_as_an_instruction(self):
+        parsed = A.parse_message({"do": {"model": "sonnet", "push": "branche"}}, set())
+        self.assertEqual(parsed["say"], "")
+        spoken, instruction = A.command_phrases(parsed["command"])
+        self.assertEqual(spoken, "J'applique : modèle sonnet, push branche.")
+        self.assertEqual(instruction, "instruction aiwa modèle sonnet push branche")

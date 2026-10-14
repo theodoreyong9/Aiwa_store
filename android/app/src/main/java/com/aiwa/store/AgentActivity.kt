@@ -131,6 +131,11 @@ private fun AgentWindow(onClose: () -> Unit) {
                         Button(onClick = { act("ask", mapOf("text" to text.trim())) { text = "" } }, enabled = text.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Envoyer à l'agent") }
                         Text("À voix haute : « dis à l'agent … ».", style = MaterialTheme.typography.bodySmall)
                         agent.say?.let { Text("Il a dit : ${it.text}", style = MaterialTheme.typography.bodyMedium) }
+                        agent.command?.let { c ->
+                            Text(c.readBack, style = MaterialTheme.typography.bodyMedium)
+                            Text("Dis « vas-y, fais-le » (agent ouvert), le téléphone relit puis tu confirmes.", style = MaterialTheme.typography.bodySmall)
+                            OutlinedButton(onClick = { act("cancel", mapOf("id" to c.id)) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Annuler ces réglages") }
+                        }
                         agent.proposal?.let { p ->
                             Text("Proposition pour ${p.sessionTitle} :", style = MaterialTheme.typography.titleSmall)
                             Text(p.message, style = MaterialTheme.typography.bodyMedium)

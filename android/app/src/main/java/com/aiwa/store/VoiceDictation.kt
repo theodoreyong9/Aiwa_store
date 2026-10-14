@@ -135,6 +135,12 @@ class VoiceDictation(
         onFinished()
     }
 
+    /** The settings the agent asked for, written as a spoken instruction (« instruction aiwa modèle opus push main »): understood by the same parser, applied by the same code. The read-back was done by the caller. */
+    suspend fun applyInstruction(text: String) {
+        if (repoNames.isEmpty()) repoNames = withContext(Dispatchers.IO) { try { LocalClaudeBridge().githubRepos().map { it.name } } catch (err: Exception) { emptyList() } }
+        runInstructions(parseDictation(text, voiceModels(), voiceSessions(), repoNames, true))
+    }
+
     // "Vas-y dis-lui": the phone reads back where the proposal of the agent goes and what it says, and only "c'est bon vas-y" sends it.
     private suspend fun sendProposal() {
         val bridge = LocalClaudeBridge()
