@@ -18,6 +18,7 @@ import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -65,6 +66,9 @@ object WakeWordSettings {
  */
 // Said to the agent (already plain: lowercase, no accent): « repasse en manuel », and « vas-y dis-lui » (the recognizer also writes « dit lui »).
 private val MANUAL_REGEX = Regex("""\b(?:repasse|reviens|retourne|passe)\s+(?:en|au)\s+(?:mode\s+)?manuel\b|\b(?:ferme|quitte)\s+(?:l\s+)?agent\b""")
+// What the phone says (its own light voice, at once) while the agent session thinks; it stops as soon as the real answer is there.
+private val FILLERS = listOf("Je regarde.", "Je réfléchis.", "Un instant.", "Toujours là, je vérifie.")
+
 private val APPLY_REGEX = Regex("""\bfais[\s-]?le\b|\bapplique\b""")
 private val SEND_REGEX = Regex("""\bdis?t?[\s-]?lui\b""")
 
@@ -131,6 +135,7 @@ class WakeWordService : Service() {
     private var paused = false
     private var agentMode = false
     private var agentBusy = false
+    private var waitToken = 0
     private var openAgentWhenReady = false
     private var agentListener: AgentListener? = null
     private var lastAgentSaid: String? = null
@@ -224,6 +229,7 @@ class WakeWordService : Service() {
         main.post {
             if (!agentMode) return@post
             agentMode = false
+            waitToken++
             agentListener?.stop()
             agentListener = null
             AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
@@ -250,6 +256,7 @@ class WakeWordService : Service() {
         if (!agentMode) return
         val plain = com.aiwa.bridge.WakeWords.plain(text)
         agentBusy = true
+        waitToken++   // what was waited for is over: the person spoke
         scope.launch {
             when {
                 MANUAL_REGEX.containsMatchIn(plain) -> { agentBusy = false; closeAgent(); return@launch }
@@ -264,6 +271,28 @@ class WakeWordService : Service() {
             agentBusy = false
             agentListen()
             maybeSpeakAgent()
+            if (agentMode && AiwaRepository.state.value.agent?.say?.id.let { it == null || it == lastAgentSaid }) startFiller()
+        }
+    }
+
+    // Waiting for the agent: a short phrase now, then another every 12 s (four at most). Stops the moment an answer is there, or the person speaks again, or the agent is closed.
+    private fun startFiller() {
+        val token = ++waitToken
+        scope.launch {
+            for (phrase in FILLERS) {
+                if (!agentMode || token != waitToken) return@launch
+                if (AiwaRepository.state.value.agent?.say?.id.let { it != null && it != lastAgentSaid }) return@launch   // the answer is there
+                if (!agentBusy) {
+                    agentBusy = true
+                    agentListener?.stop()
+                    agentListener = null
+                    Speaker.speakAndWait(applicationContext, phrase)
+                    agentBusy = false
+                    agentListen()
+                    maybeSpeakAgent()
+                }
+                delay(12_000)
+            }
         }
     }
 
@@ -303,6 +332,7 @@ class WakeWordService : Service() {
         val say = AiwaRepository.state.value.agent?.say ?: return
         if (say.id == lastAgentSaid) return
         lastAgentSaid = say.id
+        waitToken++   // the answer is there: no more filler
         agentBusy = true
         agentListener?.stop()
         agentListener = null
