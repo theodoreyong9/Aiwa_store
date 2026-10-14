@@ -1,0 +1,381 @@
+<!doctype html>
+<!-- Aiwa, version 10 (maximum quality). Landscape 16:9. Every cut falls on a beat of « The Complex » (104 bpm: a bar is 2.3077 s). Shots are listed by the BAR they start on (PLAN at the end).
+     Real captures: real/wallet.png, real/papers.png (the web app). What is an example or a vision says so on the picture. See facts.md, brief.md, style.md, script.md. -->
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>html,body{margin:0;background:#000;overflow:hidden}</style></head>
+<body><div id="stage"></div>
+<script src="../../video-kit/template/motion.js"></script>
+<script>
+const VIO = '#7b61ff', TEA = '#26c6b0', ORA = '#cc785c', GRN = '#58d39b', MUT = '#9a9ab0', RED = '#e0524e';
+const TRM = new URLSearchParams(location.search).get('t') === '1';      // t=1: the words only, on a transparent ground (laid over a 3D shot)
+window.THEME = TRM ? { bg: 'transparent', ink: '#f0f0f5', muted: MUT, accent: ORA, grain: 0, vignette: 0 } : { bg: '#090912', ink: '#f0f0f5', muted: MUT, accent: ORA, grain: 0.06, vignette: 0.5 };
+const FF = '"Liberation Sans",Arial,sans-serif';
+const BAR = 240 / 104, BEAT = BAR / 4, T0 = 0.029, TR = 0.35;           // the track: 104 bpm, its first beat at 0.029 s
+const bt = (n) => 0.2 + n * BEAT;                                       // the n-th beat of a shot (a shot starts a little before its beat)
+const COMMON = `.k{position:absolute;font-family:${FF};color:#f0f0f5;box-sizing:border-box}
+.card{position:absolute;border-radius:36px;background:linear-gradient(180deg,#1e1e2a,#15151d);border:1px solid rgba(255,255,255,.09);box-shadow:0 30px 90px rgba(0,0,0,.55);font-family:${FF};color:#f0f0f5;box-sizing:border-box}
+.pill{position:absolute;border-radius:60px;font-family:${FF};font-weight:700;color:#f0f0f5;background:#2c2c3a;white-space:nowrap;box-sizing:border-box}
+.tag{position:absolute;font-family:${FF};font-size:26px;color:#a4a4bc;border:1px solid rgba(255,255,255,.18);border-radius:30px;padding:8px 22px;white-space:nowrap;background:rgba(255,255,255,.04)}`;
+const ic = (d, s = 56, c = '#fff', w = 1.9) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const I = {
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
+  play: '<path d="M8 5l11 7-11 7z" fill="#fff"/>',
+  phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M11 18.5h2"/>',
+  box: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
+  branch: '<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 7v10M18 11c0 4-6 3-12 6"/>',
+  term: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9l3 3-3 3M12.5 15H17"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/>',
+  chat: '<path d="M4 5h16v11H9l-5 4z"/>',
+  send: '<path d="M21 3L3 10.5l7 3 3 7z"/><path d="M10 13.5L21 3"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  doc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="#fff"/>',
+  wallet: '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16.5 14.5h.01"/>',
+  star: '<path d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-3-5.4 3 1.1-6L3.2 9.4l6.1-.8z"/>',
+  loop: '<path d="M4 12a8 8 0 0 1 14-5l2-2v6h-6l2.3-2.3A5.5 5.5 0 0 0 6.5 12M20 12a8 8 0 0 1-14 5l-2 2v-6h6l-2.3-2.3A5.5 5.5 0 0 0 17.5 12"/>',
+  flame: '<path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-6 1-9z"/>',
+  pad: '<rect x="3" y="8" width="18" height="10" rx="5"/><path d="M8 11v4M6 13h4M15.5 12.2h.01M17.5 14h.01"/>',
+};
+const rv = (el, t, at, dur = 0.5, dy = 40) => { const p = M.prog(t, at, dur, M.ease.outBack); el.style.opacity = M.clamp(p); el.style.transform = `translateY(${(1 - Math.min(1, p)) * dy}px) scale(${0.94 + 0.06 * Math.min(1, p)})`; return p; };
+const $$ = (root, sel) => [...root.querySelectorAll(sel)];
+const G = (id) => (root) => root.querySelector('#' + id);
+
+// ---- 3. the stack ------------------------------------------------------------------------------------------------------------------------
+const sc = (i, col, svg, name) => `<div class="card" id="s${i}" style="left:${i * 540}px;top:80px;width:500px;height:300px;padding:40px"><div style="width:100px;height:100px;border-radius:30px;background:${col};display:flex;align-items:center;justify-content:center">${ic(svg, 62)}</div><div style="font-size:64px;font-weight:800;margin-top:26px;letter-spacing:-2px">${name}</div></div>`;
+const STACK = sc(0, '#24242f', I.branch, 'GitHub') + sc(1, ORA, I.term, 'Claude Code') + sc(2, GRN, I.phone, 'Android')
+  + `<div class="k" id="s3" style="left:0;top:450px;width:1600px;text-align:center;font-size:96px;font-weight:800;letter-spacing:-2px">Open source<span style="color:${ORA}">.</span></div>
+<div class="k" id="s4" style="left:0;top:590px;width:1600px;text-align:center;font-size:42px;color:#b4b4c8">poussés à fond</div>`;
+const stackTick = (r, t) => { [0, 1, 2].forEach((i) => rv(G('s' + i)(r), t, bt(i), 0.5)); rv(G('s3')(r), t, bt(3.5), 0.5, 30); rv(G('s4')(r), t, bt(5), 0.5, 20); };
+
+// ---- 4. mind and body ------------------------------------------------------------------------------------------------------------------------
+const MB = `<div class="card" id="m0" style="left:0;top:0;width:760px;height:620px;padding:48px">
+  <div style="font-size:30px;letter-spacing:5px;color:${VIO};font-weight:700">L'ESPRIT</div>
+  <div style="font-size:60px;font-weight:800;letter-spacing:-1.5px;margin-top:10px;line-height:1.05">À jour en direct,<br>par tous</div>
+  <div style="margin-top:34px;font-size:30px;font-family:monospace;color:#9fe6c8;line-height:1.7"><div class="ln">$ git pull</div><div class="ln">← le cerveau, le registre,</div><div class="ln">← les propositions de chacun,</div><div class="ln" style="color:#c9c9d8">signées.</div></div></div>
+<div class="card" id="m1" style="left:840px;top:0;width:760px;height:620px;padding:48px">
+  <div style="font-size:30px;letter-spacing:5px;color:${GRN};font-weight:700">LE CORPS</div>
+  <div style="font-size:60px;font-weight:800;letter-spacing:-1.5px;margin-top:10px;line-height:1.05">À jour<br>en un clic</div>
+  <div id="mbtn" style="margin-top:40px;display:inline-flex;align-items:center;gap:22px;height:116px;padding:0 44px;border-radius:60px;background:#2e7d5a;font-size:42px;font-weight:800">${ic('<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>', 52)}<span id="mtx">Mise à jour prête</span></div>
+  <div id="mok" style="margin-top:26px;font-size:34px;color:${GRN};font-weight:700;opacity:0">APK à jour ✓</div></div>`;
+const mbTick = (r, t) => { rv(G('m0')(r), t, bt(0)); rv(G('m1')(r), t, bt(2)); $$(r, '.ln').forEach((e, i) => { e.style.opacity = M.prog(t, bt(0.8) + i * 0.3, 0.25); });
+  const b = G('mbtn')(r), press = Math.max(0, 1 - Math.abs(t - bt(5)) / 0.2); b.style.transform = `scale(${1 - 0.07 * press})`; b.style.background = t > bt(5) + 0.1 ? '#1f6b4a' : '#2e7d5a';
+  G('mtx')(r).textContent = t > bt(5) + 0.1 ? 'Installation…' : 'Mise à jour prête'; G('mok')(r).style.opacity = M.prog(t, bt(6.6), 0.3); };
+
+// ---- 5. screen off ------------------------------------------------------------------------------------------------------------------------
+const OFF = `<div class="k" id="o0" style="left:430px;top:0;width:520px;height:900px;border-radius:84px;background:#0d0d14;border:10px solid #3a3a4c;box-shadow:0 60px 160px rgba(0,0,0,.8)"></div>
+<div class="k" id="o1" style="left:640px;top:360px;width:100px;height:100px;border-radius:50%;background:${GRN};box-shadow:0 0 90px ${GRN}"></div>
+<svg class="k" id="o2" style="left:430px;top:540px" width="520" height="140" viewBox="0 0 520 140">${Array.from({ length: 21 }, (_, i) => `<rect class="wv" x="${40 + i * 22}" y="60" width="10" height="20" rx="5" fill="${GRN}" opacity=".85"/>`).join('')}</svg>
+<div class="pill" id="o3" style="left:1040px;top:250px;height:104px;padding:0 44px;font-size:48px;background:#fff;color:#151520;display:flex;align-items:center">« Aïwa »</div>
+<div class="k" id="o4" style="left:1040px;top:390px;font-size:40px;color:#b4b4c8;width:520px;line-height:1.35">Le mot d'éveil est écouté<br>sur le téléphone, sans réseau.</div>
+<div class="k" id="o5" style="left:1040px;top:560px;font-size:40px;color:#b4b4c8;width:520px;line-height:1.35">Tu le choisis toi-même.<br>Même <b style="color:#fff">Aïwa</b>.</div>`;
+const offTick = (r, t) => { rv(G('o0')(r), t, bt(0), 0.6, 60); G('o1')(r).style.opacity = M.prog(t, bt(1.2), 0.4) * (0.65 + 0.35 * Math.sin(t * 5)); G('o2')(r).style.opacity = M.prog(t, bt(1.6), 0.4);
+  $$(r, '.wv').forEach((e, i) => { const h = 14 + 80 * Math.abs(Math.sin(t * 6 + i * 0.7)) * (0.4 + 0.6 * Math.abs(Math.sin(t * 1.7 + i * 0.3))) * (t > bt(2) ? 1 : 0.2); e.setAttribute('height', h); e.setAttribute('y', 70 - h / 2); });
+  rv(G('o3')(r), t, bt(2.5)); rv(G('o4')(r), t, bt(4), 0.5, 20); rv(G('o5')(r), t, bt(5.5), 0.5, 20); };
+
+// ---- 6. the widget as it is on the phone ----------------------------------------------------------------------------------------------------
+const WCSS = `.w{position:absolute;left:30px;top:20px;width:940px;border-radius:64px;background:linear-gradient(180deg,#1d1d26,#14141b);padding:30px;box-sizing:border-box;box-shadow:0 50px 140px rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.07);font-family:${FF};color:#f0f0f5}
+.w .r{display:flex;align-items:center;gap:16px}.w .av{width:92px;height:92px;border-radius:50%;background:#2c2c36;color:#cc785c;font-size:48px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.w .ti{font-size:46px;font-weight:800;letter-spacing:-1px}.w .st{font-size:26px;color:#a4a4b4;margin-top:2px}
+.w .c{border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;position:relative}
+.w .p{height:104px;border-radius:52px;background:#2c2c36;display:flex;align-items:center;padding:0 26px;font-size:34px;font-weight:600;flex:1;white-space:nowrap;min-width:0}
+.w .p.g{background:#2e7d5a}.w .mic{height:124px;border-radius:62px;background:#54545e;flex:1;display:flex;align-items:center;justify-content:center;gap:20px;font-size:42px;font-weight:800}
+.w .rec{width:36px;height:36px;border-radius:50%;background:#d64541}.w .wave{display:flex;gap:7px;align-items:center;height:70px}.w .wave i{display:block;width:9px;border-radius:5px;background:#fff}
+.w .dot{position:absolute;top:-6px;right:-6px;width:30px;height:30px;border-radius:50%;background:#ff3b30;border:4px solid #14141b}
+.chip{position:absolute;padding:18px 36px;border-radius:60px;font-size:46px;font-weight:700;background:#fff;color:#151520;white-space:nowrap;box-shadow:0 20px 60px rgba(0,0,0,.5);font-family:${FF}}
+.chip.ok{background:#2e7d5a;color:#fff}.toast{position:absolute;padding:22px 44px;border-radius:60px;background:#e9fbf2;color:#0c3d28;font-size:52px;font-weight:800;white-space:nowrap;box-shadow:0 20px 80px rgba(46,125,90,.5);font-family:${FF}}`;
+const WIDGET = `<div class="w" id="W">
+  <div class="r" style="margin-bottom:22px"><div class="av">A</div><div style="flex:1"><div class="ti">Refonte du widget Aiwa ▾</div><div class="st" id="wst">Prêt</div></div><div class="c" style="width:104px;height:104px;background:#cc785c">${ic(I.star)}</div></div>
+  <div class="r" style="margin-bottom:18px"><div class="p" id="pR">⎇ aiwa_store ▾</div><div class="p" id="pM">Opus 5.5 ▾</div></div>
+  <div class="r" style="margin-bottom:18px"><div class="p g" id="pP">Push main</div><div class="p g" id="pD">Pages ●</div><div class="c" style="width:104px;height:104px;background:#cc785c">${ic(I.globe)}<div class="dot" id="rd" style="opacity:0"></div></div><div class="c" style="width:104px;height:104px;background:#2e7d5a">${ic(I.play, 44)}</div></div>
+  <div class="r"><div class="c" style="width:124px;height:124px;background:#2c2c36">${ic(I.chat, 52)}</div><div class="mic"><span class="rec"></span><span id="mt">Dicter un message</span><span class="wave" id="wv" style="display:none">${'<i></i>'.repeat(9)}</span></div></div>
+</div>
+<div class="chip" id="k1" style="left:60px;top:640px">modèle Sonnet</div>
+<div class="chip" id="k2" style="left:500px;top:640px">push branche</div>
+<div class="chip" id="k3" style="left:60px;top:770px">déploiement Android</div>
+<div class="chip" id="k4" style="left:610px;top:770px">dépôt Jobber</div>
+<div class="chip ok" id="k5" style="left:230px;top:905px">« C'est bon vas-y »</div>
+<div class="toast" id="tr" style="left:290px;top:1020px">● C'est prêt.</div>`;
+function widgetTick(root, t, M) {
+  const $ = (id) => root.querySelector('#' + id);
+  const show = (el, at, dur = 0.4) => { const p = M.prog(t, at, dur, M.ease.outBack); el.style.opacity = M.clamp(p); el.style.transform = `translateY(${(1 - Math.min(1, p)) * 30}px) scale(${0.9 + 0.1 * Math.min(1, p)})`; };
+  const flash = (el, at) => { const k = Math.max(0, 1 - Math.abs(t - at - 0.25) / 0.4); el.style.boxShadow = k > 0 ? `0 0 0 ${6 * k}px rgba(255,255,255,${0.55 * k}), 0 0 ${60 * k}px rgba(255,255,255,${0.35 * k})` : 'none'; };
+  const a = [bt(4), bt(5), bt(6), bt(7)], pills = ['pM', 'pP', 'pD', 'pR'];
+  ['k1', 'k2', 'k3', 'k4'].forEach((k, i) => { show($(k), a[i]); flash($(pills[i]), a[i]); });
+  show($('k5'), bt(8.5)); show($('tr'), bt(10.5));
+  const listening = t > bt(3) && t < bt(10.4);
+  $('wst').textContent = t < bt(3) ? 'Prêt' : listening ? 'À l\'écoute' : 'C\'est fait.';
+  $('wst').style.color = !listening && t >= bt(10.4) ? '#58d39b' : '#a4a4b4';
+  $('mt').style.display = listening ? 'none' : 'inline'; $('wv').style.display = listening ? 'flex' : 'none';
+  [...$('wv').children].forEach((b, i) => { b.style.height = (14 + 50 * Math.abs(Math.sin(t * 7 + i * 0.9)) * (0.5 + 0.5 * Math.sin(t * 2.3 + i))) + 'px'; });
+  $('rd').style.opacity = t >= bt(10.5) ? 1 : 0;
+}
+
+// ---- 7. what it makes ------------------------------------------------------------------------------------------------------------------------
+const mk = (col, svg, name, sub, left, top) => `<div class="card mk" style="left:${left}px;top:${top}px;width:770px;height:250px;padding:34px 40px;display:flex;align-items:center;gap:34px"><div style="width:130px;height:130px;border-radius:38px;background:${col};display:flex;align-items:center;justify-content:center;flex:none">${ic(svg, 70)}</div><div><div style="font-size:60px;font-weight:800;letter-spacing:-1.5px">${name}</div><div style="font-size:34px;color:#a9a9c0;margin-top:6px">${sub}</div></div></div>`;
+const pl = (id, left, txt) => `<div class="pill" id="${id}" style="left:${left}px;top:610px;height:96px;padding:0 40px;font-size:36px;display:flex;align-items:center;gap:16px;background:#262636">${ic(I.check, 40, GRN, 2.6)}${txt}</div>`;
+const MAKE = mk(VIO, I.globe, 'Pages web', 'en ligne, sur ton GitHub Pages', 0, 0) + mk(ORA, I.play, 'Vidéos', 'script, rendu, contrôle', 830, 0)
+  + mk(GRN, I.phone, 'Applications', 'un APK construit pour toi', 0, 290) + mk(TEA, I.box, 'Sandbox', 'un contrat, un monde, un jeu', 830, 290)
+  + pl('ma', 0, 'ton compte Claude Code · sans clé d\'API') + pl('mb', 790, 'Claude gère git et la CI') + pl('mc', 1260, 'haute qualité');
+const makeTick = (r, t) => { $$(r, '.mk').forEach((e, i) => rv(e, t, bt(i * 1.5), 0.5, 50)); ['ma', 'mb', 'mc'].forEach((id, i) => rv(G(id)(r), t, bt(7 + i * 1.5), 0.4, 24)); };
+
+// ---- 8. sessions and loops ------------------------------------------------------------------------------------------------------------------------
+const LOOP = `<svg class="k" style="left:0;top:0" width="1500" height="720" viewBox="0 0 1500 720">
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5 0 10z" fill="#c9c9d8"/></marker></defs>
+  <path id="la" d="M560 250 C 700 130, 800 130, 940 250" fill="none" stroke="#c9c9d8" stroke-width="5" marker-end="url(#ah)" stroke-dasharray="14 12"/>
+  <path id="lb" d="M940 470 C 800 590, 700 590, 560 470" fill="none" stroke="#c9c9d8" stroke-width="5" marker-end="url(#ah)" stroke-dasharray="14 12"/>
+  <circle id="dA" r="14" fill="${ORA}"/><circle id="dB" r="14" fill="${TEA}"/></svg>
+<div class="card" id="l0" style="left:140px;top:210px;width:520px;height:300px;padding:40px"><div style="font-size:28px;letter-spacing:5px;color:${ORA};font-weight:700">SESSION</div><div style="font-size:66px;font-weight:800;letter-spacing:-2px;margin-top:10px">Construit</div><div style="font-size:32px;color:#a9a9c0;margin-top:6px">propose, écrit, pousse</div></div>
+<div class="card" id="l1" style="left:840px;top:210px;width:520px;height:300px;padding:40px"><div style="font-size:28px;letter-spacing:5px;color:${TEA};font-weight:700">SESSION</div><div style="font-size:66px;font-weight:800;letter-spacing:-2px;margin-top:10px">Critique</div><div style="font-size:32px;color:#a9a9c0;margin-top:6px">relit, cite, renvoie</div></div>
+<div class="k" id="l2" style="left:0;top:560px;width:1500px;text-align:center;font-size:40px;color:#c9c9d8">un commit, une critique, un nouveau tour</div>
+<div class="pill ses" style="left:260px;top:640px;height:70px;padding:0 30px;font-size:32px;display:flex;align-items:center;background:#262636"><span style="color:${ORA}">●</span>&nbsp;Site</div>
+<div class="pill ses" style="left:470px;top:640px;height:70px;padding:0 30px;font-size:32px;display:flex;align-items:center;background:#262636"><span style="color:${TEA}">●</span>&nbsp;Appli</div>
+<div class="pill ses" style="left:690px;top:640px;height:70px;padding:0 30px;font-size:32px;display:flex;align-items:center;background:#262636"><span style="color:${VIO}">●</span>&nbsp;Campagne</div>
+<div class="pill ses" style="left:950px;top:640px;height:70px;padding:0 30px;font-size:32px;display:flex;align-items:center;background:#262636"><span style="color:${GRN}">●</span>&nbsp;Vidéo</div>
+<div class="k" id="l4" style="left:1210px;top:650px;font-size:30px;color:#a9a9c0;white-space:nowrap">plusieurs sessions, en même temps</div>
+<div class="pill" id="l3" style="left:560px;top:20px;height:90px;padding:0 40px;font-size:36px;display:flex;align-items:center;gap:14px;background:#262636">${ic(I.loop, 44)}des sessions qui conversent entre elles</div>`;
+const loopTick = (r, t) => { rv(G('l0')(r), t, bt(0)); rv(G('l1')(r), t, bt(1)); rv(G('l3')(r), t, bt(0), 0.4, 20); rv(G('l2')(r), t, bt(5.5), 0.5, 20); $$(r, '.ses').forEach((e, i) => rv(e, t, bt(7 + i * 0.5), 0.4, 20)); rv(G('l4')(r), t, bt(9.2), 0.4, 10);
+  const a = G('la')(r), b = G('lb')(r), A = G('dA')(r), B = G('dB')(r), on = M.prog(t, bt(2), 0.3);
+  const pa = ((t - bt(2)) * 0.38) % 1, pb = ((t - bt(3.5)) * 0.38) % 1;
+  const qa = a.getPointAtLength(a.getTotalLength() * Math.max(0, pa)), qb = b.getPointAtLength(b.getTotalLength() * Math.max(0, pb));
+  A.setAttribute('cx', qa.x); A.setAttribute('cy', qa.y); B.setAttribute('cx', qb.x); B.setAttribute('cy', qb.y); A.style.opacity = on; B.style.opacity = t > bt(3.5) ? on : 0; };
+
+// ---- 9. campaigns ------------------------------------------------------------------------------------------------------------------------
+const steps = [['Base documentaire', I.doc, VIO], ['Sourcing ciblé', I.target, TEA], ['Production pour chaque cible', I.play, ORA], ['Envois contrôlés', I.send, GRN]];
+const CAMP = steps.map(([n, svg, c], i) => `<div class="card st" style="left:${i * 395}px;top:70px;width:365px;height:360px;padding:34px"><div style="width:96px;height:96px;border-radius:28px;background:${c};display:flex;align-items:center;justify-content:center">${ic(svg, 54)}</div><div style="font-size:30px;color:#8e8ea8;margin-top:22px;font-weight:700">${i + 1}</div><div style="font-size:46px;font-weight:800;letter-spacing:-1px;line-height:1.08;margin-top:2px">${n}</div></div>`).join('')
+  + `<div class="k" id="c0" style="left:0;top:460px;width:1580px;text-align:center;font-size:42px;color:#c9c9d8">des vidéos, des sites, des applications : faits pour chaque cible</div>`
+  + [['Mail', I.mail], ['WhatsApp', I.chat], ['Telegram', I.send]].map(([n, svg], i) => `<div class="pill ch" style="left:${330 + i * 330}px;top:560px;height:104px;padding:0 40px;font-size:42px;display:flex;align-items:center;gap:18px;background:#262636">${ic(svg, 46)}${n}</div>`).join('')
+  + `<div class="k" id="c1" style="left:0;top:700px;width:1580px;text-align:center;font-size:48px;font-weight:800;color:${GRN}">Tu valides chaque envoi.</div>`;
+const campTick = (r, t) => { $$(r, '.st').forEach((e, i) => rv(e, t, bt(i * 1.5), 0.5, 50)); rv(G('c0')(r), t, bt(6), 0.5, 20); $$(r, '.ch').forEach((e, i) => rv(e, t, bt(8 + i), 0.4, 30)); rv(G('c1')(r), t, bt(12), 0.5, 20); };
+
+// ---- 11. the super agent ------------------------------------------------------------------------------------------------------------------------
+const sats = ['Agents', 'Productions', 'Workflows', 'Dépôts', 'Sessions'];
+const satPos = (i) => { const a = -90 + i * 72; return [380 + Math.cos(a * Math.PI / 180) * 250, 380 + Math.sin(a * Math.PI / 180) * 270]; };
+const SUPER = `<svg class="k" style="left:0;top:0" width="1560" height="760" viewBox="0 0 1560 760">${sats.map((s, i) => { const [x, y] = satPos(i); return `<line class="sl" x1="380" y1="380" x2="${x}" y2="${y}" stroke="#4a4a64" stroke-width="3" style="opacity:0"/>`; }).join('')}</svg>
+<div class="k" id="sa" style="left:260px;top:260px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle at 35% 30%,${VIO},#3a2a8c);box-shadow:0 0 120px rgba(123,97,255,.55);display:flex;align-items:center;justify-content:center;text-align:center;font-size:42px;font-weight:800;line-height:1.05;letter-spacing:-1px">Super<br>agent</div>
+${sats.map((s, i) => { const [x, y] = satPos(i); return `<div class="pill sp" style="left:${x - 100}px;top:${y - 36}px;width:200px;height:72px;font-size:32px;display:flex;align-items:center;justify-content:center;background:#262636">${s}</div>`; }).join('')}
+<div class="tag" id="sx" style="left:880px;top:20px">exemple de conversation</div>
+<div class="card bb" id="b0" style="left:880px;top:90px;width:680px;padding:28px 34px;background:#24243a"><div style="font-size:26px;color:${VIO};font-weight:700;letter-spacing:3px">SUPER AGENT</div><div style="font-size:38px;line-height:1.25;margin-top:8px">Le workflow du site a échoué. J'ai une idée pour le corriger.</div></div>
+<div class="card bb" id="b1" style="left:960px;top:310px;width:600px;padding:28px 34px;background:#1f3a30"><div style="font-size:26px;color:${GRN};font-weight:700;letter-spacing:3px">TOI</div><div style="font-size:38px;line-height:1.25;margin-top:8px">Vas-y, dis-lui.</div></div>
+<div class="card bb" id="b2" style="left:880px;top:490px;width:680px;padding:28px 34px;background:#24243a"><div style="font-size:26px;color:${VIO};font-weight:700;letter-spacing:3px">SUPER AGENT</div><div style="font-size:38px;line-height:1.25;margin-top:8px">J'envoie à la session du site : corriger le test. C'est bon, vas-y ?</div></div>
+<div class="card bb" id="b3" style="left:1040px;top:670px;width:520px;padding:22px 34px;background:#1f3a30"><div style="font-size:38px;line-height:1.25">C'est bon, vas-y.</div></div>`;
+const superTick = (r, t) => { rv(G('sa')(r), t, bt(0), 0.5, 30); $$(r, '.sp').forEach((e, i) => rv(e, t, bt(1 + i * 0.5), 0.4, 20)); $$(r, '.sl').forEach((e, i) => { e.style.opacity = M.prog(t, bt(1 + i * 0.5), 0.4); });
+  rv(G('sx')(r), t, bt(4.5), 0.3, 10); [['b0', 5], ['b1', 8], ['b2', 10], ['b3', 13]].forEach(([id, n]) => rv(G(id)(r), t, bt(n), 0.45, 30)); };
+
+// ---- 13. autonomy: the real Papers page ----------------------------------------------------------------------------------------------------
+const AUTO = `<svg class="k" id="au0" style="left:80px;top:20px" width="400" height="400" viewBox="0 0 24 24" fill="none" stroke="${TEA}" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round"><g id="aur" style="transform-origin:12px 12px">${I.loop}</g></svg>
+<div class="k" id="au1" style="left:20px;top:450px;width:520px;text-align:center;font-size:48px;font-weight:800;letter-spacing:-1px;line-height:1.1">Aïwa<br>développe Aïwa</div>
+<div class="k" id="au2" style="left:20px;top:620px;width:520px;text-align:center;font-size:34px;color:#a9a9c0">et tu peux y participer</div>`;
+const autoTick = (r, t) => { G('au0')(r).style.opacity = M.prog(t, 0.1, 0.4); G('aur')(r).style.transform = `rotate(${t * 40}deg)`; rv(G('au1')(r), t, bt(0.6), 0.5, 20); rv(G('au2')(r), t, bt(2.2), 0.5, 20); };
+
+// ---- 15. production: the numbers of the Yellowpaper (§10.2) ----------------------------------------------------------------------------------
+const PROD = [['1 heure', '0,130'], ['1 jour', '1,84'], ['7 jours', '8,19'], ['30 jours', '26,9'], ['1 an', '231']];
+const PRODH = `<div class="k" id="pr0" style="left:0;top:0;width:800px;font-size:34px;letter-spacing:5px;color:${GRN};font-weight:700">AIWA RÉCLAMABLE</div>
+<div class="k" id="pr1" style="left:0;top:50px;width:800px;font-size:190px;font-weight:800;letter-spacing:-6px;line-height:1">0</div>
+<div class="k" id="pr2" style="left:0;top:260px;width:800px;font-size:48px;color:#c9c9d8">après <b id="prl" style="color:#fff">0</b></div>
+<div class="tag" id="pr3" style="left:0;top:380px">exemple · Yellowpaper §10.2 : 1 SOL brûlé, T = 0,2</div>`;
+const prodTick = (r, t) => { rv(G('pr0')(r), t, bt(0.3), 0.4, 20); rv(G('pr2')(r), t, bt(0.3), 0.4, 20); rv(G('pr3')(r), t, bt(5.5), 0.4, 10); const el = G('pr1')(r); el.style.opacity = M.prog(t, bt(0.3), 0.3);
+  const k = Math.max(0, Math.min(PROD.length - 1, Math.floor((t - bt(1)) / BEAT))); const v = t < bt(1) ? ['0', 'maintenant'] : [PROD[k][1], PROD[k][0]]; el.textContent = v[0]; G('prl')(r).textContent = v[1]; el.style.color = k >= 4 && t >= bt(1) ? GRN : '#f0f0f5'; };
+
+// ---- 16. ranking: production, not stock ------------------------------------------------------------------------------------------------------------
+const RK = (arr, col, left, dim) => arr.map((w, i) => `<div style="position:absolute;left:${left}px;top:${70 + i * 105}px;display:flex;align-items:center;gap:22px"><div style="font-size:46px;font-weight:800;color:${dim ? '#55556a' : VIO};width:44px;text-align:center">${i + 1}</div><div class="${dim ? 'rs' : 'rb'}" data-w="${w}" style="height:70px;border-radius:20px;background:${col};width:0"></div></div>`).join('');
+const RANKH = `<div class="k" id="rk0" style="left:0;top:0;width:760px;text-align:center;font-size:44px;font-weight:800;color:#6c6c84">Ce que tu détiens</div>
+<div class="k" id="rk1" style="left:840px;top:0;width:760px;text-align:center;font-size:44px;font-weight:800;color:${GRN}">Ce que tu produis</div>
+${RK([86, 70, 52, 38], '#3a3a4e', 20, true)}${RK([60, 88, 46, 72], `linear-gradient(90deg,${VIO},${TEA})`, 860, false)}
+<svg class="k" id="rkx" style="left:0;top:40px;opacity:0" width="760" height="470" viewBox="0 0 760 470"><path d="M60 40 L700 430 M700 40 L60 430" stroke="${RED}" stroke-width="16" stroke-linecap="round"/></svg>
+<div class="k" id="rk2" style="left:0;top:540px;width:1600px;text-align:center;font-size:50px;font-weight:800">Le classement suit la production.</div>
+<div class="k" id="rk3" style="left:0;top:620px;width:1600px;text-align:center;font-size:34px;color:#a9a9c0">jusqu'à la prochaine soumission</div>
+<div class="pill" id="rk4" style="left:460px;top:690px;height:84px;padding:0 44px;font-size:38px;display:flex;align-items:center;background:#262636">et un nouveau type d'application</div>`;
+const rankTick = (r, t) => { rv(G('rk0')(r), t, bt(0), 0.4, 20); rv(G('rk1')(r), t, bt(0), 0.4, 20); $$(r, '.rs').forEach((e, i) => { e.style.width = (M.prog(t, bt(0.3 + i * 0.25), 0.5, M.ease.outExpo) * Number(e.dataset.w) * 6.4) + 'px'; });
+  $$(r, '.rb').forEach((e, i) => { e.style.width = (M.prog(t, bt(2 + i * 0.25), 0.6, M.ease.outExpo) * Number(e.dataset.w) * 6.4) + 'px'; });
+  G('rkx')(r).style.opacity = M.prog(t, bt(1.6), 0.25); rv(G('rk2')(r), t, bt(5), 0.4, 20); rv(G('rk3')(r), t, bt(6), 0.4, 20); rv(G('rk4')(r), t, bt(7), 0.4, 20); };
+
+// ---- 17. the rule: claim, burn, slowing production -----------------------------------------------------------------------------------------------
+const CURVE = (x0, w, h, k) => { let d = `M${x0} ${h}`; for (let i = 1; i <= 24; i++) { const u = i / 24; d += ` L${(x0 + w * u).toFixed(1)} ${(h - h * 0.92 * Math.pow(u, 0.62) * k).toFixed(1)}`; } return d; };
+const RULE = `<svg class="k" style="left:0;top:20px" width="1600" height="470" viewBox="0 0 1600 470">
+  <path d="M60 440 H1560" stroke="#3a3a4e" stroke-width="3"/><path d="M60 440 V30" stroke="#3a3a4e" stroke-width="3"/>
+  <path id="cu0" d="${CURVE(60, 480, 440, 1)}" fill="none" stroke="${VIO}" stroke-width="9" stroke-linecap="round"/>
+  <path id="cu1" d="${CURVE(560, 480, 440, 0.86)}" fill="none" stroke="${TEA}" stroke-width="9" stroke-linecap="round"/>
+  <path id="cu2" d="${CURVE(1060, 480, 440, 0.74)}" fill="none" stroke="${GRN}" stroke-width="9" stroke-linecap="round"/>
+  <g id="ev0" style="opacity:0"><path d="M60 440 V400" stroke="${ORA}" stroke-width="6"/><circle cx="60" cy="440" r="16" fill="${ORA}"/></g>
+  <g id="ev1" style="opacity:0"><path d="M540 66 L560 440" stroke="#8c8ca0" stroke-width="3" stroke-dasharray="10 10"/><circle cx="560" cy="440" r="16" fill="${TEA}"/></g>
+  <g id="ev2" style="opacity:0"><path d="M1040 90 L1060 440" stroke="#8c8ca0" stroke-width="3" stroke-dasharray="10 10"/><circle cx="1060" cy="440" r="16" fill="${GRN}"/></g>
+</svg>
+<div class="pill" id="rl0" style="left:20px;top:496px;height:70px;padding:0 30px;font-size:32px;display:flex;align-items:center;background:${ORA};color:#fff">burn</div>
+<div class="pill" id="rl1" style="left:560px;top:496px;height:70px;padding:0 30px;font-size:32px;display:flex;align-items:center;background:${TEA};color:#06231f">claim</div>
+<div class="pill" id="rl2" style="left:1060px;top:496px;height:70px;padding:0 30px;font-size:32px;display:flex;align-items:center;background:${GRN};color:#06231f">claim</div>
+<div class="k" id="rl3" style="left:0;top:600px;width:1600px;text-align:center;font-size:44px;color:#c9c9d8">chaque action relance la production, qui ralentit avec l'âge</div>
+<div class="k" id="rl4" style="left:0;top:690px;width:1600px;text-align:center;font-size:64px;font-weight:800;letter-spacing:-1px">Une règle. <span style="color:${ORA}">Pas une fonction.</span></div>
+<div class="tag" id="rl5" style="left:1180px;top:540px">schéma, pas une mesure</div>`;
+const ruleTick = (r, t) => { ['cu0', 'cu1', 'cu2'].forEach((id, i) => { const p = G(id)(r), len = p.getTotalLength(); p.style.strokeDasharray = String(len); p.style.strokeDashoffset = String(len * (1 - Math.min(1, M.prog(t, bt(i * 3.6), BEAT * 3.2, M.ease.inOutSine)))); });
+  [['ev0', 0], ['ev1', 3.6], ['ev2', 7.2]].forEach(([id, n]) => { G(id)(r).style.opacity = M.prog(t, bt(n), 0.2); }); [['rl0', 0], ['rl1', 3.6], ['rl2', 7.2]].forEach(([id, n]) => rv(G(id)(r), t, bt(n), 0.35, 14));
+  rv(G('rl3')(r), t, bt(10.6), 0.45, 20); rv(G('rl4')(r), t, bt(13), 0.45, 20); rv(G('rl5')(r), t, bt(1), 0.3, 6); };
+
+// ---- 18. hosting ------------------------------------------------------------------------------------------------------------------------
+const mine = ['site', 'APK', 'vidéos', 'apps', 'papers', 'documents'];
+const HOST = `<div class="k" id="h0" style="left:130px;top:40px;width:1340px;height:600px;border-radius:56px;border:5px dashed ${GRN};background:rgba(46,125,90,.08)"></div>
+<div class="k" id="h1" style="left:190px;top:76px;font-size:34px;letter-spacing:6px;color:${GRN};font-weight:700">TON DÉPÔT GITHUB</div>
+${mine.map((n, i) => `<div class="pill hp" style="left:${190 + (i % 3) * 420}px;top:${190 + Math.floor(i / 3) * 190}px;width:380px;height:140px;font-size:56px;display:flex;align-items:center;justify-content:center;background:#262636">${n}</div>`).join('')}
+<div class="k" id="h2" style="left:130px;top:690px;width:1340px;text-align:center;font-size:42px;color:#c9c9d8">Aucun serveur à nous. Tout part de fichiers publics et de tes comptes.</div>`;
+const hostTick = (r, t) => { G('h0')(r).style.opacity = M.prog(t, 0.1, 0.4); rv(G('h1')(r), t, bt(0.5), 0.4, 14); $$(r, '.hp').forEach((e, i) => rv(e, t, bt(1 + i * 0.5), 0.4, 30)); rv(G('h2')(r), t, bt(5), 0.4, 20); };
+
+// ---- 19. registry and payment ------------------------------------------------------------------------------------------------------------------
+const CODE = `<div class="card" id="rg0" style="left:830px;top:20px;width:770px;height:520px;padding:34px 40px;background:#10101a"><div style="font-size:24px;letter-spacing:4px;color:${TEA};font-weight:700;margin-bottom:14px">UNE RÈGLE EN JAVASCRIPT</div><pre style="margin:0;font-size:31px;line-height:1.5;color:#d4d4e8;font-family:monospace;white-space:pre-wrap"><span style="color:#8c8ca8">// un vote par identité : le premier compte</span>
+<span style="color:#c792ea">if</span> (!(<span style="color:#c792ea">await</span> verifySignedAction(a)) <span style="color:#c792ea">return</span> state;
+<span style="color:#c792ea">if</span> (a.from <span style="color:#c792ea">in</span> state.votes) <span style="color:#c792ea">return</span> state;
+<span style="color:#c792ea">return</span> { votes: { ...state.votes, [a.from]: a.choice } };</pre></div>
+<div class="tag" id="rg1" style="left:830px;top:560px">extrait de docs/CONTRACTS.md</div>
+<div class="k" id="rg2" style="left:0;top:700px;width:1600px;text-align:center;font-size:40px;font-weight:800;color:${GRN}">Pensé pour résister aux faux comptes et à la double dépense</div>`;
+const PAY = `<div class="card pd" style="left:0;top:90px;width:340px;height:520px;border-radius:60px;padding:0;display:flex;align-items:center;justify-content:center;background:#14141c">${ic(I.phone, 150, '#fff', 1.1)}</div>
+<div class="card pd" style="left:430px;top:90px;width:340px;height:520px;border-radius:60px;padding:0;display:flex;align-items:center;justify-content:center;background:#14141c">${ic(I.phone, 150, '#fff', 1.1)}</div>
+<svg class="k" style="left:330px;top:290px" width="120" height="120" viewBox="0 0 120 120"><path id="pa" d="M10 60 H100" stroke="${GRN}" stroke-width="6" stroke-linecap="round" fill="none" stroke-dasharray="90" stroke-dashoffset="90"/><path id="pb" d="M84 40 L106 60 84 80" stroke="${GRN}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" style="opacity:0"/></svg>
+<div class="k" id="py0" style="left:0;top:640px;width:770px;text-align:center;font-size:40px;font-weight:800">Payer en session</div>
+<div class="k" id="py1" style="left:0;top:700px;width:770px;text-align:center;font-size:32px;color:#a9a9c0">sans réseau · sans limite de débit</div>`;
+const regTick = (r, t) => { $$(r, '.pd').forEach((e, i) => rv(e, t, bt(i * 0.8), 0.5, 40)); const p = M.prog(t, bt(2), 0.6, M.ease.inOutCubic); G('pa')(r).style.strokeDashoffset = 90 * (1 - p); G('pb')(r).style.opacity = p > 0.9 ? 1 : 0;
+  rv(G('py0')(r), t, bt(2.5), 0.4, 16); rv(G('py1')(r), t, bt(3.5), 0.4, 16); rv(G('rg0')(r), t, bt(4.5), 0.5, 40); rv(G('rg1')(r), t, bt(7), 0.4, 10); rv(G('rg2')(r), t, bt(9), 0.45, 20); };
+
+// ---- 20. games ------------------------------------------------------------------------------------------------------------------------
+const gm = (i, col, svg, name, sub) => `<div class="card gmc" style="left:${i * 540}px;top:20px;width:500px;height:360px;padding:38px"><div style="width:110px;height:110px;border-radius:32px;background:${col};display:flex;align-items:center;justify-content:center">${ic(svg, 62)}</div><div style="font-size:58px;font-weight:800;letter-spacing:-1.5px;margin-top:22px">${name}</div><div style="font-size:32px;color:#a9a9c0;margin-top:6px">${sub}</div></div>`;
+const GAMES = gm(0, VIO, I.doc, 'Un fichier', 'un jeu, un clic') + gm(1, TEA, I.globe, 'Un site', 'sur ton GitHub Pages') + gm(2, ORA, I.check, 'Un contrat', 'scores vérifiables par chacun')
+  + `<div class="pill" id="gm0" style="left:300px;top:430px;height:104px;padding:0 44px;font-size:42px;display:flex;align-items:center;gap:18px;background:#262636">${ic(I.pad, 50)}jusqu'au multijoueur en temps réel</div>
+     <div class="tag" id="gm1" style="left:380px;top:560px">Godot + Nakama · un standard de construction, aucune capacité mesurée</div>`;
+const gamesTick = (r, t) => { $$(r, '.gmc').forEach((e, i) => rv(e, t, bt(i), 0.45, 50)); rv(G('gm0')(r), t, bt(3.5), 0.45, 24); rv(G('gm1')(r), t, bt(5), 0.4, 10); };
+
+// ---- 21. Earth and Mars (Yellowpaper §13.1) ----------------------------------------------------------------------------------------------------
+const nd = (x, y, id, c) => `<g id="${id}" style="opacity:0"><circle cx="${x}" cy="${y}" r="28" fill="${c}" stroke="#fff" stroke-width="3"/></g>`;
+const EN = [330, 470, 610, 750, 890].map((x, i) => nd(x, 150, 'e' + i, '#6c9cff')).join(''), MN = [330, 470, 610].map((x, i) => nd(x, 540, 'm' + i, '#ff9a80')).join('');
+const MARS = `<svg viewBox="0 0 1500 720" width="1500" height="720" class="k" style="left:0;top:0">
+  <g id="gE" style="opacity:0"><circle cx="130" cy="150" r="82" fill="#2f6fe0" stroke="#7aa8ff" stroke-width="6"/><path d="M95 120c20-12 38 4 30 22s-34 10-30-22zM140 165c16-6 30 8 22 22s-30 8-22-22z" fill="#4fc27d"/><text x="130" y="275" text-anchor="middle" font-size="36" font-weight="700" fill="#fff" font-family="Liberation Sans,Arial">Terre</text></g>
+  <g id="gM" style="opacity:0"><circle cx="130" cy="540" r="62" fill="#c4532e" stroke="#ff9a80" stroke-width="6"/><circle cx="112" cy="525" r="12" fill="#a8421f"/><circle cx="150" cy="560" r="9" fill="#a8421f"/><text x="130" y="650" text-anchor="middle" font-size="36" font-weight="700" fill="#fff" font-family="Liberation Sans,Arial">Mars</text></g>
+  <line x1="358" y1="150" x2="862" y2="150" stroke="#5a5a78" stroke-width="4"/><line x1="358" y1="540" x2="582" y2="540" stroke="#5a5a78" stroke-width="4"/>${EN}${MN}
+  <path id="rp1" d="M890 178 C 1050 260, 1100 330, 1180 360" fill="none" stroke="#c9c9d8" stroke-width="5" stroke-dasharray="12 10" style="opacity:0"/>
+  <path id="rp2" d="M610 568 C 800 600, 1020 480, 1180 392" fill="none" stroke="#c9c9d8" stroke-width="5" stroke-dasharray="12 10" style="opacity:0"/>
+  <g id="rr" style="opacity:0"><circle cx="1200" cy="375" r="40" fill="${GRN}" stroke="#fff" stroke-width="4"/><text x="1200" y="385" text-anchor="middle" font-size="30" font-weight="800" fill="#0c3d28" font-family="Liberation Sans,Arial">r</text><text x="1200" y="450" text-anchor="middle" font-size="30" fill="#e8e8f4" font-family="Liberation Sans,Arial">une réception</text></g></svg>
+<div class="k" id="mr0" style="left:700px;top:560px;width:800px;font-size:44px;font-weight:800;line-height:1.15">Chacun garde son histoire.<br><span style="color:${GRN}">Rien n'est réécrit.</span></div>`;
+const marsTick = (r, t) => { G('gE')(r).style.opacity = M.prog(t, bt(0), 0.3); G('gM')(r).style.opacity = M.prog(t, bt(0.5), 0.3);
+  ['e0', 'e1', 'e2', 'e3', 'e4'].forEach((id, i) => { G(id)(r).style.opacity = M.prog(t, bt(1 + i * 0.5), 0.25); }); ['m0', 'm1', 'm2'].forEach((id, i) => { G(id)(r).style.opacity = M.prog(t, bt(1.25 + i * 0.5), 0.25); });
+  G('rp1')(r).style.opacity = M.prog(t, bt(4.5), 0.3); G('rp2')(r).style.opacity = M.prog(t, bt(4.75), 0.3); G('rr')(r).style.opacity = M.prog(t, bt(5.5), 0.3); rv(G('mr0')(r), t, bt(6), 0.4, 20); };
+
+// ---- 22. glasses (an illustration) ------------------------------------------------------------------------------------------------------------------
+const GL = `<svg class="k" style="left:0;top:0" width="1560" height="640" viewBox="0 0 1560 640"><g id="gl" style="opacity:0"><rect x="60" y="130" width="650" height="400" rx="170" fill="rgba(123,97,255,.10)" stroke="#e8e8f4" stroke-width="12"/><rect x="850" y="130" width="650" height="400" rx="170" fill="rgba(38,198,176,.10)" stroke="#e8e8f4" stroke-width="12"/><path d="M710 270 C 760 230, 800 230, 850 270" fill="none" stroke="#e8e8f4" stroke-width="12"/><path d="M60 250 L-10 215 M1500 250 L1570 215" stroke="#e8e8f4" stroke-width="12" stroke-linecap="round"/></g></svg>
+<div class="pill gi" style="left:140px;top:210px;height:70px;padding:0 30px;font-size:34px;background:#2c2c3a;display:flex;align-items:center">⎇ aiwa_store</div>
+<div class="pill gi" style="left:140px;top:300px;height:70px;padding:0 30px;font-size:34px;background:#2e7d5a;display:flex;align-items:center">Pages ●</div>
+<div class="pill gi" style="left:140px;top:390px;height:84px;width:500px;font-size:36px;background:#54545e;display:flex;align-items:center;justify-content:center">● Dicter un message</div>
+<div class="card gi" style="left:930px;top:200px;width:480px;height:84px;border-radius:42px;padding:0 30px;display:flex;align-items:center;gap:18px;font-size:34px"><div style="width:50px;height:50px;border-radius:50%;background:${VIO}"></div>un profil près de toi</div>
+<div class="card gi" style="left:930px;top:310px;width:480px;height:84px;border-radius:42px;padding:0 30px;display:flex;align-items:center;gap:18px;font-size:34px"><div style="width:50px;height:50px;border-radius:50%;background:${TEA}"></div>une app partagée</div>
+<div class="card gi" style="left:930px;top:420px;width:480px;height:84px;border-radius:42px;padding:0 30px;display:flex;align-items:center;gap:18px;font-size:34px"><div style="width:50px;height:50px;border-radius:50%;background:${ORA}"></div>un commentaire</div>
+<div class="tag" id="gt" style="left:430px;top:600px">illustration de la vision · rien de cela n'est encore démontré</div>`;
+const glTick = (r, t) => { G('gl')(r).style.opacity = M.prog(t, 0.1, 0.5); $$(r, '.gi').forEach((e, i) => rv(e, t, bt(1 + i * 0.5), 0.4, 24)); rv(G('gt')(r), t, bt(4), 0.4, 10); };
+
+// ---- 23. the close ------------------------------------------------------------------------------------------------------------------------
+const CLOSE = `<div class="k" id="cl0" style="left:0;top:0;width:1560px;text-align:center;font-size:62px;font-weight:800;letter-spacing:-1px">Ce qui marche · ce qui reste à prouver</div>
+<div class="card" id="cl1" style="left:0;top:120px;width:760px;height:430px;padding:40px"><div style="font-size:28px;letter-spacing:5px;color:${GRN};font-weight:700">DÉJÀ LÀ</div><div style="font-size:36px;line-height:1.5;margin-top:14px;color:#dcdcea">le Store et le wallet<br>le widget et la voix<br>les sessions, les boucles<br>le protocole et ses tests</div></div>
+<div class="card" id="cl2" style="left:800px;top:120px;width:760px;height:430px;padding:40px"><div style="font-size:28px;letter-spacing:5px;color:${ORA};font-weight:700">À PROUVER</div><div style="font-size:36px;line-height:1.5;margin-top:14px;color:#dcdcea">l'agent, essayé en vrai<br>l'écran éteint, longtemps<br>le paiement hors réseau<br>les lunettes</div></div>
+<div class="k" id="cl3" style="left:0;top:610px;width:1560px;text-align:center;font-size:36px;color:#a9a9c0">tout est écrit dans docs/PLAN.md · rien n'est caché</div>`;
+const closeTick = (r, t) => { rv(G('cl0')(r), t, bt(0), 0.4, 20); rv(G('cl1')(r), t, bt(1), 0.45, 40); rv(G('cl2')(r), t, bt(2.5), 0.45, 40); rv(G('cl3')(r), t, bt(5), 0.4, 14); };
+
+const L = (id, markup, design, tick, extra = {}) => Object.assign({ type: 'html', id, css: COMMON, markup, design, w: 90, x: 50, y: 55, at: 0.1, dur: 0.4, enter: 'fade', tick }, extra);
+const BG = (a, b, c) => ({ type: 'blobs', colors: [a, b, c], base: '#090912' });
+const TXT = (text, size, y, at, extra = {}) => Object.assign({ type: 'text', text, size, y, at, mode: 'lines', effect: 'mask', stagger: 0.18, weight: 800 }, extra);
+const VB = BG('rgba(123,97,255,.40)', 'rgba(38,198,176,.22)', 'rgba(30,30,60,.5)');
+const WARM = BG('rgba(204,120,92,.45)', 'rgba(123,97,255,.35)', 'rgba(30,30,60,.5)');
+const TEAL = BG('rgba(38,198,176,.30)', 'rgba(123,97,255,.34)', 'rgba(30,30,60,.5)');
+
+// ---- the plan: each shot starts on the BAR given (1 bar = 2.3077 s); its layers are timed from its own start ------------------------------------
+const PLAN = [
+  { bar: 0, trans: null, bg: WARM, layers: [TXT('Un widget.', 18, 48, 0.25, { mode: 'chars', stagger: 0.05, accent: { '.': ORA } })] },
+  { bar: 1, trans: 'zoom', bg: WARM, layers: [TXT('Tout tient\ndedans.', 12, 48, 0.2, { stagger: 0.2, accent: { 'dedans.': ORA } })] },
+  { bar: 2, trans: 'push', bg: TEAL, layers: [L('stack', STACK, [1600, 700], stackTick, { y: 52 })] },
+  { bar: 4, trans: 'wipe', bg: { type: 'gradient', colors: ['#171230', '#090912'], angle: 170, drift: true }, layers: [L('mb', MB, [1600, 620], mbTick, { y: 56 }), TXT('Un esprit vivant. Un corps à jour.', 4.2, 12, 0.2, { effect: 'rise', weight: 700, color: '#d6d6e6' })] },
+  { bar: 6, trans: 'iris', bg: { type: 'gradient', colors: ['#1a1a34', '#0a0a14'], angle: 160, drift: true }, layers: [L('off', OFF, [1600, 900], offTick, { w: 84, y: 52 })] },
+  { bar: 8, trans: 'wipe', bg: { type: 'gradient', colors: ['#1c1736', '#090912'], angle: 180, drift: true }, layers: [
+    TXT('Appelle ton agent.', 7.4, 22, 0.2, { x: 27, w: 44, accent: { 'agent.': ORA } }),
+    TXT('Instructions.\nCommandes.', 6.2, 50, 1.0, { x: 27, w: 44, color: '#e6e6f2' }),
+    TXT('Le widget réagit en direct\net confirme la production.', 3.2, 80, 5.4, { x: 27, w: 44, effect: 'rise', weight: 600, color: GRN }),
+    { type: 'html', id: 'widget', css: WCSS, markup: WIDGET, design: [1000, 1140], w: 40, x: 74, y: 53, at: 0.1, dur: 0.6, enter: 'rise', tick: widgetTick, cam: { from: { s: 1, y: 1 }, to: { s: 1.04, y: -1 } } },
+  ] },
+  { bar: 12, trans: 'push', bg: VB, layers: [TXT('À la demande.', 6.2, 10, 0.2, { effect: 'rise' }), L('make', MAKE, [1600, 710], makeTick, { y: 56 })] },
+  { bar: 16, trans: 'slice', bg: { type: 'gradient', colors: ['#11182b', '#090912'], angle: 160, drift: true }, layers: [L('loop', LOOP, [1500, 720], loopTick, { y: 54, w: 90 })] },
+  { bar: 19, trans: 'wipe', bg: BG('rgba(204,120,92,.30)', 'rgba(123,97,255,.30)', 'rgba(30,30,60,.5)'), layers: [TXT('Des campagnes puissantes.', 6, 10, 0.2, { effect: 'rise' }), L('camp', CAMP, [1580, 780], campTick, { y: 56 })] },
+  { bar: 23, trans: 'fade', bg: { type: 'gradient', colors: ['#0c0c1a', '#050509'], angle: 180, drift: true }, layers: [TXT("Et si quelqu'un veillait\nsur tout ça ?", 8.4, 44, 0.6, { stagger: 0.5, effect: 'rise', weight: 700, color: '#e8e8f4' }),
+    { type: 'shape', kind: 'circle', x: 50, y: 78, w: 3, h: 3, color: VIO, at: 4.6, dur: 1.2, from: { s: 0.1, o: 0 } }] },
+  { bar: 26, trans: 'flash', bg: BG('rgba(123,97,255,.45)', 'rgba(38,198,176,.22)', 'rgba(30,30,60,.5)'), layers: [L('super', SUPER, [1560, 760], superTick, { y: 56, w: 90 }), TXT('Ton super agent.', 5.2, 8, 0.2, { x: 50, effect: 'rise' })] },
+  { bar: 30, trans: 'zoom', bg: WARM, layers: [TXT('Créer. Déployer.', 12, 38, 0.2, { mode: 'chars', stagger: 0.04 }), TXT('À la vitesse de la pensée.', 7.2, 60, 1.6, { effect: 'blur', mode: 'words', stagger: 0.14, color: '#e8e8f4', accent: { 'pensée.': ORA } }), TXT('une création par la voix sans précédent', 3.6, 80, 3.0, { effect: 'rise', weight: 600, color: '#b8b8cc' })] },
+  { bar: 32, trans: 'push', bg: { type: 'gradient', colors: ['#10182a', '#090912'], angle: 170, drift: true }, layers: [
+    L('auto', AUTO, [560, 700], autoTick, { w: 28, x: 21, y: 52 }),
+    { type: 'image', src: 'real/papers.png', x: 68, y: 53, w: 36, enter: 'rise', at: 0.15, dur: 0.5, radius: 18, cam: { from: { s: 1, y: 1 }, to: { s: 1.06, y: -1 } } },
+    { type: 'html', id: 'autotag', css: COMMON, markup: '<div class="tag" style="left:0;top:0">capture réelle de l\'appli · onglet Papers</div>', design: [700, 60], w: 28, x: 68, y: 90, at: 0.9, dur: 0.4 },
+    TXT('le corpus de documents fondateurs', 3.4, 12, 1.2, { x: 68, w: 40, effect: 'rise', weight: 700, color: '#d6d6e6' }),
+  ] },
+  { bar: 34, trans: 'flash', bg: BG('rgba(224,82,78,.30)', 'rgba(204,120,92,.35)', 'rgba(30,30,60,.5)'), layers: [
+    { type: 'image', src: 'real/wallet.png', x: 27, y: 52, w: 34, enter: 'left', at: 0.1, dur: 0.5, radius: 22, cam: { from: { s: 1, y: 5 }, to: { s: 1.5, y: 14 } } },
+    TXT('Burn\nde SOL.', 12, 38, 0.3, { x: 70, w: 44, stagger: 0.25, accent: { 'SOL.': ORA } }),
+    TXT('une seule fois', 4, 70, 1.6, { x: 70, w: 44, effect: 'rise', weight: 600, color: '#c9c9d8' }),
+    { type: 'html', id: 'wtag', css: COMMON, markup: '<div class="tag" style="left:0;top:0">capture réelle du wallet</div>', design: [500, 60], w: 22, x: 27, y: 96, at: 0.8, dur: 0.4 },
+  ] },
+  { bar: 36, trans: 'wipe', bg: BG('rgba(88,211,155,.28)', 'rgba(123,97,255,.35)', 'rgba(30,30,60,.5)'), layers: [
+    { type: 'image', src: 'real/wallet.png', x: 25, y: 52, w: 32, enter: 'left', at: 0.1, dur: 0.4, radius: 22, cam: { from: { s: 1.18, y: -7 }, to: { s: 1.22, y: -9 } } },
+    TXT('Production\nd\'AIWA.', 10, 22, 0.2, { x: 73, w: 46, stagger: 0.2, accent: { 'd\'AIWA.': GRN } }),
+    L('prod', PRODH, [800, 460], prodTick, { w: 38, x: 73, y: 64 }),
+    TXT('Tu le réclames. Ou pas.', 3.8, 90, 2.4, { x: 73, w: 46, effect: 'rise', weight: 700, color: '#d6d6e6' }),
+  ] },
+  { bar: 38, trans: 'slice', bg: VB, layers: [TXT('Classer la production,\npas le stock.', 6.6, 12, 0.15, { effect: 'rise', stagger: 0.25 }), L('rank', RANKH, [1600, 700], rankTick, { y: 60 })] },
+  { bar: 40, trans: 'zoom', bg: BG('rgba(204,120,92,.40)', 'rgba(123,97,255,.38)', 'rgba(30,30,60,.5)'), layers: [TXT('Un burn fait un claim. Un claim relance la production.', 3.8, 8, 0.15, { effect: 'rise', weight: 700, w: 92 }), L('rule', RULE, [1600, 780], ruleTick, { y: 58 })] },
+  { bar: 43, trans: 'fade', bg: BG('rgba(46,125,90,.34)', 'rgba(38,198,176,.20)', 'rgba(20,30,30,.5)'), layers: [TXT('Tu héberges toi-même.', 6.6, 11, 0.2, { effect: 'rise' }), L('host', HOST, [1600, 760], hostTick, { y: 57 })] },
+  { bar: 45, trans: 'flash', bg: { type: 'gradient', colors: ['#130f2a', '#090912'], angle: 165, drift: true }, layers: [TXT('Un registre applicatif et monétaire.\nDes règles que chacun vérifie.', 5.2, 10, 0.15, { effect: 'rise', stagger: 0.25 }), L('reg', CODE + PAY, [1600, 780], regTick, { y: 56 })] },
+  { bar: 48, trans: 'push', bg: BG('rgba(123,97,255,.38)', 'rgba(38,198,176,.26)', 'rgba(30,30,60,.5)'), layers: [TXT('Créer des jeux.', 6.6, 10, 0.15, { effect: 'rise' }), L('games', GAMES, [1600, 640], gamesTick, { y: 56 })] },
+  { bar: 50, trans: 'iris', bg: { type: 'gradient', colors: ['#0f1730', '#07070d'], angle: 170, drift: true }, layers: [TXT('La Terre. Mars.', 6.6, 9, 0.15, { effect: 'rise' }), L('mars', MARS, [1500, 720], marsTick, { y: 56, w: 88 })] },
+  { bar: 52, trans: 'wipe', bg: TEAL, layers: [TXT('Demain : les lunettes.', 6.6, 10, 0.15, { effect: 'rise' }), L('gl', GL, [1560, 640], glTick, { y: 56 })] },
+  { bar: 54, trans: 'fade', bg: BG('rgba(204,120,92,.30)', 'rgba(123,97,255,.30)', 'rgba(30,30,60,.5)'), layers: [L('close', CLOSE, [1560, 680], closeTick, { y: 50 })] },
+  { bar: 57, trans: 'fade', bg: BG('rgba(204,120,92,.40)', 'rgba(123,97,255,.34)', 'rgba(30,30,60,.5)'), tail: 3.6, layers: [
+    TXT('Aïwa', 14, 42, 0.3, { mode: 'chars', stagger: 0.08, accent: { 'Aïwa': ORA } }),
+    TXT('Tes codes restent dans ton dépôt.', 4.2, 64, 1.6, { effect: 'blur', mode: 'words', stagger: 0.12, weight: 700, color: '#e8e8f4' }),
+    TXT('theodoreyong9.github.io/Aiwa_store', 3.2, 78, 3.2, { effect: 'fade', weight: 600, color: '#c9c9d8' }),
+    TXT('Musique : « The Complex », Kevin MacLeod (incompetech.com), CC BY 4.0', 1.7, 95, 4, { effect: 'fade', weight: 500, color: '#7c7c92' }),
+  ] },
+];
+// The maximum film is made of pieces laid on the bars of the track (see build.py): the shots of this page (new scenes), the scenes of the global film v9 (pieces.html, and its 3D shots
+// cut from the film itself). Here: only the new scenes, in groups of consecutive bars: ?g=<first bar>-<end bar>. In a group every cut is on a beat of the track.
+// ---- the 3D slots: the page writes the words, the 3D shot (build.py) is laid over it or under it ----------------------------------------------------------------------------------
+const NOBG = { type: 'solid', color: 'rgba(0,0,0,0)' };
+PLAN.push(
+  /* 24 */ { bar: 6, trans: 'iris', bg: { type: 'gradient', colors: ['#1a1a34', '#0a0a14'], angle: 160, drift: true }, layers: [
+    TXT('Écran\néteint.', 11, 36, 0.2, { x: 27, w: 46, stagger: 0.2, accent: { 'éteint.': GRN } }),
+    TXT('Ça écoute encore.', 4.6, 66, 1.4, { x: 27, w: 46, effect: 'rise', weight: 600, color: '#c9c9d8' }),
+    { type: 'html', id: 'offtag', css: COMMON, markup: '<div class="tag" style="left:0;top:0">le mot d\'éveil est écouté sur le téléphone</div>', design: [760, 60], w: 38, x: 27, y: 84, at: 2.4, dur: 0.4 },
+  ] },
+  /* 25 */ { bar: 8, trans: 'wipe', bg: { type: 'gradient', colors: ['#1c1736', '#090912'], angle: 180, drift: true }, layers: [
+    TXT('Appelle ton agent.', 7.4, 20, 0.2, { x: 27, w: 46, accent: { 'agent.': ORA } }),
+    TXT('Instructions.\nCommandes.', 6.2, 48, 1.0, { x: 27, w: 46, color: '#e6e6f2' }),
+    TXT('Le widget réagit en direct\net confirme la production.', 3.4, 80, 5.2, { x: 27, w: 46, effect: 'rise', weight: 600, color: GRN }),
+  ] },
+  /* 26 */ { bar: 51, trans: 'iris', bg: { type: 'gradient', colors: ['#0f1730', '#05050c'], angle: 170, drift: true }, layers: [
+    TXT('La Terre. Mars.', 6.6, 9, 0.15, { effect: 'rise' }),
+    TXT('Chacun garde son histoire.\nRien n\'est réécrit.', 4.4, 86, 2.2, { stagger: 0.3, effect: 'rise', weight: 700, color: '#e8e8f4', accent: { 'réécrit.': GRN } }),
+    { type: 'html', id: 'mtag', css: COMMON, markup: '<div class="tag" style="left:0;top:0">rendu 3D · illustration</div>', design: [560, 60], w: 22, x: 86, y: 94, at: 0.8, dur: 0.4 },
+  ] },
+  /* 27 */ { bar: 54, trans: 'fade', bg: NOBG, layers: [
+    TXT('Demain :\nles lunettes.', 8.6, 16, 0.4, { x: 25, w: 40, stagger: 0.25, accent: { 'lunettes.': ORA } }),
+    TXT('un réseau social, au bout du regard', 3.6, 84, 2.6, { x: 50, effect: 'rise', weight: 600, color: '#d6d6e6' }),
+    { type: 'html', id: 'gtag', css: COMMON, markup: '<div class="tag" style="left:0;top:0">illustration de la vision · rien de cela n\'est encore démontré</div>', design: [900, 60], w: 46, x: 50, y: 94, at: 1.2, dur: 0.4 },
+  ] },
+);
+// v11: [index in PLAN, the bar it starts on]
+const KEEP = [[0, 0], [1, 1], [2, 2], [3, 4], [24, 6], [25, 8], [6, 12], [7, 16], [8, 19], [9, 23], [10, 26], [11, 30], [12, 32], [13, 34], [14, 36], [15, 38], [16, 40], [17, 43], [18, 45], [19, 49], [26, 51], [27, 54], [22, 57], [23, 60]];
+const END_BAR = 63;
+const PLAN2 = KEEP.map(([i, b]) => Object.assign({}, PLAN[i], { bar: b }));
+{
+  const q = new URLSearchParams(location.search).get('g');
+  const [b0, b1] = q ? q.split('-').map(Number) : [0, END_BAR];
+  const plan = PLAN2.filter((p) => p.bar >= b0 && p.bar < b1);
+  const start = (b) => (b === b0 ? 0 : (b - b0) * BAR - TR / 2);
+  window.SHOTS = plan.map((p, i) => {
+    const next = plan[i + 1];
+    const seconds = next ? start(next.bar) - start(p.bar) + TR : (b1 - b0) * BAR - start(p.bar) + (p.tail || 0);
+    const shot = { seconds: Math.round(seconds * 1000) / 1000, bg: TRM ? NOBG : p.bg, layers: p.layers };
+    if (p.trans && p.bar !== b0) shot.transition = { type: p.trans, seconds: TR };
+    return shot;
+  });
+}
+</script>
+<script src="../../video-kit/template/cinematic.js"></script>
+</body></html>
