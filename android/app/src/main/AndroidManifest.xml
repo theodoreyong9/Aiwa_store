@@ -252,6 +252,10 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
+        <activity android:name=".ModePickerActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <activity android:name=".MediaPickerActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""

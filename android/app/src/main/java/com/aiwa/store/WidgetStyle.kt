@@ -10,13 +10,14 @@ object WidgetStyle {
     const val CLASSIC = "classic"
     const val GLASSES = "glasses"
     const val AIWA = "aiwa"
+    const val LIGHT = "light"
     private const val PREFS = "aiwa_widget_style"
 
     fun current(context: Context): String =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("shape", CLASSIC).let { if (it == GLASSES || it == AIWA) it!! else CLASSIC }
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("shape", CLASSIC).let { if (it == GLASSES || it == AIWA || it == LIGHT) it!! else CLASSIC }
 
     fun set(context: Context, shape: String) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("shape", if (shape == GLASSES || shape == AIWA) shape else CLASSIC).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("shape", if (shape == GLASSES || shape == AIWA || shape == LIGHT) shape else CLASSIC).apply()
     }
 
     /** The « Vidéo » button of the Aiwa shape is a view, not a mode of the selector: whether it is the one shown. */

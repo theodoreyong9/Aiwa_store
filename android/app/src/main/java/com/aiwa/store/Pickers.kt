@@ -746,6 +746,11 @@ class SettingsActivity : ComponentActivity() {
             val entries = buildList {
                 add(PickerEntry("Réglages", false, header = true) { })
                 // In the Aiwa-shaped widget the model, the push and the state of the workflow are buttons of the widget itself: they are not repeated here
+                // the Light shape has none of the context either: the session and the repository are here
+                if (current == WidgetStyle.LIGHT) {
+                    add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
+                    add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
+                }
                 if (current != WidgetStyle.AIWA) {
                     add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
                     if (state.repo != null) {
@@ -788,6 +793,7 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Forme du widget", false, header = true) { })
                 add(PickerEntry("Classic — les bandes, comme avant", current == WidgetStyle.CLASSIC, lines = 2) { shape(WidgetStyle.CLASSIC) })
                 add(PickerEntry("Aiwa — les modes en haut (Média : vidéo, campagne, documents ; Page, App, Store, Aiwa), puis le micro avec le contexte (session, dépôt, modèle, push), Claude et la question, et en bas la boucle, l'app Aiwa, le commentaire, la mise à jour et les réglages", current == WidgetStyle.AIWA, lines = 5) { shape(WidgetStyle.AIWA) })
+                add(PickerEntry("Light — trois lignes : le mode en menu avec Prod, Code et Workflow ; le micro, Claude, la question, la mise à jour ; la boucle, l'app Aiwa, le super agent, le commentaire et les réglages (tout le reste est dedans)", current == WidgetStyle.LIGHT, lines = 5) { shape(WidgetStyle.LIGHT) })
                 add(PickerEntry("Glasses — des lunettes : un verre pour le contexte, un pour le travail, le micro à droite", current == WidgetStyle.GLASSES, lines = 3) { shape(WidgetStyle.GLASSES) })
             }
             PickerSheet(entries) { finish() }
@@ -797,6 +803,35 @@ class SettingsActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         WakeWordService.instance?.let { AiwaRepository.update { s -> s.copy(listening = true) } }
+    }
+}
+
+/** The mode menu of the Light-shaped widget: Média (its three kinds), Page, App, Store, Aiwa. Picking one is what a tap on the tabs of the Aiwa shape does. */
+class ModePickerActivity : ComponentActivity() {
+    private fun pick(mode: String) {
+        val app = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch { selectAiwaMode(app, mode) }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        wakeAiwa(applicationContext)
+        setContent {
+            val state by AiwaRepository.state.collectAsState()
+            val tab = aiwaTab(state)
+            val entries = buildList {
+                add(PickerEntry("Mode", false, header = true) { })
+                add(PickerEntry("Média — vidéos, campagne, documents", tab == "media", lines = 2) { startActivity(Intent(this@ModePickerActivity, MediaPickerActivity::class.java)); finish() })
+                add(PickerEntry("Page — un site sur GitHub Pages", tab == "pages") { pick("pages") })
+                add(PickerEntry("App — une application Android", tab == "android") { pick("android") })
+                if (state.accessLevel >= 2) {
+                    add(PickerEntry("Store — publier dans le Store", tab == "store") { pick("store") })
+                    add(PickerEntry("Aiwa — le projet Aiwa lui-même", tab == "aiwa") { pick("aiwa") })
+                }
+            }
+            PickerSheet(entries) { finish() }
+        }
     }
 }
 

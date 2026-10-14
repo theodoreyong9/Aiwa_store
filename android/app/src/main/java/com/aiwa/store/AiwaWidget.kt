@@ -233,6 +233,7 @@ private fun Content(state: AiwaState) {
     val shape = WidgetStyle.current(LocalContext.current)
     val glasses = shape == WidgetStyle.GLASSES && LocalSize.current.height >= 100.dp
     if (glasses) GlassesContent(state)
+    else if (shape == WidgetStyle.LIGHT && LocalSize.current.height >= 100.dp) LightContent(state)
     else if (shape == WidgetStyle.AIWA && LocalSize.current.height >= 150.dp) AiwaContent(state)
     else if (LocalSize.current.height >= 150.dp) FullContent(state)
     else CompactContent(state)
@@ -774,10 +775,10 @@ private val AIWA_MODES = listOf(
 private val MEDIA_DEPLOYS = setOf("campaign", "documents")
 
 /** The tab shown: Média while Vidéo is the view or while the selector is on Campagne or Documents; else the mode of the selector. */
-private fun aiwaTab(state: AiwaState): String = if (state.videoView || state.deploy in MEDIA_DEPLOYS) "media" else state.deploy
+internal fun aiwaTab(state: AiwaState): String = if (state.videoView || state.deploy in MEDIA_DEPLOYS) "media" else state.deploy
 
 /** In the Média tab, what is shown: "video" (the view) or the mode of the selector (campaign, documents). */
-private fun mediaSub(state: AiwaState): String = if (state.videoView) "video" else state.deploy
+internal fun mediaSub(state: AiwaState): String = if (state.videoView) "video" else state.deploy
 
 /**
  * A choice of the tabs or of the Média list: the widget shows it AT ONCE (the backend takes its time; what is held in the state is what a recomposition reads), and the
@@ -984,6 +985,131 @@ private fun AiwaContent(state: AiwaState) {
                     background = if (workflowFailed(state)) alertRed else pill,
                     action = actionStartActivity<SettingsActivity>(),
                     diameter = bottomD.dp,
+                )
+            }
+        }
+    }
+}
+
+// ================================================================================================
+// The fourth shape, « Light »: three rows and nothing else. (1) the mode as ONE dropdown (Média, Page, App, Store, Aiwa — the same for every mode) and the targets of the
+// mode, which are the person's own: Prod, Code, Workflow. (2) the microphone, Claude, the question (when there is one) and the update (when one is ready).
+// (3) the loop, the Aiwa app, the super agent, the comment and the settings, which hold everything else (session, repository, model, push…).
+// ================================================================================================
+
+/** What the Prod button opens: for Média what the tab shows (videos, proposals, documents); for the modes that make an app, the app; else the site. */
+private fun lightProd(state: AiwaState, context: Context): Action = when {
+    aiwaTab(state) == "media" -> when (mediaSub(state)) {
+        "campaign" -> actionStartActivity<ProposalsActivity>()
+        "documents" -> actionStartActivity<DocumentsActivity>()
+        else -> actionStartActivity<VideosActivity>()
+    }
+    deliversApp(state.deploy) -> actionStartActivity<OpenStoreActivity>()
+    state.repo != null && state.siteUrl != null -> siteAction
+    else -> actionStartActivity<RepoPickerActivity>()
+}
+
+@Composable
+private fun LightContent(state: AiwaState) {
+    val fg = rgb(android.graphics.Color.rgb(240, 240, 245))
+    val pill = rgb(android.graphics.Color.rgb(44, 44, 54))
+    val micGrey = rgb(android.graphics.Color.rgb(84, 84, 94))
+    val claudeOrange = rgb(android.graphics.Color.rgb(204, 120, 92))
+    val alertRed = rgb(android.graphics.Color.rgb(214, 69, 65))
+    val green = rgb(android.graphics.Color.rgb(46, 125, 90))
+    val locked = state.status == AiwaState.Status.WORKING
+    val context = LocalContext.current
+    val size = LocalSize.current
+    val avail = size.width.value - 20f
+    val tab = aiwaTab(state)
+    val rowH = ((size.height.value - 16f) / 3f).coerceIn(30f, 46f)
+    val chipH = (rowH - 4f).coerceAtLeast(24f)
+    val loopOn = state.loopPair.isNotEmpty()
+    val agent = state.agent
+    val modeWord = when (tab) {
+        "media" -> when (mediaSub(state)) { "campaign" -> "Campagne"; "documents" -> "Documents"; else -> "Vidéos" }
+        else -> AIWA_MODES.firstOrNull { it.id == tab }?.word ?: "Mode"
+    }
+    val prodSite = tab != "media" && !deliversApp(state.deploy)
+    val prodReady = if (prodSite) state.siteState == "live" else state.sentApp?.seen == false
+    val bottomCount = 5
+    val bottomD = minOf(chipH, avail / bottomCount - 4f).coerceAtLeast(20f)
+
+    Column(
+        modifier = GlanceModifier.fillMaxSize()
+            .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+    ) {
+        // ---- the mode, and its targets ----
+        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            Chip(
+                modeWord + " ▾", pill, fg, actionStartActivity<ModePickerActivity>(),
+                GlanceModifier.defaultWeight(), alignStart = true, bold = true, height = chipH.dp, textSize = 12.sp, hPad = 8.dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
+            Chip("Prod", if (prodReady) claudeOrange else pill, fg, lightProd(state, context), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, badge = state.ciFresh)
+            Spacer(GlanceModifier.width(GAP.dp))
+            Chip("</> Code", pill, fg, codeAction, GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+            Spacer(GlanceModifier.width(GAP.dp))
+            Chip("⚙ Workflow", if (workflowFailed(state)) alertRed else pill, fg, actionStartActivity<OpenActionsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 2.dp)
+        }
+        // ---- the microphone, Claude, the question, the update ----
+        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
+                    .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(16.dp))
+                    Spacer(GlanceModifier.width(8.dp))
+                    Text("Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                }
+            }
+            Spacer(GlanceModifier.width(GAP.dp))
+            RoundButton(
+                icon = R.drawable.ic_claude,
+                description = if (state.waiting) "Claude attend ta réponse : ouvrir" else "Ouvrir la conversation dans Claude",
+                background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
+                action = actionStartActivity<OpenClaudeActivity>(),
+                diameter = chipH.dp,
+            )
+            if (state.ask != null) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
+            }
+            if (state.appUpdateReady) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
+            }
+        }
+        // ---- the loop, the Aiwa app, the super agent, the comment, the settings: five equal slots ----
+        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            @Composable fun Slot(content: @Composable () -> Unit) {
+                Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.Center) { content() }
+            }
+            Slot {
+                RoundButton(
+                    icon = R.drawable.ic_loop,
+                    description = if (loopOn) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
+                    background = if (loopOn) green else pill, action = actionStartActivity<LoopsActivity>(), diameter = bottomD.dp,
+                )
+            }
+            Slot { RoundButton(icon = R.drawable.ic_aiwa, description = "L'application Aiwa", background = pill, action = actionStartActivity<StoreActivity>(), diameter = bottomD.dp) }
+            Slot {
+                RoundButton(
+                    icon = R.drawable.ic_agent,
+                    description = "Super agent : ouvrir ou fermer (l'écoute de réveil attend pendant ce temps)",
+                    background = if (agent != null && (agent.say != null || agent.proposal != null || agent.command != null)) alertRed else if (agent?.enabled == true) green else pill,
+                    action = actionStartActivity<AgentToggleActivity>(), diameter = bottomD.dp,
+                )
+            }
+            Slot { RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = bottomD.dp) }
+            Slot {
+                RoundButton(
+                    icon = R.drawable.ic_settings,
+                    description = "Réglages : session, dépôt, modèle, push, voix, mises à jour…",
+                    background = pill, action = actionStartActivity<SettingsActivity>(), diameter = bottomD.dp,
                 )
             }
         }
