@@ -216,6 +216,7 @@ MODE_WORKFLOW_WORDS = {
     "campaign": ("pages", "maquette", "campaign", "campagne"),
     "android": ("android", "apk", "build", "release"),
     "store": ("app-check", "aiwa-app", "check"),
+    "video": ("aiwa-video",),
 }
 
 

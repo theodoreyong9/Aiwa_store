@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 91
+BACKEND_VERSION = 92
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -653,7 +653,7 @@ def _video_full(repo):
         "Quand il y a peu de matière (une page presque vide), fabrique de la matière avec ce que la création fait : l'animer, la zoomer, en isoler un détail, en faire un graphisme ; n'étire pas du vide. "
         "Quand un plan doit avoir l'air RÉEL (un objet, un lieu, une matière, une lumière, une personne), lis " + REFERENCE_RAW + "/video-kit/shots/README.md : une base prise dans un catalogue (`node asset-research/src/cli.js search \"…\"` : modèles 3D, lumières HDRI et textures libres de droits, tu ne télécharges que ce que tu gardes), "
         "TRANSFORMÉE pour le film (un script Blender écrit pour ce plan avec les fonctions de `video-kit/shots/blender/kit.py` ; `sh video-kit/src/shots-setup.sh` d'abord ; regarde UNE image avant de rendre tout), ou fabriquée de toutes pièces si rien n'existe ; "
-        "puis `video-kit transform` donne le même look à tous les plans, quelle que soit leur origine ; une vraie séquence libre de droits reçoit nos éléments par-dessus (`track.py`, `render --transparent`) ; une personne ou un lieu photographique demande une vraie séquence ou le générateur vidéo à moi (écris les prompts avec `video-kit shotlist` et demande-moi le fichier par la question du widget). "
+        "puis `video-kit transform` donne le même look à tous les plans, quelle que soit leur origine ; une vraie séquence libre de droits reçoit nos éléments par-dessus (`track.py`, `render --transparent`) ; une personne ou un lieu photographique demande une vraie séquence ou le générateur vidéo à moi (écris les prompts avec `video-kit shotlist` ; si tu ne peux pas, remplace-la par une scène 3D ou dessinée et dis-le : ne me demande rien). "
         "Pose la question à CHAQUE scène du script, pas à une seule : quelle chose réelle la rendrait plus forte, et le temps le permet-il ? un appareil devient un appareil en 3D avec l'interface sur son écran (`kit.phone` et une page rendue seule, `?screen=`), un lieu ou une planète une sphère éclairée, un objet l'objet du catalogue ; un schéma, un chiffre ou une phrase reste sur la page, et tu le notes dans `script.md` avec la raison. Un seul `assemble --grade=cinematic --bloom=0.15 --vignette=0.25` donne le même look à tout le film (regarde des images avant et après : un grade trop fort change l'identité). Compte le temps (une image 3D prend 10 à 25 s, 4 s de 3D font une dizaine de minutes) avant de promettre. Pose les clips avec `assemble --clips`. Ne fabrique pas de scène standard réutilisée d'un film à l'autre. Un plan dessiné, rendu en 3D ou généré n'est jamais présenté comme un enregistrement : dis dans ton rapport lequel est quoi, et garde la source et la licence de ce que tu prends dans un catalogue. "
         "La critique (étape 6) se fait sur la planche-contact (au moins 8 images extraites à intervalles réguliers), comme un directeur artistique exigeant qui n'a pas vu le code : "
         "note de 1 à 5 l'accroche, la clarté du message, le rythme, le mouvement de chaque plan, la lisibilité, la direction artistique, le son, l'honnêteté (rien d'inventé) et l'appel à l'action ; "
@@ -711,7 +711,29 @@ def _cut(text, start, end):
     return text[:a] + text[b:]
 
 
+VIDEO_WORKFLOW_FILE = (
+    "name: aiwa-video\non:\n  push:\n    paths: ['aiwa-videos/**']\n  workflow_dispatch:\njobs:\n  stages:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"
+    "      - name: Etapes\n        run: |\n          for f in facts.md brief.md style.md script.md critique.md video.html; do\n            if [ -e \"aiwa-videos/$f\" ]; then echo \"fait : $f\"; else echo \"a faire : $f\"; fi\n          done\n          ls -la aiwa-videos | head -60\n"
+    "      - name: Controle des films\n        run: |\n          sudo apt-get install -y -qq ffmpeg > /dev/null\n          for v in aiwa-videos/*.mp4; do [ -e \"$v\" ] || continue; ffprobe -v error -show_entries format=duration -of csv=p=0 \"$v\" || exit 1; done\n"
+)
+
+
+def _video_rules():
+    """The way of working for a video, whatever its quality: all in one go, no question, no stop for the time it takes, and every stage pushed so that the Workflow button of the widget shows where it is."""
+    return (
+        " Façon de travailler, quelle que soit la qualité : fais TOUT d'un coup, sans t'arrêter ; ne me pose AUCUNE question pendant la vidéo (décide seul, écris tes hypothèses dans `brief.md`) ; "
+        "le temps que ça prend n'est JAMAIS une raison de raccourcir, de sauter une étape ou de t'arrêter avant le rendu final ; "
+        "après CHAQUE étape terminée, commite et pousse ce qu'elle a produit (selon la consigne Push), pour que mon bouton Workflow montre où tu en es. "
+        "Ajoute une fois `.github/workflows/aiwa-video.yml` avec exactement ce contenu (il tourne à chaque push qui touche `aiwa-videos/` : il liste les étapes faites et contrôle chaque MP4) :\n`"
+        + VIDEO_WORKFLOW_FILE + "`\n"
+    )
+
+
 def _video_line(repo, quality="moyen"):
+    return _video_line_text(repo, quality) + _video_rules()
+
+
+def _video_line_text(repo, quality="moyen"):
     """The video instruction at the quality I chose. extra = all of the standard (inspiration campaigns, real shots from a catalogue and a transformation, up to three critique rounds);
     moyen = the stages with a real track and a voice, one critique round, no catalogue shots; simple = a short sequence of animated pages, quick, one pass."""
     if quality == "simple":

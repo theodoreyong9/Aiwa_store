@@ -79,7 +79,7 @@ private fun VideosWindow(onClose: () -> Unit) {
             switchOptions(context, bridge, videoQuality = quality)
             val sent = sendAndTrack(
                 context, bridge,
-                "Fais une vidéo promotionnelle de ma création, au format $format. Si un choix ne t'appartient pas, demande-le moi par la question du widget.",
+                "Fais une vidéo promotionnelle de ma création, au format $format. Ne me pose aucune question : décide et va jusqu'au bout.",
                 toastErrors = true,
             )
             busy = false

@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 91
+const val EXPECTED_BACKEND_VERSION = 92
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -282,7 +282,8 @@ object AiwaRepository {
 // (Store), and, for Aiwa, the registry's check of the pull request (it has no state of its own here: the page it opens says). It was a button of its own that adapted;
 // now that it is in the settings list, it adapts the same way.
 fun workflowShown(state: AiwaState): Boolean =
-    state.deploy != "documents" && (state.deploy == "aiwa" || (state.repo != null && (state.deploy in setOf("pages", "android", "campaign", "store") || state.ciState != null)))
+    // the Vidéos view has its own workflow (aiwa-video.yml): it shows the stages of a long production as they are pushed
+    (state.videoView && state.repo != null) || state.deploy != "documents" && (state.deploy == "aiwa" || (state.repo != null && (state.deploy in setOf("pages", "android", "campaign", "store") || state.ciState != null)))
 
 /** Whether the state of the last run (green, red, running) is the one of what the mode produces. */
 fun workflowStateKnown(state: AiwaState): Boolean = state.deploy != "aiwa" && workflowShown(state)
