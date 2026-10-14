@@ -65,8 +65,8 @@ class AgentListener(context: Context, private val onHeard: (String) -> Unit) : R
 }
 
 /** The phone says the sentence and listens for « c'est bon vas-y »: true only if it was heard (anything else, or silence, is a no). Main thread. */
-suspend fun askAloud(context: Context, sentence: String): Boolean {
-    if (!Speaker.speakAndWait(context, "$sentence Dis : c'est bon, vas-y.")) return false
+suspend fun askAloud(context: Context, sentence: String, speak: suspend (String) -> Boolean = { Speaker.speakAndWait(context, it) }): Boolean {
+    if (!speak("$sentence Dis : c'est bon, vas-y.")) return false
     delay(400)   // the end of the voice must not be heard as the answer
     return suspendCancellableCoroutine { cont ->
         val confirm = ConfirmListener(context) { answer -> if (cont.isActive) cont.resume(answer) }

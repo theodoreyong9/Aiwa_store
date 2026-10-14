@@ -47,4 +47,44 @@ object Speaker {
             }
         } ?: false
     }
+
+    /**
+     * The natural voice (Piper, made by the backend) when it is ready, the phone's own voice otherwise or on any failure: the sentence is always said.
+     * Only the liaison agent uses it: the first listening keeps the light voice.
+     */
+    suspend fun speakNatural(context: Context, text: String): Boolean {
+        val ready = AiwaRepository.state.value.agent?.voice == "ready"
+        if (ready) {
+            val file = try {
+                val wav = com.aiwa.bridge.LocalClaudeBridge().voiceSay(text)
+                if (wav == null) null else java.io.File.createTempFile("voice", ".wav", context.cacheDir).also { it.writeBytes(wav) }
+            } catch (err: Exception) { null }
+            if (file != null) {
+                val played = playFile(context, file)
+                file.delete()
+                if (played) return true
+            }
+        }
+        return speakAndWait(context, text)
+    }
+
+    private suspend fun playFile(context: Context, file: java.io.File): Boolean = withContext(Dispatchers.Main) {
+        withTimeoutOrNull(60_000L) {
+            suspendCancellableCoroutine<Boolean> { cont ->
+                val player = android.media.MediaPlayer()
+                fun end(ok: Boolean) {
+                    try { player.release() } catch (err: Exception) { /* already gone */ }
+                    if (cont.isActive) cont.resume(ok)
+                }
+                try {
+                    player.setDataSource(file.absolutePath)
+                    player.setOnCompletionListener { end(true) }
+                    player.setOnErrorListener { _, _, _ -> end(false); true }
+                    player.setOnPreparedListener { it.start() }
+                    player.prepareAsync()
+                } catch (err: Exception) { end(false) }
+                cont.invokeOnCancellation { try { player.release() } catch (err: Exception) { /* already gone */ } }
+            }
+        } ?: false
+    }
 }

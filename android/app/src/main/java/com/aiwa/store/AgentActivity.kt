@@ -116,6 +116,16 @@ private fun AgentWindow(onClose: () -> Unit) {
                             Text("Un point toutes les ${agent.interval} min (s'il y a du nouveau)")
                             OutlinedButton(onClick = { act("set", mapOf("interval" to (agent.interval + 5))) }, enabled = !busy && agent.interval < 240) { Text("+") }
                         }
+                        val voiceLine = when (agent.voice) {
+                            "ready" -> "Voix : naturelle (Piper), sur le téléphone."
+                            "installing" -> "Voix : installation en cours (environ 80 Mo, quelques minutes). En attendant, la voix du téléphone."
+                            "error" -> "Voix : l'installation a échoué. Voix du téléphone."
+                            else -> "Voix : celle du téléphone. La voix naturelle s'installe une fois (environ 80 Mo)."
+                        }
+                        Text(voiceLine, style = MaterialTheme.typography.bodySmall)
+                        if (agent.voice == "none" || agent.voice == "error") {
+                            OutlinedButton(onClick = { scope.launch { try { bridge.voiceSetup(); BackendSync.refresh(bridge) } catch (err: Exception) { note = err.message ?: "?" } } }, modifier = Modifier.fillMaxWidth()) { Text("Installer la voix naturelle") }
+                        }
                         OutlinedButton(onClick = { act("now") }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Faire le point maintenant") }
                         OutlinedTextField(value = text, onValueChange = { text = it }, enabled = !busy, label = { Text("Dire à l'agent") }, modifier = Modifier.fillMaxWidth())
                         Button(onClick = { act("ask", mapOf("text" to text.trim())) { text = "" } }, enabled = text.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Envoyer à l'agent") }

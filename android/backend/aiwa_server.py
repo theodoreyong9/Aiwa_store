@@ -45,6 +45,7 @@ from pathlib import Path
 import aiwa_github as github
 import aiwa_loops as loops_lib
 import aiwa_agent as agent_lib
+import aiwa_voice as voice_lib
 
 
 def _ts():
@@ -55,7 +56,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 87
+BACKEND_VERSION = 88
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2447,11 +2448,14 @@ def _agent_said(raw):
     return True
 
 
+voice = voice_lib.Voice()
+
+
 def agent_snapshot():
     with agent_lock:
         say = agent["say"] if agent["say"] and not agent["say"]["spoken"] else None
         proposal = dict(agent["proposal"]) if agent["proposal"] else None
-        out = {"enabled": agent["enabled"], "session": agent["session"], "interval": agent["interval"], "creating": agent["creating"], "error": agent["error"],
+        out = {"enabled": agent["enabled"], "session": agent["session"], "interval": agent["interval"], "creating": agent["creating"], "error": agent["error"], "voice": voice.state,
                "say": {k: say[k] for k in ("id", "text", "ts")} if say else None}
     if proposal:
         entry = _session_entry(proposal["session"]) or {}
@@ -3207,6 +3211,23 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_json(agent_spoken(str(data.get("id") or "")))
             else:
                 self.send_error(404)
+        elif self.path == "/api/voice/setup":
+            voice.install()
+            self.reply_json({"ok": True, "state": voice.state})
+        elif self.path == "/api/voice/say":
+            try:
+                text = json.loads(body).get("text", "")
+            except (ValueError, AttributeError):
+                text = ""
+            wav = voice.say(text)
+            if wav is None:
+                self.reply_json({"ok": False, "state": voice.state, "error": voice.error})
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", "audio/wav")
+                self.send_header("Content-Length", str(len(wav)))
+                self.end_headers()
+                self.wfile.write(wav)
         elif self.path == "/api/ask/answer":
             self.reply_json(_ask_answer(body))
         elif self.path == "/api/sent-app/seen":

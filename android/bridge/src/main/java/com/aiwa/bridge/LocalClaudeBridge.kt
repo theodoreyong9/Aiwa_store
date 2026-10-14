@@ -102,6 +102,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                     a.optBoolean("enabled", false), a.str("session"), a.optInt("interval", 20), a.optBoolean("creating", false), a.str("error"),
                     a.optJSONObject("say")?.let { AgentSay(it.optString("id"), it.optString("text"), it.optLong("ts", 0L)) },
                     a.optJSONObject("proposal")?.let { AgentProposal(it.optString("id"), it.optString("session"), it.optString("session_title"), it.optString("message"), it.optString("read_back")) },
+                    a.optString("voice", "none"),
                 )
             },
             sentApp = json.optJSONObject("sent_app")?.let {
@@ -286,6 +287,18 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         fields.forEach { (k, v) -> body.put(k, v) }
         val json = JSONObject(postText("/api/agent/$action", body.toString()))
         if (json.optBoolean("ok", false)) null else json.optString("error", "l'agent n'a pas pu")
+    }
+
+    override suspend fun voiceSetup() = withContext(Dispatchers.IO) { postText("/api/voice/setup", "{}"); Unit }
+
+    override suspend fun voiceSay(text: String): ByteArray? = withContext(Dispatchers.IO) {
+        val connection = URI("$baseUrl/api/voice/say").toURL().openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.doOutput = true
+        connection.readTimeout = 60_000
+        connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+        connection.outputStream.use { it.write(JSONObject().put("text", text).toString().toByteArray()) }
+        if (connection.contentType?.startsWith("audio/") == true) connection.inputStream.use { it.readBytes() } else null
     }
 
     override suspend fun proposals(): ProposalList = withContext(Dispatchers.IO) {

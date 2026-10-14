@@ -16,7 +16,7 @@ data class SentApp(val name: String, val size: Int, val ts: Long, val seen: Bool
 // `session` is the title of the session that asked, `count` how many questions wait (of every session): they wait together, each is answered in its own session.
 data class AgentSay(val id: String, val text: String, val ts: Long)
 data class AgentProposal(val id: String, val session: String, val sessionTitle: String, val message: String, val readBack: String)
-data class AgentInfo(val enabled: Boolean, val session: String?, val interval: Int, val creating: Boolean, val error: String?, val say: AgentSay?, val proposal: AgentProposal?)
+data class AgentInfo(val enabled: Boolean, val session: String?, val interval: Int, val creating: Boolean, val error: String?, val say: AgentSay?, val proposal: AgentProposal?, val voice: String = "none")
 data class AskInfo(val id: String, val question: String, val options: List<String>, val ts: Long, val session: String? = null, val count: Int = 1)
 
 // A promotional video of the creation: a file of the GitHub release `videos` of its repository (a public repository only: Aiwa asks for no token).
@@ -182,6 +182,10 @@ interface ClaudeBridge {
 
     // One action of the agent (create, set, now, ask, confirm, cancel, said). Returns the reason when it fails, else null.
     suspend fun agent(action: String, fields: Map<String, Any> = emptyMap()): String? { throw UnsupportedOperationException("agent") }
+
+    // The natural voice (Piper, in the backend): asks for its installation (once), and for a sentence as a WAV, or null when it is not ready.
+    suspend fun voiceSetup() { throw UnsupportedOperationException("voiceSetup") }
+    suspend fun voiceSay(text: String): ByteArray? { throw UnsupportedOperationException("voiceSay") }
 
     suspend fun videos(): VideoList { throw UnsupportedOperationException("videos") }
     suspend fun inputs(): InputList { throw UnsupportedOperationException("inputs") }

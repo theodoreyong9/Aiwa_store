@@ -194,7 +194,7 @@ class WakeWordService : Service() {
             if (AiwaRepository.state.value.agent?.session == null) {
                 detector?.stop(); detector = null
                 scope.launch {
-                    Speaker.speakAndWait(applicationContext, "L'agent n'existe pas encore. Crée-le avec le bouton agent du widget.")
+                    Speaker.speakNatural(applicationContext, "L'agent n'existe pas encore. Crée-le avec le bouton agent du widget.")
                     if (!agentMode) listen()
                 }
                 return@post
@@ -207,8 +207,10 @@ class WakeWordService : Service() {
             AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = true)) }
             scope.launch {
                 agentCall("set", mapOf("enabled" to true))
+                // The natural voice is installed once (about 80 MB), in the backend; until it is ready the phone's own voice speaks.
+                if (AiwaRepository.state.value.agent?.voice == "none") try { withContext(Dispatchers.IO) { LocalClaudeBridge().voiceSetup() } } catch (err: Exception) { }
                 say("Agent de liaison : je t'écoute (dis « repasse en manuel » pour revenir)")
-                Speaker.speakAndWait(applicationContext, "Agent ouvert. Je t'écoute.")
+                Speaker.speakNatural(applicationContext, "Agent ouvert. Je t'écoute.")
                 agentBusy = false
                 agentListen()
                 maybeSpeakAgent()
@@ -227,7 +229,7 @@ class WakeWordService : Service() {
             scope.launch {
                 agentCall("set", mapOf("enabled" to false))
                 CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
-                Speaker.speakAndWait(applicationContext, "Retour en manuel.")
+                Speaker.speakNatural(applicationContext, "Retour en manuel.")
                 if (!agentMode) listen()
             }
         }
@@ -267,14 +269,14 @@ class WakeWordService : Service() {
     private suspend fun sendAgentProposal() {
         val proposal = AiwaRepository.state.value.agent?.proposal ?: return
         say(proposal.readBack)
-        if (!askAloud(applicationContext, proposal.readBack)) {
+        if (!askAloud(applicationContext, proposal.readBack) { Speaker.speakNatural(applicationContext, it) }) {
             toastOnMain(applicationContext, "Pas confirmé : rien n'est envoyé. La proposition attend.")
-            Speaker.speakAndWait(applicationContext, "Pas envoyé. La proposition attend.")
+            Speaker.speakNatural(applicationContext, "Pas envoyé. La proposition attend.")
             return
         }
         val error = agentCall("confirm", mapOf("id" to proposal.id))
         toastOnMain(applicationContext, if (error == null) "Envoyé à ${proposal.sessionTitle}." else "Pas envoyé : $error")
-        Speaker.speakAndWait(applicationContext, if (error == null) "C'est envoyé." else "Je n'ai pas pu l'envoyer.")
+        Speaker.speakNatural(applicationContext, if (error == null) "C'est envoyé." else "Je n'ai pas pu l'envoyer.")
         try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }
     }
 
@@ -289,7 +291,7 @@ class WakeWordService : Service() {
         agentListener = null
         scope.launch {
             say("L'agent : " + say.text)
-            Speaker.speakAndWait(applicationContext, say.text)
+            Speaker.speakNatural(applicationContext, say.text)
             agentCall("said", mapOf("id" to say.id))
             agentBusy = false
             agentListen()
