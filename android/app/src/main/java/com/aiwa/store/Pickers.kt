@@ -814,6 +814,24 @@ class ModePickerActivity : ComponentActivity() {
         CoroutineScope(Dispatchers.Default).launch { selectAiwaMode(app, mode) }
     }
 
+    private fun prodLabel(state: AiwaState): String = when {
+        aiwaTab(state) == "media" -> when (mediaSub(state)) { "campaign" -> "✉ Les propositions de la campagne"; "documents" -> "📄 Les documents"; else -> "🎬 Les vidéos" }
+        deliversApp(state.deploy) -> "▦ L'app produite (publier ou installer)"
+        state.siteKind == "apk" -> "⇩ L'APK produit"
+        else -> "🌐 Le site produit"
+    }
+
+    private fun openProd(state: AiwaState) {
+        val screen: Class<*> = when {
+            aiwaTab(state) == "media" -> when (mediaSub(state)) { "campaign" -> ProposalsActivity::class.java; "documents" -> DocumentsActivity::class.java; else -> VideosActivity::class.java }
+            deliversApp(state.deploy) -> OpenStoreActivity::class.java
+            state.repo != null && state.siteUrl != null -> SiteButtonActivity::class.java
+            else -> RepoPickerActivity::class.java
+        }
+        finish()
+        startActivity(Intent(applicationContext, screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
     /** Vidéos and Documents: the mode is set and the screen opens, as in the Média list. */
     private fun go(mode: String, screen: Class<*>) {
         val app = applicationContext
@@ -829,6 +847,8 @@ class ModePickerActivity : ComponentActivity() {
             val state by AiwaRepository.state.collectAsState()
             val tab = aiwaTab(state)
             val entries = buildList {
+                add(PickerEntry("Ouvrir ce que ce mode a produit", false, header = true) { })
+                add(PickerEntry(prodLabel(state), false, lines = 2) { openProd(state) })
                 add(PickerEntry("Mode", false, header = true) { })
                 add(PickerEntry("🎬 Vidéos — la liste, ou en demander une", state.videoView, lines = 2) { go("video", VideosActivity::class.java) })
                 add(PickerEntry("📄 Documents — ceux que Claude a créés", !state.videoView && state.deploy == "documents", lines = 2) { go("documents", DocumentsActivity::class.java) })

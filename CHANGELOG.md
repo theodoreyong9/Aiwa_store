@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Light shape:** no Prod button and no mode pill any more. The first row is the **Aiwa logo button** (opens the list: « open what this mode produced » — site, APK, app, videos, documents or proposals — then the modes Vidéos, Documents, Page, App, Store, Aiwa) and the repository list. The **settings** are back in the bottom row (loop, Aiwa app, super agent, campaign, settings); the second row is the update (when ready), the microphone, Claude and the question. Not seen on a real widget.
 - **Light shape:** **Prod** is a round button (an icon: globe, APK, store, video or papers according to the mode), no longer a pill. The settings button was already at the left of the microphone in the version merged just before; a phone still shows the old layout until the new APK is installed.
 - **Light shape:** the **settings** and the **update** (when ready) buttons are now at the left of the microphone; the bottom row keeps four slots (loop, Aiwa app, super agent, campaign).
 - **Light shape, adjusted:** the first row is now **mode ▾ · Prod · repository list** (Code and Workflow are gone from it; the workflow state stays in the Settings); the mode menu lists **Vidéos** and **Documents** directly instead of « Média » (then Page, App, Store, Aiwa); the **Campagne** button (the proposals to validate) replaces the comment button of the bottom row — the comment stays in the Settings. Never seen on a real widget.

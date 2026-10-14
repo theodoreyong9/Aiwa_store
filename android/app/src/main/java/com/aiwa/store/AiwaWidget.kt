@@ -1032,7 +1032,7 @@ private fun LightContent(state: AiwaState) {
     }
     val prodSite = tab != "media" && !deliversApp(state.deploy)
     val prodReady = if (prodSite) state.siteState == "live" else state.sentApp?.seen == false
-    val bottomCount = 4
+    val bottomCount = 5
     val bottomD = minOf(chipH, avail / bottomCount - 4f).coerceAtLeast(20f)
 
     Column(
@@ -1042,21 +1042,8 @@ private fun LightContent(state: AiwaState) {
     ) {
         // ---- the mode, and its targets ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            Chip(
-                modeWord + " ▾", pill, fg, actionStartActivity<ModePickerActivity>(),
-                GlanceModifier.defaultWeight(), alignStart = true, bold = true, height = chipH.dp, textSize = 12.sp, hPad = 8.dp,
-            )
-            Spacer(GlanceModifier.width(GAP.dp))
-            RoundButton(
-                icon = when {
-                    tab == "media" -> if (mediaSub(state) == "documents") R.drawable.ic_papers else R.drawable.ic_video
-                    deliversApp(state.deploy) -> R.drawable.ic_store
-                    state.siteKind == "apk" -> R.drawable.ic_download
-                    else -> R.drawable.ic_globe
-                },
-                description = "Prod : ouvrir ce que ce mode a produit (le site, l'app, les vidéos ou les documents)",
-                background = if (prodReady) claudeOrange else pill, action = lightProd(state, context), diameter = chipH.dp, badge = state.ciFresh,
-            )
+            // The Aiwa logo opens the list of the modes and of what each has produced
+            RoundButton(icon = R.drawable.ic_aiwa, description = "Les modes et leurs productions : vidéos, documents, page, app, store", background = pill, action = actionStartActivity<ModePickerActivity>(), diameter = chipH.dp, badge = state.ciFresh)
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(
                 "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", 54f - textWidth("⎇  ▾", context.resources.configuration.fontScale), context.resources.configuration.fontScale) + " ▾",
@@ -1066,12 +1053,6 @@ private fun LightContent(state: AiwaState) {
         }
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            RoundButton(
-                icon = R.drawable.ic_settings,
-                description = "Réglages : session, dépôt, modèle, push, voix, commentaire, mises à jour…",
-                background = pill, action = actionStartActivity<SettingsActivity>(), diameter = chipH.dp,
-            )
-            Spacer(GlanceModifier.width(GAP.dp))
             if (state.appUpdateReady) {
                 RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
                 Spacer(GlanceModifier.width(GAP.dp))
@@ -1122,6 +1103,13 @@ private fun LightContent(state: AiwaState) {
                 )
             }
             Slot { RoundButton(icon = R.drawable.ic_proposals, description = "Campagne : les propositions à valider", background = pill, action = actionStartActivity<ProposalsActivity>(), diameter = bottomD.dp) }
+            Slot {
+                RoundButton(
+                    icon = R.drawable.ic_settings,
+                    description = "Réglages : session, dépôt, modèle, push, voix, commentaire, mises à jour…",
+                    background = pill, action = actionStartActivity<SettingsActivity>(), diameter = bottomD.dp,
+                )
+            }
         }
     }
 }
