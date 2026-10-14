@@ -1049,9 +1049,11 @@ private fun LightContent(state: AiwaState) {
             Spacer(GlanceModifier.width(GAP.dp))
             Chip("Prod", if (prodReady) claudeOrange else pill, fg, lightProd(state, context), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, badge = state.ciFresh)
             Spacer(GlanceModifier.width(GAP.dp))
-            Chip("</> Code", pill, fg, codeAction, GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
-            Spacer(GlanceModifier.width(GAP.dp))
-            Chip("⚙ Workflow", if (workflowFailed(state)) alertRed else pill, fg, actionStartActivity<OpenActionsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 2.dp)
+            Chip(
+                "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", 54f - textWidth("⎇  ▾", context.resources.configuration.fontScale), context.resources.configuration.fontScale) + " ▾",
+                if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
+                lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
+            )
         }
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
@@ -1104,7 +1106,7 @@ private fun LightContent(state: AiwaState) {
                     action = actionStartActivity<AgentToggleActivity>(), diameter = bottomD.dp,
                 )
             }
-            Slot { RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = bottomD.dp) }
+            Slot { RoundButton(icon = R.drawable.ic_proposals, description = "Campagne : les propositions à valider", background = pill, action = actionStartActivity<ProposalsActivity>(), diameter = bottomD.dp) }
             Slot {
                 RoundButton(
                     icon = R.drawable.ic_settings,
