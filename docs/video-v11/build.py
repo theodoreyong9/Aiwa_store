@@ -47,13 +47,13 @@ def main():
             render(f'{ROOT}/docs/video-v11/video.html?g={b0}-{b1}&t=1', work / f'p{i:02d}t', secs, transparent=True)
             out = base; shutil.rmtree(out, ignore_errors=True); out.mkdir()
             run('ffmpeg', '-loglevel', 'error', '-y', '-framerate', '12', '-i', str(d3 / r3 / '%05d.png'), '-framerate', '30', '-i', str(work / f'p{i:02d}t' / '%05d.png'),
-                '-filter_complex', '[0:v]scale=1920:1080:flags=lanczos,framerate=fps=30[b];[b][1:v]overlay=format=auto,format=yuvj420p', '-frames:v', str(n), '-q:v', '2', str(out / '%05d.jpg'))
+                '-filter_complex', '[0:v]scale=1920:1080:flags=lanczos,minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:vsbmc=1[b];[b][1:v]overlay=format=auto,format=yuvj420p', '-frames:v', str(n), '-q:v', '2', str(out / '%05d.jpg'))
         else:
             render(f'{ROOT}/docs/video-v11/video.html?g={b0}-{b1}', base if kind == '2D' else work / f'p{i:02d}b', secs)
             if kind == 'over':
                 out = base; shutil.rmtree(out, ignore_errors=True); out.mkdir()
                 run('ffmpeg', '-loglevel', 'error', '-y', '-framerate', '30', '-i', str(work / f'p{i:02d}b' / '%05d.jpg'), '-framerate', '12', '-i', str(d3 / r3 / '%05d.png'),
-                    '-filter_complex', '[1:v]scale=1920:1080:flags=lanczos,format=rgba,split[ca][cb];[ca]format=rgb24,framerate=fps=30[c];[cb]alphaextract,framerate=fps=30[m];[c][m]alphamerge[o];[0:v][o]overlay=0:0:format=auto,format=yuvj420p', '-frames:v', str(n), '-q:v', '2', str(out / '%05d.jpg'))
+                    '-filter_complex', '[1:v]scale=1920:1080:flags=lanczos,format=rgba,split[ca][cb];[ca]format=rgb24,minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:vsbmc=1[c];[cb]alphaextract,minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:vsbmc=1[m];[c][m]alphamerge[o];[0:v][o]overlay=0:0:format=auto,format=yuvj420p', '-frames:v', str(n), '-q:v', '2', str(out / '%05d.jpg'))
         have = len(list(base.glob('*.jpg')))
         print(f'piece {i} bars {b0}-{b1} {kind}: need {n} frames, have {have}', flush=True)
     if only and not concat_only:
