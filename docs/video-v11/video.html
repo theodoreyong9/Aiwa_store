@@ -7,7 +7,8 @@
 <script src="../../video-kit/template/motion.js"></script>
 <script>
 const VIO = '#7b61ff', TEA = '#26c6b0', ORA = '#cc785c', GRN = '#58d39b', MUT = '#9a9ab0', RED = '#e0524e';
-const TRM = new URLSearchParams(location.search).get('t') === '1';      // t=1: the words only, on a transparent ground (laid over a 3D shot)
+const TRM = new URLSearchParams(location.search).get('t') === '1';
+if (TRM) { document.documentElement.style.background = 'transparent'; document.body.style.background = 'transparent'; }      // t=1: the words only, on a transparent ground (laid over a 3D shot)
 window.THEME = TRM ? { bg: 'transparent', ink: '#f0f0f5', muted: MUT, accent: ORA, grain: 0, vignette: 0 } : { bg: '#090912', ink: '#f0f0f5', muted: MUT, accent: ORA, grain: 0.06, vignette: 0.5 };
 const FF = '"Liberation Sans",Arial,sans-serif';
 const BAR = 240 / 104, BEAT = BAR / 4, T0 = 0.029, TR = 0.35;           // the track: 104 bpm, its first beat at 0.029 s
@@ -224,7 +225,7 @@ const CODE = `<div class="card" id="rg0" style="left:830px;top:20px;width:770px;
 <span style="color:#c792ea">if</span> (a.from <span style="color:#c792ea">in</span> state.votes) <span style="color:#c792ea">return</span> state;
 <span style="color:#c792ea">return</span> { votes: { ...state.votes, [a.from]: a.choice } };</pre></div>
 <div class="tag" id="rg1" style="left:830px;top:560px">extrait de docs/CONTRACTS.md</div>
-<div class="k" id="rg2" style="left:0;top:700px;width:1600px;text-align:center;font-size:40px;font-weight:800;color:${GRN}">Pensé pour résister aux faux comptes et à la double dépense</div>`;
+<div class="k" id="rg2" style="left:0;top:738px;width:1600px;text-align:center;font-size:36px;font-weight:800;color:${GRN}">Pensé pour résister aux faux comptes et à la double dépense</div>`;
 const PAY = `<div class="card pd" style="left:0;top:90px;width:340px;height:520px;border-radius:60px;padding:0;display:flex;align-items:center;justify-content:center;background:#14141c">${ic(I.phone, 150, '#fff', 1.1)}</div>
 <div class="card pd" style="left:430px;top:90px;width:340px;height:520px;border-radius:60px;padding:0;display:flex;align-items:center;justify-content:center;background:#14141c">${ic(I.phone, 150, '#fff', 1.1)}</div>
 <svg class="k" style="left:330px;top:290px" width="120" height="120" viewBox="0 0 120 120"><path id="pa" d="M10 60 H100" stroke="${GRN}" stroke-width="6" stroke-linecap="round" fill="none" stroke-dasharray="90" stroke-dashoffset="90"/><path id="pb" d="M84 40 L106 60 84 80" stroke="${GRN}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" style="opacity:0"/></svg>

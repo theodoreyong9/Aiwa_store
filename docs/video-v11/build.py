@@ -52,7 +52,7 @@ def main():
             if kind == 'over':
                 out = base; shutil.rmtree(out, ignore_errors=True); out.mkdir()
                 run('ffmpeg', '-loglevel', 'error', '-y', '-framerate', '30', '-i', str(work / f'p{i:02d}b' / '%05d.jpg'), '-framerate', '12', '-i', str(d3 / r3 / '%05d.png'),
-                    '-filter_complex', '[1:v]scale=1920:1080:flags=lanczos,format=rgba,framerate=fps=30[o];[0:v][o]overlay=0:0:format=auto,format=yuvj420p', '-frames:v', str(n), '-q:v', '2', str(out / '%05d.jpg'))
+                    '-filter_complex', '[1:v]scale=1920:1080:flags=lanczos,format=rgba,split[ca][cb];[ca]format=rgb24,framerate=fps=30[c];[cb]alphaextract,framerate=fps=30[m];[c][m]alphamerge[o];[0:v][o]overlay=0:0:format=auto,format=yuvj420p', '-frames:v', str(n), '-q:v', '2', str(out / '%05d.jpg'))
         have = len(list(base.glob('*.jpg')))
         print(f'piece {i} bars {b0}-{b1} {kind}: need {n} frames, have {have}', flush=True)
     if only:

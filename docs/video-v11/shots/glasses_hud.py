@@ -36,9 +36,9 @@ if hud:
     bpy.ops.mesh.primitive_plane_add(size=1)
     plane = bpy.context.active_object
     plane.name = 'hud'
-    plane.scale = (1.7, 1.7 * 0.7, 1)
+    plane.scale = (1.15, 1.15 * 0.7, 1)
     plane.rotation_euler = (math.radians(90), 0, math.radians(-8))
-    plane.location = (1.1, -1.4, 0.75)
+    plane.location = (0.15, -3.2, 1.0)
     mat = bpy.data.materials.new('hud'); mat.use_nodes = True
     nt = mat.node_tree
     for n in list(nt.nodes):
