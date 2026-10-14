@@ -537,6 +537,15 @@ class VoiceCommandsHelpActivity : ComponentActivity() {
                 add(PickerEntry("« Mon agent » : il t'écoute, puis tu donnes tes instructions. Avant d'envoyer, le téléphone relit ce qu'il va faire et toutes les pastilles, et attend « c'est bon vas-y » ; « non » ou le silence : rien ne part (le message est copié).", false, lines = 5) { })
                 add(PickerEntry("« Instruction » : tu donnes directement tes instructions (même relecture et même confirmation).", false, lines = 3) { })
                 add(PickerEntry("« Stop Claude » ou « arrête Claude » : arrête Claude tout de suite, sans confirmation.", false, lines = 3) { })
+                add(PickerEntry("« Mon super agent » : ouvre le super agent (la deuxième écoute, voir plus bas).", false, lines = 3) { })
+
+                add(PickerEntry("Le super agent : la deuxième écoute", false, header = true) { })
+                add(PickerEntry("L'ouvrir : dis « mon super agent » (l'écoute de réveil doit être allumée) ou touche son bouton dans le widget. L'écoute de réveil attend pendant ce temps ; tout ce que tu dis va à l'agent, et il te répond à voix haute.", false, lines = 4) { })
+                add(PickerEntry("« Vas-y, dis-lui » : quand l'agent propose un message pour une session, le téléphone relit la session et le message ; « c'est bon vas-y » l'envoie, rien d'autre ne l'envoie.", false, lines = 4) { })
+                add(PickerEntry("« Vas-y, fais-le » : quand il propose des réglages (modèle, effort, push, déploiement, dépôt, session), le téléphone les relit et les applique après « c'est bon vas-y ».", false, lines = 4) { })
+                add(PickerEntry("« Repasse en manuel » ou « ferme l'agent » (ou le bouton) : il se ferme et l'écoute de réveil reprend. Fermer l'agent ne ferme jamais l'écoute de réveil.", false, lines = 4) { })
+                add(PickerEntry("En dictée normale : « dis à l'agent … » envoie ta phrase à l'agent et non à la session de travail.", false, lines = 3) { })
+                add(PickerEntry("Sa vitesse : avec ta clé Anthropic (dans la fenêtre de l'agent) il répond en une ou deux secondes et comprend aussi les ordres que les mots-clés ratent ; sans clé il passe par une session cloud (10 à 30 secondes) et le téléphone dit « je regarde » en attendant.", false, lines = 5) { })
             }
             PickerSheet(entries) { finish() }
         }
