@@ -28,19 +28,19 @@ object WidgetPin {
     }
 
     /**
-     * Whenever the application is opened and there is no widget: one request, at most a few times and not twice in a day. NOT « once for ever »: a flag kept for ever was restored
-     * by Android's backup after a reinstall, or set at a time when a widget already existed, and the request was then never made again. The counter is in storage that
-     * the backup does not carry (noBackupFilesDir). When the launcher cannot be asked, the gesture by hand is said (at most twice).
+     * Whenever the application is opened and there is no widget: the request is made, every time (the person said no, or closed the window, or reinstalled: it is asked again
+     * at the next opening). Only a few minutes between two requests, so that opening and closing the app is not a loop; Android itself may refuse some. NOT « once for ever »
+     * nor « once a day »: a flag kept for ever was restored by Android's backup after a reinstall, and a daily limit made the request vanish right after the first opening.
+     * The time of the last request is in storage that the backup does not carry (noBackupFilesDir). When the launcher cannot be asked, the gesture by hand is said.
      */
     fun offerOnce(context: Context) {
         if (hasWidget(context)) return
         val file = java.io.File(context.noBackupFilesDir, "widget_pin.txt")
         val parts = try { file.readText().trim().split(' ') } catch (err: Exception) { emptyList() }
-        val count = parts.getOrNull(0)?.toIntOrNull() ?: 0
         val last = parts.getOrNull(1)?.toLongOrNull() ?: 0L
         val now = System.currentTimeMillis()
-        if (count >= 4 || now - last < 20 * 60 * 60 * 1000L) return
-        try { file.writeText("${count + 1} $now") } catch (err: Exception) { }
-        request(context, explain = count < 2)
+        if (now - last < 3 * 60 * 1000L) return
+        try { file.writeText("1 $now") } catch (err: Exception) { }
+        request(context, explain = true)
     }
 }
