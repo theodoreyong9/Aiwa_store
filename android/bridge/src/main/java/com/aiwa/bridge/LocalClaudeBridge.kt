@@ -104,6 +104,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                     a.optJSONObject("proposal")?.let { AgentProposal(it.optString("id"), it.optString("session"), it.optString("session_title"), it.optString("message"), it.optString("read_back")) },
                     a.optString("voice", "none"),
                     a.optJSONObject("command")?.let { AgentCommand(it.optString("id"), it.optString("read_back"), it.optString("instruction")) },
+                    a.optString("llm", "none"),
                 )
             },
             sentApp = json.optJSONObject("sent_app")?.let {
@@ -288,6 +289,23 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         fields.forEach { (k, v) -> body.put(k, v) }
         val json = JSONObject(postText("/api/agent/$action", body.toString()))
         if (json.optBoolean("ok", false)) null else json.optString("error", "l'agent n'a pas pu")
+    }
+
+    override suspend fun llmKey(key: String?): String? = withContext(Dispatchers.IO) {
+        val body = if (key == null) JSONObject().put("clear", true) else JSONObject().put("key", key)
+        val json = JSONObject(postText("/api/llm/key", body.toString()))
+        if (json.optBoolean("ok", false)) null else json.optString("error", "la clé n'a pas été prise")
+    }
+
+    override suspend fun llmCommands(text: String): Pair<String, String>? = withContext(Dispatchers.IO) {
+        val connection = URI("$baseUrl/api/llm/commands").toURL().openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.doOutput = true
+        connection.readTimeout = 25_000
+        connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+        connection.outputStream.use { it.write(JSONObject().put("text", text).toString().toByteArray()) }
+        val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+        if (json.optBoolean("ok", false)) Pair(json.optString("instruction"), json.optString("message")) else null
     }
 
     override suspend fun voiceSetup() = withContext(Dispatchers.IO) { postText("/api/voice/setup", "{}"); Unit }

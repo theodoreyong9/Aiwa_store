@@ -13,7 +13,7 @@ class AgentToggleActivity : ComponentActivity() {
         wakeAiwa(applicationContext)
         val agent = AiwaRepository.state.value.agent
         when {
-            agent?.session == null -> startActivity(Intent(this, AgentActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            agent == null || (agent.session == null && agent.llm != "ready") -> startActivity(Intent(this, AgentActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             agent.enabled -> WakeWordService.closeAgentMode(applicationContext)
             else -> WakeWordService.openAgentMode(applicationContext)
         }

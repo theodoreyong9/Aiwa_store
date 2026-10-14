@@ -17,7 +17,7 @@ data class SentApp(val name: String, val size: Int, val ts: Long, val seen: Bool
 data class AgentSay(val id: String, val text: String, val ts: Long)
 data class AgentProposal(val id: String, val session: String, val sessionTitle: String, val message: String, val readBack: String)
 data class AgentCommand(val id: String, val readBack: String, val instruction: String)
-data class AgentInfo(val enabled: Boolean, val session: String?, val interval: Int, val creating: Boolean, val error: String?, val say: AgentSay?, val proposal: AgentProposal?, val voice: String = "none", val command: AgentCommand? = null)
+data class AgentInfo(val enabled: Boolean, val session: String?, val interval: Int, val creating: Boolean, val error: String?, val say: AgentSay?, val proposal: AgentProposal?, val voice: String = "none", val command: AgentCommand? = null, val llm: String = "none")
 data class AskInfo(val id: String, val question: String, val options: List<String>, val ts: Long, val session: String? = null, val count: Int = 1)
 
 // A promotional video of the creation: a file of the GitHub release `videos` of its repository (a public repository only: Aiwa asks for no token).
@@ -187,6 +187,11 @@ interface ClaudeBridge {
     // The natural voice (Piper, in the backend): asks for its installation (once), and for a sentence as a WAV, or null when it is not ready.
     suspend fun voiceSetup() { throw UnsupportedOperationException("voiceSetup") }
     suspend fun voiceSay(text: String): ByteArray? { throw UnsupportedOperationException("voiceSay") }
+
+    // The person's own Anthropic key (optional): kept in the backend only. Returns the reason when it fails, else null. `llmKey(null)` removes it.
+    suspend fun llmKey(key: String?): String? { throw UnsupportedOperationException("llmKey") }
+    // A sentence the keyword parser did not understand, read by Claude: (spoken instruction for the parser, the rest for the work session), or null.
+    suspend fun llmCommands(text: String): Pair<String, String>? { throw UnsupportedOperationException("llmCommands") }
 
     suspend fun videos(): VideoList { throw UnsupportedOperationException("videos") }
     suspend fun inputs(): InputList { throw UnsupportedOperationException("inputs") }

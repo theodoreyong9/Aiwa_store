@@ -174,6 +174,16 @@ class VoiceDictation(
             return
         }
         work = scope.launch {
+            // With the person's own API key (optional), what the keyword parser did not understand is read by Claude: the settings it finds are applied as spoken instructions, the rest goes on as the message.
+            if (dictation.problems.isNotEmpty() && AiwaRepository.state.value.agent?.llm == "ready") {
+                val read = try { LocalClaudeBridge().llmCommands(text) } catch (err: Exception) { null }
+                if (read != null && read.first.isNotBlank()) {
+                    if (repoNames.isEmpty()) repoNames = withContext(Dispatchers.IO) { try { LocalClaudeBridge().githubRepos().map { it.name } } catch (err: Exception) { emptyList() } }
+                    val understood = parseDictation(read.first, voiceModels(), voiceSessions(), repoNames, true)
+                    runInstructions(understood.copy(message = read.second))
+                    return@launch
+                }
+            }
             val wantsRepo = dictation.commands.any { it is VoiceCommand.Repo }
             if (wantsRepo && repoNames.isEmpty()) repoNames = withContext(Dispatchers.IO) { try { LocalClaudeBridge().githubRepos().map { it.name } } catch (err: Exception) { emptyList() } }
             // Said again with the list of repositories, if it was not there yet when the words were heard.

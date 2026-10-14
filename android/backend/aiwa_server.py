@@ -46,6 +46,7 @@ import aiwa_github as github
 import aiwa_loops as loops_lib
 import aiwa_agent as agent_lib
 import aiwa_voice as voice_lib
+import aiwa_llm as llm_lib
 
 
 def _ts():
@@ -56,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 89
+BACKEND_VERSION = 90
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2396,8 +2397,37 @@ def _agent_digest():
     return agent_lib.digest(sessions, loops, asks, current_id=in_use)
 
 
-def agent_send(spoken=None):
-    """One point to the agent (and the person's words, when they spoke to it). {"ok", "error"}."""
+def _agent_direct(spoken=None):
+    """The agent answers through the person's own API key: one call, no cloud session and no relay. Falls back on the session when the call fails."""
+    text, sig = _agent_digest()
+    with agent_lock:
+        own = agent["session"]
+        history = list(agent_chat[-8:])
+    user = {"role": "user", "content": agent_lib.direct_user(text, spoken=spoken, stamp=time.strftime("%H:%M"))}
+    known = {e["id"] for e in _load_cloud_sessions() if e.get("id")}
+    answer = llm.ask(agent_lib.direct_system(known), history + [user])
+    if answer is None:
+        if own:   # the usual way, through its session
+            agent_send(spoken=spoken, direct=False)
+            return
+        with agent_lock:
+            agent["error"] = "Claude n'a pas répondu (clé, réseau ou quota)"
+        return
+    with agent_lock:
+        agent["error"] = None
+        agent_chat.extend([user, {"role": "assistant", "content": answer}])
+        del agent_chat[:-16]
+        agent["sig"], agent["last"] = sig, time.time()
+    reply = llm_lib.json_in(answer)
+    if reply:
+        _agent_said(json.dumps(reply))
+
+
+def agent_send(spoken=None, direct=True):
+    """One point to the agent (and the person's words, when they spoke to it). {"ok", "error"}. With the person's API key it is answered at once from here, otherwise by the agent's session."""
+    if direct and llm.state == "ready":
+        threading.Thread(target=_agent_direct, args=(spoken,), daemon=True).start()
+        return {"ok": True}
     with agent_lock:
         session = agent["session"]
     if not session:
@@ -2415,7 +2445,7 @@ def _agent_loop():
     while True:
         try:
             with agent_lock:
-                due = agent["enabled"] and agent["session"] and time.time() - agent["last"] >= agent["interval"] * 60
+                due = agent["enabled"] and (agent["session"] or llm.state == "ready") and time.time() - agent["last"] >= agent["interval"] * 60
             if due:
                 _text, sig = _agent_digest()
                 with agent_lock:
@@ -2451,13 +2481,33 @@ def _agent_said(raw):
 
 
 voice = voice_lib.Voice()
+llm = llm_lib.Llm()
+llm.prepare()
+agent_chat = []   # the last turns of the direct conversation with the agent (when the person's own API key is there)
+
+
+def llm_commands(text):
+    """A sentence the keyword parser did not understand, read by Claude: the settings asked for (as a spoken instruction the phone's parser reads) and the rest, for the work session."""
+    if not text.strip() or llm.state != "ready":
+        return {"ok": False}
+    answer = llm.ask(agent_lib.COMMANDS_SYSTEM, [{"role": "user", "content": "Phrase : « " + " ".join(text.split()) + " »"}], max_tokens=400)
+    data = llm_lib.json_in(answer)
+    if not data:
+        return {"ok": False}
+    known = {e["id"] for e in _load_cloud_sessions() if e.get("id")}
+    command = agent_lib.parse_command(data.get("do"), known, None)
+    message = " ".join(str(data.get("message") or "").split())[:1500]
+    if command is None:
+        return {"ok": True, "instruction": "", "message": message}
+    _spoken, instruction = agent_lib.command_phrases(command, lambda sid: (_session_entry(sid) or {}).get("title") or sid)
+    return {"ok": True, "instruction": instruction, "message": message}
 
 
 def agent_snapshot():
     with agent_lock:
         say = agent["say"] if agent["say"] and not agent["say"]["spoken"] else None
         proposal = dict(agent["proposal"]) if agent["proposal"] else None
-        out = {"enabled": agent["enabled"], "session": agent["session"], "interval": agent["interval"], "creating": agent["creating"], "error": agent["error"], "voice": voice.state,
+        out = {"enabled": agent["enabled"], "session": agent["session"], "interval": agent["interval"], "creating": agent["creating"], "error": agent["error"], "voice": voice.state, "llm": llm.state,
                "say": {k: say[k] for k in ("id", "text", "ts")} if say else None}
     if proposal:
         entry = _session_entry(proposal["session"]) or {}
@@ -2511,7 +2561,7 @@ def agent_set(enabled=None, interval=None):
         if interval is not None:
             agent["interval"] = agent_lib.clamp_interval(interval)
         if enabled is not None:
-            if enabled and not agent["session"]:
+            if enabled and not agent["session"] and llm.state != "ready":
                 return {"ok": False, "error": "pas d'agent : crée-le d'abord"}
             agent["enabled"] = bool(enabled)
         _agent_save()
@@ -3222,6 +3272,19 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_json(agent_spoken(str(data.get("id") or "")))
             else:
                 self.send_error(404)
+        elif self.path == "/api/llm/key":
+            try:
+                data = json.loads(body)
+            except ValueError:
+                data = {}
+            data = data if isinstance(data, dict) else {}
+            self.reply_json(llm.clear_key() if data.get("clear") else llm.save_key(data.get("key")))
+        elif self.path == "/api/llm/commands":
+            try:
+                text = str(json.loads(body).get("text", ""))[:1500]
+            except (ValueError, AttributeError):
+                text = ""
+            self.reply_json(llm_commands(text))
         elif self.path == "/api/voice/setup":
             voice.install()
             self.reply_json({"ok": True, "state": voice.state})

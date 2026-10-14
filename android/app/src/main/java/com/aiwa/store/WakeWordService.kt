@@ -197,7 +197,7 @@ class WakeWordService : Service() {
     fun openAgent() {
         main.post {
             if (agentMode || model == null) return@post
-            if (AiwaRepository.state.value.agent?.session == null) {
+            if (AiwaRepository.state.value.agent.let { it?.session == null && it?.llm != "ready" }) {
                 detector?.stop(); detector = null
                 scope.launch {
                     Speaker.speakNatural(applicationContext, "L'agent n'existe pas encore. Crée-le avec le bouton agent du widget.")
@@ -279,6 +279,8 @@ class WakeWordService : Service() {
     private fun startFiller() {
         val token = ++waitToken
         scope.launch {
+            // With the person's own key the answer comes in a second or two: no filler unless it really takes longer.
+            if (AiwaRepository.state.value.agent?.llm == "ready") delay(4_000)
             for (phrase in FILLERS) {
                 if (!agentMode || token != waitToken) return@launch
                 if (AiwaRepository.state.value.agent?.say?.id.let { it != null && it != lastAgentSaid }) return@launch   // the answer is there
