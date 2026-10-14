@@ -59,7 +59,7 @@ const mbTick = (root, t) => { rv(root.querySelector('#m0'), t, 0.3); rv(root.que
   root.querySelector('#mtx').textContent = t > 3.6 ? 'Installation…' : 'Mise à jour prête'; root.querySelector('#mok').style.opacity = M.prog(t, 4.3, 0.4); };
 
 // ---- 4. screen off ------------------------------------------------------------------------------------------------------------------------
-const OFF = `<div class="k" id="o0" style="left:430px;top:0;width:520px;height:900px;border-radius:84px;background:#050507;border:10px solid #23232c;box-shadow:0 60px 160px rgba(0,0,0,.8)"></div>
+const OFF = `<div class="k" id="o0" style="left:430px;top:0;width:520px;height:900px;border-radius:84px;background:#0d0d14;border:10px solid #3a3a4c;box-shadow:0 60px 160px rgba(0,0,0,.8)"></div>
 <div class="k" id="o1" style="left:640px;top:360px;width:100px;height:100px;border-radius:50%;background:${GRN};box-shadow:0 0 90px ${GRN}"></div>
 <svg class="k" id="o2" style="left:430px;top:540px" width="520" height="140" viewBox="0 0 520 140">${Array.from({ length: 21 }, (_, i) => `<rect class="wv" x="${40 + i * 22}" y="60" width="10" height="20" rx="5" fill="${GRN}" opacity=".85"/>`).join('')}</svg>
 <div class="pill" id="o3" style="left:1040px;top:250px;height:104px;padding:0 44px;font-size:48px;background:#fff;color:#151520;display:flex;align-items:center">« Aïwa »</div>
@@ -159,7 +159,7 @@ const papers = [['YELLOWPAPER', 'le protocole'], ['PLAN', 'ce que fait la versio
 const AUTO = `<svg class="k" id="au0" style="left:80px;top:20px" width="400" height="400" viewBox="0 0 24 24" fill="none" stroke="${TEA}" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round"><g id="aur" style="transform-origin:12px 12px">${I.loop}</g></svg>
 <div class="k" id="au1" style="left:20px;top:450px;width:520px;text-align:center;font-size:44px;font-weight:800;letter-spacing:-1px;line-height:1.1">Aïwa<br>développe Aïwa</div>
 <div class="k" id="au2" style="left:20px;top:600px;width:520px;text-align:center;font-size:30px;color:#a9a9c0">et tu peux y participer</div>
-${papers.map(([n, s], i) => `<div class="card pp" style="left:640px;top:${i * 118}px;width:920px;height:100px;padding:0 36px;display:flex;align-items:center;gap:28px"><div style="width:14px;height:56px;border-radius:7px;background:${[VIO, TEA, ORA, GRN, VIO, TEA][i]};flex:none"></div><div style="font-size:40px;font-weight:800;letter-spacing:1px;width:290px">${n}</div><div style="font-size:30px;color:#a9a9c0">${s}</div></div>`).join('')}
+${papers.map(([n, s], i) => `<div class="card pp" style="left:640px;top:${i * 118}px;width:920px;height:100px;padding:0 36px;display:flex;align-items:center;gap:28px"><div style="width:14px;height:56px;border-radius:7px;background:${[VIO, TEA, ORA, GRN, VIO, TEA][i]};flex:none"></div><div style="font-size:40px;font-weight:800;letter-spacing:1px;width:350px;flex:none">${n}</div><div style="font-size:30px;color:#a9a9c0">${s}</div></div>`).join('')}
 <div class="k" id="au3" style="left:640px;top:720px;width:920px;font-size:34px;color:#c9c9d8">le corpus fondateur : ce dont dépend la bonne tenue du système</div>`;
 const autoTick = (root, t) => { rv(root.querySelector('#au1'), t, 0.4, 0.6, 20); rv(root.querySelector('#au2'), t, 1.4, 0.6, 20); root.querySelector('#au0').style.opacity = M.prog(t, 0.2, 0.6); root.querySelector('#aur').style.transform = `rotate(${t * 40}deg)`;
   $$(root, '.pp').forEach((e, i) => rv(e, t, 1.8 + i * 0.5, 0.5, 40)); rv(root.querySelector('#au3'), t, 5.6, 0.6, 20); };
@@ -227,16 +227,16 @@ window.SHOTS = [
   ] },
   // 2. the stack
   { seconds: 8.5, transition: { type: 'push', seconds: 0.6 }, bg: BG('rgba(38,198,176,.28)', 'rgba(123,97,255,.32)', 'rgba(30,30,60,.5)'), layers: [
-    L('stack', STACK, [1600, 700], stackTick, { y: 52, w: 84 }),
+    L('stack', STACK, [1600, 700], stackTick, { y: 52, w: 92 }),
   ] },
   // 3. mind and body
   { seconds: 8, transition: { type: 'wipe', seconds: 0.6 }, bg: { type: 'gradient', colors: ['#171230', '#090912'], angle: 170, drift: true }, layers: [
-    L('mb', MB, [1600, 620], mbTick, { y: 54, w: 84 }),
+    L('mb', MB, [1600, 620], mbTick, { y: 54, w: 92 }),
     TXT('Un esprit vivant. Un corps à jour.', 4.2, 12, 0.2, { effect: 'rise', weight: 700, color: '#d6d6e6' }),
   ] },
   // 4. screen off
-  { seconds: 7.5, transition: { type: 'iris', seconds: 0.7 }, bg: { type: 'solid', color: '#050508' }, layers: [
-    L('off', OFF, [1600, 900], offTick, { w: 78, y: 52 }),
+  { seconds: 7.5, transition: { type: 'iris', seconds: 0.7 }, bg: { type: 'gradient', colors: ['#1a1a34', '#0a0a14'], angle: 160, drift: true }, layers: [
+    L('off', OFF, [1600, 900], offTick, { w: 84, y: 52 }),
   ] },
   // 5. call your agent: instructions and commands
   { seconds: 11, transition: { type: 'wipe', seconds: 0.6 }, bg: { type: 'gradient', colors: ['#1c1736', '#090912'], angle: 180, drift: true }, layers: [
@@ -248,20 +248,20 @@ window.SHOTS = [
   // 6. what it makes
   { seconds: 12.5, transition: { type: 'push', seconds: 0.6 }, bg: BG('rgba(123,97,255,.34)', 'rgba(38,198,176,.26)', 'rgba(30,30,60,.5)'), layers: [
     TXT('À la demande.', 6.2, 10, 0.2, { effect: 'rise' }),
-    L('make', MAKE, [1600, 710], makeTick, { y: 55, w: 84 }),
+    L('make', MAKE, [1600, 710], makeTick, { y: 55, w: 92 }),
   ] },
   // 7. sessions and loops
   { seconds: 9.5, transition: { type: 'slice', seconds: 0.6 }, bg: { type: 'gradient', colors: ['#11182b', '#090912'], angle: 160, drift: true }, layers: [
-    L('loop', LOOP, [1500, 720], loopTick, { y: 54, w: 82 }),
+    L('loop', LOOP, [1500, 720], loopTick, { y: 54, w: 90 }),
   ] },
   // 8. campaigns
   { seconds: 14.5, transition: { type: 'wipe', seconds: 0.6 }, bg: BG('rgba(204,120,92,.30)', 'rgba(123,97,255,.30)', 'rgba(30,30,60,.5)'), layers: [
     TXT('Des campagnes puissantes.', 6, 10, 0.2, { effect: 'rise' }),
-    L('camp', CAMP, [1580, 780], campTick, { y: 56, w: 86 }),
+    L('camp', CAMP, [1580, 780], campTick, { y: 56, w: 90 }),
   ] },
   // 9. the super agent
   { seconds: 16, transition: { type: 'iris', seconds: 0.7 }, bg: BG('rgba(123,97,255,.40)', 'rgba(38,198,176,.20)', 'rgba(30,30,60,.5)'), layers: [
-    L('super', SUPER, [1560, 760], superTick, { y: 54, w: 86 }),
+    L('super', SUPER, [1560, 760], superTick, { y: 54, w: 90 }),
     TXT('Parle à ton super agent.', 5.2, 8, 0.2, { x: 50, effect: 'rise', weight: 800 }),
   ] },
   // 10. the voice
@@ -272,32 +272,32 @@ window.SHOTS = [
   ] },
   // 11. autonomy and the founding papers
   { seconds: 12, transition: { type: 'push', seconds: 0.6 }, bg: { type: 'gradient', colors: ['#10182a', '#090912'], angle: 170, drift: true }, layers: [
-    L('auto', AUTO, [1560, 780], autoTick, { y: 54, w: 86 }),
+    L('auto', AUTO, [1560, 780], autoTick, { y: 54, w: 90 }),
   ] },
   // 12. hosting
   { seconds: 9, transition: { type: 'fade', seconds: 0.6 }, bg: BG('rgba(46,125,90,.34)', 'rgba(38,198,176,.20)', 'rgba(20,30,30,.5)'), layers: [
     TXT('Tu héberges toi-même.', 6.6, 11, 0.2, { effect: 'rise' }),
-    L('host', HOST, [1600, 760], hostTick, { y: 56, w: 84 }),
+    L('host', HOST, [1600, 760], hostTick, { y: 56, w: 92 }),
   ] },
   // 13. the wallet
   { seconds: 8.5, transition: { type: 'wipe', seconds: 0.6 }, bg: BG('rgba(123,97,255,.40)', 'rgba(38,198,176,.25)', 'rgba(30,30,60,.5)'), layers: [
     TXT('Grâce à un wallet.', 6.2, 10, 0.2, { effect: 'rise' }),
-    L('wal', WAL, [1600, 760], walTick, { y: 56, w: 84 }),
+    L('wal', WAL, [1600, 760], walTick, { y: 56, w: 92 }),
   ] },
   // 14. the registry and the payment
   { seconds: 14.5, transition: { type: 'slice', seconds: 0.6 }, bg: { type: 'gradient', colors: ['#130f2a', '#090912'], angle: 165, drift: true }, layers: [
     TXT('Un registre distribué.\nDes règles que chacun vérifie.', 5.2, 11, 0.2, { effect: 'rise', stagger: 0.3 }),
-    L('reg', CODE + PAY, [1600, 760], regTick, { y: 55, w: 84 }),
+    L('reg', CODE + PAY, [1600, 760], regTick, { y: 55, w: 92 }),
     TXT('Pensé pour résister aux faux comptes et à la double dépense.', 3.2, 95, 8.6, { effect: 'rise', weight: 600, color: GRN }),
   ] },
   // 15. the glasses
   { seconds: 9.5, transition: { type: 'iris', seconds: 0.7 }, bg: BG('rgba(38,198,176,.30)', 'rgba(123,97,255,.38)', 'rgba(30,30,60,.5)'), layers: [
     TXT('Demain : les lunettes.', 6.6, 10, 0.2, { effect: 'rise' }),
-    L('gl', GL, [1560, 640], glTick, { y: 56, w: 84 }),
+    L('gl', GL, [1560, 640], glTick, { y: 56, w: 92 }),
   ] },
   // 16. the close
   { seconds: 10, transition: { type: 'fade', seconds: 0.8 }, bg: BG('rgba(204,120,92,.36)', 'rgba(123,97,255,.34)', 'rgba(30,30,60,.5)'), layers: [
-    L('close', CLOSE, [1560, 680], closeTick, { y: 36, w: 86 }),
+    L('close', CLOSE, [1560, 680], closeTick, { y: 36, w: 90 }),
     TXT('Aïwa', 11, 76, 3.4, { mode: 'chars', stagger: 0.08, accent: { 'Aïwa': ORA } }),
     TXT('theodoreyong9.github.io/Aiwa_store', 3.2, 90, 4.8, { effect: 'blur', mode: 'words', weight: 600, color: '#c9c9d8' }),
     TXT('Musique : « The Complex », Kevin MacLeod (incompetech.com), CC BY 4.0', 1.7, 97, 5.6, { effect: 'fade', weight: 500, color: '#7c7c92' }),
