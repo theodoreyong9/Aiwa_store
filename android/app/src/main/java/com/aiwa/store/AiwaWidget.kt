@@ -1047,7 +1047,16 @@ private fun LightContent(state: AiwaState) {
                 GlanceModifier.defaultWeight(), alignStart = true, bold = true, height = chipH.dp, textSize = 12.sp, hPad = 8.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
-            Chip("Prod", if (prodReady) claudeOrange else pill, fg, lightProd(state, context), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, badge = state.ciFresh)
+            RoundButton(
+                icon = when {
+                    tab == "media" -> if (mediaSub(state) == "documents") R.drawable.ic_papers else R.drawable.ic_video
+                    deliversApp(state.deploy) -> R.drawable.ic_store
+                    state.siteKind == "apk" -> R.drawable.ic_download
+                    else -> R.drawable.ic_globe
+                },
+                description = "Prod : ouvrir ce que ce mode a produit (le site, l'app, les vidéos ou les documents)",
+                background = if (prodReady) claudeOrange else pill, action = lightProd(state, context), diameter = chipH.dp, badge = state.ciFresh,
+            )
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(
                 "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", 54f - textWidth("⎇  ▾", context.resources.configuration.fontScale), context.resources.configuration.fontScale) + " ▾",
