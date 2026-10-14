@@ -831,6 +831,12 @@ private fun AiwaContent(state: AiwaState) {
     val rowH = ((size.height.value - 16f) / rows).coerceIn(26f, 42f)
     val chipH = (rowH - 4f).coerceAtLeast(22f)
     val band = bandInfo(state, avail - 20f)
+    val appContext = LocalContext.current
+    fun storeDoor(tab: String?): Action = actionStartIntent(
+        Intent(appContext, StoreActivity::class.java).setData(Uri.parse("aiwa://store/" + (tab ?: "home")))
+            .putExtra(StoreActivity.EXTRA_URL, (tab?.let { storeTabUrl(it) }) ?: STORE_APP_URL),
+    )
+    val loopOn = state.loopPair.isNotEmpty()
 
     Column(
         modifier = GlanceModifier.fillMaxSize()
@@ -862,12 +868,15 @@ private fun AiwaContent(state: AiwaState) {
         }
         // ---- what the mode needs ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            // The Store, at the left of the repository selector
+            RoundButton(icon = R.drawable.ic_store, description = "Le Store", background = pill, action = storeDoor(null), diameter = chipH.dp)
+            Spacer(GlanceModifier.width(GAP.dp))
             // The repository selector, at the left of the line of every mode
             val repoName = state.repo?.substringAfter('/')
             Chip(
-                "⎇ " + fitLabel(repoName ?: "Dépôt", 62f - textWidth("⎇  ▾", fontScale), fontScale) + " ▾",
+                "⎇ " + fitLabel(repoName ?: "Dépôt", 54f - textWidth("⎇  ▾", fontScale), fontScale) + " ▾",
                 if (locked) PILL_DIM else if (!hasRepo) alertRed else pill, if (locked) TEXT_DIM else fg,
-                lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.width(84.dp), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
+                lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.width(76.dp), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
             when {
@@ -901,13 +910,22 @@ private fun AiwaContent(state: AiwaState) {
         }
         // ---- the microphone, Claude, the question ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            // The loop between two sessions, at the left of the session: green while one runs
+            RoundButton(
+                icon = R.drawable.ic_loop,
+                description = if (loopOn) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
+                background = if (loopOn) green else pill,
+                action = actionStartActivity<LoopsActivity>(),
+                diameter = (rowH - 2f).dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
             // ONE button for the session, the repository, the model and the push: its tap opens them as a list. What is wrong (Aiwa not allowed, no backend, Claude not
             // connected…) replaces its word, and its tap is then the fix.
             Chip(
-                if (band.title.endsWith("▸")) band.title else fitLabel(state.session, 76f - textWidth(" ▾", fontScale), fontScale) + " ▾",
+                if (band.title.endsWith("▸")) band.title else fitLabel(state.session, 60f - textWidth(" ▾", fontScale), fontScale) + " ▾",
                 if (locked) PILL_DIM else if (band.title.endsWith("▸")) alertRed else pill, if (locked) TEXT_DIM else fg,
                 if (band.title.endsWith("▸")) band.action else lockable(locked, actionStartActivity<ContextActivity>()),
-                GlanceModifier.width(96.dp), alignStart = true, height = (rowH - 2f).dp, textSize = 11.sp, hPad = 8.dp,
+                GlanceModifier.width(80.dp), alignStart = true, height = (rowH - 2f).dp, textSize = 11.sp, hPad = 8.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
             Box(
@@ -934,40 +952,23 @@ private fun AiwaContent(state: AiwaState) {
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
             }
         }
-        // ---- the bottom row: the loop, the Store, the Wallet, the papers, the comment, the agent, the update when there is one, the settings ----
-        // Every button has its own equal slot of the row (the row is shared out, nothing is measured by hand): whatever the width of the widget, none can be pushed out,
-        // and the settings, the last slot, is always at the right end. The button is as big as its slot allows.
-        val bottomCount = 7 + (if (state.appUpdateReady) 1 else 0)
+        // ---- the bottom row: the wallet, the papers, the super agent, the update when there is one, the settings ----
+        // Every button has its own equal slot of the row (the row is shared out, nothing is measured by hand): none can be pushed out whatever the width of the widget,
+        // and the settings, the last slot, is always at the right end.
+        val bottomCount = 4 + (if (state.appUpdateReady) 1 else 0)
         val bottomD = minOf(chipH, avail / bottomCount - 4f).coerceAtLeast(18f)
-        val appContext = LocalContext.current
-        fun storeDoor(tab: String?): Action = actionStartIntent(
-            Intent(appContext, StoreActivity::class.java).setData(Uri.parse("aiwa://store/" + (tab ?: "home")))
-                .putExtra(StoreActivity.EXTRA_URL, (tab?.let { storeTabUrl(it) }) ?: STORE_APP_URL),
-        )
         val agent = state.agent
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             @Composable fun Slot(content: @Composable () -> Unit) {
                 Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.Center) { content() }
             }
-            Slot {
-                RoundButton(
-                    icon = R.drawable.ic_loop,
-                    description = if (state.loopPair.isNotEmpty()) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
-                    background = if (state.loopPair.isNotEmpty()) green else pill,
-                    action = actionStartActivity<LoopsActivity>(),
-                    diameter = bottomD.dp,
-                )
-            }
-            Slot { RoundButton(icon = R.drawable.ic_store, description = "Le Store", background = pill, action = storeDoor(null), diameter = bottomD.dp) }
             Slot { RoundButton(icon = R.drawable.ic_wallet, description = "Le Wallet", background = pill, action = storeDoor("wallet"), diameter = bottomD.dp) }
             Slot { RoundButton(icon = R.drawable.ic_papers, description = "Les papers (l'onglet Papers de l'application)", background = pill, action = storeDoor("papers"), diameter = bottomD.dp) }
-            // The comment for the critic of the loops (the Store's sheet: the wallet first, then the field)
-            Slot { RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = bottomD.dp) }
-            // The agent: green while it listens and follows, red when it has something to say or a proposal waits for "vas-y dis-lui"
+            // The super agent: green while it listens and follows, red when it has something to say or a proposal waits for "vas-y dis-lui"
             Slot {
                 RoundButton(
                     icon = R.drawable.ic_agent,
-                    description = "Agent de liaison : ouvrir ou fermer (l'écoute de réveil attend pendant ce temps)",
+                    description = "Super agent : ouvrir ou fermer (l'écoute de réveil attend pendant ce temps)",
                     background = if (agent != null && (agent.say != null || agent.proposal != null || agent.command != null)) alertRed else if (agent?.enabled == true) green else pill,
                     action = actionStartActivity<AgentToggleActivity>(),
                     diameter = bottomD.dp,
@@ -979,7 +980,7 @@ private fun AiwaContent(state: AiwaState) {
             Slot {
                 RoundButton(
                     icon = R.drawable.ic_settings,
-                    description = "Réglages : session, dépôt, modèle, voix, mises à jour…",
+                    description = "Réglages : session, dépôt, modèle, voix, commentaire, mises à jour…",
                     background = if (workflowFailed(state)) alertRed else pill,
                     action = actionStartActivity<SettingsActivity>(),
                     diameter = bottomD.dp,
