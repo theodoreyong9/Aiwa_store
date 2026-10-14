@@ -934,7 +934,7 @@ private fun AiwaContent(state: AiwaState) {
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
             }
         }
-        // ---- the bottom row: the loop, the Aiwa app, the update when there is one, the settings ----
+        // ---- the bottom row: the loop, the Store, the Wallet, the papers, the comment, the agent, the update when there is one, the settings ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             RoundButton(
                 icon = R.drawable.ic_loop,
@@ -943,12 +943,18 @@ private fun AiwaContent(state: AiwaState) {
                 action = actionStartActivity<LoopsActivity>(),
                 diameter = chipH.dp,
             )
-            Spacer(GlanceModifier.width(GAP.dp))
-            Image(
-                provider = ImageProvider(R.drawable.logo_round),
-                contentDescription = "Ouvrir Aiwa",
-                modifier = GlanceModifier.size(chipH.dp).clickable(actionStartActivity<StoreActivity>()),
+            // The three doors of the app, straight from the widget: the Store, the Wallet, the papers
+            val appContext = LocalContext.current
+            fun storeDoor(tab: String?): Action = actionStartIntent(
+                Intent(appContext, StoreActivity::class.java).setData(Uri.parse("aiwa://store/" + (tab ?: "home")))
+                    .putExtra(StoreActivity.EXTRA_URL, (tab?.let { storeTabUrl(it) }) ?: STORE_APP_URL),
             )
+            Spacer(GlanceModifier.width(GAP.dp))
+            RoundButton(icon = R.drawable.ic_store, description = "Le Store", background = pill, action = storeDoor(null), diameter = chipH.dp)
+            Spacer(GlanceModifier.width(GAP.dp))
+            RoundButton(icon = R.drawable.ic_wallet, description = "Le Wallet", background = pill, action = storeDoor("wallet"), diameter = chipH.dp)
+            Spacer(GlanceModifier.width(GAP.dp))
+            RoundButton(icon = R.drawable.ic_papers, description = "Les papers (ce que le critique lit)", background = pill, action = actionStartActivity<PapersActivity>(), diameter = chipH.dp)
             // The comment for the critic of the loops (the Store's sheet: the wallet first, then the field)
             Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = chipH.dp)

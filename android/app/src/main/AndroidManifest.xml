@@ -179,6 +179,10 @@
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:windowSoftInputMode="adjustResize|stateVisible" />
+        <activity android:name=".PapersActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <activity android:name=".AgentToggleActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
