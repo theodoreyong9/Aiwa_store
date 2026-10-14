@@ -820,8 +820,16 @@ class AskAndVideoTests(Base):
             got = srv._videos_snapshot()
             again = srv._videos_snapshot()
         self.assertEqual([v["name"] for v in got["videos"]], ["demo-16x9.mp4", "demo-9x16.mp4"])
-        self.assertEqual(asked, ["https://api.github.com/repos/o/r/releases/tags/videos", "https://api.github.com/repos/o/r/contents/aiwa-videos"], "one look a minute")
+        self.assertEqual(asked, ["https://api.github.com/repos/o/r/releases/tags/videos", "https://api.github.com/repos/o/r/contents/aiwa-videos", "https://api.github.com/repos/o/r/contents/docs"], "one look a minute")
         self.assertEqual(again, got)
+
+    def test_the_latest_film_of_the_project_is_listed_from_docs_and_only_that_one(self):
+        docs = [{"name": n, "type": "file", "size": 5} for n in ("aiwa-global-v9-16x9.mp4", "aiwa-global-v10-16x9.mp4", "aiwa-global-v10-9x16.mp4", "aiwa-promo.mp4")]
+        with unittest.mock.patch.object(srv, "current_repo", "o/r"), unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None), \
+                unittest.mock.patch.object(srv, "_github_json", lambda url: docs if url.endswith("/contents/docs") else None):
+            srv.video_cache.update(key=None, items=[], at=0.0)
+            got = srv._videos_snapshot()
+        self.assertEqual([v["name"] for v in got["videos"]], ["aiwa-global-v10-16x9.mp4"], "v10 beats v9 as a number, and nothing else of docs/ is listed")
 
     def test_videos_committed_under_aiwa_videos_are_listed_after_the_release_ones(self):
         folder = [

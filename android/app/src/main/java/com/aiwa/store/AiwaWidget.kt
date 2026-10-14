@@ -935,13 +935,16 @@ private fun AiwaContent(state: AiwaState) {
             }
         }
         // ---- the bottom row: the loop, the Store, the Wallet, the papers, the comment, the agent, the update when there is one, the settings ----
+        // Up to eight round buttons share the row: they shrink to fit, so that the settings at the end are never pushed out of the widget
+        val bottomCount = 7 + (if (state.appUpdateReady) 1 else 0)
+        val bottomD = minOf(chipH, (avail - GAP * bottomCount) / bottomCount).coerceAtLeast(22f)
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             RoundButton(
                 icon = R.drawable.ic_loop,
                 description = if (state.loopPair.isNotEmpty()) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
                 background = if (state.loopPair.isNotEmpty()) green else pill,
                 action = actionStartActivity<LoopsActivity>(),
-                diameter = chipH.dp,
+                diameter = bottomD.dp,
             )
             // The three doors of the app, straight from the widget: the Store, the Wallet, the papers
             val appContext = LocalContext.current
@@ -950,14 +953,14 @@ private fun AiwaContent(state: AiwaState) {
                     .putExtra(StoreActivity.EXTRA_URL, (tab?.let { storeTabUrl(it) }) ?: STORE_APP_URL),
             )
             Spacer(GlanceModifier.width(GAP.dp))
-            RoundButton(icon = R.drawable.ic_store, description = "Le Store", background = pill, action = storeDoor(null), diameter = chipH.dp)
+            RoundButton(icon = R.drawable.ic_store, description = "Le Store", background = pill, action = storeDoor(null), diameter = bottomD.dp)
             Spacer(GlanceModifier.width(GAP.dp))
-            RoundButton(icon = R.drawable.ic_wallet, description = "Le Wallet", background = pill, action = storeDoor("wallet"), diameter = chipH.dp)
+            RoundButton(icon = R.drawable.ic_wallet, description = "Le Wallet", background = pill, action = storeDoor("wallet"), diameter = bottomD.dp)
             Spacer(GlanceModifier.width(GAP.dp))
-            RoundButton(icon = R.drawable.ic_papers, description = "Les papers (ce que le critique lit)", background = pill, action = actionStartActivity<PapersActivity>(), diameter = chipH.dp)
+            RoundButton(icon = R.drawable.ic_papers, description = "Les papers (ce que le critique lit)", background = pill, action = actionStartActivity<PapersActivity>(), diameter = bottomD.dp)
             // The comment for the critic of the loops (the Store's sheet: the wallet first, then the field)
             Spacer(GlanceModifier.width(GAP.dp))
-            RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = chipH.dp)
+            RoundButton(icon = R.drawable.ic_comment, description = "Commentaire pour le critique", background = pill, action = actionStartActivity<CommentActivity>(), diameter = bottomD.dp)
             // The agent: green while it listens and follows, red when it has something to say or a proposal waits for "vas-y dis-lui"
             Spacer(GlanceModifier.width(GAP.dp))
             val agent = state.agent
@@ -966,11 +969,11 @@ private fun AiwaContent(state: AiwaState) {
                 description = "Agent de liaison : ouvrir ou fermer (l'écoute de réveil attend pendant ce temps)",
                 background = if (agent != null && (agent.say != null || agent.proposal != null || agent.command != null)) alertRed else if (agent?.enabled == true) green else pill,
                 action = actionStartActivity<AgentToggleActivity>(),
-                diameter = chipH.dp,
+                diameter = bottomD.dp,
             )
             if (state.appUpdateReady) {
                 Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
+                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = bottomD.dp)
             }
             Spacer(GlanceModifier.defaultWeight())
             RoundButton(
@@ -978,7 +981,7 @@ private fun AiwaContent(state: AiwaState) {
                 description = "Réglages : session, dépôt, modèle, voix, mises à jour…",
                 background = if (workflowFailed(state)) alertRed else pill,
                 action = actionStartActivity<SettingsActivity>(),
-                diameter = chipH.dp,
+                diameter = bottomD.dp,
             )
         }
     }
