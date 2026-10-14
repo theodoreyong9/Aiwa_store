@@ -779,27 +779,34 @@ private fun aiwaTab(state: AiwaState): String = if (state.videoView || state.dep
 /** In the Média tab, what is shown: "video" (the view) or the mode of the selector (campaign, documents). */
 private fun mediaSub(state: AiwaState): String = if (state.videoView) "video" else state.deploy
 
+/**
+ * A choice of the tabs or of the Média list: the widget shows it AT ONCE (the backend takes its time; what is held in the state is what a recomposition reads), and the
+ * selector follows. "media" and "video" only change the view (Vidéo is no mode); every other id is a mode of the selector.
+ */
+suspend fun selectAiwaMode(context: Context, mode: String) {
+    val app = context.applicationContext
+    val before = AiwaRepository.state.value
+    if (mode == "media" || mode == "video") {
+        // Média alone leaves what the selector is on when it already belongs to it; else it shows the videos
+        if (mode == "video" || before.deploy !in MEDIA_DEPLOYS) {
+            WidgetStyle.setVideoView(app, true)
+            AiwaRepository.update { it.copy(videoView = true) }
+        }
+        AiwaWidget().updateAll(app)
+        return
+    }
+    WidgetStyle.setVideoView(app, false)
+    AiwaRepository.update { it.copy(videoView = false, deploy = mode) }
+    AiwaWidget().updateAll(app)
+    if (before.deploy != mode) switchOptions(app, LocalClaudeBridge(), deploy = mode)
+}
+
 class PickModeCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val mode = parameters[MODE_KEY] ?: return
-        val app = context.applicationContext
-        val before = AiwaRepository.state.value
-        // The widget shows the choice AT ONCE (the backend takes its time): what is held here is what a recomposition reads
-        if (mode == "media" || mode == "video") {
-            // Média alone leaves what the selector is on when it already belongs to it; else it shows the videos (a view, no mode)
-            if (mode == "video" || before.deploy !in MEDIA_DEPLOYS) {
-                WidgetStyle.setVideoView(app, true)
-                AiwaRepository.update { it.copy(videoView = true) }
-            }
-            AiwaWidget().updateAll(app)
-            return
-        }
-        WidgetStyle.setVideoView(app, false)
-        AiwaRepository.update { it.copy(videoView = false, deploy = mode) }
-        AiwaWidget().updateAll(app)
-        if (before.deploy != mode) switchOptions(app, LocalClaudeBridge(), deploy = mode)
+        selectAiwaMode(context, mode)
         // the campaign mode simply asks for a file: its window opens at once (as in the list of the selector)
-        if (mode == "campaign") app.startActivity(Intent(app, FileCreationActivity::class.java).putExtra("campaign", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        if (mode == "campaign") context.applicationContext.startActivity(Intent(context, FileCreationActivity::class.java).putExtra("campaign", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
 
@@ -820,7 +827,7 @@ private fun AiwaContent(state: AiwaState) {
     val tab = aiwaTab(state)
     val sub = mediaSub(state)
     val storeReady = deliversApp(state.deploy) && state.sentApp?.seen == false
-    val rows = if (tab == "media") 6 else 5
+    val rows = 5
     val rowH = ((size.height.value - 16f) / rows).coerceIn(26f, 42f)
     val chipH = (rowH - 4f).coerceAtLeast(22f)
     val band = bandInfo(state, avail - 20f)
@@ -853,32 +860,23 @@ private fun AiwaContent(state: AiwaState) {
                 )
             }
         }
-        // ---- Média: its three kinds ----
-        if (tab == "media") {
-            Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-                listOf("video" to "Vidéo", "campaign" to "Campagne", "documents" to "Documents").forEachIndexed { i, (id, word) ->
-                    if (i > 0) Spacer(GlanceModifier.width(3.dp))
-                    val on = id == sub
-                    Chip(
-                        word, if (on) green else pill, fg, actionRunCallback<PickModeCallback>(actionParametersOf(MODE_KEY to id)),
-                        GlanceModifier.defaultWeight(), bold = on, height = chipH.dp, textSize = 11.sp, hPad = 2.dp,
-                        badge = state.ciFresh && id == state.deploy,
-                    )
-                }
-            }
-        }
         // ---- what the mode needs ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            // The repository selector, at the left of the line of every mode
+            val repoName = state.repo?.substringAfter('/')
+            Chip(
+                "⎇ " + fitLabel(repoName ?: "Dépôt", 62f - textWidth("⎇  ▾", fontScale), fontScale) + " ▾",
+                if (locked) PILL_DIM else if (!hasRepo) alertRed else pill, if (locked) TEXT_DIM else fg,
+                lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.width(84.dp), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
             when {
-                tab == "media" && sub == "video" -> {
-                    if (hasRepo) Chip("🎬 Vidéos", pill, fg, actionStartActivity<VideosActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
-                    else Chip("Choisis un dépôt (bouton de gauche)", pill, fg, actionStartActivity<ContextActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
-                }
-                tab == "media" && sub == "campaign" -> Chip("✉ Propositions", claudeOrange, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
-                tab == "media" -> {
-                    if (hasRepo) Chip("📄 Mes documents", pill, fg, actionStartActivity<DocumentsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
-                    else Chip("Choisis un dépôt (bouton de gauche)", pill, fg, actionStartActivity<ContextActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
-                }
+                // Média: ONE pill that says what is shown and lists the kinds (videos, campaign / proposals, documents); picking one opens it
+                tab == "media" -> Chip(
+                    when (sub) { "campaign" -> "✉ Campagne ▾"; "documents" -> "📄 Documents ▾"; else -> "🎬 Vidéos ▾" },
+                    pill, fg, actionStartActivity<MediaPickerActivity>(), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp,
+                    badge = state.ciFresh && state.deploy in MEDIA_DEPLOYS,
+                )
                 deliversApp(tab) -> {
                     Chip("▦ App", if (storeReady) claudeOrange else pill, fg, actionStartActivity<OpenStoreActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, badge = state.ciFresh)
                     Spacer(GlanceModifier.width(GAP.dp))
@@ -887,7 +885,7 @@ private fun AiwaContent(state: AiwaState) {
                 else -> {
                     val live = state.siteState == "live"
                     if (hasRepo && state.siteUrl != null) Chip(if (state.siteKind == "apk") "⇩ APK" else "🌐 Site", if (live) claudeOrange else pill, fg, siteAction, GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, badge = state.ciFresh)
-                    else Chip(if (hasRepo) "Pas encore de site" else "Choisis un dépôt (bouton de gauche)", pill, fg, actionStartActivity<ContextActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
+                    else Chip(if (hasRepo) "Pas encore de site" else "Choisis un dépôt (⎇)", pill, fg, actionStartActivity<RepoPickerActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp)
                 }
             }
             if (hasRepo && state.ciHintTitle != null) {
@@ -905,10 +903,9 @@ private fun AiwaContent(state: AiwaState) {
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             // ONE button for the session, the repository, the model and the push: its tap opens them as a list. What is wrong (Aiwa not allowed, no backend, Claude not
             // connected…) replaces its word, and its tap is then the fix.
-            val repoName = state.repo?.substringAfter('/')
             Chip(
-                if (band.title.endsWith("▸")) band.title else "⎇ " + fitLabel(repoName ?: "Dépôt", 70f - textWidth("⎇  ▾", fontScale), fontScale) + " ▾",
-                if (locked) PILL_DIM else if (!hasRepo || band.title.endsWith("▸")) alertRed else pill, if (locked) TEXT_DIM else fg,
+                if (band.title.endsWith("▸")) band.title else fitLabel(state.session, 76f - textWidth(" ▾", fontScale), fontScale) + " ▾",
+                if (locked) PILL_DIM else if (band.title.endsWith("▸")) alertRed else pill, if (locked) TEXT_DIM else fg,
                 if (band.title.endsWith("▸")) band.action else lockable(locked, actionStartActivity<ContextActivity>()),
                 GlanceModifier.width(96.dp), alignStart = true, height = (rowH - 2f).dp, textSize = 11.sp, hPad = 8.dp,
             )

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Aiwa-shaped widget: the sub-tabs of Média are gone. On the line of every mode, the repository selector is at the left (« ⎇ repo ▾ »); in Média the line holds ONE pill (« 🎬 Vidéos ▾ », « ✉ Campagne ▾ » or « 📄 Documents ▾ ») that lists the three kinds (and « Nouvelle campagne à partir d'un fichier »); picking one sets the mode when it is one (Campagne, Documents) and opens its list. The button at the left of the microphone now shows the session (its list still holds the session, the repository, the model and the push).
+
 - Aiwa-shaped widget: the tabs are Média · Page · App · Store · Aiwa. Média groups Vidéo (the videos), Campagne (the proposals) and a NEW mode, Documents: Claude creates documents (Word, PDF, Markdown, spreadsheet, presentation) in the `aiwa-documents/` folder of the repository, and the « Mes documents » button opens that folder on GitHub (selector value `documents`, voice word « documents »; backend 83). The workflow button is only a button to look at where the workflow is (no colour, no word): its success is the red dot on the button of what was made (the site, the APK, the app), now also on the app button of the Store and Aiwa modes.
 
 - Aiwa-shaped widget: the red dot of the news (a build or a deployment that just finished) is also on the tab of its mode in the row of modes, whichever tab is shown; it goes away as before, by opening the site or the workflow.

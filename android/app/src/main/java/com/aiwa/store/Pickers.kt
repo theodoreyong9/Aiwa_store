@@ -788,3 +788,34 @@ class SettingsActivity : ComponentActivity() {
         WakeWordService.instance?.let { AiwaRepository.update { s -> s.copy(listening = true) } }
     }
 }
+
+/**
+ * The Média pill of the Aiwa-shaped widget: what to see and open — the videos, the campaign (its proposals) or the documents. Campagne and Documents are modes of the selector,
+ * so picking them also sets the mode; Vidéos is only a view. The creation of a campaign from a file stays one entry away.
+ */
+class MediaPickerActivity : ComponentActivity() {
+    private fun go(mode: String, screen: Class<*>, campaignFile: Boolean = false) {
+        val app = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch { selectAiwaMode(app, mode) }
+        app.startActivity(
+            Intent(app, screen).apply { if (campaignFile) putExtra("campaign", true) }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        wakeAiwa(applicationContext)
+        setContent {
+            val state by AiwaRepository.state.collectAsState()
+            val entries = buildList {
+                add(PickerEntry("Média : voir et ouvrir", false, header = true) { })
+                add(PickerEntry("🎬 Vidéos — la liste, ou en demander une", state.videoView, lines = 2) { go("video", VideosActivity::class.java) })
+                add(PickerEntry("✉ Campagne — les propositions à valider", !state.videoView && state.deploy == "campaign", lines = 2) { go("campaign", ProposalsActivity::class.java) })
+                add(PickerEntry("📄 Documents — ceux que Claude a créés", !state.videoView && state.deploy == "documents", lines = 2) { go("documents", DocumentsActivity::class.java) })
+                add(PickerEntry("Nouvelle campagne à partir d'un fichier", false, lines = 2) { go("campaign", FileCreationActivity::class.java, campaignFile = true) })
+            }
+            PickerSheet(entries) { finish() }
+        }
+    }
+}
