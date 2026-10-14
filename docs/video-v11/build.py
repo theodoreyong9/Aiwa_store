@@ -34,9 +34,10 @@ def render(url, out, seconds, transparent=False):
 
 def main():
     work, d3 = Path(sys.argv[1]), Path(sys.argv[2]); work.mkdir(parents=True, exist_ok=True)
-    only = {int(x) for x in sys.argv[3:]}
+    only = {int(x) for x in sys.argv[3:] if x.isdigit()}
+    concat_only = '--concat' in sys.argv
     for i, (b0, b1, kind, r3) in enumerate(PIECES):
-        if only and i not in only:
+        if concat_only or (only and i not in only):
             continue
         tail = round(TAIL * FPS) if b1 == 63 else 0
         n = f(b1) - f(b0) + tail
@@ -55,7 +56,7 @@ def main():
                     '-filter_complex', '[1:v]scale=1920:1080:flags=lanczos,format=rgba,split[ca][cb];[ca]format=rgb24,framerate=fps=30[c];[cb]alphaextract,framerate=fps=30[m];[c][m]alphamerge[o];[0:v][o]overlay=0:0:format=auto,format=yuvj420p', '-frames:v', str(n), '-q:v', '2', str(out / '%05d.jpg'))
         have = len(list(base.glob('*.jpg')))
         print(f'piece {i} bars {b0}-{b1} {kind}: need {n} frames, have {have}', flush=True)
-    if only:
+    if only and not concat_only:
         return
     out = work / 'all'; shutil.rmtree(out, ignore_errors=True); out.mkdir()
     k = 0
