@@ -156,9 +156,9 @@ const superTick = (root, t) => { rv(root.querySelector('#sa'), t, 0.2, 0.7, 30);
 
 // ---- 11. autonomy: the founding papers ------------------------------------------------------------------------------------------------------------
 const papers = [['YELLOWPAPER', 'le protocole'], ['PLAN', 'ce que fait la version 1, et ce qu\'elle ne fait pas'], ['CONTRACTS', 'comment s\'écrit une app'], ['EXPLAINED', 'la même chose, en mots simples'], ['VISION', 'la société augmentée'], ['ANDROID', 'le téléphone, le widget, le cerveau']];
-const AUTO = `<svg class="k" id="au0" style="left:20px;top:80px" width="520" height="520" viewBox="0 0 24 24" fill="none" stroke="${TEA}" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round"><g id="aur" style="transform-origin:12px 12px">${I.loop}</g></svg>
-<div class="k" id="au1" style="left:20px;top:300px;width:520px;text-align:center;font-size:44px;font-weight:800;letter-spacing:-1px;line-height:1.1">Aïwa<br>développe Aïwa</div>
-<div class="k" id="au2" style="left:20px;top:620px;width:520px;text-align:center;font-size:30px;color:#a9a9c0">et tu peux y participer</div>
+const AUTO = `<svg class="k" id="au0" style="left:80px;top:20px" width="400" height="400" viewBox="0 0 24 24" fill="none" stroke="${TEA}" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round"><g id="aur" style="transform-origin:12px 12px">${I.loop}</g></svg>
+<div class="k" id="au1" style="left:20px;top:450px;width:520px;text-align:center;font-size:44px;font-weight:800;letter-spacing:-1px;line-height:1.1">Aïwa<br>développe Aïwa</div>
+<div class="k" id="au2" style="left:20px;top:600px;width:520px;text-align:center;font-size:30px;color:#a9a9c0">et tu peux y participer</div>
 ${papers.map(([n, s], i) => `<div class="card pp" style="left:640px;top:${i * 118}px;width:920px;height:100px;padding:0 36px;display:flex;align-items:center;gap:28px"><div style="width:14px;height:56px;border-radius:7px;background:${[VIO, TEA, ORA, GRN, VIO, TEA][i]};flex:none"></div><div style="font-size:40px;font-weight:800;letter-spacing:1px;width:290px">${n}</div><div style="font-size:30px;color:#a9a9c0">${s}</div></div>`).join('')}
 <div class="k" id="au3" style="left:640px;top:720px;width:920px;font-size:34px;color:#c9c9d8">le corpus fondateur : ce dont dépend la bonne tenue du système</div>`;
 const autoTick = (root, t) => { rv(root.querySelector('#au1'), t, 0.4, 0.6, 20); rv(root.querySelector('#au2'), t, 1.4, 0.6, 20); root.querySelector('#au0').style.opacity = M.prog(t, 0.2, 0.6); root.querySelector('#aur').style.transform = `rotate(${t * 40}deg)`;
@@ -243,7 +243,7 @@ window.SHOTS = [
     TXT('Appelle ton agent.', 7.4, 24, 0.3, { x: 27, w: 44, accent: { 'agent.': ORA } }),
     TXT('Instructions.\nCommandes.', 6.2, 52, 1.2, { x: 27, w: 44, color: '#e6e6f2' }),
     TXT('Le widget réagit en temps réel\net confirme la production.', 3.2, 80, 5.2, { x: 27, w: 44, effect: 'rise', weight: 600, color: GRN }),
-    { type: 'html', id: 'widget', css: WCSS, markup: WIDGET, design: [1000, 1140], w: 36, x: 74, y: 52, at: 0.2, dur: 0.9, enter: 'rise', tick: widgetTick, cam: { from: { s: 1, y: 1 }, to: { s: 1.04, y: -1 } } },
+    { type: 'html', id: 'widget', css: WCSS, markup: WIDGET, design: [1000, 1140], w: 40, x: 74, y: 53, at: 0.2, dur: 0.9, enter: 'rise', tick: widgetTick, cam: { from: { s: 1, y: 1 }, to: { s: 1.04, y: -1 } } },
   ] },
   // 6. what it makes
   { seconds: 12.5, transition: { type: 'push', seconds: 0.6 }, bg: BG('rgba(123,97,255,.34)', 'rgba(38,198,176,.26)', 'rgba(30,30,60,.5)'), layers: [
@@ -287,8 +287,8 @@ window.SHOTS = [
   // 14. the registry and the payment
   { seconds: 14.5, transition: { type: 'slice', seconds: 0.6 }, bg: { type: 'gradient', colors: ['#130f2a', '#090912'], angle: 165, drift: true }, layers: [
     TXT('Un registre distribué.\nDes règles que chacun vérifie.', 5.2, 11, 0.2, { effect: 'rise', stagger: 0.3 }),
-    L('reg', CODE + PAY, [1600, 760], regTick, { y: 60, w: 84 }),
-    TXT('Pensé pour résister aux faux comptes et à la double dépense.', 3.4, 92, 8.6, { effect: 'rise', weight: 600, color: GRN }),
+    L('reg', CODE + PAY, [1600, 760], regTick, { y: 55, w: 84 }),
+    TXT('Pensé pour résister aux faux comptes et à la double dépense.', 3.2, 95, 8.6, { effect: 'rise', weight: 600, color: GRN }),
   ] },
   // 15. the glasses
   { seconds: 9.5, transition: { type: 'iris', seconds: 0.7 }, bg: BG('rgba(38,198,176,.30)', 'rgba(123,97,255,.38)', 'rgba(30,30,60,.5)'), layers: [
