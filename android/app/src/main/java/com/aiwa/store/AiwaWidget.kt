@@ -438,17 +438,6 @@ private fun LightContent(state: AiwaState) {
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        // ---- the five kinds: grey until the repository holds one, coloured once it does ----
-        Row(modifier = GlanceModifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
-            lightKinds(state, context).forEachIndexed { i, kind ->
-                if (i > 0) Spacer(GlanceModifier.width(4.dp))
-                Chip(
-                    kind.word, if (kind.found) green else PILL_DIM, if (kind.found) fg else TEXT_DIM,
-                    actionRunCallback<PickKindCallback>(actionParametersOf(MODE_KEY to kind.mode, KIND_FOUND_KEY to (if (kind.found) "1" else "0"))),
-                    GlanceModifier.defaultWeight(), bold = kind.current, height = 22.dp, textSize = 10.sp, hPad = 2.dp,
-                )
-            }
-        }
         // ---- the session and the repository, ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             val fs = context.resources.configuration.fontScale
@@ -473,6 +462,17 @@ private fun LightContent(state: AiwaState) {
                     lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxSize(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
                 )
                 if (pending) Box(modifier = GlanceModifier.padding(end = 3.dp)) { WorkflowSpinner((chipH - 6f).dp) }
+            }
+        }
+        // ---- the five kinds: grey until the repository holds one, coloured once it does ----
+        Row(modifier = GlanceModifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
+            lightKinds(state, context).forEachIndexed { i, kind ->
+                if (i > 0) Spacer(GlanceModifier.width(4.dp))
+                Chip(
+                    kind.word, if (kind.found) green else PILL_DIM, if (kind.found) fg else TEXT_DIM,
+                    actionRunCallback<PickKindCallback>(actionParametersOf(MODE_KEY to kind.mode, KIND_FOUND_KEY to (if (kind.found) "1" else "0"))),
+                    GlanceModifier.defaultWeight(), bold = kind.current, height = 22.dp, textSize = 10.sp, hPad = 2.dp,
+                )
             }
         }
         // ---- the microphone, Claude, the question, the update ----
