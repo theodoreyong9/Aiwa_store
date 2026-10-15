@@ -746,6 +746,7 @@ class SettingsActivity : ComponentActivity() {
                 if (state.repo != null) {
                     add(PickerEntry(if (state.pushMain) "Push : direct sur main" else "Push : sur une branche", false, lines = 1) { togglePush(state.pushMain) })
                 }
+                add(PickerEntry("Super agent : réglages, détruire et recommencer", false, lines = 1) { open(AgentActivity::class.java) })
                 add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }}", false, lines = 1) { open(LlmKeyActivity::class.java) })
                 add(PickerEntry("Aiwa", false, header = true) { })
                 add(PickerEntry("Mes mots (les neuf reconnaissances)", false, lines = 1) { open(RecognitionsActivity::class.java) })
