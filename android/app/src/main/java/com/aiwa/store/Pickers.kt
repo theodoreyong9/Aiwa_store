@@ -748,7 +748,7 @@ class SettingsActivity : ComponentActivity() {
                 // In the Aiwa-shaped widget the model, the push and the state of the workflow are buttons of the widget itself: they are not repeated here
                 // the Light shape has the session and the repository on its top row; the mode (each with its own session) is chosen here
                 if (current == WidgetStyle.LIGHT) {
-                    add(PickerEntry("Mode : ${if (aiwaTab(state) == "media") (if (mediaSub(state) == "documents") "Documents" else if (mediaSub(state) == "campaign") "Campagne" else "Vidéos") else state.deploy} — chacun a sa session ▾", false, lines = 2) { open(ModePickerActivity::class.java) })
+                    add(PickerEntry("Mode : ${if (aiwaTab(state) == "media") (if (mediaSub(state) == "documents") "Documents" else if (mediaSub(state) == "campaign") "Campagne" else "Vidéos") else state.deploy} — ▾", false, lines = 2) { open(ModePickerActivity::class.java) })
                 }
                 if (current != WidgetStyle.AIWA) {
                     add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
@@ -830,7 +830,7 @@ class ModePickerActivity : ComponentActivity() {
             val tab = aiwaTab(state)
             val sub = mediaSub(state)
             val entries = buildList {
-                add(PickerEntry("Mode (chacun a sa session) · le bouton à droite ouvre sa production", false, header = true) { })
+                add(PickerEntry("Mode · le bouton à droite ouvre sa production", false, header = true) { })
                 add(PickerEntry("🎬 Vidéos", tab == "media" && sub == "video", lines = 1, side = "Ouvrir", onSide = { open(VideosActivity::class.java) }) { pick("video") })
                 add(PickerEntry("📄 Documents", tab == "media" && sub == "documents", lines = 1, side = "Ouvrir", onSide = { open(DocumentsActivity::class.java) }) { pick("documents") })
                 add(PickerEntry("Page", tab == "pages", lines = 1, side = "Ouvrir", onSide = { open(site(state)) }) { pick("pages") })

@@ -788,18 +788,6 @@ internal fun mediaSub(state: AiwaState): String = if (state.videoView) "video" e
 suspend fun selectAiwaMode(context: Context, mode: String) {
     val app = context.applicationContext
     val before = AiwaRepository.state.value
-    // Every mode has its own session: leave the one of the mode we are in, take the one of the mode chosen (a new one the first time)
-    val leaving = ModeSessions.key(before.videoView, before.deploy)
-    val arriving = when {
-        mode == "video" -> "video"
-        mode == "media" -> if (before.deploy in MEDIA_DEPLOYS) leaving else "video"
-        else -> mode
-    }
-    if (leaving != arriving) {
-        ModeSessions.remember(app, leaving, before.cloudSessionId)
-        val wanted = ModeSessions.recall(app, arriving)?.takeIf { id -> before.cloudSessions.any { it.id == id } } ?: "new"
-        if (wanted != (before.cloudSessionId ?: "new")) switchCloud(app, LocalClaudeBridge(), wanted)
-    }
     if (mode == "media" || mode == "video") {
         // Média alone leaves what the selector is on when it already belongs to it; else it shows the videos
         if (mode == "video" || before.deploy !in MEDIA_DEPLOYS) {
@@ -1018,7 +1006,7 @@ private fun lightKinds(state: AiwaState, context: Context): List<LightKind> {
     val tab = aiwaTab(state)
     val sub = mediaSub(state)
     return listOf(
-        LightKind("documents", "Docs", Productions.has(context, state.repo, "documents"), tab == "media" && sub == "documents"),
+        LightKind("documents", "Docs", Productions.has(context, state.repo, "documents") || Productions.has(context, state.repo, "papers"), tab == "media" && sub == "documents"),
         LightKind("video", "Vidéo", Productions.has(context, state.repo, "video"), tab == "media" && sub == "video"),
         LightKind("pages", "Page", Productions.has(context, state.repo, "page") || hasSite && state.siteKind != "apk" && state.siteState == "live", tab == "pages"),
         LightKind("android", "App", Productions.has(context, state.repo, "apk") || hasSite && state.siteKind == "apk", tab == "android"),
@@ -1037,7 +1025,8 @@ class PickKindCallback : ActionCallback {
         val state = AiwaRepository.state.value
         selectAiwaMode(app, mode)
         Productions.refresh(app, state.repo, force = true)
-        if (!found) return
+        // Vidéo and Docs open even when grey (the window to ask for one; the folder or a word that there is none yet); the others only when something was produced
+        if (!found && mode != "video" && mode != "documents") return
         val repo = state.repo
         val view = { url: String -> app.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         when (mode) {
@@ -1086,10 +1075,10 @@ private fun LightContent(state: AiwaState) {
                 )
             }
         }
-        // ---- the session and the repository, then the update ----
+        // ---- the session and the repository, ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             val fs = context.resources.configuration.fontScale
-            val rounds = if (state.appUpdateReady) 1 else 0
+            val rounds = 0
             // the room each of the two pills really has: the row, less the round buttons and the gaps, shared by two
             val each = (avail - rounds * (chipH + GAP) - GAP) / 2f - 12f
             val sessionTitle = bandInfo(state, each).title
@@ -1106,10 +1095,6 @@ private fun LightContent(state: AiwaState) {
                 if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
                 lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
             )
-            if (state.appUpdateReady) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
-            }
         }
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
@@ -1135,6 +1120,10 @@ private fun LightContent(state: AiwaState) {
             if (state.ask != null) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
+            }
+            if (state.appUpdateReady) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
             }
         }
         // ---- the loop, the Aiwa app, the super agent, the comment, the settings: five equal slots ----

@@ -140,12 +140,24 @@ suspend fun switchModel(context: Context, bridge: ClaudeBridge, modelId: String?
 
 /** The repository Claude works on: the session in progress is told with its next message (it stays); with none, the next session starts there. */
 suspend fun switchRepo(context: Context, bridge: ClaudeBridge, repo: String) {
+    // A repository has ITS session: the one of the repository we leave is remembered, the one of the repository we enter is taken again (a new one the first time)
+    val before = AiwaRepository.state.value
+    val leaving = before.repo
+    if (leaving != null && leaving != repo) ModeSessions.remember(context, leaving, before.cloudSessionId)
     try {
         bridge.selectRepo(repo)
     } catch (err: Exception) {
         toastOnMain(context, describeFailure(context, err, "Impossible de changer de dépôt"))
+        BackendSync.refresh(bridge)
+        AiwaWidget().updateAll(context)
+        return
     }
     BackendSync.refresh(bridge)
+    if (leaving != repo) {
+        val now = AiwaRepository.state.value
+        val wanted = ModeSessions.recall(context, repo)?.takeIf { id -> now.cloudSessions.any { it.id == id } } ?: "new"
+        if (wanted != (now.cloudSessionId ?: "new")) switchCloud(context, bridge, wanted)
+    }
     AiwaWidget().updateAll(context)
 }
 
