@@ -746,10 +746,9 @@ class SettingsActivity : ComponentActivity() {
             val entries = buildList {
                 add(PickerEntry("Réglages", false, header = true) { })
                 // In the Aiwa-shaped widget the model, the push and the state of the workflow are buttons of the widget itself: they are not repeated here
-                // the Light shape has none of the context either: the session and the repository are here
+                // the Light shape has the session and the repository on its top row; the mode (each with its own session) is chosen here
                 if (current == WidgetStyle.LIGHT) {
-                    add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
-                    add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
+                    add(PickerEntry("Mode : ${if (aiwaTab(state) == "media") (if (mediaSub(state) == "documents") "Documents" else if (mediaSub(state) == "campaign") "Campagne" else "Vidéos") else state.deploy} — chacun a sa session ▾", false, lines = 2) { open(ModePickerActivity::class.java) })
                 }
                 if (current != WidgetStyle.AIWA) {
                     add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
@@ -793,7 +792,7 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Forme du widget", false, header = true) { })
                 add(PickerEntry("Classic — les bandes, comme avant", current == WidgetStyle.CLASSIC, lines = 2) { shape(WidgetStyle.CLASSIC) })
                 add(PickerEntry("Aiwa — les modes en haut (Média : vidéo, campagne, documents ; Page, App, Store, Aiwa), puis le micro avec le contexte (session, dépôt, modèle, push), Claude et la question, et en bas la boucle, l'app Aiwa, le commentaire, la mise à jour et les réglages", current == WidgetStyle.AIWA, lines = 5) { shape(WidgetStyle.AIWA) })
-                add(PickerEntry("Light — trois lignes : le mode en menu (vidéos, documents, page, app…) avec Prod et la liste des dépôts ; les réglages, la mise à jour, le micro, Claude, la question ; la boucle, l'app Aiwa, le super agent et la campagne (tout le reste est dedans)", current == WidgetStyle.LIGHT, lines = 5) { shape(WidgetStyle.LIGHT) })
+                add(PickerEntry("Light — trois lignes : la session et le dépôt en haut (puis un bouton pour chaque production trouvée : site, APK, app, vidéos, documents ; la mise à jour à droite) ; le micro, Claude, la question ; la boucle, l'app Aiwa, le super agent, la campagne et les réglages (le mode et tout le reste sont dedans)", current == WidgetStyle.LIGHT, lines = 5) { shape(WidgetStyle.LIGHT) })
                 add(PickerEntry("Glasses — des lunettes : un verre pour le contexte, un pour le travail, le micro à droite", current == WidgetStyle.GLASSES, lines = 3) { shape(WidgetStyle.GLASSES) })
             }
             PickerSheet(entries) { finish() }

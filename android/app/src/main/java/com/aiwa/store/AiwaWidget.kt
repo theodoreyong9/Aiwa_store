@@ -1009,16 +1009,19 @@ private fun AiwaContent(state: AiwaState) {
 // (3) the loop, the Aiwa app, the super agent and the campaign; the settings hold everything else (session, repository, model, push…).
 // ================================================================================================
 
-/** What the Prod button opens: for Média what the tab shows (videos, proposals, documents); for the modes that make an app, the app; else the site. */
-private fun lightProd(state: AiwaState, context: Context): Action = when {
-    aiwaTab(state) == "media" -> when (mediaSub(state)) {
-        "campaign" -> actionStartActivity<ProposalsActivity>()
-        "documents" -> actionStartActivity<DocumentsActivity>()
-        else -> actionStartActivity<VideosActivity>()
-    }
-    deliversApp(state.deploy) -> actionStartActivity<OpenStoreActivity>()
-    state.repo != null && state.siteUrl != null -> siteAction
-    else -> actionStartActivity<RepoPickerActivity>()
+private class LightProduction(val icon: Int, val description: String, val action: Action, val fresh: Boolean)
+
+/**
+ * The productions to show at the right of the repository: only those that are detected. A site that answers, an APK, an app sent to the Store, the videos (once the list of
+ * videos has been seen with something in it, or while the Vidéos view is on) and the documents (while the Documents mode is on). Each opens what it is about.
+ */
+private fun lightProductions(state: AiwaState, context: Context): List<LightProduction> = buildList {
+    val hasSite = state.repo != null && state.siteUrl != null
+    if (hasSite && state.siteKind == "apk") add(LightProduction(R.drawable.ic_download, "L'APK produit", siteAction, state.siteState == "live"))
+    else if (hasSite && state.siteState == "live") add(LightProduction(R.drawable.ic_globe, "Le site produit", siteAction, true))
+    if (state.sentApp != null) add(LightProduction(R.drawable.ic_store, "L'app envoyée au Store : ouvrir", actionStartActivity<OpenStoreActivity>(), state.sentApp?.seen == false))
+    if (state.videoView || Productions.has(context, "video")) add(LightProduction(R.drawable.ic_video, "Les vidéos", actionStartActivity<VideosActivity>(), false))
+    if (state.deploy == "documents" && !state.videoView) add(LightProduction(R.drawable.ic_papers, "Les documents", actionStartActivity<DocumentsActivity>(), false))
 }
 
 @Composable
@@ -1038,12 +1041,6 @@ private fun LightContent(state: AiwaState) {
     val chipH = (rowH - 4f).coerceAtLeast(24f)
     val loopOn = state.loopPair.isNotEmpty()
     val agent = state.agent
-    val modeWord = when (tab) {
-        "media" -> when (mediaSub(state)) { "campaign" -> "Campagne"; "documents" -> "Documents"; else -> "Vidéos" }
-        else -> AIWA_MODES.firstOrNull { it.id == tab }?.word ?: "Mode"
-    }
-    val prodSite = tab != "media" && !deliversApp(state.deploy)
-    val prodReady = if (prodSite) state.siteState == "live" else state.sentApp?.seen == false
     val bottomCount = 5
     val bottomD = minOf(chipH, avail / bottomCount - 4f).coerceAtLeast(20f)
 
@@ -1052,20 +1049,31 @@ private fun LightContent(state: AiwaState) {
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        // ---- the mode, and its targets ----
+        // ---- the session and the repository, then what has been produced (a button for each production found), then the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            // The Aiwa logo opens the list of the modes and of what each has produced
-            RoundButton(icon = R.drawable.ic_aiwa, description = "Les modes et leurs productions : vidéos, documents, page, app, store", background = pill, action = actionStartActivity<ModePickerActivity>(), diameter = chipH.dp, badge = state.ciFresh)
-            Spacer(GlanceModifier.width(GAP.dp))
-            // the room the chip really has: the row, less the logo button, the gaps and the update button when there is one
             val fs = context.resources.configuration.fontScale
-            val repoRoom = avail - chipH - GAP - 12f - (if (state.appUpdateReady) chipH + GAP else 0f) - textWidth("⎇  ▾", fs)
+            val found = lightProductions(state, context)
+            val rounds = found.size + (if (state.appUpdateReady) 1 else 0)
+            // the room each of the two pills really has: the row, less the round buttons and the gaps, shared by two
+            val each = (avail - rounds * (chipH + GAP) - GAP) / 2f - 12f
+            val sessionTitle = bandInfo(state, each).title
+            val sessionBad = sessionTitle.endsWith("▸")
             Chip(
-                "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", repoRoom, fs) + " ▾",
+                if (sessionBad) sessionTitle else fitLabel(state.session, each - textWidth(" ▾", fs), fs) + " ▾",
+                if (locked) PILL_DIM else if (sessionBad) alertRed else pill, if (locked) TEXT_DIM else fg,
+                if (sessionBad) bandInfo(state, each).action else lockable(locked, actionStartActivity<SessionPickerActivity>()),
+                GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
+            Chip(
+                "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", each - textWidth("⎇  ▾", fs), fs) + " ▾",
                 if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
                 lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
             )
-            // The update, at the right of the repository list, when one is ready
+            found.forEach { prod ->
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(icon = prod.icon, description = prod.description, background = if (prod.fresh) claudeOrange else pill, action = prod.action, diameter = chipH.dp, badge = prod.fresh && state.ciFresh)
+            }
             if (state.appUpdateReady) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)

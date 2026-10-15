@@ -68,7 +68,12 @@ private fun VideosWindow(onClose: () -> Unit) {
     var quality by remember { mutableStateOf(AiwaRepository.state.value.videoQuality) }
 
     LaunchedEffect(Unit) {
-        try { list = bridge.videos() } catch (err: Exception) { error = err.message ?: "Liste indisponible." }
+        try {
+            list = bridge.videos()
+            val had = Productions.has(context, "video")
+            val has = list?.videos?.isNotEmpty() == true
+            if (had != has) { Productions.set(context, "video", has); AiwaWidget().updateAll(context) }
+        } catch (err: Exception) { error = err.message ?: "Liste indisponible." }
     }
 
     fun ask(format: String) {
