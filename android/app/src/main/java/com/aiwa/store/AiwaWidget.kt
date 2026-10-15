@@ -202,6 +202,17 @@ private fun RoundButton(icon: Int, description: String, background: ColorProvide
     }
 }
 
+/** The spinner: a workflow is awaited (a production was asked and no new green run has come). A tap goes and looks at the workflow. */
+@Composable
+private fun WorkflowSpinner(diameter: Dp) {
+    Box(
+        modifier = GlanceModifier.size(diameter).background(rgb(android.graphics.Color.rgb(204, 120, 92))).cornerRadius(diameter / 2).clickable(actionStartActivity<OpenActionsActivity>()),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("⟳", style = TextStyle(color = rgb(android.graphics.Color.rgb(255, 255, 255)), fontSize = (diameter.value * 0.7f).sp, fontWeight = FontWeight.Bold), maxLines = 1)
+    }
+}
+
 @Composable
 private fun Content(state: AiwaState) {
     // Two shapes: Light (the default) and Glasses (the same buttons, in a pair of glasses with the Store on the right lens). Chosen in the settings.
@@ -453,11 +464,16 @@ private fun LightContent(state: AiwaState) {
                 GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
-            Chip(
-                "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", each - textWidth("⎇  ▾", fs), fs) + " ▾",
-                if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
-                lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
-            )
+            // the spinner sits on the repository pill while a workflow is awaited; a tap on it goes to the workflow, a tap on the pill opens the list
+            val pending = workflowPending(state)
+            Box(modifier = GlanceModifier.defaultWeight().height(chipH.dp), contentAlignment = Alignment.CenterEnd) {
+                Chip(
+                    "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", each - textWidth("⎇  ▾", fs) - (if (pending) chipH - 8f else 0f), fs) + " ▾",
+                    if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
+                    lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxSize(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
+                )
+                if (pending) Box(modifier = GlanceModifier.padding(end = 3.dp)) { WorkflowSpinner((chipH - 6f).dp) }
+            }
         }
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
@@ -546,7 +562,7 @@ private fun GlassesContent(state: AiwaState) {
     val top = h * 0.17f
     val micH = (h * 0.24f).coerceIn(24f, 32f)
     // the left lens: a column of six small buttons (the five kinds and the settings) and, under them, the dictation row
-    val itemH = ((h * 0.83f - 6f - micH) / 6f).coerceIn(11f, 17f)
+    val itemH = ((h * 0.83f - 6f - micH) / 7f).coerceIn(10f, 16f)
     val colW = 44f
     val textRoom = inner - 12f - colW - GAP
     val band = bandInfo(state, textRoom)
@@ -575,10 +591,13 @@ private fun GlassesContent(state: AiwaState) {
                                     GlanceModifier.fillMaxWidth(), bold = kind.current, height = itemH.dp, textSize = 8.sp, hPad = 2.dp,
                                 )
                             }
+                            // the workflow: a spinner while one is awaited, else the button that goes to it (red when the last run failed)
+                            if (workflowPending(state)) WorkflowSpinner((itemH + 1f).dp)
+                            else RoundButton(icon = R.drawable.ic_actions, description = "Le workflow du dépôt", background = if (workflowFailed(state)) alertRed else pill, action = actionStartActivity<OpenActionsActivity>(), diameter = (itemH + 1f).dp)
                             RoundButton(
                                 icon = R.drawable.ic_settings,
-                                description = "Réglages : session, dépôt, mode, modèle, push, boucles, campagne, voix, mises à jour…",
-                                background = if (workflowFailed(state)) alertRed else pill, action = actionStartActivity<SettingsActivity>(), diameter = (itemH + 1f).dp,
+                                description = "Réglages : session, dépôt, modèle, push, boucles, campagne, voix, mises à jour…",
+                                background = pill, action = actionStartActivity<SettingsActivity>(), diameter = (itemH + 1f).dp,
                             )
                         }
                         Spacer(GlanceModifier.width(GAP.dp))

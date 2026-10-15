@@ -87,6 +87,7 @@ object BackendSync {
                     ciState = status.ci?.state,
                     ciUrl = status.ci?.url,
                     ciFresh = status.ci?.fresh ?: false,
+                    productionAskedAt = if (status.ci?.fresh == true) 0L else current.productionAskedAt,
                     ciDetail = status.ci?.detail,
                     ciHintTitle = status.ci?.hint?.title,
                     ciHintSteps = status.ci?.hint?.steps ?: emptyList(),

@@ -540,7 +540,7 @@ class VoiceCommandsHelpActivity : ComponentActivity() {
                 add(PickerEntry("« Mon super agent » (ou le mot que tu as choisi dans les réglages) : ouvre le super agent (la deuxième écoute, voir plus bas).", false, lines = 3) { })
 
                 add(PickerEntry("Le super agent : la deuxième écoute", false, header = true) { })
-                add(PickerEntry("L'ouvrir : dis « mon super agent » (l'écoute de réveil doit être allumée) ou touche son bouton dans le widget. L'écoute de réveil attend pendant ce temps ; tout ce que tu dis va à l'agent, et il te répond à voix haute.", false, lines = 4) { })
+                add(PickerEntry("L'ouvrir : dis « mon super agent » ou touche son bouton dans le widget : le premier appui allume l'écoute de réveil. L'écoute de réveil attend pendant ce temps ; tout ce que tu dis va à l'agent, et il te répond à voix haute.", false, lines = 4) { })
                 add(PickerEntry("« Vas-y, dis-lui » : quand l'agent propose un message pour une session, le téléphone relit la session et le message ; « c'est bon vas-y » l'envoie, rien d'autre ne l'envoie.", false, lines = 4) { })
                 add(PickerEntry("« Vas-y, fais-le » : quand il propose des réglages (modèle, effort, push, déploiement, dépôt, session), le téléphone les relit et les applique après « c'est bon vas-y ».", false, lines = 4) { })
                 add(PickerEntry("« Repasse en manuel » ou « ferme l'agent » (ou le bouton) : il se ferme et l'écoute de réveil reprend. Fermer l'agent ne ferme jamais l'écoute de réveil.", false, lines = 4) { })
@@ -748,14 +748,9 @@ class SettingsActivity : ComponentActivity() {
                 // The widget holds the five kinds, the repository, the session, the microphone: everything else is here
                 add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
                 add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
-                add(PickerEntry("Mode : ${if (aiwaTab(state) == "media") (if (mediaSub(state) == "documents") "Documents" else if (mediaSub(state) == "campaign") "Campagne" else "Vidéos") else state.deploy} ▾", false, lines = 2) { open(ModePickerActivity::class.java) })
                 add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
                 if (state.repo != null) {
                     add(PickerEntry(if (state.pushMain) "Push : direct sur main — toucher pour passer sur une branche" else "Push : sur une branche — toucher pour passer sur main", false, lines = 2) { togglePush(state.pushMain) })
-                }
-                // The workflow that matters for the mode chosen (the build, the deployment, the check of the app, the registry's check)
-                if (workflowShown(state)) {
-                    add(PickerEntry(workflowName(state.deploy) + (if (workflowStateKnown(state)) " : $ci" else "") + " — ouvrir", false, lines = 2) { open(OpenActionsActivity::class.java) })
                 }
                 add(PickerEntry("Ouvrir la conversation dans Claude", false, lines = 2) { open(OpenClaudeActivity::class.java) })
                 add(PickerEntry("Boucles builder / critique${if (state.loopPair.isNotEmpty()) " : ${state.loopPair} en cours" else ""}", false, lines = 2) { open(LoopsActivity::class.java) })
@@ -771,7 +766,6 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Version : appli ${AppUpdater.installedVersion(applicationContext) ?: "?"} · cerveau ${AiwaRepository.state.value.backendVersion.takeIf { it > 0 } ?: "?"}${if (AppUpdater.readyFile(applicationContext) != null) " · mise à jour téléchargée" else ""}", false, lines = 2) { })
                 // The comment for the critic: here, in every shape of the widget (the Aiwa shape has no button for it any more)
                 add(PickerEntry("Commentaire pour le critique : signé avec ton wallet, classé par ce que tu as miné", false, lines = 2) { open(CommentActivity::class.java) })
-                add(PickerEntry("Agent : une session qui suit tes dépôts et te parle (écoute permanente)", false, lines = 2) { open(AgentActivity::class.java) })
                 // Only when there is no widget yet: nobody asked for a second one
                 if (!WidgetPin.hasWidget(applicationContext)) {
                     add(PickerEntry("Ajouter le widget à l'écran d'accueil (un appui sur « Ajouter »)", false, lines = 2) {
@@ -781,10 +775,8 @@ class SettingsActivity : ComponentActivity() {
                 }
 
                 add(PickerEntry("Écoute permanente", false, header = true) { })
-                add(PickerEntry(if (wanted) "✓  Allumée : le téléphone écoute « mon agent », « instruction » et « stop Claude » — toucher pour l'éteindre" else "Éteinte — toucher pour l'allumer", wanted, lines = 3) { toggle() })
-                if (ListenSettings.enabled(this@SettingsActivity) && !state.listening) {
-                    add(PickerEntry("⚠  Allumée mais arrêtée (le téléphone a redémarré ?) — toucher pour la relancer", false, lines = 3) { turnOn() })
-                }
+                // No switch to turn it on: the super agent button of the widget is its trigger (it asks for the microphone and starts it); what stays is the way to stop it
+                if (wanted) add(PickerEntry("Éteindre l'écoute permanente (le bouton du super agent la rallume)", false, lines = 2) { toggle() })
                 add(PickerEntry("Elle reste sur le téléphone (rien n'est envoyé). Le point vert du micro reste affiché et la batterie baisse plus vite. 41 Mo à télécharger la première fois.", false, lines = 4) { })
                 // ONE button for everything that can be said
                 add(PickerEntry("Commandes vocales : tout ce qu'on peut dire (dictée, « instruction », mots de réveil)", false, lines = 2) { open(VoiceCommandsHelpActivity::class.java) })

@@ -101,7 +101,11 @@ private suspend fun deliver(context: Context, bridge: ClaudeBridge, text: String
         return false
     }
     AiwaRepository.update {
-        it.copy(status = if (failure == null) AiwaState.Status.DONE else AiwaState.Status.ERROR, notice = failure)
+        it.copy(
+            status = if (failure == null) AiwaState.Status.DONE else AiwaState.Status.ERROR, notice = failure,
+            // a message that went, with a repository and a mode that produces: a workflow is awaited
+            productionAskedAt = if (failure == null && it.repo != null && it.deploy != "none") System.currentTimeMillis() else it.productionAskedAt,
+        )
     }
     if (toastErrors) toastOnMain(context, failure ?: "Envoyé — réponse dans l'appli Claude")
     BackendSync.refresh(bridge)

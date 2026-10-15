@@ -79,6 +79,10 @@ val EFFORT_CHOICES = listOf(
     ModelChoice("max", "Max"),
 )
 
+/** A production was asked and the workflow of the repository has not answered green yet (for at most three hours: a run that never comes must not spin for ever). */
+fun workflowPending(state: AiwaState): Boolean =
+    state.repo != null && state.productionAskedAt > 0 && System.currentTimeMillis() - state.productionAskedAt < 3 * 3600_000L
+
 data class AiwaState(
     // Display name of the current cloud session, derived by BackendSync
     // from the backend's real answer — never guessed locally.
@@ -184,6 +188,8 @@ data class AiwaState(
     val busyNoticeAt: Long = 0L,
     // When the message being sent began (epoch ms; 0 = none): the widget says how long it has been going.
     val sendingSince: Long = 0L,
+    // When a production was last asked through the widget (a message went with a repository); back to 0 once a NEW GREEN workflow run has come (ciFresh). While it is set, the widget shows the spinner (a workflow is awaited).
+    val productionAskedAt: Long = 0L,
     // What the send is doing now (from the backend): shown after the seconds.
     val sendingNote: String? = null,
 ) {
