@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 103
+BACKEND_VERSION = 104
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2563,7 +2563,7 @@ def agent_snapshot():
         command = dict(agent["command"]) if agent["command"] else None
     if command:
         spoken, instruction = agent_lib.command_phrases(command["items"], lambda sid: (_session_entry(sid) or {}).get("title") or sid)
-        command = {"id": command["id"], "read_back": spoken, "instruction": instruction, "cast": command["items"].get("cast")}
+        command = {"id": command["id"], "read_back": spoken, "instruction": instruction, "cast": command["items"].get("cast"), "open": command["items"].get("open")}
     out["command"] = command
     return out
 

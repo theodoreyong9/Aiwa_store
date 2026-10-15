@@ -47,6 +47,16 @@ class Agent(unittest.TestCase):
         self.assertEqual(A.clamp_interval("x"), A.INTERVAL_DEFAULT)
 
 
+
+class OpenProductionTests(unittest.TestCase):
+    def test_open_is_a_known_kind_or_nothing(self):
+        cmd = A.parse_command({"open": "Vidéo"}, set())
+        self.assertEqual(cmd, {"open": "video"})
+        self.assertEqual(A.parse_command({"open": "page"}, set()), {"open": "pages"})
+        self.assertIsNone(A.parse_command({"open": "rm -rf"}, set()))
+        spoken, _ = A.command_phrases({"open": "video"})
+        self.assertIn("ouvrir les vidéos", spoken)
+
 if __name__ == "__main__":
     unittest.main()
 

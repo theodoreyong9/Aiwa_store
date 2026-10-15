@@ -378,6 +378,7 @@ class WakeWordService : Service() {
         }
         if (command.instruction.isNotBlank()) VoiceDictation(context = this, startInInstructions = true, onFinished = {}).applyInstruction(command.instruction)
         command.cast?.let { applyCast(it) }
+        command.open?.let { openProduction(applicationContext, it) }
         agentCall("cancel", mapOf("id" to command.id))   // applied: it must not be applied twice
         Speaker.speakNatural(applicationContext, "C'est fait.")
         try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }

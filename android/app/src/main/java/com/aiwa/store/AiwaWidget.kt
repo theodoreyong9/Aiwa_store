@@ -394,22 +394,26 @@ private val KIND_FOUND_KEY = ActionParameters.Key<String>("aiwa-kind-found")
 class PickKindCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val mode = parameters[MODE_KEY] ?: return
-        val found = parameters[KIND_FOUND_KEY] == "1"
-        val app = context.applicationContext
-        val state = AiwaRepository.state.value
-        selectAiwaMode(app, mode)
-        Productions.refresh(app, state.repo, force = true)
-        // Vidéo and Docs open even when grey (the window to ask for one; the folder or a word that there is none yet); the others only when something was produced
-        if (!found && mode != "video" && mode != "documents") return
-        val repo = state.repo
-        val view = { url: String -> app.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        when (mode) {
-            "documents" -> app.startActivity(Intent(app, DocumentsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            "video" -> app.startActivity(Intent(app, VideosActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            "aiwa" -> app.startActivity(Intent(app, OpenStoreActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            "pages" -> if (repo != null) view("https://${repo.substringBefore('/')}.github.io/${repo.substringAfter('/')}/")
-            else -> if (repo != null) view("https://github.com/$repo/releases")
-        }
+        openProduction(context.applicationContext, mode, parameters[KIND_FOUND_KEY] == "1")
+    }
+}
+
+/** Opens what the repository produced of one kind (« documents », « video », « pages », « android », « aiwa »): the same for the tap on one of the five and for the super agent (« ouvre ma vidéo »). */
+suspend fun openProduction(app: Context, mode: String, found: Boolean? = null) {
+    val state = AiwaRepository.state.value
+    selectAiwaMode(app, mode)
+    Productions.refresh(app, state.repo, force = true)
+    val has = found ?: Productions.has(app, state.repo, if (mode == "pages") "page" else if (mode == "android") "apk" else mode)
+    // Vidéo and Docs open even when grey (the window to ask for one; the folder or a word that there is none yet); the others only when something was produced
+    if (!has && mode != "video" && mode != "documents") { toastOnMain(app, "Rien à ouvrir pour l'instant dans ce dépôt."); return }
+    val repo = state.repo
+    val view = { url: String -> app.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    when (mode) {
+        "documents" -> app.startActivity(Intent(app, DocumentsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        "video" -> app.startActivity(Intent(app, VideosActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        "aiwa" -> app.startActivity(Intent(app, OpenStoreActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        "pages" -> if (repo != null) view("https://${repo.substringBefore('/')}.github.io/${repo.substringAfter('/')}/")
+        else -> if (repo != null) view("https://github.com/$repo/releases")
     }
 }
 
