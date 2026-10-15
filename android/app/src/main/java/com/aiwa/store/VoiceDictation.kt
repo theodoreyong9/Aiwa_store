@@ -269,7 +269,12 @@ class VoiceDictation(
                 is VoiceCommand.Repo -> {
                     // A repository is never changed on a guess: the phone asks aloud and the answer is the same phrase.
                     if (repoConfirmed || confirmRepo(command.name)) {
-                        switchRepo(appContext, bridge, command.name)
+                        val problem = switchRepo(appContext, bridge, command.name)
+                        if (problem != null) {
+                            toastOnMain(appContext, "⚠ Le dépôt n'a PAS changé : $problem")
+                            repoRefused = true
+                            continue
+                        }
                     } else {
                         repoRefused = true
                         continue

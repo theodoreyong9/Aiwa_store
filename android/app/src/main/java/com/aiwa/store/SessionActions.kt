@@ -139,26 +139,29 @@ suspend fun switchModel(context: Context, bridge: ClaudeBridge, modelId: String?
 }
 
 /** The repository Claude works on: the session in progress is told with its next message (it stays); with none, the next session starts there. */
-suspend fun switchRepo(context: Context, bridge: ClaudeBridge, repo: String) {
+suspend fun switchRepo(context: Context, bridge: ClaudeBridge, repo: String): String? {
     // A repository has ITS session: the one of the repository we leave is remembered, the one of the repository we enter is taken again (a new one the first time)
     val before = AiwaRepository.state.value
     val leaving = before.repo
     if (leaving != null && leaving != repo) ModeSessions.remember(context, leaving, before.cloudSessionId)
+    var problem: String? = null
     try {
         bridge.selectRepo(repo)
     } catch (err: Exception) {
-        toastOnMain(context, describeFailure(context, err, "Impossible de changer de dépôt"))
-        BackendSync.refresh(bridge)
-        AiwaWidget().updateAll(context)
-        return
+        problem = describeFailure(context, err, "Impossible de changer de dépôt")
+        toastOnMain(context, problem)
     }
     BackendSync.refresh(bridge)
-    if (leaving != repo) {
+    if (problem == null && leaving != repo) {
         val now = AiwaRepository.state.value
         val wanted = ModeSessions.recall(context, repo)?.takeIf { id -> now.cloudSessions.any { it.id == id } } ?: "new"
         if (wanted != (now.cloudSessionId ?: "new")) switchCloud(context, bridge, wanted)
     }
+    // Said only if it is true: what the brain answers now is what the pill shows
+    val shown = AiwaRepository.state.value.repo
+    if (problem == null && shown != repo) problem = "le cerveau répond encore « ${shown ?: "aucun"} » (le cerveau est-il à jour ?)"
     AiwaWidget().updateAll(context)
+    return problem
 }
 
 /** owner/name out of an address copied from GitHub (a link, a git remote) or typed as owner/name, or null. */
