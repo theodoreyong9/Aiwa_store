@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 93
+BACKEND_VERSION = 94
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -178,7 +178,6 @@ current_repo = None
 push_main = True
 DEPLOY_MODES = ("none", "pages", "android", "store", "aiwa", "campaign", "documents")
 deploy_mode = "pages"
-mode_memory = {}   # mode -> what was set when it was left: {session, repo, model, effort, push_main}; found again when the mode is chosen again
 video_quality = "moyen"   # simple, moyen, extra: how far a video goes (see _video_line)
 # Other repositories Claude may ALSO work on (checked in the widget's picker):
 # told to it in the instructions; the platform decides whether it can reach them.
@@ -242,7 +241,7 @@ followup_lock = threading.Lock()
 
 def _load_state():
     global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, video_quality
-    global current_effort, waiting_topic, last_cloud, sent_app, ask_list, last_message_at, repo_access_missing, mode_memory
+    global current_effort, waiting_topic, last_cloud, sent_app, ask_list, last_message_at, repo_access_missing
     try:
         data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -262,17 +261,6 @@ def _load_state():
     # Older state files only knew a yes/no: yes was GitHub Pages.
     # "none" is no longer offered (the default is GitHub Pages): a state saved with it becomes Pages.
     deploy_mode = mode if mode in DEPLOY_MODES and mode != "none" else "pages"
-    kept_modes = data.get("mode_memory")
-    mode_memory = {}
-    for name, memo in (kept_modes.items() if isinstance(kept_modes, dict) else []):
-        if name in DEPLOY_MODES and isinstance(memo, dict):
-            mode_memory[name] = {
-                "session": memo.get("session") if isinstance(memo.get("session"), str) and CLOUD_ID_RE.fullmatch(memo["session"]) else None,
-                "repo": memo.get("repo") if isinstance(memo.get("repo"), str) and github.REPO_RE.fullmatch(memo["repo"]) else None,
-                "model": memo.get("model") if isinstance(memo.get("model"), str) and MODEL_RE.fullmatch(memo["model"]) else None,
-                "effort": memo.get("effort") if memo.get("effort") in EFFORT_LEVELS else None,
-                "push_main": memo.get("push_main") is not False,
-            }
     quality = data.get("video_quality")
     video_quality = quality if quality in VIDEO_QUALITIES else "moyen"
     sources = data.get("source_repos")
@@ -320,22 +308,6 @@ def _load_state():
         _save_state()  # the topic must survive a restart: sessions were told it
 
 
-def _mode_memory_swap(old, new):
-    """Leaving a mode keeps its session, repository, model, effort and push; entering one that was left before finds them again (one that was never visited keeps
-    what is set). Call with `lock` held. Each mode so has its own configuration: several sessions and repositories live side by side, one per mode."""
-    global current_cloud, last_cloud, current_repo, current_model, current_effort, push_main
-    mode_memory[old] = {"session": current_cloud, "repo": current_repo, "model": current_model, "effort": current_effort, "push_main": push_main}
-    kept = mode_memory.get(new)
-    if not kept:
-        return
-    if kept["session"] and _session_entry(kept["session"]):
-        current_cloud = last_cloud = kept["session"]
-    else:
-        current_cloud = None
-    current_repo = kept["repo"] or (_session_entry(current_cloud).get("repo") if current_cloud else None) or current_repo
-    current_model, current_effort, push_main = kept["model"], kept["effort"], kept["push_main"]
-
-
 def _save_state():
     """Survives a backend restart (the app restarts it when it updates):
     without this, the next message after a restart would silently start a
@@ -346,7 +318,7 @@ def _save_state():
             "push_main": push_main, "deploy": deploy_mode, "video_quality": video_quality, "extra": extra, "extra_repos": extra_repos, "source_repos": source_repos,
             "effort": current_effort, "topic": waiting_topic, "last_cloud": last_cloud, "ci_seen": ci_seen,
             "relay_cloud": relay_cloud, "sent_app": sent_app, "ask_list": ask_list, "relay_seen": relay_seen, "last_message": last_message_at,
-            "repo_access_missing": repo_access_missing, "mode_memory": mode_memory,
+            "repo_access_missing": repo_access_missing,
         }), encoding="utf-8")
     except OSError as err:
         print(f"[{_ts()}] could not save state: {err}", flush=True)
@@ -3436,7 +3408,6 @@ class Handler(BaseHTTPRequestHandler):
                     push_main = options["push_main"]
                 if options.get("deploy") in DEPLOY_MODES:
                     if options["deploy"] != deploy_mode:
-                        _mode_memory_swap(deploy_mode, options["deploy"])
                         with site_lock:
                             # The verdict is the one of the workflow of the mode: the one already known for the new mode is shown at once, and looked up again
                             ci_cache.update(info=(ci_cache.get("modes") or {}).get(options["deploy"]), at=0.0)
