@@ -28,9 +28,15 @@ class WakeWordsTest {
     }
 
     @Test fun theGrammarHoldsTheOriginPhrasesTheVariantsAndTheUnknownMark() {
-        assertEquals("[\"mon agent\", \"mon super agent\", \"instruction\", \"stop claude\", \"arrête claude\", \"[unk]\"]", WakeWords.grammar(emptyList()))
+        assertEquals("[\"mon agent\", \"mon super agent\", \"instruction\", \"stop claude\", \"arrête claude\", \"éteins\", \"[unk]\"]", WakeWords.grammar(emptyList()))
         val g = WakeWords.grammar(listOf("ail oua", "Ai oua"))
         assertTrue(g, g.contains("\"ail oua\"") && g.contains("\"ai oua\"") && g.endsWith("\"[unk]\"]"))
+    }
+
+    @Test fun eteinsTurnsTheListeningOff() {
+        assertEquals(WakeKind.OFF, wakeKind("éteins"))
+        assertEquals(WakeKind.OFF, wakeKind("éteins tout"))
+        assertEquals(WakeKind.STOP, wakeKind("stop claude"))
     }
 
     @Test fun theChosenWordWakesLikeMonAgentAndOnlyAsWholeWords() {
