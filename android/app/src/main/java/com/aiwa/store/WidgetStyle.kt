@@ -39,8 +39,12 @@ object WidgetStyle {
             try {
                 while (again) {
                     again = false
+                    val began = System.currentTimeMillis()
                     AiwaWidget().updateAll(app)
-                    delay(600)
+                    val took = System.currentTimeMillis() - began
+                    android.util.Log.i("AiwaWidget", "redraw after a change of shape: $took ms")
+                    // what the redraw itself takes is told when it is slow, so that the slowness can be placed (here, or in the launcher that shows the widget)
+                    if (took > 1500) toastOnMain(app, "Redessin du widget : ${took / 1000.0} s (c'est Aiwa)")
                 }
             } finally { refreshing.unlock() }
         }
