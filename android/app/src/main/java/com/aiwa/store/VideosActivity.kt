@@ -1,5 +1,6 @@
 package com.aiwa.store
 import android.os.Bundle
+import androidx.glance.appwidget.updateAll
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
