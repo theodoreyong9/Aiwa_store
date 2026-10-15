@@ -2,6 +2,7 @@ import { config } from './config.js';
 import { $, switchView } from './ui.js';
 import { initStore, initLibrary, initComments } from './store-ui.js';
 import { initWallet } from './wallet-ui.js';
+import { initCommentsTab } from './comments-ui.js';
 import { initPublish, sheetIsOpen, closeSheet } from './publish-ui.js';
 import { closeViewer } from './viewer.js';
 import { setBackHandler } from './host.js';
@@ -23,6 +24,7 @@ initPublish();
 initStore();
 initLibrary();
 initComments();
+initCommentsTab();
 initWallet();
 
 // Inside the Android app: a back button that closes what is open first, then leaves the tab.

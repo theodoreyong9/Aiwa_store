@@ -60,7 +60,7 @@ fun storeSearchUrl(text: String, base: String = STORE_APP_URL): String? =
 fun storeCommentUrl(base: String = STORE_APP_URL): String = "$base#comment"
 
 /** The Store's tab of the apps published with the wallet (`mine`) or starred (`favorites`), the Wallet page (`wallet`) or the Papers page (`papers`); null for any other name. */
-fun storeTabUrl(tab: String, base: String = STORE_APP_URL): String? = if (tab == "mine" || tab == "favorites" || tab == "wallet" || tab == "papers") "$base#tab=$tab" else null
+fun storeTabUrl(tab: String, base: String = STORE_APP_URL): String? = if (tab == "mine" || tab == "favorites" || tab == "wallet" || tab == "papers" || tab == "comments") "$base#tab=$tab" else null
 
 // The kinds of app the Store takes: its code in the package ("code": one HTML file), or published through Aiwa ("aiwa").
 private val KINDS = setOf("code", "aiwa", "link")

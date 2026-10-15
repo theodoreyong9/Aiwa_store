@@ -19,6 +19,7 @@
   <nav class="tabs" id="app-nav">
     <button type="button" class="active" data-view="store">Store</button>
     <button type="button" data-view="wallet">Wallet</button>
+    <button type="button" data-view="comments">Comments</button>
     <button type="button" data-view="papers">Papers</button>
   </nav>
 </header>
@@ -264,6 +265,29 @@
     </div>
   </div>
 </div>
+
+<!-- ============ COMMENTS ============ -->
+<main class="view" id="view-comments" data-view="comments" hidden>
+  <section class="card">
+    <div class="line">
+      <h2 style="flex:1;margin:0">Comments</h2>
+      <button id="comments-refresh" class="icon" title="Refresh" aria-label="Refresh the comments">↻</button>
+      <button id="comments-write" type="button" class="primary">Write</button>
+    </div>
+    <p class="hint" id="comments-status"></p>
+    <p class="hint">A comment is signed with a wallet and listed by the registry once its pull request was accepted; it is ranked by what its author has mined, and the critic reads the best ranked.</p>
+  </section>
+  <section class="card">
+    <h2 id="comments-mine-title">Yours</h2>
+    <p class="hint" id="comments-mine-empty" hidden></p>
+    <ul class="plainlist" id="comments-mine"></ul>
+  </section>
+  <section class="card">
+    <h2>The network</h2>
+    <p class="hint" id="comments-network-empty" hidden>Nobody else has a comment in the registry yet.</p>
+    <ul class="plainlist" id="comments-network"></ul>
+  </section>
+</main>
 
 <!-- ============ PAPERS ============ -->
 <main class="view" id="view-papers" data-view="papers" hidden>

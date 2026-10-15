@@ -752,6 +752,8 @@ class SettingsActivity : ComponentActivity() {
                 if (state.repo != null) {
                     add(PickerEntry(if (state.pushMain) "Push : direct sur main — toucher pour passer sur une branche" else "Push : sur une branche — toucher pour passer sur main", false, lines = 2) { togglePush(state.pushMain) })
                 }
+                // One key for the speaker and the super agent
+                add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }} — pour le parleur et le super agent", false, lines = 2) { open(LlmKeyActivity::class.java) })
                 add(PickerEntry("Ouvrir la conversation dans Claude", false, lines = 2) { open(OpenClaudeActivity::class.java) })
                 add(PickerEntry("Boucles builder / critique${if (state.loopPair.isNotEmpty()) " : ${state.loopPair} en cours" else ""}", false, lines = 2) { open(LoopsActivity::class.java) })
                 add(PickerEntry("Campagne : les propositions à valider", false, lines = 2) { open(ProposalsActivity::class.java) })

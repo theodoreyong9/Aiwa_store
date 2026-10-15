@@ -144,34 +144,15 @@ private fun AgentWindow(onClose: () -> Unit) {
                         }
                     }
                     if (agent != null) {
-                        var key by remember { mutableStateOf("") }
-                        val llmLine = when (agent.llm) {
-                            "ready" -> "Clé Anthropic : en place. L'agent répond en une ou deux secondes et comprend les ordres que les mots-clés ratent. Facturé par Anthropic, à l'usage."
-                            "installing" -> "Clé Anthropic : installation du paquet en cours dans Termux…"
-                            "error" -> "Clé Anthropic : problème (voir plus bas)."
-                            else -> "Clé Anthropic (facultative) : sans elle l'agent passe par une session cloud (plus lent)."
-                        }
-                        Text(llmLine, style = MaterialTheme.typography.bodySmall)
-                        if (agent.llm == "none") {
-                            OutlinedTextField(value = key, onValueChange = { key = it }, label = { Text("sk-ant-…") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-                            Text("Elle reste dans le cerveau Termux de ce téléphone (fichier lisible par toi seul) et ne va qu'à Anthropic : jamais dans un dépôt.", style = MaterialTheme.typography.bodySmall)
-                            Button(onClick = {
-                                scope.launch {
-                                    val error = try { bridge.llmKey(key.trim()) } catch (err: Exception) { err.message ?: "?" }
-                                    if (error == null) key = "" else note = error
-                                    try { BackendSync.refresh(bridge) } catch (err: Exception) { }
-                                    AiwaWidget().updateAll(app)
-                                }
-                            }, enabled = key.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Enregistrer la clé") }
-                        } else {
-                            OutlinedButton(onClick = {
-                                scope.launch {
-                                    try { bridge.llmKey(null); BackendSync.refresh(bridge) } catch (err: Exception) { note = err.message ?: "?" }
-                                    AiwaWidget().updateAll(app)
-                                }
-                            }, modifier = Modifier.fillMaxWidth()) { Text("Retirer la clé") }
-                        }
+                        Text(
+                            when (agent.llm) {
+                                "ready" -> "Clé Anthropic : en place (réglages → Clé Anthropic). L'agent répond en une ou deux secondes."
+                                "installing" -> "Clé Anthropic : installation du paquet en cours dans Termux…"
+                                "error" -> "Clé Anthropic : problème (réglages → Clé Anthropic)."
+                                else -> "Clé Anthropic (facultative) : à régler dans les réglages ; sans elle l'agent passe par une session cloud, plus lente."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                     agent?.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                     note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
