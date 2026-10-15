@@ -501,10 +501,13 @@ private fun LightContent(state: AiwaState) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
             }
-            if (state.appUpdateReady) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
-            }
+            // always there: green when a newer build is downloaded (a tap installs it), grey otherwise (a tap looks for one)
+            Spacer(GlanceModifier.width(GAP.dp))
+            RoundButton(
+                icon = R.drawable.ic_update,
+                description = if (state.appUpdateReady) "Mise à jour d'Aiwa prête : installer" else "Chercher une mise à jour d'Aiwa",
+                background = if (state.appUpdateReady) green else PILL_DIM, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp,
+            )
         }
         // ---- the loop, the Aiwa app, the super agent, the comment, the settings: five equal slots ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
