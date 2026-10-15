@@ -61,6 +61,7 @@ private fun AgentWindow(onClose: () -> Unit) {
     var text by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
+    var confirmDestroy by remember { mutableStateOf(false) }
 
     // One action, then the state is read again so that the window and the widget follow.
     fun act(action: String, fields: Map<String, Any> = emptyMap(), then: () -> Unit = {}) {
@@ -141,6 +142,17 @@ private fun AgentWindow(onClose: () -> Unit) {
                             Text(p.message, style = MaterialTheme.typography.bodyMedium)
                             Button(onClick = { act("confirm", mapOf("id" to p.id)) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Envoyer à ${p.sessionTitle}") }
                             OutlinedButton(onClick = { act("cancel", mapOf("id" to p.id)) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Annuler la proposition") }
+                        }
+                    }
+                    if (agent != null && agent.session != null) {
+                        if (confirmDestroy) {
+                            Text("Détruire le super agent ? Aiwa l'oublie (session, propositions, réglages en attente) et on peut en créer un autre. La conversation reste dans claude.ai : tu peux l'y archiver.", style = MaterialTheme.typography.bodySmall)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { WakeWordService.closeAgentMode(app); act("destroy") { confirmDestroy = false } }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Oui, détruire") }
+                                OutlinedButton(onClick = { confirmDestroy = false }, modifier = Modifier.weight(1f)) { Text("Non") }
+                            }
+                        } else {
+                            OutlinedButton(onClick = { confirmDestroy = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Détruire l'agent et recommencer") }
                         }
                     }
                     if (agent != null) {

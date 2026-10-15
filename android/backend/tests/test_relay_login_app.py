@@ -1860,6 +1860,20 @@ class HttpTests(Base):
         self.assertEqual(self.call("/api/claude/check", "")["claude_login"], "ok")
 
 
+
+class AgentDestroyTests(unittest.TestCase):
+    def test_the_super_agent_can_be_destroyed_and_made_again(self):
+        sid = "session_01ABCDEFGHJKLMNPQRSTUVWX"
+        with tempfile.TemporaryDirectory() as d, unittest.mock.patch.object(srv, "CLOUD_STORE", Path(d) / "cloud.json"), unittest.mock.patch.object(srv, "AGENT_FILE", Path(d) / "agent.json"), unittest.mock.patch.object(srv, "_save_state"):
+            srv.CLOUD_STORE.write_text(json.dumps([{"id": sid, "title": "agent"}, {"id": "session_01ZZZZZZZZZZZZZZZZZZZZZZ", "title": "autre"}]), encoding="utf-8")
+            srv.agent.update(session=sid, enabled=True, proposal={"x": 1}, creating=False)
+            out = srv.agent_destroy()
+            self.assertTrue(out["ok"])
+            self.assertIsNone(srv.agent["session"])
+            self.assertFalse(srv.agent["enabled"])
+            self.assertIsNone(srv.agent["proposal"])
+            self.assertEqual([e["id"] for e in json.loads(srv.CLOUD_STORE.read_text(encoding="utf-8"))], ["session_01ZZZZZZZZZZZZZZZZZZZZZZ"], "only the agent's session is forgotten")
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 101
+BACKEND_VERSION = 102
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2599,6 +2599,32 @@ def agent_create():
     return {"ok": True}
 
 
+def agent_destroy():
+    """The person starts the super agent over: its session is forgotten by Aiwa (the list of sessions, the settings), its proposal, its pending commands and its last words are dropped,
+    and « Créer l'agent » is offered again. The conversation itself stays in claude.ai (nothing here can delete a cloud session): it can be archived there."""
+    global current_cloud, last_cloud
+    with agent_lock:
+        session = agent["session"]
+        if agent["creating"]:
+            return {"ok": False, "error": "la création est en cours"}
+        agent.update(session=None, enabled=False, command=None, proposal=None, say=None, sig=None, last=0.0, error=None)
+        _agent_save()
+    if session:
+        with store_lock:
+            entries = [e for e in _load_cloud_sessions() if e.get("id") != session]
+            try:
+                CLOUD_STORE.write_text(json.dumps(entries[:30]), encoding="utf-8")
+            except OSError:
+                pass
+        with lock:
+            if current_cloud == session:
+                current_cloud = None
+            if last_cloud == session:
+                last_cloud = None
+            _save_state()
+    return {"ok": True, "forgotten": session}
+
+
 def agent_set(enabled=None, interval=None):
     with agent_lock:
         if interval is not None:
@@ -3477,6 +3503,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_json(agent_spoken(str(data.get("id") or "")))
             elif action == "stop":
                 self.reply_json(agent_stop())
+            elif action == "destroy":
+                self.reply_json(agent_destroy())
             elif action == "report":
                 self.reply_json(agent_send(spoken=agent_lib.REPORT_REQUEST))
             elif action == "vocabulary":
