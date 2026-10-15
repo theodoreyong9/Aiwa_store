@@ -54,7 +54,7 @@ object Productions {
 
     /**
      * Looks at what the repository holds, by the layout Aiwa gives it (the same for every repository): videos (the release `videos`, the folder `aiwa-videos`, or an MP4 in `docs`),
-     * documents (`aiwa-documents`), the page (the GitHub Pages address answers), the APK (a release with an .apk file), the Aiwa app (`aiwa-apps/*.aiwa.html`). A question that GitHub did not
+     * documents (`aiwa-documents`), the page (the GitHub Pages address answers), the APK (a release with an .apk file), the Aiwa app (an `.aiwa.html` file in `aiwa-apps`). A question that GitHub did not
      * answer (rate limit, no network) leaves what was known: a button does not go grey for a failed request. At most every ten minutes per repository (GitHub allows 60 questions an hour
      * without a token); the widget is redrawn when something changed.
      */
