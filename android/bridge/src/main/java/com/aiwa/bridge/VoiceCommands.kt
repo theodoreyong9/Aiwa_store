@@ -490,7 +490,7 @@ fun statusReport(repo: String?, modelLabel: String, pushMain: Boolean, deploy: S
 }
 
 /** What woke the listening: "mon agent …" (the phone then reads where things stand) or "instruction …" (it goes straight to listening). */
-enum class WakeKind { AGENT, INSTRUCTION, STOP, LIAISON }
+enum class WakeKind { AGENT, INSTRUCTION, STOP, LIAISON, OFF }
 
 /**
  * The wake word, as the detector hears it. "Aiwa" is not in the small French model's vocabulary, so it cannot be written in the grammar: the words of origin are French ones
@@ -500,6 +500,8 @@ fun wakeKind(heard: String, custom: List<String> = emptyList(), liaison: List<St
     val list = words(heard)
     // "stop Claude" / "arrête Claude": said at any moment, it is not a dictation: it stops Claude (see StopClaude)
     for (i in 1 until list.size) if (list[i].plain == "claude" && list[i - 1].plain in STOP_WORDS) return WakeKind.STOP
+    // « éteins »: the permanent listening and the super agent are turned off (said at any moment, even with the screen locked)
+    if (list.any { it.plain == "eteins" }) return WakeKind.OFF
     // the word chosen for the super agent (WakeWords): it calls the liaison agent
     if (liaison.isNotEmpty() && WakeWords.heardCustom(heard, liaison)) return WakeKind.LIAISON
     // "mon super agent": the call of the liaison agent (the second listening, see WakeWordService); checked before "mon agent"

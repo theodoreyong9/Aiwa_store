@@ -67,6 +67,8 @@ object WakeWordSettings {
  * and Android does not let a service of this kind start by itself after a restart of the phone: opening the app once starts it again.
  */
 // Said to the agent (already plain: lowercase, no accent): « repasse en manuel », and « vas-y dis-lui » (the recognizer also writes « dit lui »).
+private val OFF_REGEX = Regex("""\beteins\b""")
+private val STOP_AGENT_REGEX = Regex("""(?:stop|arrete)(?:\s+(?:l\s+)?(?:super\s+)?(?:agent|claude))?""")
 private val MANUAL_REGEX = Regex("""\b(?:repasse|reviens|retourne|passe)\s+(?:en|au)\s+(?:mode\s+)?manuel\b|\b(?:ferme|quitte)\s+(?:l\s+)?agent\b""")
 // What the phone says (its own light voice, at once) while the agent session thinks; it stops as soon as the real answer is there.
 private val FILLERS = listOf("Je regarde.", "Je réfléchis.", "Un instant.", "Toujours là, je vérifie.")
@@ -125,6 +127,21 @@ class WakeWordService : Service() {
         }
 
         fun stop(context: Context) { context.stopService(Intent(context, WakeWordService::class.java)) }
+    }
+
+    /** « éteins »: no more permanent listening, and the super agent closes with it. */
+    private fun switchOff() {
+        scope.launch {
+            waitToken++
+            agentListener?.stop(); agentListener = null
+            detector?.stop(); detector = null
+            agentCall("set", mapOf("enabled" to false))
+            AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false), listening = false) }
+            ListenSettings.setEnabled(applicationContext, false)
+            AiwaWidget().updateAll(applicationContext)
+            Speaker.speakNatural(applicationContext, "J'éteins l'écoute permanente.")
+            stopSelf()
+        }
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -261,6 +278,12 @@ class WakeWordService : Service() {
         waitToken++   // what was waited for is over: the person spoke
         scope.launch {
             when {
+                OFF_REGEX.containsMatchIn(plain) -> { agentBusy = false; switchOff(); return@launch }
+                STOP_AGENT_REGEX.matches(plain) -> {
+                    // « stop »: what the agent was saying stops, what waits is dropped, and the sessions it last spoke to are asked to forget its last comment
+                    val told = agentCall("stop")
+                    say(if (told == null) "Stop : les sessions touchées en dernier oublient son dernier commentaire." else "Stop (les sessions n'ont pas été prévenues : $told)")
+                }
                 MANUAL_REGEX.containsMatchIn(plain) -> { agentBusy = false; closeAgent(); return@launch }
                 AiwaRepository.state.value.agent?.command != null && APPLY_REGEX.containsMatchIn(plain) -> applyAgentCommand()
                 AiwaRepository.state.value.agent?.proposal != null && SEND_REGEX.containsMatchIn(plain) -> sendAgentProposal()
@@ -371,6 +394,7 @@ class WakeWordService : Service() {
         detector = null
         if (paused) return
         if (kind == WakeKind.LIAISON) { openAgent(); return }
+        if (kind == WakeKind.OFF) { switchOff(); return }
         if (kind == WakeKind.STOP) {
             // Not a dictation: Claude is asked to stop, at once, and the phone says it did.
             say("J'ai demandé à Claude de s'arrêter")

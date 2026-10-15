@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 94
+BACKEND_VERSION = 95
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2566,7 +2566,31 @@ def agent_confirm(proposal_id):
     with agent_lock:
         if agent["proposal"] and agent["proposal"]["id"] == proposal_id:
             agent["proposal"] = None
+        # the sessions the super agent last spoke to: « stop » asks them to forget it
+        recent = [(sid, at) for sid, at in agent.get("last_sent", []) if sid != proposal["session"] and time.time() - at < AGENT_FORGET_WINDOW]
+        agent["last_sent"] = recent + [(proposal["session"], time.time())]
     return {"ok": True, "session": proposal["session"]}
+
+
+AGENT_FORGET_WINDOW = 1800   # seconds: a stop reaches the sessions spoken to in the last half hour
+
+
+def agent_stop():
+    """« stop »: the proposal and the settings that wait are dropped, and the sessions the super agent last spoke to are asked to forget its last comment. Returns how many were told."""
+    with agent_lock:
+        agent["proposal"] = None
+        agent["command"] = None
+        targets = [sid for sid, at in agent.get("last_sent", []) if time.time() - at < AGENT_FORGET_WINDOW]
+        agent["last_sent"] = []
+    def run():
+        for sid in targets:
+            try:
+                _queue_followup(sid, "[Aiwa — stop] Oublie le dernier message du super agent : ne le traite pas, annule ce que tu en as commencé et ne fais rien à son sujet.")
+            except (OSError, subprocess.SubprocessError):
+                pass
+    if targets:
+        threading.Thread(target=run, daemon=True).start()
+    return {"ok": True, "told": len(targets)}
 
 
 def agent_cancel(proposal_id):
@@ -3256,6 +3280,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_json(agent_cancel(str(data.get("id") or "")))
             elif action == "said":
                 self.reply_json(agent_spoken(str(data.get("id") or "")))
+            elif action == "stop":
+                self.reply_json(agent_stop())
             else:
                 self.send_error(404)
         elif self.path == "/api/llm/key":

@@ -477,9 +477,10 @@ private fun LightContent(state: AiwaState) {
         }
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            val agentOn = state.agent?.enabled == true
             Box(
-                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
-                    .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
+                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked || agentOn) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
+                    .clickable(if (agentOn) actionRunCallback<AgentMicTapCallback>() else lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -565,7 +566,8 @@ private fun GlassesContent(state: AiwaState) {
     val itemH = ((h * 0.83f - 14f - micH) / 7f).coerceIn(9f, 13f)
     val colW = 36f
     val band = bandInfo(state, inner - colW - 24f)
-    val micAct = lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))
+    val agentOn = state.agent?.enabled == true
+    val micAct = if (agentOn) actionRunCallback<AgentMicTapCallback>() else lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))
     fun storeTab(tab: String): Action = actionStartIntent(
         Intent(context, StoreActivity::class.java).setData(Uri.parse("aiwa://store/$tab"))
             .putExtra(StoreActivity.EXTRA_URL, storeTabUrl(tab) ?: STORE_APP_URL),
@@ -606,7 +608,7 @@ private fun GlassesContent(state: AiwaState) {
                     // the bottom: dictate, the question when Claude asks one, the update when one is ready
                     Row(modifier = GlanceModifier.fillMaxWidth().height(micH.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            modifier = GlanceModifier.defaultWeight().height(micH.dp).background(if (locked) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
+                            modifier = GlanceModifier.defaultWeight().height(micH.dp).background(if (locked || agentOn) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
                             contentAlignment = Alignment.Center,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -649,6 +651,13 @@ private fun GlassesContent(state: AiwaState) {
                 Spacer(GlanceModifier.width(outer.dp))
             }
         }
+    }
+}
+
+// The microphone button while the super agent listens: it is grey, and a tap says why.
+class AgentMicTapCallback : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        toastOnMain(context, "Le super agent écoute : parle-lui (le micro est grisé tant qu'il est ouvert). « Éteins » ou son bouton le ferme.")
     }
 }
 

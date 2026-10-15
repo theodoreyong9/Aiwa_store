@@ -16,6 +16,7 @@ import com.aiwa.bridge.LocalClaudeBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** The widget has no message area, so its errors are toasts. */
 fun toastOnMain(context: Context, text: String) {
@@ -371,6 +372,8 @@ const val STOP_CLAUDE_TEXT = "STOP. Arrête immédiatement ce que tu fais : ne l
 /** Asks Claude's session to stop. True when the message went. */
 suspend fun stopClaude(context: Context): Boolean {
     val sent = sendAndTrack(context, LocalClaudeBridge(), STOP_CLAUDE_TEXT, toastErrors = true)
+    // The super agent too: what waits is dropped, and the sessions it last spoke to are asked to forget its last comment
+    try { withContext(Dispatchers.IO) { LocalClaudeBridge().agent("stop", emptyMap()) } } catch (err: Exception) { /* no agent, or an older brain: nothing to forget */ }
     AiwaWidget().updateAll(context)
     return sent
 }

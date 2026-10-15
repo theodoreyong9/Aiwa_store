@@ -1532,6 +1532,16 @@ class HttpTests(Base):
             self.assertIsNone(self.call("/api/status")["agent"]["proposal"])
             self.call("/api/agent/said", json.dumps({"id": status["say"]["id"]}))
             self.assertIsNone(self.call("/api/status")["agent"]["say"], "said once, not said again")
+            # « stop »: the session the super agent last spoke to is asked to forget its last comment
+            told = self.call("/api/agent/stop", "{}")
+            self.assertEqual(told["told"], 1)
+            for _ in range(50):
+                if sent[-1][1].startswith("[Aiwa — stop]"):
+                    break
+                time.sleep(0.05)
+            self.assertEqual(sent[-1][0], "session_WORK")
+            self.assertIn("Oublie le dernier message du super agent", sent[-1][1])
+            self.assertEqual(self.call("/api/agent/stop", "{}")["told"], 0, "nobody left to tell")
 
     def test_changing_the_mode_never_changes_the_session_the_repository_the_model_or_the_push(self):
         self.addCleanup(lambda: [setattr(srv, k, v) for k, v in saved.items()])

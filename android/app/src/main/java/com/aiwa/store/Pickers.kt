@@ -776,6 +776,9 @@ class SettingsActivity : ComponentActivity() {
                     })
                 }
 
+                add(PickerEntry(if (ReadySettings.enabled(applicationContext)) "✓  « C'est prêt » à voix haute quand une production arrive — toucher pour le couper" else "« C'est prêt » à voix haute : coupé — toucher pour le remettre", ReadySettings.enabled(applicationContext), lines = 2) {
+                    ReadySettings.set(applicationContext, !ReadySettings.enabled(applicationContext)); finish()
+                })
                 add(PickerEntry("Écoute permanente", false, header = true) { })
                 // No switch to turn it on: the super agent button of the widget is its trigger (it asks for the microphone and starts it); what stays is the way to stop it
                 if (wanted) add(PickerEntry("Éteindre l'écoute permanente (le bouton du super agent la rallume)", false, lines = 2) { toggle() })

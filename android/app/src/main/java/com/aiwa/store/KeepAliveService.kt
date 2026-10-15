@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
@@ -128,7 +129,7 @@ class KeepAliveService : Service() {
     private fun announceReady(state: AiwaState) {
         val was = spokenFresh
         spokenFresh = state.ciFresh
-        if (state.ciFresh && !was) CoroutineScope(Dispatchers.Default).launch { Speaker.speakAndWait(applicationContext, "C'est prêt") }
+        if (state.ciFresh && !was && ReadySettings.enabled(applicationContext)) CoroutineScope(Dispatchers.Default).launch { Speaker.speakAndWait(applicationContext, "C'est prêt") }
     }
 
     // The same story as the widget's first band.
@@ -392,4 +393,11 @@ class KeepAliveService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+}
+
+/** « C'est prêt », said aloud when a new production arrives: on by default, switched in the settings. */
+object ReadySettings {
+    private const val PREFS = "aiwa_listen"
+    fun enabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("say_ready", true)
+    fun set(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("say_ready", on).apply() }
 }
