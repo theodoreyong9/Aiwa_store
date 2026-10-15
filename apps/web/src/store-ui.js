@@ -353,7 +353,32 @@ function mineRow(entry) {
   open.className = 'primary';
   open.textContent = 'Open';
   open.addEventListener('click', () => (entry.kind === 'link' ? openLink(entry, open, false) : openApp(entry, open)));
-  row.append(body, open, shareButton(entry));
+  row.append(body, open);
+  // A library app (a test: no score, nothing burnt) becomes an Aiwa contract in the registry when its author publishes it with the wallet: the publish sheet opens on its code
+  if (entry.kind === 'link') {
+    const publish = document.createElement('button');
+    publish.type = 'button';
+    publish.className = 'icon';
+    publish.textContent = '⇪';
+    publish.title = 'Publish in the registry (Aiwa contract, with the wallet)';
+    publish.setAttribute('aria-label', `Publish ${entry.name} in the registry`);
+    publish.addEventListener('click', async () => {
+      const was = publish.textContent;
+      publish.disabled = true;
+      publish.textContent = '…';
+      try {
+        const { html } = await loadLink({ entry });
+        document.dispatchEvent(new CustomEvent('aiwa-publish-library', { detail: { name: entry.name, html } }));
+      } catch (err) {
+        $('mine-status').textContent = String(err.message ?? err);
+      } finally {
+        publish.disabled = false;
+        publish.textContent = was;
+      }
+    });
+    row.append(publish);
+  }
+  row.append(shareButton(entry));
   return row;
 }
 

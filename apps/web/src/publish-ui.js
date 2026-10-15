@@ -238,6 +238,16 @@ export function initPublish() {
   $('btn-copy-submission').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(manual.text); flash($('btn-copy-submission'), 'Copied'); } catch { warn('The browser refused the clipboard: use Download.'); }
   });
+  // From the library: an app of the author's own GitHub is published in the registry (the code is read from GitHub by the Store's list)
+  document.addEventListener('aiwa-publish-library', (event) => {
+    try {
+      const { name, html } = event.detail;
+      if (typeof html !== 'string' || html.length > MAX_CHARS) throw new Error('the code is missing or too big');
+      openPublish(appFrom('aiwa', name, html));
+    } catch (err) {
+      $('mine-status').textContent = `Not opened: ${err.message}.`;
+    }
+  });
   handoff();
   // The Android app opens the same page again on a new address when the Store is already open: only the fragment changes.
   window.addEventListener('hashchange', handoff);

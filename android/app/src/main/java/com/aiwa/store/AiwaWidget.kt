@@ -564,7 +564,7 @@ private fun GlassesContent(state: AiwaState) {
     val top = h * 0.17f
     val micH = (h * 0.20f).coerceIn(20f, 28f)
     // the left lens: a column of six small buttons (the five kinds and the settings) and, under them, the dictation row
-    val itemH = ((h * 0.83f - 26f - micH) / 7f).coerceIn(9f, 13f)
+    val itemH = ((h * 0.66f - 8f - micH) / 7f).coerceIn(8f, 13f)
     val colW = 40f
     val band = bandInfo(state, inner - colW - 24f)
     val agentOn = state.agent?.enabled == true
@@ -577,10 +577,10 @@ private fun GlassesContent(state: AiwaState) {
     // No card behind: the widget IS the glasses, and the home screen shows between and around the lenses. Red rims while Claude waits.
     Box(modifier = GlanceModifier.fillMaxSize()) {
         Box(modifier = GlanceModifier.fillMaxSize().background(ImageProvider(if (state.waiting) R.drawable.glasses_frame_alert else R.drawable.glasses_frame))) {
-            Row(modifier = GlanceModifier.fillMaxSize().padding(top = top.dp, bottom = (h * 0.07f).dp)) {
+            Row(modifier = GlanceModifier.fillMaxSize().padding(top = top.dp, bottom = (h * 0.17f).dp)) {
                 Spacer(GlanceModifier.width(outer.dp))
                 // ---- the left lens: the buttons of the Light widget ----
-                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 10.dp, end = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.Top) {
+                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 14.dp, end = 14.dp, bottom = 2.dp), verticalAlignment = Alignment.Top) {
                     Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
                         // the column: Docs, Vidéo, Page, App, Aiwa (grey until the repository holds one), then the settings, which hold everything else
                         Column(modifier = GlanceModifier.width(colW.dp).fillMaxHeight(), verticalAlignment = Alignment.Top) {
@@ -638,7 +638,7 @@ private fun GlassesContent(state: AiwaState) {
                 // ---- the bridge: nothing on it, it is the frame ----
                 Spacer(GlanceModifier.width(middle.dp))
                 // ---- the right lens: Store and Wallet at the top, a silhouette in the middle, own, fave and inviter at the bottom ----
-                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 10.dp, end = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.Top, horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 14.dp, end = 14.dp, bottom = 2.dp), verticalAlignment = Alignment.Top, horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 1f).dp)) {
                         Chip("Store", pill, fg, actionStartActivity<StoreActivity>(), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
                         Spacer(GlanceModifier.width(GAP.dp))
