@@ -513,39 +513,27 @@ class VoiceCommandsHelpActivity : ComponentActivity() {
         wakeAiwa(applicationContext)
         setContent {
             val entries = buildList {
-                add(PickerEntry("Dictée (le micro)", false, header = true) { })
-                add(PickerEntry("Parle : c'est du texte pour Claude. « C'est bon vas-y » envoie.", false, lines = 3) { })
+                add(PickerEntry("Le micro du widget (le mode agent)", false, header = true) { })
+                add(PickerEntry("Parle : tout ce qui est dit part comme commande à la session de la pastille (ce que Claude doit faire : une page, une vidéo, des documents…). « C'est bon vas-y » envoie.", false, lines = 4) { })
                 add(PickerEntry("« Non, c'est pas bon, arrête » ou « annule », à la fin : tout est abandonné.", false, lines = 3) { })
 
-                add(PickerEntry("Les deux mots : « instruction » et « commande »", false, header = true) { })
-                add(PickerEntry("« Instruction » change les pastilles (modèle, push, dépôt…), tout de suite lu et confirmé. « Commande » commence ce qui part à Claude. Puis « c'est bon vas-y ». Exemples : « instruction modèle Fable push main commande fais une page d'accueil », « commande directe fais une page d'accueil » (les pastilles telles qu'elles sont partent avec), « instruction push main » (pastilles seules).", false, lines = 6) { })
-                add(PickerEntry("« Commande » n'est un mot-clé qu'en début de phrase ou après une instruction : « une page de commande » reste du texte.", false, lines = 3) { })
+                add(PickerEntry("« Instruction » : les pastilles session et dépôt", false, header = true) { })
+                add(PickerEntry("Après « instruction », le parseur ne reconnaît QUE la session et le dépôt : « instruction session Widget du matin », « instruction dépôt Aiwa store » (ou « mets-toi sur le dépôt test »). Il cherche les noms dans tes listes, relit les DEUX pastilles et attend « c'est bon vas-y » (validation) ou une correction (« non, le dépôt … »). Puis la session reçoit toujours où elle en est.", false, lines = 7) { })
+                add(PickerEntry("Modèle, effort, push, qualité et déploiement ne se disent plus : ils se règlent à la main, dans les listes.", false, lines = 3) { })
+                add(PickerEntry("Avec une clé Anthropic (Réglages), Claude lit toute phrase dite au micro, même sans « instruction » : « mets-toi sur le dépôt test et fais une page » règle le dépôt puis envoie le reste.", false, lines = 4) { })
 
-                add(PickerEntry("Changer de dépôt, directement", false, header = true) { })
-                add(PickerEntry("En début de phrase : « mets-toi sur le dépôt Aiwa store », « passe sur le repo Jobber » (mets, passe, va, bascule, change, reviens, retourne, travaille, utilise, prends). Ce qui suit le nom reste pour Claude. Un nom qui n'est pas un de tes dépôts : la phrase part telle quelle.", false, lines = 5) { })
-
-                add(PickerEntry("Après « instruction Aiwa » (enchaîne autant que tu veux)", false, header = true) { })
-                // Generated from the reference of the pills (PillReference): a pill or a value added there is listed here
-                PillReference.helpSections(MODEL_CHOICES.map { it.label.substringBefore(" (") }).forEach { (title, what) ->
-                    add(PickerEntry("$title : $what", false, lines = 3) { })
-                }
-                add(PickerEntry("t'es sur quoi ? (rapport, statut, bilan) : le téléphone lit les pastilles", false, lines = 3) { })
-                add(PickerEntry("stop · arrête Claude · arrête-toi : demande à Claude de s'arrêter (il le lit à sa prochaine étape)", false, lines = 3) { })
-                add(PickerEntry("Tout s'applique à « c'est bon vas-y » ; ce qui n'est pas une commande reste du texte pour Claude.", false, lines = 3) { })
-
-                add(PickerEntry("Écoute permanente : les mots de réveil", false, header = true) { })
-                add(PickerEntry("« Mon agent » : il t'écoute, puis tu donnes tes instructions. Avant d'envoyer, le téléphone relit ce qu'il va faire et toutes les pastilles, et attend « c'est bon vas-y » ; « non » ou le silence : rien ne part (le message est copié).", false, lines = 5) { })
-                add(PickerEntry("« Instruction » : tu donnes directement tes instructions (même relecture et même confirmation).", false, lines = 3) { })
-                add(PickerEntry("« Stop Claude » ou « arrête Claude » : arrête Claude tout de suite, sans confirmation.", false, lines = 3) { })
-                add(PickerEntry("« Mon super agent » (ou le mot que tu as choisi dans les réglages) : ouvre le super agent (la deuxième écoute, voir plus bas).", false, lines = 3) { })
+                add(PickerEntry("Écoute permanente (écran verrouillé compris)", false, header = true) { })
+                add(PickerEntry("« Mon agent » (réveil) : tu dictes, relecture des pastilles puis validation. « Instruction » : directement les pastilles. Tous ces mots se changent dans Réglages → Mes mots.", false, lines = 4) { })
+                add(PickerEntry("« Stop » (stop Claude, arrête Claude) : arrête Claude tout de suite, et demande à la dernière session touchée par le super agent d'oublier son dernier commentaire.", false, lines = 4) { })
+                add(PickerEntry("« Éteins » : éteint l'écoute permanente et le super agent. Le bouton du super agent la rallume.", false, lines = 3) { })
+                add(PickerEntry("« Renvoie les instructions » : la session reçoit de nouveau les instructions générales et celles des pastilles.", false, lines = 3) { })
 
                 add(PickerEntry("Le super agent : la deuxième écoute", false, header = true) { })
-                add(PickerEntry("L'ouvrir : dis « mon super agent » ou touche son bouton dans le widget : le premier appui allume l'écoute de réveil. L'écoute de réveil attend pendant ce temps ; tout ce que tu dis va à l'agent, et il te répond à voix haute.", false, lines = 4) { })
-                add(PickerEntry("« Vas-y, dis-lui » : quand l'agent propose un message pour une session, le téléphone relit la session et le message ; « c'est bon vas-y » l'envoie, rien d'autre ne l'envoie.", false, lines = 4) { })
-                add(PickerEntry("« Vas-y, fais-le » : quand il propose des réglages (modèle, effort, push, déploiement, dépôt, session), le téléphone les relit et les applique après « c'est bon vas-y ».", false, lines = 4) { })
-                add(PickerEntry("« Repasse en manuel » ou « ferme l'agent » (ou le bouton) : il se ferme et l'écoute de réveil reprend. Fermer l'agent ne ferme jamais l'écoute de réveil.", false, lines = 4) { })
-                add(PickerEntry("En dictée normale : « dis à l'agent … » envoie ta phrase à l'agent et non à la session de travail.", false, lines = 3) { })
-                add(PickerEntry("Sa vitesse : avec ta clé Anthropic (dans la fenêtre de l'agent) il répond en une ou deux secondes et comprend aussi les ordres que les mots-clés ratent ; sans clé il passe par une session cloud (10 à 30 secondes) et le téléphone dit « je regarde » en attendant.", false, lines = 5) { })
+                add(PickerEntry("L'ouvrir : dis « mon super agent » ou touche son bouton (le premier appui allume l'écoute). Le bouton micro est grisé tant qu'il est ouvert ; tout ce que tu dis va à lui, et il te répond à voix haute.", false, lines = 5) { })
+                add(PickerEntry("Il est un intermédiaire : il ne fait rien lui-même. Il reconnaît la production demandée (documents, vidéo, page, app, contrat Aiwa), la propose à une ou plusieurs sessions, et avant que quoi que ce soit parte il en dit le résumé : le téléphone relit, tu valides (« vas-y, dis-lui ») ou tu corriges.", false, lines = 6) { })
+                add(PickerEntry("Le Cast : « envoie la vidéo sur la télé du salon » (la dernière vidéo) ou, avec une production demandée, la vidéo qui va venir : elle part dès qu'elle existe.", false, lines = 4) { })
+                add(PickerEntry("« Vas-y, fais-le » : pastilles session et dépôt, ou cast, relus puis validés. « Repasse en manuel » ou « ferme l'agent » : il se ferme. « Dis à l'agent … » en dictée normale lui envoie ta phrase.", false, lines = 4) { })
+                add(PickerEntry("Sa vitesse : avec ta clé Anthropic il répond en une ou deux secondes ; sans clé il passe par une session cloud (10 à 30 secondes). S'il est paramétré mais l'écoute coupée, il demande d'abord s'il est disponible (notification « Oui ») avant de te faire un rapport et de proposer une idée.", false, lines = 6) { })
             }
             PickerSheet(entries) { finish() }
         }
