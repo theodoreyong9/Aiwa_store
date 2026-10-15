@@ -792,7 +792,7 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Forme du widget", false, header = true) { })
                 add(PickerEntry("Classic — les bandes, comme avant", current == WidgetStyle.CLASSIC, lines = 2) { shape(WidgetStyle.CLASSIC) })
                 add(PickerEntry("Aiwa — les modes en haut (Média : vidéo, campagne, documents ; Page, App, Store, Aiwa), puis le micro avec le contexte (session, dépôt, modèle, push), Claude et la question, et en bas la boucle, l'app Aiwa, le commentaire, la mise à jour et les réglages", current == WidgetStyle.AIWA, lines = 5) { shape(WidgetStyle.AIWA) })
-                add(PickerEntry("Light — trois lignes : la session et le dépôt en haut (puis un bouton pour chaque production trouvée : site, APK, app, vidéos, documents ; la mise à jour à droite) ; le micro, Claude, la question ; la boucle, l'app Aiwa, le super agent, la campagne et les réglages (le mode et tout le reste sont dedans)", current == WidgetStyle.LIGHT, lines = 5) { shape(WidgetStyle.LIGHT) })
+                add(PickerEntry("Light — au-dessus, cinq petits boutons (Docs, Vidéo, Page, App, Aiwa : gris, colorés quand le dépôt contient une production) ; la session et le dépôt (la mise à jour à droite) ; le micro, Claude, la question ; la boucle, l'app Aiwa, le super agent, la campagne et les réglages (le mode et tout le reste sont dedans)", current == WidgetStyle.LIGHT, lines = 5) { shape(WidgetStyle.LIGHT) })
                 add(PickerEntry("Glasses — des lunettes : un verre pour le contexte, un pour le travail, le micro à droite", current == WidgetStyle.GLASSES, lines = 3) { shape(WidgetStyle.GLASSES) })
             }
             PickerSheet(entries) { finish() }
@@ -836,7 +836,6 @@ class ModePickerActivity : ComponentActivity() {
                 add(PickerEntry("Page", tab == "pages", lines = 1, side = "Ouvrir", onSide = { open(site(state)) }) { pick("pages") })
                 add(PickerEntry("App", tab == "android", lines = 1, side = "Ouvrir", onSide = { open(site(state)) }) { pick("android") })
                 if (state.accessLevel >= 2) {
-                    add(PickerEntry("Store", tab == "store", lines = 1, side = "Ouvrir", onSide = { open(OpenStoreActivity::class.java) }) { pick("store") })
                     add(PickerEntry("Aiwa", tab == "aiwa", lines = 1, side = "Ouvrir", onSide = { open(OpenStoreActivity::class.java) }) { pick("aiwa") })
                 }
             }

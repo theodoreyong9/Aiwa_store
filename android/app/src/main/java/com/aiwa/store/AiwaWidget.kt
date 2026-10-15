@@ -75,6 +75,7 @@ class AiwaWidget : GlanceAppWidget() {
             val flow = remember { AiwaRepository.state.sample(300) }
             val state by flow.collectAsState(initial = AiwaRepository.state.value)
             LaunchedEffect(Unit) { BackendSync.refresh(bridge) }
+            LaunchedEffect(state.repo) { Productions.refresh(context.applicationContext, state.repo) }
             Content(state)
         }
     }
@@ -769,7 +770,7 @@ private val MODE_KEY = ActionParameters.Key<String>("aiwa-mode")
 /** A tab of the top row: the deploy selector's value (or "media": the group of Vidéo, Campagne and Documents), and its word. */
 private class AiwaMode(val id: String, val word: String)
 private val AIWA_MODES = listOf(
-    AiwaMode("media", "Média"), AiwaMode("pages", "Page"), AiwaMode("android", "App"), AiwaMode("store", "Store"), AiwaMode("aiwa", "Aiwa"),
+    AiwaMode("media", "Média"), AiwaMode("pages", "Page"), AiwaMode("android", "App"), AiwaMode("aiwa", "Aiwa"),
 )
 /** The modes of the selector that belong to the Média tab (the Vidéo one is no mode: only a view). */
 private val MEDIA_DEPLOYS = setOf("campaign", "documents")
@@ -1009,19 +1010,41 @@ private fun AiwaContent(state: AiwaState) {
 // (3) the loop, the Aiwa app, the super agent and the campaign; the settings hold everything else (session, repository, model, push…).
 // ================================================================================================
 
-private class LightProduction(val icon: Int, val description: String, val action: Action, val fresh: Boolean)
+/** One of the five small buttons above the session and the repository: Docs, Vidéo, Page, App, Aiwa. */
+private class LightKind(val mode: String, val word: String, val found: Boolean, val current: Boolean)
 
-/**
- * The productions to show at the right of the repository: only those that are detected. A site that answers, an APK, an app sent to the Store, the videos (once the list of
- * videos has been seen with something in it, or while the Vidéos view is on) and the documents (while the Documents mode is on). Each opens what it is about.
- */
-private fun lightProductions(state: AiwaState, context: Context): List<LightProduction> = buildList {
+private fun lightKinds(state: AiwaState, context: Context): List<LightKind> {
     val hasSite = state.repo != null && state.siteUrl != null
-    if (hasSite && state.siteKind == "apk") add(LightProduction(R.drawable.ic_download, "L'APK produit", siteAction, state.siteState == "live"))
-    else if (hasSite && state.siteState == "live") add(LightProduction(R.drawable.ic_globe, "Le site produit", siteAction, true))
-    if (state.sentApp != null) add(LightProduction(R.drawable.ic_store, "L'app envoyée au Store : ouvrir", actionStartActivity<OpenStoreActivity>(), state.sentApp?.seen == false))
-    if (state.videoView || Productions.has(context, "video")) add(LightProduction(R.drawable.ic_video, "Les vidéos", actionStartActivity<VideosActivity>(), false))
-    if (state.deploy == "documents" && !state.videoView) add(LightProduction(R.drawable.ic_papers, "Les documents", actionStartActivity<DocumentsActivity>(), false))
+    val tab = aiwaTab(state)
+    val sub = mediaSub(state)
+    return listOf(
+        LightKind("documents", "Docs", Productions.has(context, state.repo, "documents"), tab == "media" && sub == "documents"),
+        LightKind("video", "Vidéo", Productions.has(context, state.repo, "video"), tab == "media" && sub == "video"),
+        LightKind("pages", "Page", hasSite && state.siteKind != "apk" && state.siteState == "live", tab == "pages"),
+        LightKind("android", "App", hasSite && state.siteKind == "apk", tab == "android"),
+        LightKind("aiwa", "Aiwa", state.sentApp != null, tab == "aiwa" || tab == "store"),
+    )
+}
+
+private val KIND_FOUND_KEY = ActionParameters.Key<String>("aiwa-kind-found")
+
+/** A tap on one of the five: the mode is chosen (with its own session) and, when something was produced, it opens. */
+class PickKindCallback : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        val mode = parameters[MODE_KEY] ?: return
+        val found = parameters[KIND_FOUND_KEY] == "1"
+        val app = context.applicationContext
+        val state = AiwaRepository.state.value
+        selectAiwaMode(app, mode)
+        if (!found) return
+        val screen: Class<*> = when (mode) {
+            "documents" -> DocumentsActivity::class.java
+            "video" -> VideosActivity::class.java
+            "aiwa" -> OpenStoreActivity::class.java
+            else -> if (state.repo != null && state.siteUrl != null) SiteButtonActivity::class.java else RepoPickerActivity::class.java
+        }
+        app.startActivity(Intent(app, screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
 }
 
 @Composable
@@ -1037,7 +1060,7 @@ private fun LightContent(state: AiwaState) {
     val size = LocalSize.current
     val avail = size.width.value - 20f
     val tab = aiwaTab(state)
-    val rowH = ((size.height.value - 16f) / 3f).coerceIn(30f, 46f)
+    val rowH = ((size.height.value - 16f - 24f) / 3f).coerceIn(26f, 46f)
     val chipH = (rowH - 4f).coerceAtLeast(24f)
     val loopOn = state.loopPair.isNotEmpty()
     val agent = state.agent
@@ -1049,6 +1072,17 @@ private fun LightContent(state: AiwaState) {
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
+        // ---- the five kinds: grey until the repository holds one, coloured once it does ----
+        Row(modifier = GlanceModifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
+            lightKinds(state, context).forEachIndexed { i, kind ->
+                if (i > 0) Spacer(GlanceModifier.width(4.dp))
+                Chip(
+                    kind.word, if (kind.found) green else PILL_DIM, if (kind.found) fg else TEXT_DIM,
+                    actionRunCallback<PickKindCallback>(actionParametersOf(MODE_KEY to kind.mode, KIND_FOUND_KEY to (if (kind.found) "1" else "0"))),
+                    GlanceModifier.defaultWeight(), bold = kind.current, height = 22.dp, textSize = 10.sp, hPad = 2.dp,
+                )
+            }
+        }
         // ---- the session and the repository, then the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             val fs = context.resources.configuration.fontScale
@@ -1076,11 +1110,6 @@ private fun LightContent(state: AiwaState) {
         }
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            // what has been produced (a button for each production found), at the left of the microphone
-            lightProductions(state, context).forEach { prod ->
-                RoundButton(icon = prod.icon, description = prod.description, background = if (prod.fresh) claudeOrange else pill, action = prod.action, diameter = chipH.dp, badge = prod.fresh && state.ciFresh)
-                Spacer(GlanceModifier.width(GAP.dp))
-            }
             Box(
                 modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
                     .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),

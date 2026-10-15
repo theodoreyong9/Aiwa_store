@@ -71,9 +71,10 @@ private fun VideosWindow(onClose: () -> Unit) {
     LaunchedEffect(Unit) {
         try {
             list = bridge.videos()
-            val had = Productions.has(context, "video")
+            val repo = list?.repo
+            val had = Productions.has(context, repo, "video")
             val has = list?.videos?.isNotEmpty() == true
-            if (had != has) { Productions.set(context, "video", has); AiwaWidget().updateAll(context) }
+            if (repo != null && had != has) { Productions.set(context, repo, "video", has); AiwaWidget().updateAll(context) }
         } catch (err: Exception) { error = err.message ?: "Liste indisponible." }
     }
 
