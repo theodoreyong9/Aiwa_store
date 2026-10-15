@@ -494,7 +494,7 @@ fun statusReport(repo: String?, modelLabel: String, pushMain: Boolean, deploy: S
 }
 
 /** What woke the listening: "mon agent …" (the phone then reads where things stand) or "instruction …" (it goes straight to listening). */
-enum class WakeKind { AGENT, INSTRUCTION, STOP, LIAISON, OFF, RESEND }
+enum class WakeKind { AGENT, INSTRUCTION, STOP, LIAISON, OFF, RESEND, WHERE }
 
 /**
  * The wake word, as the detector hears it. "Aiwa" is not in the small French model's vocabulary, so it cannot be written in the grammar: the words of origin are French ones
@@ -509,6 +509,9 @@ fun wakeKind(heard: String, custom: List<String> = emptyList(), liaison: List<St
     if (list.any { it.plain == "eteins" } || (more.off.isNotEmpty() && WakeWords.heardCustom(heard, more.off))) return WakeKind.OFF
     // « renvoie les instructions »: the general instructions and the pills' are sent again (before « instruction », whose word is in it)
     if ((list.any { it.plain in RESEND_WORDS } && list.any { it.plain == "instructions" || it.plain == "instruction" }) || (more.resend.isNotEmpty() && WakeWords.heardCustom(heard, more.resend))) return WakeKind.RESEND
+    // « t'es où là » (« tu es où là »): the pills of the widget are read aloud
+    for (i in 2 until list.size) if (list[i].plain == "la" && list[i - 1].plain == "ou" && (list[i - 2].plain == "es" || list[i - 2].plain == "tes")) return WakeKind.WHERE
+    if (more.where.isNotEmpty() && WakeWords.heardCustom(heard, more.where)) return WakeKind.WHERE
     // the word chosen for the super agent (WakeWords): it calls the liaison agent
     if (liaison.isNotEmpty() && WakeWords.heardCustom(heard, liaison)) return WakeKind.LIAISON
     // "mon super agent": the call of the liaison agent (the second listening, see WakeWordService); checked before "mon agent"

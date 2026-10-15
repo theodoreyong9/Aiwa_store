@@ -1,7 +1,7 @@
 package com.aiwa.bridge
 
 /**
- * The nine recognitions the person can make their own, for the small listening model, the agent (the dictation parser) and the super agent. Each has what the phone says by default and
+ * The eleven recognitions the person can make their own, for the small listening model, the agent (the dictation parser) and the super agent. Each has what the phone says by default and
  * two ways to be changed: SAID to the phone (the spellings the small model hears: for the wake-level words) or WRITTEN (a single word or phrase, for what the recogniser of the phone writes
  * down in a dictation or in the agent's conversation).
  */
@@ -19,6 +19,8 @@ object Recognitions {
         Slot("stop", "Stop", listOf("stop claude", "arrête claude"), "Arrête la production en cours et fait oublier à la dernière session le dernier commentaire."),
         Slot("eteins", "Éteins", listOf("éteins"), "Éteint l'écoute permanente et le super agent."),
         Slot("resend", "Renvoi des instructions", listOf("renvoie les instructions"), "Renvoie à la session les instructions générales et celles des pastilles."),
+        Slot("where", "T'es où là", listOf("t'es où là"), "Le téléphone lit à voix haute où en sont les pastilles du widget (dépôt, session, modèle, push…)."),
+        Slot("report", "Rapport du super agent", listOf("fais ton rapport"), "Dit au super agent ouvert de faire son rapport d'activité et de proposer une idée."),
     )
 
     fun slot(id: String): Slot? = SLOTS.firstOrNull { it.id == id }
@@ -30,7 +32,7 @@ object Recognitions {
         val single = setOf("instruction", "session", "repo", "stop", "eteins")
         val words = plain.split(' ')
         if (slot in single && words.size != 1) return "Un seul mot pour cette reconnaissance."
-        if (slot !in setOf("validation", "stop", "eteins", "resend") && words.size != 1) return "Un seul mot pour cette reconnaissance."
+        if (slot !in setOf("validation", "stop", "eteins", "resend", "where", "report") && words.size != 1) return "Un seul mot pour cette reconnaissance."
         if (plain.length < 3) return "« $plain » est trop court : au moins 3 lettres."
         if (words.all { it in COMMON_WORDS }) return "« $plain » est un mot trop courant : il se déclencherait dans toutes les phrases."
         return null
@@ -45,8 +47,9 @@ data class WakeCustoms(
     val stop: List<String> = emptyList(),
     val off: List<String> = emptyList(),
     val resend: List<String> = emptyList(),
+    val where: List<String> = emptyList(),
 ) {
-    fun all(): List<String> = instruction + stop + off + resend
+    fun all(): List<String> = instruction + stop + off + resend + where
 }
 
 /**

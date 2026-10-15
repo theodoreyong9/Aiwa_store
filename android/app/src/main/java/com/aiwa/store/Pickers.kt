@@ -526,6 +526,8 @@ class VoiceCommandsHelpActivity : ComponentActivity() {
                 add(PickerEntry("« Mon agent » (réveil) : tu dictes, relecture des pastilles puis validation. « Instruction » : directement les pastilles. Tous ces mots se changent dans Réglages → Mes mots.", false, lines = 4) { })
                 add(PickerEntry("« Stop » (stop Claude, arrête Claude) : arrête Claude tout de suite, et demande à la dernière session touchée par le super agent d'oublier son dernier commentaire.", false, lines = 4) { })
                 add(PickerEntry("« Éteins » : éteint l'écoute permanente et le super agent. Le bouton du super agent la rallume.", false, lines = 3) { })
+                add(PickerEntry("« T'es où là » : le téléphone lit les pastilles du widget (dépôt, session, modèle, push).", false, lines = 2) { })
+                add(PickerEntry("« Fais ton rapport » (au super agent ouvert) : son rapport d'activité et une idée.", false, lines = 2) { })
                 add(PickerEntry("« Renvoie les instructions » : la session reçoit de nouveau les instructions générales et celles des pastilles.", false, lines = 3) { })
 
                 add(PickerEntry("Le super agent : la deuxième écoute", false, header = true) { })
@@ -746,7 +748,7 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Super agent : réglages, détruire et recommencer", false, lines = 1) { open(AgentActivity::class.java) })
                 add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }}", false, lines = 1) { open(LlmKeyActivity::class.java) })
                 add(PickerEntry("Aiwa", false, header = true) { })
-                add(PickerEntry("Mes mots (les neuf reconnaissances)", false, lines = 1) { open(RecognitionsActivity::class.java) })
+                add(PickerEntry("Mes mots (les onze reconnaissances)", false, lines = 1) { open(RecognitionsActivity::class.java) })
                 add(PickerEntry("État d'Aiwa", false, lines = 1) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
                 add(PickerEntry("Version : appli ${AppUpdater.installedVersion(applicationContext) ?: "?"} · cerveau ${AiwaRepository.state.value.backendVersion.takeIf { it > 0 } ?: "?"}${if (AppUpdater.readyFile(applicationContext) != null) " · mise à jour téléchargée" else ""}", false, lines = 2) { })

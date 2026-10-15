@@ -70,7 +70,7 @@ object WakeWordSettings {
 
     /** The spellings of the wake-level words chosen by voice (instruction, stop, éteins, renvoi). */
     fun customs(context: Context) = com.aiwa.bridge.WakeCustoms(
-        instruction = variants(context, "instruction"), stop = variants(context, "stop"), off = variants(context, "eteins"), resend = variants(context, "resend"),
+        instruction = variants(context, "instruction"), stop = variants(context, "stop"), off = variants(context, "eteins"), resend = variants(context, "resend"), where = variants(context, "where"),
     )
 
     /** Whether listening waits while a sound or a video plays (default: yes: a video is not paused by the microphone, and its sound is not heard as a word). */
@@ -90,6 +90,8 @@ object WakeWordSettings {
  */
 // Said to the agent (already plain: lowercase, no accent): « repasse en manuel », and « vas-y dis-lui » (the recognizer also writes « dit lui »).
 private val RESEND_REGEX = Regex("""\brenvoi(?:e|es|ez|yer)?\b.*\binstructions?\b""")
+private val WHERE_REGEX = Regex("""\b(?:tu\s+es|tes|t\s+es)\s+ou\s+la\b""")
+private val REPORT_REGEX = Regex("""\brapport\b|\bfais\s+(?:le|ton)\s+point\b""")
 private val OFF_REGEX = Regex("""\beteins\b""")
 private val STOP_AGENT_REGEX = Regex("""(?:stop|arrete)(?:\s+(?:l\s+)?(?:super\s+)?(?:agent|claude))?""")
 private val MANUAL_REGEX = Regex("""\b(?:repasse|reviens|retourne|passe)\s+(?:en|au)\s+(?:mode\s+)?manuel\b|\b(?:ferme|quitte)\s+(?:l\s+)?agent\b""")
@@ -315,6 +317,11 @@ class WakeWordService : Service() {
         scope.launch {
             when {
                 OFF_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("eteins", plain) -> { agentBusy = false; switchOff(); return@launch }
+                (WHERE_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("where", plain)) -> readPillsReport(applicationContext)
+                (REPORT_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("report", plain)) -> {
+                    val error = agentCall("report")
+                    say(if (error == null) "Je demande son rapport au super agent." else "Le super agent n'a pas reçu : $error")
+                }
                 (RESEND_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("resend", plain)) -> {
                     val ok = resendInstructions(applicationContext)
                     say(if (ok) "Instructions renvoyées à la session." else "Instructions non renvoyées.")
@@ -454,6 +461,11 @@ class WakeWordService : Service() {
         if (paused) return
         if (kind == WakeKind.LIAISON) { openAgent(); return }
         if (kind == WakeKind.OFF) { switchOff(); return }
+        if (kind == WakeKind.WHERE) {
+            say("Je lis les pastilles")
+            scope.launch { readPillsReport(applicationContext); listen() }
+            return
+        }
         if (kind == WakeKind.RESEND) {
             say("Je renvoie les instructions à la session")
             scope.launch {

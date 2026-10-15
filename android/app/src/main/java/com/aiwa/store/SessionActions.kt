@@ -395,3 +395,17 @@ suspend fun resendInstructions(context: Context): Boolean {
     AiwaWidget().updateAll(context)
     return sent
 }
+
+
+/** « T'es où là »: the pills of the widget (repository, session, model, push, deployment) read aloud, as they are now. */
+suspend fun readPillsReport(context: Context) {
+    try { BackendSync.refresh(LocalClaudeBridge()) } catch (err: Exception) { /* what is known is said */ }
+    val state = AiwaRepository.state.value
+    val model = if (state.model == null) "automatique" else modelLabel(state.model)
+    val sentence = com.aiwa.bridge.statusReport(
+        state.repo, model, state.pushMain, state.deploy, if (state.cloudSessionId != null) state.session else null, state.backend == "up",
+        PillReference.effortLabel(state.effort), PillReference.videoQualityLabel(state.videoQuality),
+    )
+    toastOnMain(context, sentence)
+    Speaker.speakAndWait(context, sentence)
+}

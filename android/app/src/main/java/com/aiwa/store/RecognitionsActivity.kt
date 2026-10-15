@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.aiwa.bridge.Recognitions
 
 /**
- * « Mes mots »: the nine recognitions of the agent and the super agent — Réveil, Super agent, Instruction, Pastille session, Pastille dépôt, Validation, Stop, Éteins, Renvoi des instructions.
+ * « Mes mots »: the eleven recognitions of the agent and the super agent — Réveil, Super agent, Instruction, Pastille session, Pastille dépôt, Validation, Stop, Éteins, Renvoi des instructions, T'es où là, Rapport du super agent.
  * Each can be changed by SAYING a word to the phone (what the small listening model will wake on) and/or by WRITING one (what the parser and the agent read in text). Every change is passed on
  * to the small model, to the parser and to the super agent (Vocabulary.changed).
  */
@@ -49,8 +49,8 @@ class RecognitionsActivity : ComponentActivity() {
 }
 
 // What each recognition can be changed by: said to the small model (the wake-level words) and/or written (the words read in text)
-private val BY_VOICE = setOf("agent", "liaison", "instruction", "stop", "eteins", "resend")
-private val BY_WRITING = setOf("instruction", "session", "repo", "validation", "stop", "eteins", "resend")
+private val BY_VOICE = setOf("agent", "liaison", "instruction", "stop", "eteins", "resend", "where")
+private val BY_WRITING = setOf("instruction", "session", "repo", "validation", "stop", "eteins", "resend", "where", "report")
 
 @Composable
 private fun RecognitionsWindow(onClose: () -> Unit) {
@@ -71,7 +71,7 @@ private fun RecognitionsWindow(onClose: () -> Unit) {
             ) {
                 Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Mes mots", style = MaterialTheme.typography.titleMedium)
-                    Text("Les neuf reconnaissances de l'agent et du super agent. Dire un mot au téléphone change ce que l'écoute de réveil attend ; l'écrire change ce que l'agent lit dans ce qui est dit. Chaque changement est transmis au petit modèle, à l'agent et au super agent.", style = MaterialTheme.typography.bodySmall)
+                    Text("Les onze reconnaissances de l'agent et du super agent. Dire un mot au téléphone change ce que l'écoute de réveil attend ; l'écrire change ce que l'agent lit dans ce qui est dit. Chaque changement est transmis au petit modèle, à l'agent et au super agent.", style = MaterialTheme.typography.bodySmall)
                     stamp
                     Recognitions.SLOTS.forEach { slot ->
                         val spoken = WakeWordSettings.name(context, slot.id)

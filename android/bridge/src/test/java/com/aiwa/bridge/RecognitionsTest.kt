@@ -11,7 +11,7 @@ class RecognitionsTest {
     @After fun clean() { VoiceVocabulary.written = emptyMap() }
 
     @Test fun thereAreNineRecognitionsInTheOrderOfTheBrief() {
-        assertEquals(listOf("Réveil", "Super agent", "Instruction", "Pastille session", "Pastille dépôt", "Validation", "Stop", "Éteins", "Renvoi des instructions"), Recognitions.SLOTS.map { it.label })
+        assertEquals(listOf("Réveil", "Super agent", "Instruction", "Pastille session", "Pastille dépôt", "Validation", "Stop", "Éteins", "Renvoi des instructions", "T'es où là", "Rapport du super agent"), Recognitions.SLOTS.map { it.label })
     }
 
     @Test fun resendWinsOverInstructionAndStopAndOffAreKnown() {
