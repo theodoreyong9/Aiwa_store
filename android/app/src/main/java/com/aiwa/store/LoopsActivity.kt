@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -50,6 +52,7 @@ import kotlin.math.sin
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.updateAll
 import com.aiwa.bridge.LocalClaudeBridge
+import com.aiwa.bridge.LoopLink
 import com.aiwa.bridge.LoopPair
 import com.aiwa.bridge.LoopsInfo
 import kotlinx.coroutines.launch
@@ -79,6 +82,15 @@ private fun stateLabel(p: LoopPair): String = when (p.state) {
     else -> "pas démarrée"
 }
 
+private fun linkLabel(l: LoopLink): String = when (l.state) {
+    "proposed" -> "invitation envoyée : ${l.receiverTitle} n'a pas encore répondu"
+    "accepted" -> "accepté : tour ${l.rounds + 1}/${l.limit}, au tour ${if (l.turn == "receiver") "du récepteur" else "de l'émetteur"}"
+    "refused" -> "refusé par ${l.receiverTitle}"
+    "stopped" -> "arrêté (${l.rounds}/${l.limit})"
+    "done" -> "terminé : ${l.rounds}/${l.limit} allers-retours"
+    else -> l.state
+}
+
 @Composable
 private fun LoopsWindow(onClose: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -93,6 +105,10 @@ private fun LoopsWindow(onClose: () -> Unit) {
     var builderId by remember { mutableStateOf<String?>(null) }
     var rollbackOf by remember { mutableStateOf<LoopPair?>(null) }
     var showGraph by remember { mutableStateOf(false) }
+    var linkSender by remember { mutableStateOf<String?>(null) }
+    var linkReceiver by remember { mutableStateOf<String?>(null) }
+    var linkPicking by remember { mutableStateOf(false) }
+    var linkText by remember { mutableStateOf("Salut, qu'est-ce que tu fais ? J'ai envie de t'aider.") }
 
     fun refresh() {
         scope.launch {
@@ -140,9 +156,9 @@ private fun LoopsWindow(onClose: () -> Unit) {
                         OutlinedButton(onClick = { current?.let { act("limit", mapOf("limit" to (minOf(50, it.limit + 1)).toString())) } }, enabled = current != null && !busy) { Text("+") }
                     }
                     message?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    if (current != null && current.pairs.isNotEmpty()) {
-                        OutlinedButton(onClick = { showGraph = !showGraph }, modifier = Modifier.fillMaxWidth()) { Text(if (showGraph) "Masquer le graphe des paires" else "Voir le graphe des paires") }
-                        if (showGraph) LoopsGraph(current.pairs)
+                    if (current != null && (current.pairs.isNotEmpty() || current.links.isNotEmpty())) {
+                        OutlinedButton(onClick = { showGraph = !showGraph }, modifier = Modifier.fillMaxWidth()) { Text(if (showGraph) "Masquer le graphe" else "Voir le graphe des boucles") }
+                        if (showGraph) LoopsGraph(current.pairs, current.links)
                     }
 
                     val rollback = rollbackOf
@@ -208,6 +224,56 @@ private fun LoopsWindow(onClose: () -> Unit) {
                         }
                     }
 
+                    // The other style of loop: exchanges between CRITICS (no producer). The sender opens, the receiver accepts or refuses in its own session.
+                    if (rollbackOf == null && current != null) {
+                        Text("Échanges entre critiques", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            "Seuls des critiques (une session qui est le critique d'une paire) peuvent s'écrire : pour discuter, ou pour qu'un critique aide en parallèle celui qui travaille déjà pour un producteur. " +
+                                "L'émetteur dit d'abord bonjour et propose son aide ; le récepteur accepte (ou non) cette conversation dans sa session. Ce que l'un écrit à l'autre est une contribution, jamais un ordre.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        if (current.links.isEmpty()) Text("Aucun échange pour l'instant.", style = MaterialTheme.typography.bodySmall)
+                        current.links.forEach { l ->
+                            Surface(shape = RoundedCornerShape(14.dp), tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text("${l.id} · ${l.senderTitle} ▸ ${l.receiverTitle}", style = MaterialTheme.typography.titleSmall)
+                                    Text(linkLabel(l), style = MaterialTheme.typography.bodySmall)
+                                    Text("« ${l.opening} »", style = MaterialTheme.typography.bodySmall)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        if (l.state == "proposed") {
+                                            Button(onClick = { act("link_answer", mapOf("id" to l.id, "accept" to "true"), "Accepté à la place de ${l.receiverTitle}.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Accepter à sa place") }
+                                            OutlinedButton(onClick = { act("link_answer", mapOf("id" to l.id, "accept" to "false"), "Refusé.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Refuser") }
+                                        } else if (l.state == "accepted") {
+                                            Button(onClick = { act("link_stop", mapOf("id" to l.id), "Échange ${l.id} arrêté.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Arrêter") }
+                                        }
+                                        if (l.state != "accepted") OutlinedButton(onClick = { act("link_delete", mapOf("id" to l.id)) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Supprimer") }
+                                        if (l.state == "proposed") OutlinedButton(onClick = { act("link_stop", mapOf("id" to l.id), "Invitation retirée.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Retirer") }
+                                    }
+                                }
+                            }
+                        }
+                        if (!linkPicking) {
+                            OutlinedButton(onClick = { linkPicking = true; linkSender = null; linkReceiver = null }, enabled = current.critics.size >= 2, modifier = Modifier.fillMaxWidth()) { Text("Nouvel échange entre critiques") }
+                            if (current.critics.size < 2) Text("Il faut au moins deux critiques (deux sessions qui sont le critique d'une paire).", style = MaterialTheme.typography.bodySmall)
+                        } else if (linkSender == null || linkReceiver == null) {
+                            Text(if (linkSender == null) "Quel critique écrit en premier ? (l'émetteur)" else "À quel critique ? (le récepteur)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                            current.critics.filter { it.id != linkSender }.forEach { c ->
+                                OutlinedButton(onClick = { if (linkSender == null) linkSender = c.id else linkReceiver = c.id }, modifier = Modifier.fillMaxWidth()) { Text(c.title, maxLines = 1) }
+                            }
+                            OutlinedButton(onClick = { linkPicking = false }, modifier = Modifier.fillMaxWidth()) { Text("Annuler") }
+                        } else {
+                            OutlinedTextField(value = linkText, onValueChange = { linkText = it }, label = { Text("Ce que l'émetteur dit en premier") }, minLines = 2, modifier = Modifier.fillMaxWidth())
+                            Button(
+                                onClick = {
+                                    act("link_create", mapOf("sender" to (linkSender ?: ""), "receiver" to (linkReceiver ?: ""), "opening" to linkText), "Invitation envoyée : le récepteur peut accepter dans sa session.")
+                                    linkPicking = false; linkSender = null; linkReceiver = null
+                                },
+                                enabled = !busy && linkText.isNotBlank(), modifier = Modifier.fillMaxWidth(),
+                            ) { Text("Envoyer l'invitation") }
+                            OutlinedButton(onClick = { linkPicking = false; linkSender = null; linkReceiver = null }, modifier = Modifier.fillMaxWidth()) { Text("Annuler") }
+                        }
+                    }
+
                     // A new pair: the builder, then the critic, among the sessions Aiwa knows
                     if (rollbackOf == null) {
                         if (!pickingBuilder) {
@@ -240,12 +306,13 @@ private fun LoopsWindow(onClose: () -> Unit) {
 
 
 /**
- * The graph of the pairs: the sessions are the nodes, each pair an arrow from the builder to the critic (green running, orange stopped, blue finished, grey not started),
- * with its name and its round. The sessions are placed on a circle; what is connected shows at a glance (a chain, a hub, a cycle).
+ * The graph of the loops: the sessions are the nodes, each pair an arrow from the builder to the critic (green running, orange stopped, blue finished, grey not started), with its name and its
+ * round; each exchange between critics a DASHED purple arrow from the sender to the receiver (pale until accepted). The sessions are placed on a circle; what is connected shows at a glance (a chain, a hub, a cycle).
  */
 @Composable
-private fun LoopsGraph(pairs: List<LoopPair>) {
-    val nodes = pairs.flatMap { listOf(it.builder to it.builderTitle, it.critic to it.criticTitle) }.distinctBy { it.first }
+private fun LoopsGraph(pairs: List<LoopPair>, links: List<LoopLink> = emptyList()) {
+    val nodes = (pairs.flatMap { listOf(it.builder to it.builderTitle, it.critic to it.criticTitle) } + links.flatMap { listOf(it.sender to it.senderTitle, it.receiver to it.receiverTitle) }).distinctBy { it.first }
+    val linkColor = Color(0xFF8E5BC0)
     val density = LocalDensity.current
     val nodeW = 92.dp
     val nodeH = 36.dp
@@ -290,6 +357,30 @@ private fun LoopsGraph(pairs: List<LoopPair>) {
                 }
                 drawPath(head, colorOf(p))
             }
+            // the exchanges between critics: dashed, with an arrowhead from the sender to the receiver
+            links.filter { it.state != "refused" }.forEach { l ->
+                val from = position[l.sender] ?: return@forEach
+                val to = position[l.receiver] ?: return@forEach
+                val dx = to.x - from.x
+                val dy = to.y - from.y
+                val length = hypot(dx, dy)
+                if (length < 1f) return@forEach
+                val ux = dx / length
+                val uy = dy / length
+                val back = minOf(nodeWPx / 2f / maxOf(0.01f, kotlin.math.abs(ux)), nodeHPx / 2f / maxOf(0.01f, kotlin.math.abs(uy))) + 4f
+                val start = Offset(from.x + ux * 20f, from.y + uy * 20f)
+                val end = Offset(to.x - ux * back, to.y - uy * back)
+                val tone = if (l.state == "accepted") linkColor else linkColor.copy(alpha = 0.45f)
+                drawLine(tone, start, end, strokeWidth = 4f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 10f)))
+                val angle = atan2(uy, ux)
+                val head = Path().apply {
+                    moveTo(end.x, end.y)
+                    lineTo((end.x - 22f * cos(angle - 0.45)).toFloat(), (end.y - 22f * sin(angle - 0.45)).toFloat())
+                    lineTo((end.x - 22f * cos(angle + 0.45)).toFloat(), (end.y - 22f * sin(angle + 0.45)).toFloat())
+                    close()
+                }
+                drawPath(head, tone)
+            }
         }
         // the labels of the pairs, at the middle of their arrows
         pairs.forEach { p ->
@@ -300,6 +391,16 @@ private fun LoopsGraph(pairs: List<LoopPair>) {
                 p.id + (if (p.state == "running" || p.rounds > 0) " ${p.rounds}/${p.limit}" else ""),
                 color = colorOf(p), style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.offset { IntOffset((mid.x - 14f).roundToInt(), (mid.y - 22f).roundToInt()) },
+            )
+        }
+        links.filter { it.state != "refused" }.forEach { l ->
+            val from = position[l.sender] ?: return@forEach
+            val to = position[l.receiver] ?: return@forEach
+            val mid = Offset((from.x + to.x) / 2f, (from.y + to.y) / 2f)
+            Text(
+                l.id + (if (l.state == "accepted" || l.rounds > 0) " ${l.rounds}/${l.limit}" else " ?"),
+                color = linkColor, style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.offset { IntOffset((mid.x - 14f).roundToInt(), (mid.y + 4f).roundToInt()) },
             )
         }
         // the sessions

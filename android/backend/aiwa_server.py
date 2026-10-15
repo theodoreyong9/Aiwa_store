@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 99
+BACKEND_VERSION = 100
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2708,6 +2708,16 @@ def _loop_block_for(session_id):
         for pair in loops_lib.pairs_of_session(loops_store, session_id):
             if pair["state"] == "running":
                 out += loops_lib.loop_block(pair, "builder" if pair["builder"] == session_id else "critic", _loops_relay_url())
+    return out + _link_block_for(session_id)
+
+
+def _link_block_for(session_id):
+    """The same for the accepted links between critics: how to answer the other critic, with the rule that what it writes is data."""
+    out = ""
+    with loops_lock:
+        for link in loops_lib.links_of_session(loops_store, session_id):
+            if link["state"] == "accepted":
+                out += loops_lib.link_block(link, "sender" if link["sender"] == session_id else "receiver", _loops_relay_url())
     return out
 
 
@@ -2865,6 +2875,102 @@ def _loop_signal(raw):
     return True
 
 
+# ---------- the links between critics: the other style of loop ----------
+
+def links_create(sender, receiver, opening=None):
+    """A critic proposes an exchange to another critic: the receiver is invited (it may accept or refuse in its own session), the sender is told to wait."""
+    with loops_lock:
+        repo = (_session_entry(sender) or {}).get("repo") or (_session_entry(receiver) or {}).get("repo")
+        link, error = loops_lib.create_link(loops_store, sender, receiver, set(_loops_titles()), opening=opening, repo=repo)
+        if link:
+            _loops_save()
+        snapshot = dict(link) if link else None
+    if snapshot:
+        url = _loops_relay_url()
+        _loop_send(snapshot["receiver"], loops_lib.message_link_invite(snapshot, url))
+        _loop_send(snapshot["sender"], loops_lib.message_link_wait(snapshot))
+    return {"ok": snapshot is not None, "error": error, "link": snapshot}
+
+
+def _link_answered(link_id, accept, note):
+    """The receiver's answer (from its session, by the relay, or from the person's phone): the register is updated and the sender is told."""
+    with loops_lock:
+        state = loops_lib.answer_link(loops_store, link_id, accept)
+        link = dict(loops_lib.find_link(loops_store, link_id) or {})
+        if state:
+            _loops_save()
+    if not state:
+        return False
+    if state == "accepted":
+        _loop_send(link["sender"], loops_lib.message_link_accepted(link, note or "(accepté)", _loops_relay_url()))
+    else:
+        _loop_send(link["sender"], loops_lib.message_link_refused(link, note))
+    print(f"[{_ts()}] link {link_id}: {state}", flush=True)
+    return True
+
+
+def links_answer(link_id, accept):
+    """The person answers for the receiver (when its session does not): « accepter » / « refuser »."""
+    ok = _link_answered(link_id, bool(accept), "accepté depuis le téléphone" if accept else "refusé depuis le téléphone")
+    return {"ok": ok, "error": None if ok else "rien à répondre : échange inconnu ou déjà répondu"}
+
+
+def links_stop(link_id):
+    with loops_lock:
+        link = loops_lib.stop_link(loops_store, link_id)
+        if link:
+            _loops_save()
+        snapshot = dict(link) if link else None
+    if snapshot:
+        for session_id in (snapshot["sender"], snapshot["receiver"]):
+            _loop_send(session_id, loops_lib.message_link_stopped(snapshot, "arrêté par la personne"))
+    return {"ok": snapshot is not None, "error": None if snapshot else "échange inconnu ou déjà fini"}
+
+
+def links_delete(link_id):
+    with loops_lock:
+        removed = loops_lib.remove_link(loops_store, link_id)
+        if removed:
+            _loops_save()
+    return {"ok": removed, "error": None if removed else "échange inconnu, ou en cours : arrête-le d'abord"}
+
+
+def _link_signal(raw):
+    """A critic of a link writes (title aiwa-link): the receiver's first answer (accept / refuse), or its message, carried to the other critic. Only inside an accepted link, on the right turn."""
+    try:
+        data = json.loads(raw) if isinstance(raw, (str, bytes)) else raw
+    except ValueError:
+        return False
+    if not isinstance(data, dict):
+        return False
+    link_id, role, note = str(data.get("link") or ""), str(data.get("role") or ""), " ".join(str(data.get("note") or "").split())
+    answer = str(data.get("answer") or "").lower()
+    with loops_lock:
+        link = dict(loops_lib.find_link(loops_store, link_id) or {})
+    if not link:
+        return False
+    if link["state"] == "proposed":
+        if role != "receiver" or not (answer.startswith("accept") or answer.startswith("refus")):
+            return False
+        return _link_answered(link_id, answer.startswith("accept"), note)
+    with loops_lock:
+        action = loops_lib.link_signal(loops_store, link_id, role)
+        link = dict(loops_lib.find_link(loops_store, link_id) or {})
+        if action:
+            _loops_save()
+    if not action:
+        return False
+    kind, n = action
+    url = _loops_relay_url()
+    if kind == "done":
+        for session_id in (link["sender"], link["receiver"]):
+            _loop_send(session_id, loops_lib.message_link_stopped(link, f"terminé : {n} allers-retours, la limite est atteinte"))
+    else:
+        _loop_send(link["receiver" if kind == "receiver" else "sender"], loops_lib.message_link_forward(link, kind, note or "(sans note)", n, url))
+    print(f"[{_ts()}] link {link_id}: {role} wrote, next: {kind} {n}", flush=True)
+    return True
+
+
 def _critique_target(pair_id):
     """(repo, critic branch) of a pair, or None."""
     with loops_lock:
@@ -2913,7 +3019,12 @@ def _loops_snapshot():
         limit = loops_store["limit"]
     for p in pairs:
         p["builder_title"], p["critic_title"] = titles.get(p["builder"], p["builder"]), titles.get(p["critic"], p["critic"])
-    return {"limit": limit, "pairs": pairs, "chains": chains}
+    with loops_lock:
+        links = [dict(l) for l in loops_store["links"]]
+        critics = sorted(loops_lib.critics_of(loops_store))
+    for l in links:
+        l["sender_title"], l["receiver_title"] = titles.get(l["sender"], l["sender"]), titles.get(l["receiver"], l["receiver"])
+    return {"limit": limit, "pairs": pairs, "chains": chains, "links": links, "critics": [{"id": c, "title": titles.get(c, c)} for c in critics]}
 
 
 def _loops_running():
@@ -3002,6 +3113,8 @@ def _relay_event(event):
         _cloud_check_seen()
     elif title == "aiwa-loop":
         _loop_signal(event.get("message"))
+    elif title == "aiwa-link":
+        _link_signal(event.get("message"))
     elif title == "aiwa-agent":
         _agent_said(event.get("message"))
         _cloud_check_seen()
@@ -3300,6 +3413,14 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_json(loops_set_limit(data.get("limit")))
             elif action == "delete":
                 self.reply_json(loops_delete(ident))
+            elif action == "link_create":
+                self.reply_json(links_create(str(data.get("sender") or ""), str(data.get("receiver") or ""), data.get("opening") if isinstance(data.get("opening"), str) else None))
+            elif action == "link_answer":
+                self.reply_json(links_answer(ident, data.get("accept") in (True, "true")))
+            elif action == "link_stop":
+                self.reply_json(links_stop(ident))
+            elif action == "link_delete":
+                self.reply_json(links_delete(ident))
             else:
                 self.send_error(404)
         elif self.path == "/api/claude/login/start":

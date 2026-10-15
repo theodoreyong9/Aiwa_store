@@ -389,6 +389,13 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                     LoopChainEntry(e.optString("id"), time(e, "started"), time(e, "created"), e.optString("state"))
                 }
             },
+            json.optJSONArray("links")?.let { a ->
+                (0 until a.length()).map {
+                    val l = a.getJSONObject(it)
+                    LoopLink(l.optString("id"), l.optString("sender"), l.optString("receiver"), l.optString("sender_title"), l.optString("receiver_title"), l.optString("state"), l.optString("turn"), l.optInt("rounds", 0), l.optInt("limit", 5), l.optString("opening"))
+                }
+            } ?: emptyList(),
+            json.optJSONArray("critics")?.let { a -> (0 until a.length()).map { LoopCritic(a.getJSONObject(it).optString("id"), a.getJSONObject(it).optString("title")) } } ?: emptyList(),
         )
     }
 

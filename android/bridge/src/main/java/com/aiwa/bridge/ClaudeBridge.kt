@@ -38,7 +38,14 @@ data class LoopChainEntry(val id: String, val started: Long?, val created: Long?
 /** The critiques the critic of a pair wrote on the corpus, the last turn first; `resume` is true when its summary of facts exists. */
 data class CritiqueItem(val n: Int, val name: String, val size: Long)
 data class CritiqueList(val branch: String, val items: List<CritiqueItem>, val resume: Boolean)
-data class LoopsInfo(val limit: Int, val pairs: List<LoopPair>, val chains: List<List<LoopChainEntry>>)
+/** The other style of loop: an exchange between two CRITICS (no producer). The sender opens (« salut, qu'est-ce que tu fais ? J'ai envie de t'aider »), the receiver accepts or refuses in its own session. */
+data class LoopLink(
+    val id: String, val sender: String, val receiver: String, val senderTitle: String, val receiverTitle: String,
+    val state: String, val turn: String, val rounds: Int, val limit: Int, val opening: String,
+)
+/** A session that is the critic of at least one pair: the only kind that may be linked. */
+data class LoopCritic(val id: String, val title: String)
+data class LoopsInfo(val limit: Int, val pairs: List<LoopPair>, val chains: List<List<LoopChainEntry>>, val links: List<LoopLink> = emptyList(), val critics: List<LoopCritic> = emptyList())
 /** The running loop that began last, for the widget: which pair, the round it is at, the limit, whose turn it is. */
 /** A cast waiting for its video: the television as said (may be empty), and the video that has just been made. */
 data class CastWish(val tv: String, val name: String, val url: String)
