@@ -168,9 +168,6 @@ private fun VideosWindow(onClose: () -> Unit) {
                                 OutlinedButton(onClick = { download(context, last.url, last.name) }, modifier = Modifier.weight(1f)) { Text("⇩ Download") }
                                 OutlinedButton(onClick = { share(context, last.url, last.name) }, modifier = Modifier.weight(1f)) { Text("↗ Share") }
                             }
-                            current.videos.drop(1).forEach { video ->
-                                OutlinedButton(onClick = { play(video) }, modifier = Modifier.fillMaxWidth()) { Text("▶  " + video.name + " · " + sizeLabel(video.size), maxLines = 1) }
-                            }
                         }
                     }
                     current?.repo?.let { repo ->

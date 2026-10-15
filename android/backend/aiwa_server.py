@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 100
+BACKEND_VERSION = 101
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2180,7 +2180,10 @@ def _videos_snapshot():
             if entry.get("type") == "file" and name.lower().endswith(VIDEO_EXT) and "/" not in name and name not in seen:
                 seen.add(name)
                 items.append({"name": name, "size": int(entry.get("size") or 0), "url": f"https://raw.githubusercontent.com/{repo}/HEAD/{base}/{urllib.parse.quote(name)}", "ts": ""})
-    items.sort(key=lambda v: v["name"], reverse=True)
+    # The latest first: the numbers of a name count as numbers (v12 before v11, v9 before v10 is wrong the other way round), and docs/videos/ before the root of docs/.
+    def _natural(v):
+        return [int(x) if x.isdigit() else x for x in re.split(r"(\d+)", v["name"].lower())]
+    items.sort(key=lambda v: (v["url"].find("/docs/videos/") >= 0, [(0, x) if isinstance(x, int) else (1, x) for x in _natural(v)]), reverse=True)
     with lock:
         video_cache.update(key=repo, items=items, at=now)
     with store_lock:

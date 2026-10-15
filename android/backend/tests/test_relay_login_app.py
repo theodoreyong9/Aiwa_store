@@ -857,7 +857,7 @@ class AskAndVideoTests(Base):
             srv.video_cache.update(key=None, items=[], at=0.0)
             got = srv._videos_snapshot()
             again = srv._videos_snapshot()
-        self.assertEqual([v["name"] for v in got["videos"]], ["old-16x9.mp4", "demo-9x16.mp4", "demo-16x9.mp4"], "the video files of both folders, by name, and nothing else")
+        self.assertEqual([v["name"] for v in got["videos"]], ["demo-16x9.mp4", "demo-9x16.mp4", "old-16x9.mp4"], "the video files of both folders, docs/videos/ first and by their numbers, and nothing else")
         self.assertEqual(got["videos"][1]["url"], "https://raw.githubusercontent.com/o/r/HEAD/docs/videos/demo-9x16.mp4")
         self.assertEqual(got["videos"][0]["url"], "https://raw.githubusercontent.com/o/r/HEAD/docs/old-16x9.mp4")
         self.assertEqual(asked, ["https://api.github.com/repos/o/r/contents/docs", "https://api.github.com/repos/o/r/contents/docs/videos"], "one look a minute")
