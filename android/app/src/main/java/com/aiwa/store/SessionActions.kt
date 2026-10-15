@@ -13,6 +13,7 @@ import com.aiwa.bridge.BackendOutdatedException
 import com.aiwa.bridge.BusyException
 import com.aiwa.bridge.ClaudeBridge
 import com.aiwa.bridge.LocalClaudeBridge
+import com.aiwa.bridge.PillReference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
