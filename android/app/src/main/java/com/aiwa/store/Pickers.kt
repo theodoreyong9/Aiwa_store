@@ -745,22 +745,22 @@ class SettingsActivity : ComponentActivity() {
             val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
                 add(PickerEntry("Réglages", false, header = true) { })
-                // In the Aiwa-shaped widget the model, the push and the state of the workflow are buttons of the widget itself: they are not repeated here
-                // the Light shape has the session and the repository on its top row; the mode (each with its own session) is chosen here
-                if (current == WidgetStyle.LIGHT) {
-                    add(PickerEntry("Mode : ${if (aiwaTab(state) == "media") (if (mediaSub(state) == "documents") "Documents" else if (mediaSub(state) == "campaign") "Campagne" else "Vidéos") else state.deploy} — ▾", false, lines = 2) { open(ModePickerActivity::class.java) })
+                // The widget holds the five kinds, the repository, the session, the microphone: everything else is here
+                add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
+                add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
+                add(PickerEntry("Mode : ${if (aiwaTab(state) == "media") (if (mediaSub(state) == "documents") "Documents" else if (mediaSub(state) == "campaign") "Campagne" else "Vidéos") else state.deploy} ▾", false, lines = 2) { open(ModePickerActivity::class.java) })
+                add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
+                if (state.repo != null) {
+                    add(PickerEntry(if (state.pushMain) "Push : direct sur main — toucher pour passer sur une branche" else "Push : sur une branche — toucher pour passer sur main", false, lines = 2) { togglePush(state.pushMain) })
                 }
-                if (current != WidgetStyle.AIWA) {
-                    add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
-                    if (state.repo != null) {
-                        add(PickerEntry(if (state.pushMain) "Push : direct sur main — toucher pour passer sur une branche" else "Push : sur une branche — toucher pour passer sur main", false, lines = 2) { togglePush(state.pushMain) })
-                    }
-                    // The workflow that matters for the mode chosen (the build, the deployment, the check of the app, the registry's check)
-                    if (workflowShown(state)) {
-                        add(PickerEntry(workflowName(state.deploy) + (if (workflowStateKnown(state)) " : $ci" else "") + " — ouvrir", false, lines = 2) { open(OpenActionsActivity::class.java) })
-                    }
-
+                // The workflow that matters for the mode chosen (the build, the deployment, the check of the app, the registry's check)
+                if (workflowShown(state)) {
+                    add(PickerEntry(workflowName(state.deploy) + (if (workflowStateKnown(state)) " : $ci" else "") + " — ouvrir", false, lines = 2) { open(OpenActionsActivity::class.java) })
                 }
+                add(PickerEntry("Ouvrir la conversation dans Claude", false, lines = 2) { open(OpenClaudeActivity::class.java) })
+                add(PickerEntry("Boucles builder / critique${if (state.loopPair.isNotEmpty()) " : ${state.loopPair} en cours" else ""}", false, lines = 2) { open(LoopsActivity::class.java) })
+                add(PickerEntry("Campagne : les propositions à valider", false, lines = 2) { open(ProposalsActivity::class.java) })
+                add(PickerEntry("Code de l'app (</>)", false, lines = 2) { open(OpenCodeActivity::class.java) })
                 add(PickerEntry("Aiwa", false, header = true) { })
                 add(PickerEntry("Mon mot d'éveil : le choisir ou le changer, même « Aiwa »", false, lines = 2) { open(WakeWordEnrollActivity::class.java) })
                 add(PickerEntry("Mon mot pour le super agent : le choisir ou le changer (« mon super agent » par défaut)", false, lines = 2) {
@@ -790,10 +790,8 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Commandes vocales : tout ce qu'on peut dire (dictée, « instruction », mots de réveil)", false, lines = 2) { open(VoiceCommandsHelpActivity::class.java) })
 
                 add(PickerEntry("Forme du widget", false, header = true) { })
-                add(PickerEntry("Classic — les bandes, comme avant", current == WidgetStyle.CLASSIC, lines = 2) { shape(WidgetStyle.CLASSIC) })
-                add(PickerEntry("Aiwa — les modes en haut (Média : vidéo, campagne, documents ; Page, App, Store, Aiwa), puis le micro avec le contexte (session, dépôt, modèle, push), Claude et la question, et en bas la boucle, l'app Aiwa, le commentaire, la mise à jour et les réglages", current == WidgetStyle.AIWA, lines = 5) { shape(WidgetStyle.AIWA) })
-                add(PickerEntry("Light — au-dessus, cinq petits boutons (Docs, Vidéo, Page, App, Aiwa : gris, colorés quand le dépôt contient une production) ; la session et le dépôt (la mise à jour à droite) ; le micro, Claude, la question ; la boucle, l'app Aiwa, le super agent, la campagne et les réglages (le mode et tout le reste sont dedans)", current == WidgetStyle.LIGHT, lines = 5) { shape(WidgetStyle.LIGHT) })
-                add(PickerEntry("Glasses — des lunettes : un verre pour le contexte, un pour le travail, le micro à droite", current == WidgetStyle.GLASSES, lines = 3) { shape(WidgetStyle.GLASSES) })
+                add(PickerEntry("Light — les cinq boutons (Docs, Vidéo, Page, App, Aiwa : gris, colorés quand le dépôt contient une production), la session et le dépôt, le micro, et en bas la boucle, l'app Aiwa, le super agent, la campagne et les réglages", current == WidgetStyle.LIGHT, lines = 4) { shape(WidgetStyle.LIGHT) })
+                add(PickerEntry("Glasses — des lunettes : à gauche les boutons de Light (les cinq en colonne, les réglages, dicter), à droite le Store, le wallet, une silhouette pour chercher, own, fave, inviter", current == WidgetStyle.GLASSES, lines = 4) { shape(WidgetStyle.GLASSES) })
             }
             PickerSheet(entries) { finish() }
         }

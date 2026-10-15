@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 92
+BACKEND_VERSION = 93
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -621,7 +621,7 @@ def _document_line(repo):
         "N'utilise que ce que le fichier dit : n'invente aucun poste, chiffre, client ni prix, et dans `facts.md` sépare ce qui vient du fichier de ce que tu ajoutes. "
         "Mes réalisations GitHub ne sont utilisées QUE si ma demande dit que je l'ai coché : alors prends parmi mes dépôts PUBLICS ceux qui servent le propos, "
         "montre-les au bon moment de la vidéo (vraies captures ou pages), liste ceux que tu retiens dans `brief.md`, jamais un dépôt privé que je n'ai pas nommé. "
-        "Sans cette mention, le fichier seul compte. Mets la vidéo dans `aiwa-videos/` du dépôt en cours : l'appli montre la liste de toutes les vidéos de ce dépôt. "
+        "Sans cette mention, le fichier seul compte. Mets la vidéo dans `docs/` du dépôt en cours : l'appli montre la liste de toutes les vidéos de ce dépôt. "
         "Mes fichiers sources sont dans le dossier `aiwa-campagne/` du dépôt en cours : quand ma demande en nomme, lis-les là (tu y as accès), un par un ; un CSV, un JSON ou un texte tels quels, "
         "un tableur .xlsx avec Python (openpyxl ou pandas), un PDF avec `pdftotext`, une image ou une vidéo en les citant ou en les intégrant telles quelles sans rien dire de leur contenu que tu n'as pas pu lire. "
         "Quand ma demande contient un document collé et te dit de le ranger, écris-en une copie dans `aiwa-campagne/` (même nom) et pousse-la avec la consigne Push."
@@ -632,7 +632,7 @@ def _video_full(repo):
     """The promotional video of a creation: the standard (a production in stages, each written down and checked), the tools, where the file goes."""
     return (
         "Vidéo : si je demande une vidéo promotionnelle de ma création, lis d'abord " + REFERENCE_RAW + "/docs/PROMO-VIDEO.md (le standard) et suis ses étapes DANS L'ORDRE, "
-        "en écrivant chacune dans un fichier sous `aiwa-videos/` et en relisant la précédente avant la suivante : 0 les faits (`facts.md` : ce qui est vrai, ce que ma création montre et fait, les vraies captures), "
+        "en écrivant chacune dans un fichier sous `docs/video-<nom>/` et en relisant la précédente avant la suivante : 0 les faits (`facts.md` : ce qui est vrai, ce que ma création montre et fait, les vraies captures), "
         "1 le brief (`brief.md` : le public, UN message, le ton, la direction artistique prise dans ma création, l'appel à l'action), puis la stratégie de la section 0 du guide du réalisateur : le contexte, la tension vraie, 6 à 10 idées notées dont tu choisis la meilleure en disant pourquoi les autres perdent, une proposition unique, un pré-mortem de trois risques, et `style.md` (la feuille de style de TOUT le film : palette, typographie, mouvements, identité sonore, grade), "
         "2 le script (`script.md` : accroche dans les 2 premières secondes, tension, révélation, preuve, appel à l'action, texte de la voix off avec ses secondes, et le tableau des scènes : rôle dans l'histoire, émotion voulue, preuve montrée, durée, outil ; une scène sans rôle est coupée), "
         "3 le plan de plans (`video.html`, depuis `video-kit/template/cinematic.html` : un plan par temps du script, avec son mouvement, sa transition et son son ; c'est ici que tu consultes le registre des objets, lumières et textures (`asset-research`, voir plus bas) pour chaque scène que tu rends réelle, et que tu écris dans `script.md` le choix de chaque scène : page, 3D, footage ou générée), "
@@ -659,11 +659,11 @@ def _video_full(repo):
         "note de 1 à 5 l'accroche, la clarté du message, le rythme, le mouvement de chaque plan, la lisibilité, la direction artistique, le son, l'honnêteté (rien d'inventé) et l'appel à l'action ; "
         "corrige tout ce qui est sous 4 et recommence l'aperçu, jusqu'à trois tours ; si tu as un outil de sous-agent, confie la critique à un agent neuf qui ne voit que les images et le brief. "
         "Donne-moi les notes finales telles quelles. Le contrôle `video-kit check` signale `slideshow` quand l'image bouge trop peu : refais alors le plan concerné. Dis aussi ce qui est provisoire (la voix de synthèse, la musique générée). "
-        f"Termine toujours par le lien direct vers chaque fichier vidéo (`https://raw.githubusercontent.com/{repo}/main/aiwa-videos/nom-9x16.mp4` ou celui de la release), pour que je le trouve même si la release est refusée. "
-        f"Dépose chaque vidéo comme fichier de la release GitHub `videos` du dépôt {repo} (crée-la si elle n'existe pas ; un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4`), "
-        "avec ses fichiers d'étapes et son rapport de contrôle sous `aiwa-videos/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
-        "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg espeak-ng`, `npx playwright install chromium`, `sh video-kit/src/voice-setup.sh` pour la voix naturelle de la voix off, `gh release create` ou l'API GitHub avec le jeton de l'environnement) "
-        "au lieu de t'arrêter. Si la release reste impossible, commite le MP4 sous `aiwa-videos/` sur ta branche et dis-moi en une phrase pourquoi, sans prétendre qu'il est dans la release."
+        f"Termine toujours par le lien direct vers chaque fichier vidéo (`https://raw.githubusercontent.com/{repo}/main/docs/nom-9x16.mp4`), pour que je le trouve. "
+        f"Dépose chaque vidéo dans le dossier `docs/` du dépôt {repo} (un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4`, directement dans `docs/`, jamais ailleurs ; GitHub refuse un fichier de plus de 100 Mo : réencode-le plus léger), "
+        "avec ses fichiers d'étapes et son rapport de contrôle sous `docs/video-<nom>/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
+        "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg espeak-ng`, `npx playwright install chromium`, `sh video-kit/src/voice-setup.sh` pour la voix naturelle de la voix off, l'API GitHub avec le jeton de l'environnement) "
+        "au lieu de t'arrêter."
     )
 
 
@@ -672,7 +672,7 @@ def _proposals_line(repo):
     I validate one by one in the app. The session prepares, it never sends anything."""
     return (
         "MODE CAMPAGNE : ce projet est une campagne de propositions, semi-automatisée. Elle part de ce que ma demande désigne : un fichier (dans mon message ou dans `aiwa-campagne/` : un CV, un argumentaire, une brochure…), "
-        "ma création dans le dépôt et ses vidéos (`aiwa-videos/`), mes réalisations GitHub publiques si je l'ai coché : un fichier n'est PAS obligatoire. "
+        "ma création dans le dépôt et ses vidéos (dans `docs/`), mes réalisations GitHub publiques si je l'ai coché : un fichier n'est PAS obligatoire. "
         "Si ma demande ne désigne rien de tout cela et que le dépôt est vide, demande-moi UNE fois par la question du widget (menu d'Aiwa → Créer à partir d'un fichier → Une campagne) et arrête-toi là. "
         "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Le paquet que tu livres : (1) la liste des cibles, (2) un site avec son arborescence, (3) une vidéo par cible, (4) `aiwa-proposals/proposals.json` ; "
         "ma demande dit ce qu'il faut produire pour chaque cible (un site, une vidéo, ou les deux) : ne fabrique que cela, et laisse `demoUrl` ou `videoUrl` vide pour ce qui n'est pas demandé. "
@@ -712,9 +712,9 @@ def _cut(text, start, end):
 
 
 VIDEO_WORKFLOW_FILE = (
-    "name: aiwa-video\non:\n  push:\n    paths: ['aiwa-videos/**']\n  workflow_dispatch:\njobs:\n  stages:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"
-    "      - name: Etapes\n        run: |\n          for f in facts.md brief.md style.md script.md critique.md video.html; do\n            if [ -e \"aiwa-videos/$f\" ]; then echo \"fait : $f\"; else echo \"a faire : $f\"; fi\n          done\n          ls -la aiwa-videos | head -60\n"
-    "      - name: Controle des films\n        run: |\n          sudo apt-get install -y -qq ffmpeg > /dev/null\n          for v in aiwa-videos/*.mp4; do [ -e \"$v\" ] || continue; ffprobe -v error -show_entries format=duration -of csv=p=0 \"$v\" || exit 1; done\n"
+    "name: aiwa-video\non:\n  push:\n    paths: ['docs/**']\n  workflow_dispatch:\njobs:\n  stages:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"
+    "      - name: Etapes\n        run: |\n          for d in docs/video-*/; do [ -d \"$d\" ] || continue; echo \"$d\"; for f in facts.md brief.md style.md script.md critique.md video.html; do\n            if [ -e \"$d$f\" ]; then echo \"fait : $f\"; else echo \"a faire : $f\"; fi\n          done; done\n"
+    "      - name: Controle des films\n        run: |\n          sudo apt-get install -y -qq ffmpeg > /dev/null\n          for v in docs/*.mp4; do [ -e \"$v\" ] || continue; ffprobe -v error -show_entries format=duration -of csv=p=0 \"$v\" || exit 1; done\n"
 )
 
 
@@ -724,7 +724,7 @@ def _video_rules():
         " Façon de travailler, quelle que soit la qualité : fais TOUT d'un coup, sans t'arrêter ; ne me pose AUCUNE question pendant la vidéo (décide seul, écris tes hypothèses dans `brief.md`) ; "
         "le temps que ça prend n'est JAMAIS une raison de raccourcir, de sauter une étape ou de t'arrêter avant le rendu final ; "
         "après CHAQUE étape terminée, commite et pousse ce qu'elle a produit (selon la consigne Push), pour que mon bouton Workflow montre où tu en es. "
-        "Ajoute une fois `.github/workflows/aiwa-video.yml` avec exactement ce contenu (il tourne à chaque push qui touche `aiwa-videos/` : il liste les étapes faites et contrôle chaque MP4) :\n`"
+        "Ajoute une fois `.github/workflows/aiwa-video.yml` avec exactement ce contenu (il tourne à chaque push qui touche `docs/` : il liste les étapes faites et contrôle chaque MP4) :\n`"
         + VIDEO_WORKFLOW_FILE + "`\n"
     )
 
@@ -743,7 +743,7 @@ def _video_line_text(repo, quality="moyen"):
             "le rythme généré (`beat.py`, pas de recherche de musique) et une voix de synthèse courte (`voice.py`), assemble avec `video-kit assemble`, contrôle avec `video-kit check` et corrige UNE fois ce qu'il signale. "
             "Pas de recherche de campagnes, pas de plans 3D ni de catalogue, pas de critique en plusieurs tours. N'invente rien : tout ce qui est affiché vient de ce que j'ai fourni ou de ma création. "
             "Dis-moi que c'est la qualité simple, et ce qui est provisoire (voix de synthèse, rythme généré). "
-            f"Termine par le lien direct vers le fichier (`https://raw.githubusercontent.com/{repo}/main/aiwa-videos/nom-9x16.mp4`), dépose-le sous `aiwa-videos/` dans le dépôt et dans la release `videos` si elle est possible."
+            f"Termine par le lien direct vers le fichier (`https://raw.githubusercontent.com/{repo}/main/docs/nom-9x16.mp4`), dépose-le dans `docs/` du dépôt (directement dans `docs/`, jamais ailleurs)."
         )
     full = _video_full(repo)
     if quality == "extra":
@@ -917,7 +917,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             "deploy",
             "Documents : le livrable est un ou plusieurs DOCUMENTS (lettre, CV, rapport, contrat, présentation, brochure, tableur…) que je te demande de créer. "
             "Choisis le format qui sert l'usage : Word (.docx) ou PDF pour un document à envoyer ou imprimer, Markdown pour un texte, .xlsx pour un tableur, .pptx pour une présentation ; "
-            "si je ne le précise pas, dis en une phrase le format choisi et pourquoi. Écris chaque document dans le dossier `aiwa-documents/` du dépôt en cours, un fichier par document, "
+            "si je ne le précise pas, dis en une phrase le format choisi et pourquoi. Écris chaque document dans le dossier `docs/` du dépôt en cours (c'est là que vivent les documents du projet), un fichier par document, "
             "avec un nom clair (en minuscules, tirets), et pousse-le avec la consigne Push. N'invente aucun fait, chiffre, nom ni date : ce que je ne t'ai pas donné, laisse-le marqué à compléter. "
             "Avant de dire que c'est fini, rouvre le fichier produit pour vérifier qu'il s'ouvre et que sa mise en page tient (un PDF converti en image par exemple). "
             "L'appli ouvre ce dossier depuis le bouton Documents du widget.",
@@ -2137,8 +2137,6 @@ def _videos_snapshot():
         if video_cache["key"] == repo and now - video_cache["at"] < 60:
             return {"repo": repo, "videos": list(video_cache["items"])}
     try:
-        release = _github_json(f"https://api.github.com/repos/{repo}/releases/tags/{VIDEO_TAG}")
-        folder = _github_json(f"https://api.github.com/repos/{repo}/contents/aiwa-videos")
         docs_folder = _github_json(f"https://api.github.com/repos/{repo}/contents/docs")
     except GithubUnavailable:
         # GitHub could not answer: what was known stays on the screen (an empty list would say the videos are gone), and it is tried again in a minute.
@@ -2151,30 +2149,13 @@ def _videos_snapshot():
                     kept = []
             video_cache.update(key=repo, items=kept, at=now)
         return {"repo": repo, "videos": kept}
+    # The architecture is the same for every repository: the videos are the video files at the root of docs/ (nothing else of docs/ is listed), by name, the latest first.
     items = []
-    for asset in (release or {}).get("assets", []) if isinstance(release, dict) else []:
-        name = str(asset.get("name") or "")
-        url = str(asset.get("browser_download_url") or "")
-        if name.lower().endswith(VIDEO_EXT) and url.startswith("https://github.com/"):
-            items.append({"name": name, "size": int(asset.get("size") or 0), "url": url, "ts": str(asset.get("updated_at") or "")})
-    items.sort(key=lambda v: v["ts"], reverse=True)
-    # A session that could not create the release commits the MP4 under aiwa-videos/ instead (its instructions say so): those are listed too,
-    # after the release's, from the repository's default branch.
-    known = {v["name"] for v in items}
-    for entry in folder if isinstance(folder, list) else []:
-        name = str(entry.get("name") or "") if isinstance(entry, dict) else ""
-        if entry.get("type") == "file" and name.lower().endswith(VIDEO_EXT) and name not in known and "/" not in name:
-            items.append({"name": name, "size": int(entry.get("size") or 0), "url": f"https://github.com/{repo}/raw/HEAD/aiwa-videos/{urllib.parse.quote(name)}", "ts": ""})
-    # The film of the project itself, if it keeps one in docs/ (aiwa-global-v9-16x9.mp4): only the latest version, never the older files next to it.
-    films = []
     for entry in docs_folder if isinstance(docs_folder, list) else []:
         name = str(entry.get("name") or "") if isinstance(entry, dict) else ""
-        match = re.fullmatch(r"aiwa-global-v(\d+)-16x9\.mp4", name)
-        if match and entry.get("type") == "file":
-            films.append((int(match.group(1)), name, int(entry.get("size") or 0)))
-    if films and not any(v["name"] == max(films)[1] for v in items):
-        _version, name, size = max(films)
-        items.append({"name": name, "size": size, "url": f"https://raw.githubusercontent.com/{repo}/HEAD/docs/{urllib.parse.quote(name)}", "ts": ""})
+        if entry.get("type") == "file" and name.lower().endswith(VIDEO_EXT) and "/" not in name:
+            items.append({"name": name, "size": int(entry.get("size") or 0), "url": f"https://raw.githubusercontent.com/{repo}/HEAD/docs/{urllib.parse.quote(name)}", "ts": ""})
+    items.sort(key=lambda v: v["name"], reverse=True)
     with lock:
         video_cache.update(key=repo, items=items, at=now)
     with store_lock:

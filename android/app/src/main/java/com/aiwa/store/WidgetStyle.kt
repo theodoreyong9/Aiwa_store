@@ -3,21 +3,18 @@ package com.aiwa.store
 import android.content.Context
 
 /**
- * The shape of the widget: the classic bands, a pair of glasses (two lenses and the microphone on the bridge), or « Aiwa » (the modes in a row at the top, what the mode
- * needs, the voice, and a bottom row). Chosen in the settings list.
+ * The shape of the widget: « Light » (the default: the five kinds, the session and the repository, the microphone, and a bottom row) or a pair of glasses (the same buttons in the left lens, the Store in the right one). Chosen in the settings list.
  */
 object WidgetStyle {
-    const val CLASSIC = "classic"
     const val GLASSES = "glasses"
-    const val AIWA = "aiwa"
     const val LIGHT = "light"
     private const val PREFS = "aiwa_widget_style"
 
     fun current(context: Context): String =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("shape", CLASSIC).let { if (it == GLASSES || it == AIWA || it == LIGHT) it!! else CLASSIC }
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("shape", LIGHT).let { if (it == GLASSES) it!! else LIGHT }
 
     fun set(context: Context, shape: String) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("shape", if (shape == GLASSES || shape == AIWA || shape == LIGHT) shape else CLASSIC).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("shape", if (shape == GLASSES) shape else LIGHT).apply()
     }
 
     /** The « Vidéo » button of the Aiwa shape is a view, not a mode of the selector: whether it is the one shown. */

@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 92
+const val EXPECTED_BACKEND_VERSION = 93
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -52,7 +52,7 @@ val DEPLOY_CHOICES = listOf(
     ModelChoice("android", "Application Android — l'APK dans une release GitHub"),
     ModelChoice("store", "Store — une app écrite par Claude, qui reste dans ton GitHub (bibliothèque du Store, sans registre ni wallet)"),
     ModelChoice("campaign", "Campagne — un fichier devient un site (arborescence), une vidéo et des propositions à valider, semi-automatique"),
-    ModelChoice("documents", "Documents — Claude écrit des documents (Word, PDF, texte, tableur, présentation) dans le dossier aiwa-documents de ton dépôt"),
+    ModelChoice("documents", "Documents — Claude écrit des documents (Word, PDF, texte, tableur, présentation) dans le dossier docs de ton dépôt"),
     ModelChoice("aiwa", "App Aiwa — un contrat figé, signé et classé par minage, publié par Aiwa (registre)"),
 )
 

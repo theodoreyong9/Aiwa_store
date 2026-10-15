@@ -79,7 +79,7 @@ private fun sourcesPhrase(doc: PickedDocument?, repoFiles: List<String>, repoKno
 private fun campaignSources(doc: PickedDocument?, repoFiles: List<String>, repoKnown: Boolean, withGithub: Boolean): String {
     val given = sourcesPhrase(doc, repoFiles, repoKnown)
     if (given.isNotEmpty()) return given
-    return (if (repoKnown) "ma création, dans le dépôt en cours (lis-le), et les vidéos de `aiwa-videos/` s'il y en a" else "ce que je te dis ici") +
+    return (if (repoKnown) "ma création, dans le dépôt en cours (lis-le), et les vidéos de `docs/` s'il y en a" else "ce que je te dis ici") +
         (if (withGithub) " ainsi que mes réalisations GitHub publiques" else "")
 }
 

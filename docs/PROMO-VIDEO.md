@@ -49,7 +49,7 @@ Durations: 15, 30, 45, 60 s (a first one of 20 to 30 s). MP4, H.264, AAC. The la
 
 ## 6. Making it: the production, in stages
 
-A good video is not one long generation, it is a chain of short decisions, each written down and each checked. The model matters less than the order: **do the stages in order, write each result to a file under `aiwa-videos/`, and re-read the previous file before starting the next** (that is what keeps a long job coherent).
+A good video is not one long generation, it is a chain of short decisions, each written down and each checked. The model matters less than the order: **do the stages in order, write each result to a file under `docs/`, and re-read the previous file before starting the next** (that is what keeps a long job coherent).
 
 | # | Stage | The file | What it settles |
 |---|---|---|---|
@@ -81,7 +81,7 @@ The page defines `window.render(t)`, a pure function of t, so a frame can be red
 
 ## 8. Where it goes
 
-In the creation's repository: the video as a file of the GitHub release `videos` (one file per video, named `name-9x16.mp4`, `name-16x9.mp4`, …), and under `aiwa-videos/` its storyboard, the media list with their sources and rights, and the check report. The widget's "Vidéos" button lists the release's files (a public repository: Aiwa never asks for a GitHub token) and asks the session for a new one.
+In the creation's repository: the video as a file directly in `docs/` (one file per video, named `name-9x16.mp4`, `name-16x9.mp4`, …), and under `docs/video-<name>/` its storyboard, the media list with their sources and rights, and the check report. The widget's "Vidéos" button lists the video files of `docs/` (a public repository: Aiwa never asks for a GitHub token) and asks the session for a new one.
 
 ## 9. Limits to state
 

@@ -806,50 +806,23 @@ class AskAndVideoTests(Base):
             self.assertIn("Ne t'arrête pas pour l'attendre", text)
         self.assertIn("aiwa-out/ask.json", dict(srv._instruction_lines("o/r", "w", "main", True))["ask"])
 
-    def test_the_videos_of_a_repository_are_the_files_of_its_release(self):
-        release = {"assets": [
-            {"name": "demo-9x16.mp4", "size": 10, "browser_download_url": "https://github.com/o/r/releases/download/videos/demo-9x16.mp4", "updated_at": "2026-10-01T00:00:00Z"},
-            {"name": "demo-16x9.mp4", "size": 20, "browser_download_url": "https://github.com/o/r/releases/download/videos/demo-16x9.mp4", "updated_at": "2026-10-02T00:00:00Z"},
-            {"name": "notes.txt", "size": 1, "browser_download_url": "https://github.com/o/r/releases/download/videos/notes.txt", "updated_at": "2026-10-03T00:00:00Z"},
-            {"name": "evil.mp4", "size": 1, "browser_download_url": "https://evil.example/evil.mp4", "updated_at": "2026-10-04T00:00:00Z"},
-        ]}
+    def test_the_videos_of_a_repository_are_the_video_files_of_its_docs_folder(self):
+        docs = [{"name": n, "type": "file", "size": 5} for n in ("demo-9x16.mp4", "demo-16x9.mp4", "notes.md", "aiwa-global-v11-16x9.mp4")] + [{"name": "video-demo", "type": "dir", "size": 0}]
         asked = []
         with unittest.mock.patch.object(srv, "current_repo", "o/r"), unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None), \
-                unittest.mock.patch.object(srv, "_github_json", lambda url: (asked.append(url), release if "/releases/" in url else None)[1]):
+                unittest.mock.patch.object(srv, "_github_json", lambda url: (asked.append(url), docs)[1]):
             srv.video_cache.update(key=None, items=[], at=0.0)
             got = srv._videos_snapshot()
             again = srv._videos_snapshot()
-        self.assertEqual([v["name"] for v in got["videos"]], ["demo-16x9.mp4", "demo-9x16.mp4"])
-        self.assertEqual(asked, ["https://api.github.com/repos/o/r/releases/tags/videos", "https://api.github.com/repos/o/r/contents/aiwa-videos", "https://api.github.com/repos/o/r/contents/docs"], "one look a minute")
+        self.assertEqual([v["name"] for v in got["videos"]], ["demo-9x16.mp4", "demo-16x9.mp4", "aiwa-global-v11-16x9.mp4"], "the video files of docs/, by name, and nothing else of docs/")
+        self.assertEqual(got["videos"][0]["url"], "https://raw.githubusercontent.com/o/r/HEAD/docs/demo-9x16.mp4")
+        self.assertEqual(asked, ["https://api.github.com/repos/o/r/contents/docs"], "one look a minute, docs/ only")
         self.assertEqual(again, got)
-
-    def test_the_latest_film_of_the_project_is_listed_from_docs_and_only_that_one(self):
-        docs = [{"name": n, "type": "file", "size": 5} for n in ("aiwa-global-v9-16x9.mp4", "aiwa-global-v10-16x9.mp4", "aiwa-global-v10-9x16.mp4", "aiwa-promo.mp4")]
-        with unittest.mock.patch.object(srv, "current_repo", "o/r"), unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None), \
-                unittest.mock.patch.object(srv, "_github_json", lambda url: docs if url.endswith("/contents/docs") else None):
-            srv.video_cache.update(key=None, items=[], at=0.0)
-            got = srv._videos_snapshot()
-        self.assertEqual([v["name"] for v in got["videos"]], ["aiwa-global-v10-16x9.mp4"], "v10 beats v9 as a number, and nothing else of docs/ is listed")
-
-    def test_videos_committed_under_aiwa_videos_are_listed_after_the_release_ones(self):
-        folder = [
-            {"name": "yo-16x9.mp4", "type": "file", "size": 5},
-            {"name": "demo-16x9.mp4", "type": "file", "size": 6},
-            {"name": "media", "type": "dir", "size": 0},
-            {"name": "notes.md", "type": "file", "size": 1},
-        ]
-        release = {"assets": [{"name": "demo-16x9.mp4", "size": 20, "browser_download_url": "https://github.com/o/r/releases/download/videos/demo-16x9.mp4", "updated_at": "2026-10-02T00:00:00Z"}]}
-        with unittest.mock.patch.object(srv, "current_repo", "o/r"), unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None), \
-                unittest.mock.patch.object(srv, "_github_json", lambda url: release if "/releases/" in url else folder):
-            srv.video_cache.update(key=None, items=[], at=0.0)
-            got = srv._videos_snapshot()
-        self.assertEqual([v["name"] for v in got["videos"]], ["demo-16x9.mp4", "yo-16x9.mp4"])
-        self.assertEqual(got["videos"][1]["url"], "https://github.com/o/r/raw/HEAD/aiwa-videos/yo-16x9.mp4")
 
     def test_when_github_cannot_answer_the_known_videos_stay_listed(self):
         def down(url):
             raise srv.GithubUnavailable("HTTP 403")
-        known = [{"name": "yo-16x9.mp4", "size": 5, "url": "https://github.com/o/r/raw/HEAD/aiwa-videos/yo-16x9.mp4", "ts": ""}]
+        known = [{"name": "yo-16x9.mp4", "size": 5, "url": "https://raw.githubusercontent.com/o/r/HEAD/docs/yo-16x9.mp4", "ts": ""}]
         with unittest.mock.patch.object(srv, "current_repo", "o/r"), unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None), \
                 unittest.mock.patch.object(srv, "_github_json", down):
             srv.video_cache.update(key="o/r", items=list(known), at=0.0)
@@ -859,7 +832,7 @@ class AskAndVideoTests(Base):
     def test_a_304_answer_returns_what_was_known_and_a_404_means_nothing_there(self):
         import io
         import urllib.error
-        url = "https://api.github.com/repos/o/r/contents/aiwa-videos"
+        url = "https://api.github.com/repos/o/r/contents/docs"
         srv._etags[url] = ('"abc"', [{"name": "x.mp4"}])
         def fake(request, timeout=0):
             self.assertEqual(request.get_header("If-none-match"), '"abc"')
@@ -878,7 +851,9 @@ class AskAndVideoTests(Base):
 
     def test_a_session_on_a_repository_is_told_where_the_videos_go(self):
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["video"]
-        self.assertIn("release GitHub `videos` du dépôt o/r", text)
+        self.assertIn("dans le dossier `docs/` du dépôt o/r", text)
+        self.assertNotIn("aiwa-videos", text)
+        self.assertNotIn("release GitHub", text)
         self.assertIn("N'invente aucune statistique", text)
         self.assertNotIn("video", dict(srv._instruction_lines(None, None, None, True)))
 

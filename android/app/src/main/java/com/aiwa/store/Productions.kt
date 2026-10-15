@@ -53,8 +53,7 @@ object Productions {
     }
 
     /**
-     * Looks at what the repository holds, by the layout Aiwa gives it (the same for every repository): videos (the release `videos`, the folder `aiwa-videos`, or an MP4 in `docs`),
-     * documents (`aiwa-documents`), the page (the GitHub Pages address answers), the APK (a release with an .apk file), the Aiwa app (an `.aiwa.html` file in `aiwa-apps`). A question that GitHub did not
+     * Looks at what the repository holds, by the layout Aiwa gives it (the same for every repository): videos and documents (the files of `docs`), the page (the GitHub Pages address answers), the APK (a release with an .apk file), the Aiwa app (an `.aiwa.html` file in `aiwa-apps`). A question that GitHub did not
      * answer (rate limit, no network) leaves what was known: a button does not go grey for a failed request. At most every ten minutes per repository (GitHub allows 60 questions an hour
      * without a token); the widget is redrawn when something changed.
      */
@@ -67,14 +66,11 @@ object Productions {
         val found = withContext(Dispatchers.IO) {
             val api = "https://api.github.com/repos/$repo"
             val out = HashMap<String, Boolean?>()
-            val release = get("$api/releases/tags/videos").let { (c, b) -> if (c == 404) 0 else if (c == 200 && b != null) runCatching { JSONObject(b).optJSONArray("assets")?.length() ?: 0 }.getOrNull() else null }
-            val folder = count("$api/contents/aiwa-videos")
+            // ONE look at docs/: the videos and the documents of a repository live there, the same for all
             val docsDir = names("$api/contents/docs")
-            val mp4 = docsDir?.count { n -> n.lowercase().let { it.endsWith(".mp4") || it.endsWith(".webm") || it.endsWith(".mov") } }
-            out["video"] = if ((release ?: 0) > 0 || (folder ?: 0) > 0 || (mp4 ?: 0) > 0) true else if (release == null || folder == null || mp4 == null) null else false
-            out["documents"] = count("$api/contents/aiwa-documents")?.let { it > 0 }
-            // the papers of a project (Aiwa_store keeps its own in docs/): documents too, read as such when there is no aiwa-documents folder
-            out["papers"] = docsDir?.any { n -> n.lowercase().let { it.endsWith(".md") || it.endsWith(".pdf") || it.endsWith(".docx") || it.endsWith(".xlsx") || it.endsWith(".pptx") } }
+            fun has(ext: List<String>) = docsDir?.any { n -> n.lowercase().let { l -> ext.any { l.endsWith(it) } } }
+            out["video"] = has(listOf(".mp4", ".webm", ".mov"))
+            out["documents"] = has(listOf(".md", ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".csv"))
             val owner = repo.substringBefore('/'); val name = repo.substringAfter('/')
             out["page"] = get("https://$owner.github.io/$name/").first.let { if (it == 200) true else if (it == 404) false else null }
             out["apk"] = get("$api/releases?per_page=10").let { (c, b) ->
