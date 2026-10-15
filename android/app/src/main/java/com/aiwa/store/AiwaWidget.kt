@@ -1057,18 +1057,22 @@ private fun LightContent(state: AiwaState) {
             // The Aiwa logo opens the list of the modes and of what each has produced
             RoundButton(icon = R.drawable.ic_aiwa, description = "Les modes et leurs productions : vidéos, documents, page, app, store", background = pill, action = actionStartActivity<ModePickerActivity>(), diameter = chipH.dp, badge = state.ciFresh)
             Spacer(GlanceModifier.width(GAP.dp))
+            // the room the chip really has: the row, less the logo button, the gaps and the update button when there is one
+            val fs = context.resources.configuration.fontScale
+            val repoRoom = avail - chipH - GAP - 12f - (if (state.appUpdateReady) chipH + GAP else 0f) - textWidth("⎇  ▾", fs)
             Chip(
-                "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", 54f - textWidth("⎇  ▾", context.resources.configuration.fontScale), context.resources.configuration.fontScale) + " ▾",
+                "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", repoRoom, fs) + " ▾",
                 if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
                 lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
             )
+            // The update, at the right of the repository list, when one is ready
+            if (state.appUpdateReady) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
+            }
         }
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            if (state.appUpdateReady) {
-                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
-                Spacer(GlanceModifier.width(GAP.dp))
-            }
             Box(
                 modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
                     .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
