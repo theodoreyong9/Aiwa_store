@@ -1049,11 +1049,10 @@ private fun LightContent(state: AiwaState) {
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        // ---- the session and the repository, then what has been produced (a button for each production found), then the update ----
+        // ---- the session and the repository, then the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             val fs = context.resources.configuration.fontScale
-            val found = lightProductions(state, context)
-            val rounds = found.size + (if (state.appUpdateReady) 1 else 0)
+            val rounds = if (state.appUpdateReady) 1 else 0
             // the room each of the two pills really has: the row, less the round buttons and the gaps, shared by two
             val each = (avail - rounds * (chipH + GAP) - GAP) / 2f - 12f
             val sessionTitle = bandInfo(state, each).title
@@ -1070,10 +1069,6 @@ private fun LightContent(state: AiwaState) {
                 if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
                 lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
             )
-            found.forEach { prod ->
-                Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(icon = prod.icon, description = prod.description, background = if (prod.fresh) claudeOrange else pill, action = prod.action, diameter = chipH.dp, badge = prod.fresh && state.ciFresh)
-            }
             if (state.appUpdateReady) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
@@ -1081,6 +1076,11 @@ private fun LightContent(state: AiwaState) {
         }
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            // what has been produced (a button for each production found), at the left of the microphone
+            lightProductions(state, context).forEach { prod ->
+                RoundButton(icon = prod.icon, description = prod.description, background = if (prod.fresh) claudeOrange else pill, action = prod.action, diameter = chipH.dp, badge = prod.fresh && state.ciFresh)
+                Spacer(GlanceModifier.width(GAP.dp))
+            }
             Box(
                 modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
                     .clickable(lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
