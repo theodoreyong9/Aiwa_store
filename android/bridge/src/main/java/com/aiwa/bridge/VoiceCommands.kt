@@ -509,9 +509,6 @@ fun wakeKind(heard: String, custom: List<String> = emptyList(), liaison: List<St
     if (list.any { it.plain == "eteins" } || (more.off.isNotEmpty() && WakeWords.heardCustom(heard, more.off))) return WakeKind.OFF
     // « renvoie les instructions »: the general instructions and the pills' are sent again (before « instruction », whose word is in it)
     if ((list.any { it.plain in RESEND_WORDS } && list.any { it.plain == "instructions" || it.plain == "instruction" }) || (more.resend.isNotEmpty() && WakeWords.heardCustom(heard, more.resend))) return WakeKind.RESEND
-    // « t'es où là » (« tu es où là »): the pills of the widget are read aloud
-    for (i in 2 until list.size) if (list[i].plain == "la" && list[i - 1].plain == "ou" && (list[i - 2].plain == "es" || list[i - 2].plain == "tes")) return WakeKind.WHERE
-    if (more.where.isNotEmpty() && WakeWords.heardCustom(heard, more.where)) return WakeKind.WHERE
     // the word chosen for the super agent (WakeWords): it calls the liaison agent
     if (liaison.isNotEmpty() && WakeWords.heardCustom(heard, liaison)) return WakeKind.LIAISON
     // "mon super agent": the call of the liaison agent (the second listening, see WakeWordService); checked before "mon agent"
@@ -519,6 +516,9 @@ fun wakeKind(heard: String, custom: List<String> = emptyList(), liaison: List<St
     for (i in 1 until list.size) if (list[i].plain == "agent" && list[i - 1].plain == "mon") return WakeKind.AGENT
     // the word the person chose (WakeWords): it wakes like "mon agent"
     if (custom.isNotEmpty() && WakeWords.heardCustom(heard, custom)) return WakeKind.AGENT
+    // « t'es où là » (« tu es où là ») alone: the pills of the widget are read aloud (« mon agent, t'en es où là » is a dictation: « en » before « es »)
+    for (i in 2 until list.size) if (list[i].plain == "la" && list[i - 1].plain == "ou" && (list[i - 2].plain == "tes" || (list[i - 2].plain == "es" && (i < 3 || list[i - 3].plain != "en")))) return WakeKind.WHERE
+    if (more.where.isNotEmpty() && WakeWords.heardCustom(heard, more.where)) return WakeKind.WHERE
     return if (list.any { isTriggerWord(it.plain) } || (more.instruction.isNotEmpty() && WakeWords.heardCustom(heard, more.instruction))) WakeKind.INSTRUCTION else null
 }
 

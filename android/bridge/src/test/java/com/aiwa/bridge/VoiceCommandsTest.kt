@@ -284,6 +284,9 @@ class VoiceCommandsTest {
         assertEquals(null, wakeKind("agent immobilier"))
         assertEquals(null, wakeKind("bonjour"))
         assertTrue(isWakeWord("mon agent"))
+        assertEquals(WakeKind.WHERE, wakeKind("t'es où là"))
+        assertEquals(WakeKind.WHERE, wakeKind("tu es où là"))
+        assertEquals(WakeKind.AGENT, wakeKind("mon agent t'es où là"))
     }
 
     @Test fun theWakePhraseAndTheQuestionAreNotTextForClaude() {
