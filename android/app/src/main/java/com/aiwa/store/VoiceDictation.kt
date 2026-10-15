@@ -173,20 +173,27 @@ class VoiceDictation(
             return
         }
         val dictation = parseDictation(text, voiceModels(), voiceSessions(), repoNames, startInInstructions)
-        if (!dictation.instructions) {
+        val llmReady = AiwaRepository.state.value.agent?.llm == "ready"
+        if (!dictation.instructions && !llmReady) {
             sendPlain(text)
             return
         }
         work = scope.launch {
-            // With the person's own API key (optional), what the keyword parser did not understand is read by Claude: the settings it finds are applied as spoken instructions, the rest goes on as the message.
-            if (dictation.problems.isNotEmpty() && AiwaRepository.state.value.agent?.llm == "ready") {
+            // With the person's own API key (optional) Claude READS what is said instead of the keyword parser: any natural phrase (« mets-toi sur le dépôt test ») is understood, with or without the word « instruction ».
+            // The pills it finds are applied as spoken instructions (read back first), the rest goes on as the message; nothing found: the phrase goes to the session as it is.
+            if (llmReady) {
                 val read = try { LocalClaudeBridge().llmCommands(text) } catch (err: Exception) { null }
-                if (read != null && read.first.isNotBlank()) {
+                if (read != null) {
+                    if (read.first.isBlank()) {
+                        if (dictation.instructions) { runInstructions(dictation); return@launch }
+                        sendPlain(text); return@launch
+                    }
                     if (repoNames.isEmpty()) repoNames = withContext(Dispatchers.IO) { try { LocalClaudeBridge().githubRepos().map { it.name } } catch (err: Exception) { emptyList() } }
                     val understood = parseDictation(read.first, voiceModels(), voiceSessions(), repoNames, true)
                     runInstructions(understood.copy(message = read.second))
                     return@launch
                 }
+                if (!dictation.instructions) { sendPlain(text); return@launch }
             }
             val wantsRepo = dictation.commands.any { it is VoiceCommand.Repo }
             if (wantsRepo && repoNames.isEmpty()) repoNames = withContext(Dispatchers.IO) { try { LocalClaudeBridge().githubRepos().map { it.name } } catch (err: Exception) { emptyList() } }

@@ -332,10 +332,23 @@ class WakeWordService : Service() {
             Speaker.speakNatural(applicationContext, "Pas appliqué. Les réglages attendent.")
             return
         }
-        VoiceDictation(context = this, startInInstructions = true, onFinished = {}).applyInstruction(command.instruction)
+        if (command.instruction.isNotBlank()) VoiceDictation(context = this, startInInstructions = true, onFinished = {}).applyInstruction(command.instruction)
+        command.cast?.let { applyCast(it) }
         agentCall("cancel", mapOf("id" to command.id))   // applied: it must not be applied twice
         Speaker.speakNatural(applicationContext, "C'est fait.")
         try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }
+    }
+
+    /** The cast asked by the super agent: the latest video goes to the TV now, or the wish waits at the brain for the video that is about to be made (it starts when the video exists). */
+    private suspend fun applyCast(cast: com.aiwa.bridge.AgentCast) {
+        val bridge = LocalClaudeBridge()
+        if (cast.wait) {
+            try { withContext(Dispatchers.IO) { bridge.castPending(cast.tv) } } catch (err: Exception) { toastOnMain(applicationContext, "Envoi à la TV non enregistré : ${err.message ?: "?"}") }
+            return
+        }
+        val latest = try { withContext(Dispatchers.IO) { bridge.videos().videos.firstOrNull() } } catch (err: Exception) { null }
+        if (latest == null) toastOnMain(applicationContext, "Aucune vidéo à envoyer à la TV.")
+        else try { CastService.start(applicationContext, latest.url, cast.tv, latest.name) } catch (err: Exception) { toastOnMain(applicationContext, "Envoi à la TV impossible : ${err.message ?: "?"}") }
     }
 
     // « Vas-y dis-lui »: the phone reads where the proposal goes and what it says, and only « c'est bon vas-y » sends it.
