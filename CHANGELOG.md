@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Settings, shorter.** The entries that repeat the Light widget (session, repository, open Claude, loops, campaign, code of the app) only show when the widget is the glasses; the explanations inside the entries (what the listening costs, what each shape shows, the toggles' « toucher pour… ») are gone. **The update button of the Light widget shows only while a build is ready** again (it disappears once installed; Settings → Version says what is installed).
 - **Light widget: the update button is always there.** It only appeared once a newer build had been downloaded (the app looks every 3 minutes, and a new build exists only after the CI has finished: several minutes after a merge), so it seemed missing. It is now always on the microphone row: **green** when a build is ready (a tap opens the installer), **grey** otherwise (a tap looks for one and says « déjà à jour » or downloads it).
 - **The super agent can be destroyed and started over (backend 102).** The agent window has « Détruire l'agent et recommencer » (asked twice): Aiwa forgets the agent's session (the session list, the settings, the proposal and the pending commands, its last words), closes its listening, and « Créer l'agent » is offered again. **The conversation itself stays in claude.ai** (nothing here can delete a cloud session): archive it there. Tested on the backend; the window was not seen on a phone.
 - **Light widget: the first two rows are swapped.** The session and repository pills are now on top, the five kinds (docs, video, page, app, Aiwa) on the second row.

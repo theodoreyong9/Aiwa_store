@@ -733,50 +733,50 @@ class SettingsActivity : ComponentActivity() {
             val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
                 add(PickerEntry("Réglages", false, header = true) { })
-                // The widget holds the five kinds, the repository, the session, the microphone: everything else is here
-                add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
-                add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
+                // The Light widget already holds the session, the repository, Claude, the loops and the campaign; only the glasses need them here
+                if (current == WidgetStyle.GLASSES) {
+                    add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
+                    add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
+                    add(PickerEntry("Ouvrir la conversation dans Claude", false, lines = 1) { open(OpenClaudeActivity::class.java) })
+                    add(PickerEntry("Boucles builder / critique${if (state.loopPair.isNotEmpty()) " : ${state.loopPair} en cours" else ""}", false, lines = 1) { open(LoopsActivity::class.java) })
+                    add(PickerEntry("Campagne", false, lines = 1) { open(ProposalsActivity::class.java) })
+                    add(PickerEntry("Code de l'app (</>)", false, lines = 1) { open(OpenCodeActivity::class.java) })
+                }
                 add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
                 if (state.repo != null) {
-                    add(PickerEntry(if (state.pushMain) "Push : direct sur main — toucher pour passer sur une branche" else "Push : sur une branche — toucher pour passer sur main", false, lines = 2) { togglePush(state.pushMain) })
+                    add(PickerEntry(if (state.pushMain) "Push : direct sur main" else "Push : sur une branche", false, lines = 1) { togglePush(state.pushMain) })
                 }
-                // One key for the speaker and the super agent
-                add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }} — pour le parleur et le super agent", false, lines = 2) { open(LlmKeyActivity::class.java) })
-                add(PickerEntry("Ouvrir la conversation dans Claude", false, lines = 2) { open(OpenClaudeActivity::class.java) })
-                add(PickerEntry("Boucles builder / critique${if (state.loopPair.isNotEmpty()) " : ${state.loopPair} en cours" else ""}", false, lines = 2) { open(LoopsActivity::class.java) })
-                add(PickerEntry("Campagne : les propositions à valider", false, lines = 2) { open(ProposalsActivity::class.java) })
-                add(PickerEntry("Code de l'app (</>)", false, lines = 2) { open(OpenCodeActivity::class.java) })
+                add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }}", false, lines = 1) { open(LlmKeyActivity::class.java) })
                 add(PickerEntry("Aiwa", false, header = true) { })
-                add(PickerEntry("Mes mots : les neuf reconnaissances (réveil, super agent, instruction, pastilles, validation, stop, éteins, renvoi)", false, lines = 3) { open(RecognitionsActivity::class.java) })
-                add(PickerEntry("État d'Aiwa : Claude, alertes, permissions", false, lines = 2) { open(HealthActivity::class.java) })
+                add(PickerEntry("Mes mots (les neuf reconnaissances)", false, lines = 1) { open(RecognitionsActivity::class.java) })
+                add(PickerEntry("État d'Aiwa", false, lines = 1) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
                 add(PickerEntry("Version : appli ${AppUpdater.installedVersion(applicationContext) ?: "?"} · cerveau ${AiwaRepository.state.value.backendVersion.takeIf { it > 0 } ?: "?"}${if (AppUpdater.readyFile(applicationContext) != null) " · mise à jour téléchargée" else ""}", false, lines = 2) { })
                 // The comment for the critic: here, in every shape of the widget (the Aiwa shape has no button for it any more)
-                add(PickerEntry("Commentaire pour le critique : signé avec ton wallet, classé par ce que tu as miné", false, lines = 2) { open(CommentActivity::class.java) })
+                add(PickerEntry("Commentaire pour le critique", false, lines = 1) { open(CommentActivity::class.java) })
                 // Only when there is no widget yet: nobody asked for a second one
                 if (!WidgetPin.hasWidget(applicationContext)) {
-                    add(PickerEntry("Ajouter le widget à l'écran d'accueil (un appui sur « Ajouter »)", false, lines = 2) {
+                    add(PickerEntry("Ajouter le widget à l'écran d'accueil", false, lines = 1) {
                         WidgetPin.request(applicationContext, explain = true)
                         finish()
                     })
                 }
 
-                add(PickerEntry(if (ReadySettings.enabled(applicationContext)) "✓  « C'est prêt » à voix haute quand une production arrive — toucher pour le couper" else "« C'est prêt » à voix haute : coupé — toucher pour le remettre", ReadySettings.enabled(applicationContext), lines = 2) {
+                add(PickerEntry(if (ReadySettings.enabled(applicationContext)) "✓  « C'est prêt » à voix haute" else "« C'est prêt » à voix haute : coupé", ReadySettings.enabled(applicationContext), lines = 1) {
                     ReadySettings.set(applicationContext, !ReadySettings.enabled(applicationContext)); finish()
                 })
-                add(PickerEntry(if (AvailabilitySettings.enabled(applicationContext)) "✓  Le super agent me demande si je suis disponible quand il y a du nouveau — toucher pour le couper" else "Le super agent ne me demande pas si je suis disponible — toucher pour le remettre", AvailabilitySettings.enabled(applicationContext), lines = 3) {
+                add(PickerEntry(if (AvailabilitySettings.enabled(applicationContext)) "✓  « Je suis disponible ? » du super agent" else "« Je suis disponible ? » du super agent : coupé", AvailabilitySettings.enabled(applicationContext), lines = 1) {
                     AvailabilitySettings.set(applicationContext, !AvailabilitySettings.enabled(applicationContext)); finish()
                 })
                 add(PickerEntry("Écoute permanente", false, header = true) { })
                 // No switch to turn it on: the super agent button of the widget is its trigger (it asks for the microphone and starts it); what stays is the way to stop it
-                if (wanted) add(PickerEntry("Éteindre l'écoute permanente (le bouton du super agent la rallume)", false, lines = 2) { toggle() })
-                add(PickerEntry("Elle reste sur le téléphone (rien n'est envoyé). Le point vert du micro reste affiché et la batterie baisse plus vite. 41 Mo à télécharger la première fois.", false, lines = 4) { })
+                if (wanted) add(PickerEntry("Éteindre l'écoute permanente", false, lines = 1) { toggle() })
                 // ONE button for everything that can be said
-                add(PickerEntry("Commandes vocales : tout ce qu'on peut dire (dictée, « instruction », mots de réveil)", false, lines = 2) { open(VoiceCommandsHelpActivity::class.java) })
+                add(PickerEntry("Commandes vocales", false, lines = 1) { open(VoiceCommandsHelpActivity::class.java) })
 
                 add(PickerEntry("Forme du widget", false, header = true) { })
-                add(PickerEntry("Light — les cinq boutons (Docs, Vidéo, Page, App, Aiwa : gris, colorés quand le dépôt contient une production), la session et le dépôt, le micro, et en bas la boucle, l'app Aiwa, le super agent, la campagne et les réglages", current == WidgetStyle.LIGHT, lines = 4) { shape(WidgetStyle.LIGHT) })
-                add(PickerEntry("Glasses — des lunettes : à gauche les boutons de Light (les cinq en colonne, les réglages, dicter), à droite le Store, le wallet, une silhouette pour chercher, own, fave, inviter", current == WidgetStyle.GLASSES, lines = 4) { shape(WidgetStyle.GLASSES) })
+                add(PickerEntry("Light", current == WidgetStyle.LIGHT, lines = 1) { shape(WidgetStyle.LIGHT) })
+                add(PickerEntry("Glasses", current == WidgetStyle.GLASSES, lines = 1) { shape(WidgetStyle.GLASSES) })
             }
             PickerSheet(entries) { finish() }
         }
