@@ -116,4 +116,4 @@ Un **onglet par campagne** et un onglet **Nouvelle campagne**.
 | Clé Anthropic qui remplace le parseur | existe en partie (repli quand le parseur échoue) |
 | Vidéos : cases documents, aperçu, cast, download, share, dossier | **fait** (fenêtre refaite ; les vidéos vivent dans `docs/videos/`) |
 | Envoi de fichiers du téléphone vers `docs/` | **pas fait** : écrire dans GitHub demande un jeton, et Aiwa n'en demande jamais ; piste : passer par la session (le fichier part dans le message, la session le range) |
-| Campagnes en onglets + formulaire | un seul écran de propositions → à refaire |
+| Campagnes en onglets + formulaire | **fait** (un dossier par campagne dans `docs/campagnes/`, onglets, formulaire, propositions par canal, aperçu avant envoi, relancer) |

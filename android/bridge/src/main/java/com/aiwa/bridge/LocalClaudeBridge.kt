@@ -320,14 +320,37 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         if (connection.contentType?.startsWith("audio/") == true) connection.inputStream.use { it.readBytes() } else null
     }
 
-    override suspend fun proposals(): ProposalList = withContext(Dispatchers.IO) {
-        val json = JSONObject(getText("/api/proposals"))
+    private fun parseProposals(text: String): ProposalList {
+        val json = JSONObject(text)
         val array = json.optJSONArray("proposals")
-        ProposalList(
+        return ProposalList(
             json.str("repo"),
             if (array == null) emptyList() else (0 until array.length()).map {
                 val v = array.getJSONObject(it)
-                Proposal(v.optString("id"), v.optString("name"), v.optString("email"), v.optString("subject"), v.optString("body"), v.optString("price"), v.optString("videoUrl"), v.optString("demoUrl"), v.optString("phone"), v.optString("chatBody"), v.optString("xBody"), v.optString("style"), v.optString("currentUrl"), v.optString("reasons"), v.optString("contacts"))
+                Proposal(
+                    v.optString("id"), v.optString("name"), v.optString("email"), v.optString("subject"), v.optString("body"), v.optString("price"), v.optString("videoUrl"), v.optString("demoUrl"),
+                    v.optString("phone"), v.optString("chatBody"), v.optString("xBody"), v.optString("style"), v.optString("currentUrl"), v.optString("reasons"), v.optString("contacts"),
+                    v.optString("type"), v.optString("profileUrl"), v.optString("docsUrl"), v.optString("appUrl"), v.optString("aiwaUrl"),
+                )
+            },
+        )
+    }
+
+    override suspend fun proposals(): ProposalList = withContext(Dispatchers.IO) { parseProposals(getText("/api/proposals")) }
+
+    override suspend fun campaignProposals(slug: String): ProposalList = withContext(Dispatchers.IO) {
+        parseProposals(getText("/api/proposals" + if (slug.isBlank()) "" else "?campaign=" + java.net.URLEncoder.encode(slug, "UTF-8")))
+    }
+
+    override suspend fun campaigns(): CampaignList = withContext(Dispatchers.IO) {
+        val json = JSONObject(getText("/api/campaigns"))
+        val array = json.optJSONArray("campaigns")
+        fun strings(o: JSONObject, key: String): List<String> = o.optJSONArray(key)?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()
+        CampaignList(
+            json.str("repo"),
+            if (array == null) emptyList() else (0 until array.length()).map {
+                val v = array.getJSONObject(it)
+                Campaign(v.optString("slug"), v.optString("name"), v.optBoolean("test"), v.optLong("createdAt"), strings(v, "documents"), strings(v, "repos"), strings(v, "makes"), strings(v, "uses"), v.optString("prompt"))
             },
         )
     }

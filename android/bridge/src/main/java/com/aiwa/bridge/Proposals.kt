@@ -20,7 +20,28 @@ data class Proposal(
     val currentUrl: String = "",
     val reasons: String = "",
     val contacts: String = "",
+    /** The channel of this target (whatsapp, telegram, mail, linkedin, or empty), the link of its profile or page, and what else was produced for it (documents, an app, an Aiwa app). */
+    val type: String = "",
+    val profileUrl: String = "",
+    val docsUrl: String = "",
+    val appUrl: String = "",
+    val aiwaUrl: String = "",
 )
+
+/** One campaign of the repository: its folder under docs/campagnes/ and what its campaign.json says (name, test, what was ticked in the form). */
+data class Campaign(
+    val slug: String,
+    val name: String,
+    val test: Boolean = false,
+    val createdAt: Long = 0,
+    val documents: List<String> = emptyList(),
+    val repos: List<String> = emptyList(),
+    val makes: List<String> = emptyList(),
+    val uses: List<String> = emptyList(),
+    val prompt: String = "",
+)
+
+data class CampaignList(val repo: String?, val campaigns: List<Campaign>)
 
 data class ProposalList(val repo: String?, val proposals: List<Proposal>)
 
@@ -41,6 +62,9 @@ object ProposalMail {
         if (price.isNotBlank()) lines.add("Prix proposé : ${price.trim()}")
         if (p.demoUrl.isNotBlank()) lines.add("Maquette de démonstration (pas le site officiel) : ${p.demoUrl}")
         if (p.videoUrl.isNotBlank()) lines.add("Vidéo de présentation : ${p.videoUrl}")
+        if (p.docsUrl.isNotBlank()) lines.add("Documents : ${p.docsUrl}")
+        if (p.appUrl.isNotBlank()) lines.add("Application : ${p.appUrl}")
+        if (p.aiwaUrl.isNotBlank()) lines.add("App Aiwa : ${p.aiwaUrl}")
         lines.add(STOP_LINE)
         val subject = (if (test) "[TEST] " else "") + p.subject.ifBlank { "Proposition pour ${p.name}" }
         return Draft(if (test) "" else p.email, subject, lines.filter { it.isNotBlank() }.joinToString("\n\n"))
@@ -117,8 +141,31 @@ object CampaignChannels {
         val lines = NAMES.entries.map { (key, label) ->
             val p = last[key]
             if (p == null) "$label : rien d'envoyé encore, pars du brief."
-            else "$label : dernier envoi « ${p.name.ifBlank { p.id }} »" + (if (p.style.isNotBlank()) " (style : ${p.style})" else " (style non noté : relis ses fichiers dans `aiwa-proposals/${p.id}/`)") + "."
+            else "$label : dernier envoi « ${p.name.ifBlank { p.id }} »" + (if (p.style.isNotBlank()) " (style : ${p.style})" else " (style non noté : relis ses fichiers dans le dossier de la campagne, `docs/campagnes/…/${p.id}/`)") + "."
         }
         return "Création $style Canal par canal : " + lines.joinToString(" ")
+    }
+}
+
+/** The campaign form: a name becomes the folder of the campaign, and what was ticked becomes the request sent to the session. Pure, so that it is tested. */
+object CampaignRequest {
+    /** « Sites dépassés — Lausanne » → « sites-depasses-lausanne »: lowercase, no accent, dashes; at most 50 characters; never empty. */
+    fun slug(name: String): String {
+        val plain = java.text.Normalizer.normalize(name.lowercase(), java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
+        val dashed = plain.replace(Regex("[^a-z0-9]+"), "-").trim('-').take(50).trim('-')
+        return dashed.ifBlank { "campagne" }
+    }
+
+    fun message(name: String, slug: String, test: Boolean, documents: List<String>, repos: List<String>, makes: List<String>, uses: List<String>, prompt: String): String {
+        val parts = ArrayList<String>()
+        parts.add("Nouvelle campagne « ${name.trim()} » (dossier docs/campagnes/$slug/).")
+        if (test) parts.add("TEST : ne cherche aucune vraie cible, prépare une seule proposition pour moi-même, avec les productions demandées.")
+        parts.add(if (documents.isEmpty()) "Aucun document du dossier docs/ à utiliser." else "Documents du dossier docs/ à utiliser (lis-les en entier) : " + documents.joinToString(", ") { "docs/$it" } + ".")
+        if (repos.isNotEmpty()) parts.add("Mes réalisations GitHub à utiliser (dépôts publics) : " + repos.joinToString(", ") + ".")
+        parts.add(if (makes.isEmpty()) "Rien de personnalisé à produire pour chaque cible." else "Pour chaque cible, produis en personnalisé : " + makes.joinToString(", ") { if (it == "video") "une vidéo" else "des documents" } + ".")
+        if (uses.isNotEmpty()) parts.add("Utilise ce que le dépôt produit déjà : " + uses.joinToString(", ") + " (mets leurs liens dans les propositions).")
+        if (prompt.isNotBlank()) parts.add("Ma demande : ${prompt.trim()}")
+        parts.add("Écris d'abord docs/campagnes/$slug/campaign.json avec ces choix. Ne me pose aucune question sauf la liste des cibles.")
+        return parts.joinToString("\n")
     }
 }

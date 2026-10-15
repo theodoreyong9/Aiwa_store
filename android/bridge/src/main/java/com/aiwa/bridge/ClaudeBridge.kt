@@ -205,4 +205,7 @@ interface ClaudeBridge {
     suspend fun loopsAction(action: String, fields: Map<String, String> = emptyMap()): String? { throw UnsupportedOperationException("loopsAction") }
     // The proposals a session prepared (`aiwa-proposals/proposals.json` of the repository): to read, validate and send by hand.
     suspend fun proposals(): ProposalList { throw UnsupportedOperationException("proposals") }
+    /** The campaigns of the repository (one folder each under docs/campagnes/) and the proposals of one of them (an empty slug = the former single list). */
+    suspend fun campaigns(): CampaignList { throw UnsupportedOperationException("campaigns") }
+    suspend fun campaignProposals(slug: String): ProposalList { throw UnsupportedOperationException("campaignProposals") }
 }
