@@ -544,3 +544,39 @@ fun endsWithCancelPhrase(text: String): Boolean {
     val pas = after.indexOf("pas")
     return pas >= 0 && after.subList(pas + 1, after.size).contains("bon")
 }
+
+/**
+ * In the instruction mode the parser recognises ONLY the two pills, session and repository (a new session counts as the session pill). Everything else — model, effort, push,
+ * quality, deployment, TV, report — is set by hand: it is dropped here, and what was said around it goes on as the message.
+ */
+fun pillCommandsOnly(commands: List<VoiceCommand>): List<VoiceCommand> =
+    commands.filter { it is VoiceCommand.NewSession || it is VoiceCommand.SelectSession || it is VoiceCommand.Repo }
+
+private fun isSessionPill(c: VoiceCommand) = c is VoiceCommand.NewSession || c is VoiceCommand.SelectSession
+
+/** A correction (« non, le dépôt … ») replaces the pill of the same kind and leaves the other as it was. */
+fun correctPills(old: List<VoiceCommand>, correction: List<VoiceCommand>): List<VoiceCommand> {
+    val newSession = correction.any { isSessionPill(it) }
+    val newRepo = correction.any { it is VoiceCommand.Repo }
+    return old.filter { !(newSession && isSessionPill(it)) && !(newRepo && it is VoiceCommand.Repo) } + correction
+}
+
+/** The name of a repository as it is said: without the owner, underscores and dashes as spaces. */
+fun spokenRepo(name: String?): String = name?.substringAfter('/')?.replace('_', ' ')?.replace('-', ' ') ?: "aucun"
+
+/**
+ * What the phone reads back before it changes the pills: BOTH the session and the repository as they will be, then the question — validate or correct. Null when there is nothing
+ * to read back.
+ */
+fun pillsRecapSentence(pills: Pills, commands: List<VoiceCommand>, problems: List<String> = emptyList()): String? {
+    if (commands.isEmpty() && problems.isEmpty()) return null
+    val after = applyCommands(pills, commands)
+    val parts = mutableListOf("Session : ${after.session ?: "nouvelle session"}", "Dépôt : ${spokenRepo(after.repo)}")
+    if (problems.isNotEmpty()) parts.add("Je n'ai pas compris : " + problems.joinToString(", "))
+    parts.add("Tu valides, ou tu corriges ?")
+    return parts.joinToString(". ")
+}
+
+/** The message the session receives when the pills were changed: where it is now (the repository, the session), then, if there was one, the rest of what was said. */
+fun pillInfoMessage(repo: String?, session: String?, message: String = ""): String =
+    "[Aiwa — pastilles] Dépôt : ${repo ?: "aucun"}. Session : ${session ?: "nouvelle session"}." + (if (message.isNotBlank()) "\n\n$message" else "")

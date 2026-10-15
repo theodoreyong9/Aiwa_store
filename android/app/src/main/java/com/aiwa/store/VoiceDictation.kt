@@ -10,6 +10,10 @@ import com.aiwa.bridge.PillReference
 import com.aiwa.bridge.Pills
 import com.aiwa.bridge.parseDictation
 import com.aiwa.bridge.recapSentence
+import com.aiwa.bridge.pillCommandsOnly
+import com.aiwa.bridge.pillsRecapSentence
+import com.aiwa.bridge.correctPills
+import com.aiwa.bridge.pillInfoMessage
 import com.aiwa.bridge.statusReport
 import androidx.glance.appwidget.updateAll
 import kotlin.coroutines.resume
@@ -204,22 +208,32 @@ class VoiceDictation(
     // Applied at the end, in an order that makes sense (the session, then the repository it works on, then the rest), then the message.
     private suspend fun runInstructions(heard: Dictation) {
         val bridge = LocalClaudeBridge()
-        // The report was read when the dictation began: it is not read a second time because "t'en es où" was said again.
-        val dictation = if (reportFirst) heard.copy(commands = heard.commands.filter { it !is VoiceCommand.Report }) else heard
         // A stop is done at once and never waits for a confirmation: stopping loses nothing, and every second counts.
-        if (dictation.commands.any { it is VoiceCommand.StopClaude }) stopClaude(appContext)
+        if (heard.commands.any { it is VoiceCommand.StopClaude }) stopClaude(appContext)
+        // The instruction mode knows ONLY the two pills, session and repository; model, effort, push, quality and deployment are set by hand.
+        var dictation = heard.copy(commands = pillCommandsOnly(heard.commands))
         var repoConfirmed = false
         if (confirmAll) {
-            val recap = recapSentence(dictation, currentPills())
-            if (recap != null) {
-                if (!confirmSentence(recap)) {
+            var corrections = 0
+            while (true) {
+                val recap = pillsRecapSentence(currentPills(), dictation.commands, dictation.problems)
+                if (recap == null) {
+                    // nothing of the pills was understood: what was said is a command for the session, it goes as it is
+                    break
+                }
+                if (confirmSentence(recap)) { repoConfirmed = true; break }
+                // Not validated: a correction said at once (« non, le dépôt … ») replaces the pill it names and is read back again; anything else cancels.
+                val said = lastHeard
+                val fix = if (corrections < 2 && said.isNotBlank()) pillCommandsOnly(parseDictation(said, voiceModels(), voiceSessions(), repoNames, true).commands) else emptyList()
+                if (fix.isEmpty()) {
                     // What was said is not lost, and nothing was applied nor sent.
                     if (dictation.message.isNotBlank()) copyToClipboard(appContext, dictation.message)
-                    toastOnMain(appContext, "Pas confirmé : rien n'est appliqué ni envoyé." + if (dictation.message.isNotBlank()) " Le message est copié." else "")
+                    toastOnMain(appContext, "Pas validé : rien n'est appliqué ni envoyé." + if (dictation.message.isNotBlank()) " Le message est copié." else "")
                     end()
                     return
                 }
-                repoConfirmed = true   // the repository was part of what was read back
+                dictation = dictation.copy(commands = correctPills(dictation.commands, fix), problems = emptyList())
+                corrections++
             }
         }
         val done = mutableListOf<String>()
@@ -287,13 +301,19 @@ class VoiceDictation(
         if (dictation.problems.isNotEmpty()) toastOnMain(appContext, "⚠ " + dictation.problems.joinToString(" · "))
         if (repoRefused) toastOnMain(appContext, "Dépôt non confirmé : il ne change pas.")
         val message = dictation.message
-        if (message.isNotBlank()) {
+        // The pills were changed: the session ALWAYS receives where it is now (repository and session), with the rest of what was said if there is any
+        val state = AiwaRepository.state.value
+        val pillsChanged = done.isNotEmpty() && !repoRefused
+        val toSend = if (pillsChanged) pillInfoMessage(state.repo, if (state.cloudSessionId != null) state.session else null, message) else message
+        if (toSend.isNotBlank()) {
             if (repoRefused) {
                 // The message was meant for the other repository: it does not go to this one. It is not lost.
-                copyToClipboard(appContext, message)
-                toastOnMain(appContext, "Le message n'est pas parti (dépôt non confirmé) : il est copié.")
+                if (message.isNotBlank()) {
+                    copyToClipboard(appContext, message)
+                    toastOnMain(appContext, "Le message n'est pas parti (dépôt non confirmé) : il est copié.")
+                }
             } else {
-                sendAndTrack(appContext, bridge, message, toastErrors = true)
+                sendAndTrack(appContext, bridge, toSend, toastErrors = true)
             }
         }
         if (report) readReport(bridge)
@@ -321,7 +341,11 @@ class VoiceDictation(
         return confirmSentence("Dépôt $spoken. Tu confirmes ?")
     }
 
+    /** What was heard in answer to the last question when it was not a yes (a correction may be in it). */
+    private var lastHeard = ""
+
     private suspend fun confirmSentence(sentence: String): Boolean {
+        lastHeard = ""
         onQuestion("$sentence Dis « c'est bon vas-y » pour confirmer")
         val asked = Speaker.speakAndWait(voiceContext, "$sentence Dis : c'est bon, vas-y.")
         if (!asked) {
@@ -336,6 +360,7 @@ class VoiceDictation(
             cont.invokeOnCancellation { confirm.cancel() }
             confirm.start()
         }
+        lastHeard = confirmListener?.heardText.orEmpty()
         onQuestion(null)
         return yes
     }

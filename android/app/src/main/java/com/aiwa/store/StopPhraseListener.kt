@@ -164,6 +164,9 @@ class ConfirmListener(context: Context, private val onAnswer: (Boolean) -> Unit)
     private fun release() { recognizer.destroy(); quiet.off() }
     private var answered = false
     private var silences = 0
+    /** What was heard when the answer was not a yes: a correction may be in it (« non, le dépôt … »). */
+    var heardText = ""
+        private set
 
     init {
         recognizer.setRecognitionListener(this)
@@ -194,6 +197,7 @@ class ConfirmListener(context: Context, private val onAnswer: (Boolean) -> Unit)
 
     override fun onResults(results: Bundle) {
         val heard = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
+        heardText = heard
         if (containsStopPhrase(heard)) answer(true) else if (heard.isBlank() && silences++ < 1) start() else answer(false)
     }
 
