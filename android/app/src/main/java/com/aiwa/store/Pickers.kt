@@ -713,7 +713,7 @@ class SettingsActivity : ComponentActivity() {
         val app = applicationContext
         WidgetStyle.set(app, shape)
         finish()
-        CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(app) }
+        WidgetStyle.refresh(app)
     }
 
     private fun togglePush(direct: Boolean) {
