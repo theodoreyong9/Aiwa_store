@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 102
+BACKEND_VERSION = 103
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -945,7 +945,11 @@ def _instruction_lines(repo, work, base, direct, origin=None):
                 "Place-la aussi dans le dépôt, sous `aiwa-apps/nom.aiwa.html` (crée le dossier), avec la consigne Push ci-dessus : c'est la copie de travail dans le dépôt (je relis le brouillon dans le Store, et le code publié avec le bouton </> du widget). "
                 if repo else
                 "Ne la pousse sur AUCUN dépôt. "
-            ) + "Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile ; "
+            ) + "COMMENCE PAR UN TEST : avant d'écrire l'app, écris le test du contrat (les événements signés qu'on lui donne, l'état et les refus attendus : une action sans signature valide est rejetée, un rejeu donne le même état), "
+            "dans un fichier `nom.aiwa.test.mjs` exécutable avec `node` (il importe le SDK par la même adresse absolue), puis écris l'app, lance le test, et ne l'envoie que s'il passe ; "
+            "mets le fichier de test à côté de l'app dans `aiwa-apps/` (il n'est pas publié : seul `nom.aiwa.html` l'est, et c'est moi qui le publie depuis ma bibliothèque, avec mon wallet). "
+            "L'app est TOUJOURS d'abord un brouillon dans ma bibliothèque : tu ne publies rien dans le registre. "
+            "Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile ; "
             "github.io peut être inaccessible depuis ta session : dis-le-moi alors, et dis ce que tu as pu vérifier quand même), puis envoie-la sur mon téléphone "
             f"avec cette commande, telle quelle : `curl -s -m 60 -T nom.aiwa.html -H 'Filename: nom.aiwa.html' -H 'Title: aiwa-app' {NTFY_SERVER}/{topic}` "
             "(un seul fichier par envoi ; si je te demande une correction, renvoie le fichier complet de la même façon ; "
