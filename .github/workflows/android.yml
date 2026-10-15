@@ -1,7 +1,7 @@
 name: Android
 # The APK: the Store's web app inside a WebView, with the optional dictation module. Built here only (no Android SDK is needed
 # anywhere else; every branch is built, so that a change is known to compile) and, from main only, published as the one file of a rolling release, tagged android-latest and recreated at each build, so
-# that the address never changes:
+# that the address never changes (also from clean: the person's phone gets the build as soon as it exists, before the merge to main):
 #   https://github.com/<owner>/<repo>/releases/download/android-latest/Aiwa_store.apk
 on:
   push:
@@ -25,6 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       # the web app goes into the APK's assets (android/app/build.gradle.kts copies apps/web/dist)
       - run: npm install
       - run: npm run build -w aiwa-store-web
@@ -38,6 +39,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
+          cache-read-only: false      # every branch writes the cache (the default is main only, and the builds are on clean)
       # Before the Android build, so that a broken backend fails fast: the backend's relay / login / app logic against a
       # fake ntfy and a fake `claude`, and the Termux scripts.
       - name: Backend tests
@@ -51,7 +53,7 @@ jobs:
           name: aiwa-store-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish the APK to the rolling release
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/clean'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
