@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Glasses widget.** The workflow, the loops and the campaign buttons are now one small row **above the settings button** (in the left lens); the buttons at the bottom of both lenses are raised so that they stay **inside the glasses**; « Code de l'app » is gone from the settings. Not seen on a phone: the row of three is small (about 12 dp).
 - **Faster updates.** The Android workflow now (1) caches npm and writes the Gradle cache from every branch (it was read-only outside main, and the builds run on `clean`), (2) publishes the rolling release `android-latest` **from `clean` too**, so the APK is available as soon as it is built and not after the merge to main, and the phone looks for a new build **every minute** instead of every 3 (GitHub answers 304 when nothing changed). Not measured yet: the first builds after this fill the cache.
 - **Settings → « Super agent ».** The window of the super agent (rhythm, a word to it, and « Détruire l'agent et recommencer ») had no way in from the widget: it is now an entry of the Settings.
 - **Settings, shorter.** The entries that repeat the Light widget (session, repository, open Claude, loops, campaign, code of the app) only show when the widget is the glasses; the explanations inside the entries (what the listening costs, what each shape shows, the toggles' « toucher pour… ») are gone. **The update button of the Light widget shows only while a build is ready** again (it disappears once installed; Settings → Version says what is installed).

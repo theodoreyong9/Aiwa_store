@@ -564,8 +564,8 @@ private fun GlassesContent(state: AiwaState) {
     val top = h * 0.17f
     val micH = (h * 0.20f).coerceIn(20f, 28f)
     // the left lens: a column of six small buttons (the five kinds and the settings) and, under them, the dictation row
-    val itemH = ((h * 0.83f - 14f - micH) / 7f).coerceIn(9f, 13f)
-    val colW = 36f
+    val itemH = ((h * 0.83f - 26f - micH) / 7f).coerceIn(9f, 13f)
+    val colW = 40f
     val band = bandInfo(state, inner - colW - 24f)
     val agentOn = state.agent?.enabled == true
     val micAct = if (agentOn) actionRunCallback<AgentMicTapCallback>() else lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))
@@ -577,10 +577,10 @@ private fun GlassesContent(state: AiwaState) {
     // No card behind: the widget IS the glasses, and the home screen shows between and around the lenses. Red rims while Claude waits.
     Box(modifier = GlanceModifier.fillMaxSize()) {
         Box(modifier = GlanceModifier.fillMaxSize().background(ImageProvider(if (state.waiting) R.drawable.glasses_frame_alert else R.drawable.glasses_frame))) {
-            Row(modifier = GlanceModifier.fillMaxSize().padding(top = top.dp, bottom = 4.dp)) {
+            Row(modifier = GlanceModifier.fillMaxSize().padding(top = top.dp, bottom = (h * 0.07f).dp)) {
                 Spacer(GlanceModifier.width(outer.dp))
                 // ---- the left lens: the buttons of the Light widget ----
-                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 10.dp, end = 10.dp, bottom = 8.dp), verticalAlignment = Alignment.Top) {
+                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 10.dp, end = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.Top) {
                     Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
                         // the column: Docs, Vidéo, Page, App, Aiwa (grey until the repository holds one), then the settings, which hold everything else
                         Column(modifier = GlanceModifier.width(colW.dp).fillMaxHeight(), verticalAlignment = Alignment.Top) {
@@ -591,12 +591,19 @@ private fun GlassesContent(state: AiwaState) {
                                     GlanceModifier.fillMaxWidth(), bold = kind.current, height = itemH.dp, textSize = 7.sp, hPad = 1.dp,
                                 )
                             }
-                            // the workflow: a spinner while one is awaited, else the button that goes to it (red when the last run failed)
-                            if (workflowPending(state)) WorkflowSpinner((itemH + 1f).dp)
-                            else RoundButton(icon = R.drawable.ic_actions, description = "Le workflow du dépôt", background = if (workflowFailed(state)) alertRed else pill, action = actionStartActivity<OpenActionsActivity>(), diameter = (itemH + 1f).dp)
+                            // above the settings, one row: the workflow (a spinner while one is awaited, red when the last run failed), the loops, the campaign
+                            Row(modifier = GlanceModifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                                val d = minOf(itemH + 1f, 12f).dp
+                                if (workflowPending(state)) WorkflowSpinner(d)
+                                else RoundButton(icon = R.drawable.ic_actions, description = "Le workflow du dépôt", background = if (workflowFailed(state)) alertRed else pill, action = actionStartActivity<OpenActionsActivity>(), diameter = d)
+                                Spacer(GlanceModifier.width(2.dp))
+                                RoundButton(icon = R.drawable.ic_loop, description = "Boucles builder / critique", background = if (state.loopPair.isNotEmpty()) green else pill, action = actionStartActivity<LoopsActivity>(), diameter = d)
+                                Spacer(GlanceModifier.width(2.dp))
+                                RoundButton(icon = R.drawable.ic_proposals, description = "Campagne : les propositions à valider", background = pill, action = actionStartActivity<ProposalsActivity>(), diameter = d)
+                            }
                             RoundButton(
                                 icon = R.drawable.ic_settings,
-                                description = "Réglages : session, dépôt, modèle, push, boucles, campagne, voix, mises à jour…",
+                                description = "Réglages",
                                 background = pill, action = actionStartActivity<SettingsActivity>(), diameter = (itemH + 1f).dp,
                             )
                         }
@@ -631,7 +638,7 @@ private fun GlassesContent(state: AiwaState) {
                 // ---- the bridge: nothing on it, it is the frame ----
                 Spacer(GlanceModifier.width(middle.dp))
                 // ---- the right lens: Store and Wallet at the top, a silhouette in the middle, own, fave and inviter at the bottom ----
-                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 10.dp, end = 10.dp, bottom = 8.dp), verticalAlignment = Alignment.Top, horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 10.dp, end = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.Top, horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 1f).dp)) {
                         Chip("Store", pill, fg, actionStartActivity<StoreActivity>(), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
                         Spacer(GlanceModifier.width(GAP.dp))

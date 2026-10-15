@@ -738,9 +738,6 @@ class SettingsActivity : ComponentActivity() {
                     add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
                     add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
                     add(PickerEntry("Ouvrir la conversation dans Claude", false, lines = 1) { open(OpenClaudeActivity::class.java) })
-                    add(PickerEntry("Boucles builder / critique${if (state.loopPair.isNotEmpty()) " : ${state.loopPair} en cours" else ""}", false, lines = 1) { open(LoopsActivity::class.java) })
-                    add(PickerEntry("Campagne", false, lines = 1) { open(ProposalsActivity::class.java) })
-                    add(PickerEntry("Code de l'app (</>)", false, lines = 1) { open(OpenCodeActivity::class.java) })
                 }
                 add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
                 if (state.repo != null) {
