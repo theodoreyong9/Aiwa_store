@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Glasses widget: no tap on the grey area of the left lens** (it opened the session list), and **the silhouette of the right lens is a real round button** (a tap on the bare picture did nothing; it should now open the search field). Not tried on a phone.
 - **Glasses widget.** The workflow, the loops and the campaign buttons are now one small row **above the settings button** (in the left lens); the buttons at the bottom of both lenses are raised so that they stay **inside the glasses**; « Code de l'app » is gone from the settings. Not seen on a phone: the row of three is small (about 12 dp).
 - **Faster updates.** The Android workflow now (1) caches npm and writes the Gradle cache from every branch (it was read-only outside main, and the builds run on `clean`), (2) publishes the rolling release `android-latest` **from `clean` too**, so the APK is available as soon as it is built and not after the merge to main, and the phone looks for a new build **every minute** instead of every 3 (GitHub answers 304 when nothing changed). Not measured yet: the first builds after this fill the cache.
 - **Settings → « Super agent ».** The window of the super agent (rhythm, a word to it, and « Détruire l'agent et recommencer ») had no way in from the widget: it is now an entry of the Settings.

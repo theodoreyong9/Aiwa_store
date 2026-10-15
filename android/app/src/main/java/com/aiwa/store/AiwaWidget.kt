@@ -608,8 +608,8 @@ private fun GlassesContent(state: AiwaState) {
                             )
                         }
                         Spacer(GlanceModifier.width(4.dp))
-                        // beside it: only what is going on, when it is not « Prêt » (the session and the repository are in the settings)
-                        Column(modifier = GlanceModifier.defaultWeight().fillMaxHeight().clickable(band.action), verticalAlignment = Alignment.Top) {
+                        // beside it: only what is going on, when it is not « Prêt » (nothing to tap here)
+                        Column(modifier = GlanceModifier.defaultWeight().fillMaxHeight(), verticalAlignment = Alignment.Top) {
                             if (band.statusText != "Prêt") Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 8.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 3)
                         }
                     }
@@ -645,8 +645,15 @@ private fun GlassesContent(state: AiwaState) {
                         Chip("Wallet", pill, fg, storeTab("wallet"), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
                     }
                     // the silhouette: a person; a tap looks for an id or an account (a widget cannot hold a text field, the real one opens)
-                    Box(modifier = GlanceModifier.fillMaxWidth().defaultWeight().clickable(actionStartActivity<SearchActivity>()), contentAlignment = Alignment.Center) {
-                        Image(provider = ImageProvider(R.drawable.ic_silhouette), contentDescription = "Chercher un identifiant ou un compte", modifier = GlanceModifier.size((h * 0.24f).coerceIn(20f, 32f).dp))
+                    Box(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), contentAlignment = Alignment.Center) {
+                        // a real button (a round one like the others): a tap on a bare picture did nothing
+                        val d = (h * 0.24f).coerceIn(20f, 32f)
+                        Box(
+                            modifier = GlanceModifier.size(d.dp).background(pill).cornerRadius((d / 2).dp).clickable(actionStartActivity<SearchActivity>()),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Image(provider = ImageProvider(R.drawable.ic_silhouette), contentDescription = "Chercher un identifiant ou un compte", modifier = GlanceModifier.size((d * 0.7f).dp))
+                        }
                     }
                     Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 1f).dp)) {
                         Chip("own", pill, fg, storeTab("mine"), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
