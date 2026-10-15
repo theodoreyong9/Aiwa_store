@@ -17,8 +17,8 @@ for (const btn of document.querySelectorAll('#app-nav button[data-view]')) btn.a
 
 $('link-source').href = `https://github.com/${config.repository}`;
 for (const link of document.querySelectorAll('#view-papers a[data-doc]')) link.href = `https://github.com/${config.repository}/${link.dataset.doc}`;
-// The film's file name carries its version (docs/videos/aiwa-v12-16x9.mp4): a new film is a new name, so a phone never shows an old copy from its cache. Read straight from raw.githubusercontent.com (no redirect).
-$('papers-video-vision').src = $('papers-video-vision-link').href = `https://raw.githubusercontent.com/${config.repository}/main/docs/videos/aiwa-v12-16x9.mp4`;
+// The film's file name carries its version (docs/videos/aiwa-v13-16x9.mp4): a new film is a new name, so a phone never shows an old copy from its cache. Read straight from raw.githubusercontent.com (no redirect).
+$('papers-video-vision').src = $('papers-video-vision-link').href = `https://raw.githubusercontent.com/${config.repository}/main/docs/videos/aiwa-v13-16x9.mp4`;
 
 initPublish();
 initStore();
