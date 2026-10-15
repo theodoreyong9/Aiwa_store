@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 96
+BACKEND_VERSION = 97
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -646,7 +646,10 @@ def _proposals_line(repo):
         "MODE CAMPAGNE : ce projet est une campagne de propositions, semi-automatisée. Elle part de ce que ma demande désigne : un fichier (dans mon message ou dans `aiwa-campagne/` : un CV, un argumentaire, une brochure…), "
         "ma création dans le dépôt et ses vidéos (dans `docs/videos/`), mes réalisations GitHub publiques si je l'ai coché : un fichier n'est PAS obligatoire. "
         "Si ma demande ne désigne rien de tout cela et que le dépôt est vide, demande-moi UNE fois par la question du widget (menu d'Aiwa → Créer à partir d'un fichier → Une campagne) et arrête-toi là. "
-        "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Le paquet que tu livres : (1) la liste des cibles, (2) un site avec son arborescence, (3) une vidéo par cible, (4) `aiwa-proposals/proposals.json` ; "
+        "DOSSIER : chaque campagne a le sien, `docs/campagnes/<campagne>/` (<campagne> = le nom de la campagne en minuscules, sans accent, avec des tirets). Écris-y d'abord `campaign.json` : "
+        "`{\"name\":\"le nom\",\"test\":false,\"createdAt\":1760000000,\"documents\":[\"ceux de docs/ que je t'ai fait utiliser\"],\"repos\":[\"mes dépôts utilisés\"],\"makes\":[\"video\",\"docs\"],\"uses\":[\"page\",\"app\",\"aiwa\"],\"prompt\":\"ma demande\"}`. "
+        "Si ma demande dit TEST, ne cherche aucune vraie cible : prépare UNE proposition pour moi-même, avec les productions demandées, pour que j'essaie le circuit sur moi. "
+        "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Le paquet que tu livres : (1) la liste des cibles, (2) un site avec son arborescence, (3) une vidéo par cible, (4) `docs/campagnes/<campagne>/proposals.json` ; "
         "ma demande dit ce qu'il faut produire pour chaque cible (un site, une vidéo, ou les deux) : ne fabrique que cela, et laisse `demoUrl` ou `videoUrl` vide pour ce qui n'est pas demandé. "
         "REPÉRAGE : quand ma demande vise des sites dépassés à remplacer, cherche les cibles avec tes outils de recherche web et ne retiens un site que sur des CONSTATS MESURÉS, jamais sur un avis : "
         "(1) pas de HTTPS ou certificat expiré (`curl -sI`) ; (2) pas adapté au téléphone : pas de `<meta name=\"viewport\">`, ou défilement horizontal à 390 px de large (Playwright, capture mobile) ; "
@@ -655,21 +658,21 @@ def _proposals_line(repo):
         "Écris pour chaque cible, dans `liste.md`, les constats avec leur valeur mesurée (les chiffres, pas « semble ancien »), garde-les dans `reasons` en une ligne, et mets l'adresse du site actuel dans `currentUrl`. Ne retiens pas une cible qui n'a qu'un constat faible. "
         "POINTS DE CONTACT : relève, sur le site de la cible lui-même, ses points de contact PUBLICS (e-mail, téléphone, adresse, horaires, formulaire, réseaux) : seulement ce qu'elle y publie, jamais une donnée déduite ou privée ; mets-les dans `contacts`, et l'e-mail et le téléphone dans `email` et `phone` s'ils y sont. "
         "La maquette REMPLAÇANTE reprend tous ces points de contact tels que la cible les publie (elle reste utilisable le jour même par ses clients), avec un site moderne qui règle chacun des constats, et sans copier ni logo ni photo sans droit. "
-        "D'abord la liste : établis-la d'après ma demande (au plus 20 cibles par lot ; seulement des coordonnées professionnelles publiques ou que je t'ai données, jamais de données privées) et écris-la dans `aiwa-proposals/liste.md` avec, pour chaque cible, pourquoi elle est retenue. "
+        "D'abord la liste : établis-la d'après ma demande (au plus 20 cibles par lot ; seulement des coordonnées professionnelles publiques ou que je t'ai données, jamais de données privées) et écris-la dans `docs/campagnes/<campagne>/liste.md` avec, pour chaque cible, pourquoi elle est retenue. "
         "Envoie-moi cette liste (noms seulement, courte) par la question du widget, avec trois choix : « Prépare ces cibles », « Retire-en… », « Annule » : c'est la SEULE fois où tu t'arrêtes pour m'attendre, ATTENDS ma réponse avant de fabriquer quoi que ce soit. "
-        "Ensuite le rendu, pour chaque cible : une maquette de site sous `aiwa-proposals/<cible>/`, dans le MÊME site (l'arborescence d'un seul site, publié par GitHub Pages, adresses non listées ; pas un dépôt par cible) : "
+        "Ensuite le rendu, pour chaque cible : une maquette de site sous `docs/campagnes/<campagne>/<cible>/`, dans le MÊME site (l'arborescence d'un seul site, publié par GitHub Pages, adresses non listées ; pas un dépôt par cible) : "
         "la maquette porte en haut, bien visible, « Maquette de démonstration, pas le site officiel de <cible> », n'utilise de la cible que ce qu'elle publie elle-même, ne copie ni logo ni photo sans droit, et n'invente rien (ni chiffre, ni client, ni avis) ; "
         "une vidéo de présentation à la qualité que j'ai choisie (la consigne vidéo s'applique : stratégie, style, critique) ; un prix proposé, justifié en une phrase dans la liste. "
-        "Puis écris `aiwa-proposals/proposals.json` : une liste d'objets "
-        "`{\"id\":\"cible\",\"name\":\"nom de la cible\",\"email\":\"adresse\",\"phone\":\"+41791234567\",\"subject\":\"…\",\"body\":\"le message, court, signé de mon nom, sans lien (les liens sont ajoutés à part)\",\"chatBody\":\"la version courte pour WhatsApp, SMS et Telegram\",\"xBody\":\"la version pour un post sur X, 200 caractères au plus, sans lien\",\"style\":\"le style de cette création en une phrase, avec les références des registres utilisées (ids)\",\"currentUrl\":\"https://… le site actuel de la cible\",\"reasons\":\"les constats mesurés qui font juger ce site dépassé, en une ligne\",\"contacts\":\"les points de contact publics de la cible, relevés sur son site\",\"price\":\"prix proposé\",\"videoUrl\":\"https://…\",\"demoUrl\":\"https://<utilisateur>.github.io/<dépôt>/aiwa-proposals/<cible>/\"}` "
-        "(videoUrl et demoUrl en https ; si tu n'as pas d'adresse sûre, laisse `email` vide ; `phone` est un numéro public de la cible au format international avec le +, ou vide : il sert à ouvrir WhatsApp ou un SMS que JE valide et envoie). "
+        "Puis écris `docs/campagnes/<campagne>/proposals.json` : une liste d'objets "
+        "`{\"id\":\"cible\",\"name\":\"nom de la cible\",\"email\":\"adresse\",\"phone\":\"+41791234567\",\"subject\":\"…\",\"body\":\"le message, court, signé de mon nom, sans lien (les liens sont ajoutés à part)\",\"chatBody\":\"la version courte pour WhatsApp, SMS et Telegram\",\"xBody\":\"la version pour un post sur X, 200 caractères au plus, sans lien\",\"style\":\"le style de cette création en une phrase, avec les références des registres utilisées (ids)\",\"currentUrl\":\"https://… le site actuel de la cible\",\"reasons\":\"les constats mesurés qui font juger ce site dépassé, en une ligne\",\"contacts\":\"les points de contact publics de la cible, relevés sur son site\",\"price\":\"prix proposé\",\"videoUrl\":\"https://…\",\"demoUrl\":\"https://<utilisateur>.github.io/<dépôt>/docs/campagnes/<campagne>/<cible>/\"}` "
+        "(champs en plus : `type` = le canal de cette cible, « whatsapp », « telegram », « mail » ou « linkedin » ; `profileUrl` = le lien de son profil ou de sa page ; `docsUrl`, `appUrl`, `aiwaUrl` pour ce que tu as produit en plus ; tous en https ; videoUrl et demoUrl en https ; si tu n'as pas d'adresse sûre, laisse `email` vide ; `phone` est un numéro public de la cible au format international avec le +, ou vide : il sert à ouvrir WhatsApp ou un SMS que JE valide et envoie). "
         "CANAL PAR CANAL : chaque canal (mail, WhatsApp/SMS/Telegram, X) a sa forme, donc son texte : `body` pour le mail, `chatBody` pour les messageries, `xBody` pour X ; et son propre fil de créations. "
         "Ma demande dit, pour la campagne, si la création est « classique » ou « innovante », et ce qui a été envoyé en dernier sur chaque canal (avec son style). "
         "Pour un canal qui a un dernier envoi : « classique » = reste dans le MÊME style que lui (cherche dans les registres des références proches : mêmes traits mesurés, même palette, même ambiance de musique), "
         "« innovante » = cherche AUTRE CHOSE (références éloignées : traits, palette et ambiance différents) tout en respectant le brief, le format et les licences. Pour un canal sans dernier envoi, pars du brief. "
         "Consulte les registres du dépôt de référence (design : `design-research/src/cli.js search`, musique, objets) pour trouver ces références, compare avec les traits du dernier style, et note dans `style` de chaque proposition le style retenu et les ids des références, "
         "pour que le prochain envoi puisse s'en servir. Ne prétends pas avoir comparé ce que tu n'as pas lu. "
-        "Pousse le tout sur la branche principale, puis dis-moi en une phrase combien de propositions sont prêtes : je les relis et je les envoie moi-même, une par une, depuis l'application (menu d'Aiwa → Propositions à valider)."
+        "Pousse le tout sur la branche principale, puis dis-moi en une phrase combien de propositions sont prêtes : je les relis et je les envoie moi-même, une par une, depuis l'application (le bouton Campagne du widget : un onglet par campagne)."
     )
 
 
@@ -2063,16 +2066,21 @@ _PHONE_RE = re.compile(r"^\+[1-9][0-9]{7,14}$")      # international form only: 
 _EMAIL_RE = re.compile(r"^[^@\s<>,;]{1,64}@[^@\s<>,;]{1,255}\.[A-Za-z]{2,}$")
 
 
-def _proposals_snapshot():
-    """The proposals a session prepared for the session's repository (`aiwa-proposals/proposals.json`, read from the public repository: no token). Everything
-    that comes back is cleaned: text of bounded size, a valid e-mail address or none, links in https only."""
+CAMPAIGN_SLUG_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$")
+PROPOSAL_TYPES = ("whatsapp", "telegram", "mail", "linkedin")
+
+
+def _proposals_snapshot(campaign=""):
+    """The proposals a session prepared for a campaign of the session's repository (`docs/campagnes/<campagne>/proposals.json`; with no campaign named, the former single place
+    `aiwa-proposals/proposals.json`), read from the public repository: no token. Everything that comes back is cleaned: text of bounded size, a valid e-mail address or none, links in https only."""
     with lock:
         session = current_cloud or last_cloud
         repo = (_session_entry(session) or {}).get("repo") if session else None
         repo = repo or current_repo
-    if not repo or not github.REPO_RE.fullmatch(repo):
+    if not repo or not github.REPO_RE.fullmatch(repo) or (campaign and not CAMPAIGN_SLUG_RE.fullmatch(campaign)):
         return {"repo": None, "proposals": []}
-    raw = _raw_get(f"{RAW_BASE}/{repo}/HEAD/aiwa-proposals/proposals.json?t={int(time.time())}", 400_000)
+    path = f"docs/campagnes/{campaign}/proposals.json" if campaign else "aiwa-proposals/proposals.json"
+    raw = _raw_get(f"{RAW_BASE}/{repo}/HEAD/{path}?t={int(time.time())}", 400_000)
     try:
         data = json.loads(raw.decode("utf-8")) if raw else []
     except (ValueError, UnicodeDecodeError):
@@ -2090,9 +2098,50 @@ def _proposals_snapshot():
         ident = re.sub(r"[^A-Za-z0-9._-]", "-", text("id", 80)) or f"p{len(items) + 1}"
         email = text("email", 320)
         phone = re.sub(r"[\s().-]", "", text("phone", 40))
+        kind = text("type", 20).lower()
         items.append({"id": ident, "name": text("name", 120), "email": email if _EMAIL_RE.match(email) else "", "phone": phone if _PHONE_RE.match(phone) else "", "subject": text("subject", 200),
-                      "body": text("body", 4000), "chatBody": text("chatBody", 1000), "xBody": text("xBody", 300), "style": text("style", 600), "currentUrl": link("currentUrl"), "reasons": text("reasons", 600), "contacts": text("contacts", 400), "price": text("price", 120), "videoUrl": link("videoUrl"), "demoUrl": link("demoUrl")})
+                      "body": text("body", 4000), "chatBody": text("chatBody", 1000), "xBody": text("xBody", 300), "style": text("style", 600), "currentUrl": link("currentUrl"), "reasons": text("reasons", 600), "contacts": text("contacts", 400), "price": text("price", 120), "videoUrl": link("videoUrl"), "demoUrl": link("demoUrl"),
+                      "type": kind if kind in PROPOSAL_TYPES else "", "profileUrl": link("profileUrl"), "docsUrl": link("docsUrl"), "appUrl": link("appUrl"), "aiwaUrl": link("aiwaUrl")})
     return {"repo": repo, "proposals": items}
+
+
+CAMPAIGN_MAX = 30
+
+
+def _campaigns_snapshot():
+    """The campaigns of the session's repository: one folder each under `docs/campagnes/`, with its `campaign.json` (name, test, what was ticked). The former single list
+    (`aiwa-proposals/proposals.json`) shows as one campaign with no slug. Public data, no token."""
+    with lock:
+        session = current_cloud or last_cloud
+        repo = (_session_entry(session) or {}).get("repo") if session else None
+        repo = repo or current_repo
+    if not repo or not github.REPO_RE.fullmatch(repo):
+        return {"repo": None, "campaigns": []}
+    try:
+        folder = _github_json(f"https://api.github.com/repos/{repo}/contents/docs/campagnes")
+    except GithubUnavailable:
+        folder = None
+    campaigns = []
+    for entry in (folder if isinstance(folder, list) else [])[:CAMPAIGN_MAX]:
+        slug = str(entry.get("name") or "") if isinstance(entry, dict) else ""
+        if entry.get("type") != "dir" or not CAMPAIGN_SLUG_RE.fullmatch(slug):
+            continue
+        raw = _raw_get(f"{RAW_BASE}/{repo}/HEAD/docs/campagnes/{slug}/campaign.json?t={int(time.time())}", 20_000)
+        try:
+            data = json.loads(raw.decode("utf-8")) if raw else {}
+        except (ValueError, UnicodeDecodeError):
+            data = {}
+        data = data if isinstance(data, dict) else {}
+        def names(key):
+            value = data.get(key)
+            return [str(v)[:120] for v in value[:30] if isinstance(v, str)] if isinstance(value, list) else []
+        campaigns.append({"slug": slug, "name": (data.get("name") if isinstance(data.get("name"), str) else slug)[:80], "test": data.get("test") is True,
+                          "createdAt": int(data["createdAt"]) if isinstance(data.get("createdAt"), (int, float)) else 0, "documents": names("documents"), "repos": names("repos"),
+                          "makes": names("makes"), "uses": names("uses"), "prompt": (data.get("prompt") if isinstance(data.get("prompt"), str) else "")[:1000]})
+    if _raw_get(f"{RAW_BASE}/{repo}/HEAD/aiwa-proposals/proposals.json?t={int(time.time())}", 400_000):
+        campaigns.append({"slug": "", "name": "Campagne précédente", "test": False, "createdAt": 0, "documents": [], "repos": [], "makes": [], "uses": [], "prompt": ""})
+    campaigns.sort(key=lambda c: -c["createdAt"])
+    return {"repo": repo, "campaigns": campaigns}
 
 
 def _videos_snapshot():
@@ -3107,8 +3156,11 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(loops_critique_text(pair_id, name) if name else loops_critiques(pair_id))
         elif self.path == "/api/inputs":
             self.reply_json(_inputs_snapshot())
-        elif self.path == "/api/proposals":
-            self.reply_json(_proposals_snapshot())
+        elif self.path == "/api/campaigns":
+            self.reply_json(_campaigns_snapshot())
+        elif self.path == "/api/proposals" or self.path.startswith("/api/proposals?"):
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            self.reply_json(_proposals_snapshot((query.get("campaign") or [""])[0]))
         elif self.path == "/api/sent-app/code":
             self.reply_json(_sent_app_code())
         else:

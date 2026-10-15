@@ -459,8 +459,47 @@ class ProposalsTests(unittest.TestCase):
         srv.deploy_mode = "campaign"
         self.addCleanup(setattr, srv, "deploy_mode", "pages")
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
-        for wanted in ("ne fabrique que cela", "REPÉRAGE", "CONSTATS MESURÉS", "POINTS DE CONTACT", "maquette REMPLAÇANTE", "currentUrl", "reasons", "contacts", "CANAL PAR CANAL", "« classique »", "« innovante »", "chatBody", "xBody", "un fichier n'est PAS obligatoire", "n'ENVOIES JAMAIS", "aiwa-proposals/proposals.json", "Maquette de démonstration, pas le site officiel", "au plus 20 cibles", "n'invente rien", "ATTENDS ma réponse"):
+        for wanted in ("ne fabrique que cela", "REPÉRAGE", "CONSTATS MESURÉS", "POINTS DE CONTACT", "maquette REMPLAÇANTE", "currentUrl", "reasons", "contacts", "CANAL PAR CANAL", "« classique »", "« innovante »", "chatBody", "xBody", "un fichier n'est PAS obligatoire", "n'ENVOIES JAMAIS", "docs/campagnes/<campagne>/proposals.json", "Maquette de démonstration, pas le site officiel", "au plus 20 cibles", "n'invente rien", "ATTENDS ma réponse"):
             self.assertIn(wanted, text)
+
+
+class CampaignsTests(unittest.TestCase):
+    """Each campaign has its folder under docs/campagnes/; its proposals carry the channel and the links of what was produced."""
+
+    def test_the_campaigns_are_the_folders_of_docs_campagnes_with_their_campaign_json(self):
+        folder = [{"name": "demo-site", "type": "dir"}, {"name": "Bad Name", "type": "dir"}, {"name": "notes.md", "type": "file"}]
+        meta = json.dumps({"name": "Sites dépassés", "test": True, "createdAt": 5, "documents": ["cv.pdf"], "makes": ["video"], "uses": ["page"], "prompt": "fais"}).encode()
+        def raw(url, limit):
+            if url.endswith("docs/campagnes/demo-site/campaign.json") or "campaign.json?t=" in url:
+                return meta
+            return None
+        with unittest.mock.patch.object(srv, "_github_json", lambda url: folder), unittest.mock.patch.object(srv, "_raw_get", raw), \
+                unittest.mock.patch.object(srv, "current_repo", "o/r"), unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None):
+            got = srv._campaigns_snapshot()
+        self.assertEqual([c["slug"] for c in got["campaigns"]], ["demo-site"], "only valid folder names")
+        self.assertEqual((got["campaigns"][0]["name"], got["campaigns"][0]["test"], got["campaigns"][0]["documents"]), ("Sites dépassés", True, ["cv.pdf"]))
+
+    def test_a_campaign_is_read_from_its_own_folder_and_the_new_fields_are_cleaned(self):
+        data = [{"id": "a", "name": "A", "type": "LinkedIn", "profileUrl": "https://linkedin.com/in/a", "docsUrl": "http://insecure", "appUrl": "https://x.y/app", "aiwaUrl": "javascript:alert(1)"}, {"id": "b", "type": "fax"}]
+        asked = []
+        def raw(url, limit):
+            asked.append(url)
+            return json.dumps(data).encode()
+        with unittest.mock.patch.object(srv, "_raw_get", raw), unittest.mock.patch.object(srv, "current_repo", "o/r"), \
+                unittest.mock.patch.object(srv, "current_cloud", None), unittest.mock.patch.object(srv, "last_cloud", None):
+            got = srv._proposals_snapshot("demo-site")
+            nothing = srv._proposals_snapshot("../evil")
+        self.assertIn("/o/r/HEAD/docs/campagnes/demo-site/proposals.json", asked[0])
+        self.assertEqual((got["proposals"][0]["type"], got["proposals"][0]["profileUrl"], got["proposals"][0]["docsUrl"], got["proposals"][0]["aiwaUrl"]), ("linkedin", "https://linkedin.com/in/a", "", ""))
+        self.assertEqual(got["proposals"][0]["appUrl"], "https://x.y/app")
+        self.assertEqual(got["proposals"][1]["type"], "", "an unknown channel is none")
+        self.assertEqual(nothing["proposals"], [], "a slug that is not a plain name reads nothing")
+
+    def test_the_campaign_instruction_names_the_folder_and_the_channels(self):
+        text = srv._proposals_line("o/r")
+        for wanted in ("docs/campagnes/<campagne>/", "campaign.json", "linkedin", "TEST", "profileUrl", "aiwaUrl"):
+            self.assertIn(wanted, text)
+        self.assertNotIn("aiwa-proposals", text)
 
 
 class MailboxTests(Base):
