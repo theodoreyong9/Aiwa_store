@@ -560,14 +560,11 @@ private fun GlassesContent(state: AiwaState) {
     val inner = w * 0.355f
     val middle = w - 2 * outer - 2 * inner
     val top = h * 0.17f
-    val micH = (h * 0.24f).coerceIn(24f, 32f)
+    val micH = (h * 0.20f).coerceIn(20f, 28f)
     // the left lens: a column of six small buttons (the five kinds and the settings) and, under them, the dictation row
-    val itemH = ((h * 0.83f - 6f - micH) / 7f).coerceIn(10f, 16f)
-    val colW = 44f
-    val textRoom = inner - 12f - colW - GAP
-    val band = bandInfo(state, textRoom)
-    val repoName = state.repo?.substringAfter('/')
-    val repoText = "⎇ " + fitLabel(repoName ?: "Dépôt", textRoom - textWidth("⎇  ▾", fontScale) - 10f, fontScale) + " ▾"
+    val itemH = ((h * 0.83f - 14f - micH) / 7f).coerceIn(9f, 13f)
+    val colW = 36f
+    val band = bandInfo(state, inner - colW - 24f)
     val micAct = lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))
     fun storeTab(tab: String): Action = actionStartIntent(
         Intent(context, StoreActivity::class.java).setData(Uri.parse("aiwa://store/$tab"))
@@ -580,7 +577,7 @@ private fun GlassesContent(state: AiwaState) {
             Row(modifier = GlanceModifier.fillMaxSize().padding(top = top.dp, bottom = 4.dp)) {
                 Spacer(GlanceModifier.width(outer.dp))
                 // ---- the left lens: the buttons of the Light widget ----
-                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight(), verticalAlignment = Alignment.Top) {
+                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 10.dp, end = 10.dp, bottom = 8.dp), verticalAlignment = Alignment.Top) {
                     Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
                         // the column: Docs, Vidéo, Page, App, Aiwa (grey until the repository holds one), then the settings, which hold everything else
                         Column(modifier = GlanceModifier.width(colW.dp).fillMaxHeight(), verticalAlignment = Alignment.Top) {
@@ -588,7 +585,7 @@ private fun GlassesContent(state: AiwaState) {
                                 Chip(
                                     kind.word, if (kind.found) green else PILL_DIM, if (kind.found) fg else TEXT_DIM,
                                     actionRunCallback<PickKindCallback>(actionParametersOf(MODE_KEY to kind.mode, KIND_FOUND_KEY to (if (kind.found) "1" else "0"))),
-                                    GlanceModifier.fillMaxWidth(), bold = kind.current, height = itemH.dp, textSize = 8.sp, hPad = 2.dp,
+                                    GlanceModifier.fillMaxWidth(), bold = kind.current, height = itemH.dp, textSize = 7.sp, hPad = 1.dp,
                                 )
                             }
                             // the workflow: a spinner while one is awaited, else the button that goes to it (red when the last run failed)
@@ -600,18 +597,10 @@ private fun GlassesContent(state: AiwaState) {
                                 background = pill, action = actionStartActivity<SettingsActivity>(), diameter = (itemH + 1f).dp,
                             )
                         }
-                        Spacer(GlanceModifier.width(GAP.dp))
-                        // beside it: the repository list, then the session and what is going on
-                        Column(modifier = GlanceModifier.defaultWeight().fillMaxHeight(), verticalAlignment = Alignment.Top) {
-                            Chip(
-                                repoText, if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
-                                lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxWidth(), alignStart = true, height = (itemH + 2f).dp, textSize = 8.sp, hPad = 5.dp,
-                            )
-                            Spacer(GlanceModifier.height(3.dp))
-                            Column(modifier = GlanceModifier.fillMaxWidth().clickable(band.action)) {
-                                Text(band.title, style = TextStyle(color = fg, fontSize = 9.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-                                Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 8.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 2)
-                            }
+                        Spacer(GlanceModifier.width(4.dp))
+                        // beside it: only what is going on, when it is not « Prêt » (the session and the repository are in the settings)
+                        Column(modifier = GlanceModifier.defaultWeight().fillMaxHeight().clickable(band.action), verticalAlignment = Alignment.Top) {
+                            if (band.statusText != "Prêt") Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 8.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 3)
                         }
                     }
                     // the bottom: dictate, the question when Claude asks one, the update when one is ready
@@ -621,40 +610,40 @@ private fun GlassesContent(state: AiwaState) {
                             contentAlignment = Alignment.Center,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(18.dp))
-                                Spacer(GlanceModifier.width(6.dp))
-                                Text("Dicter", style = TextStyle(color = fg, fontSize = 15.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                                Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(14.dp))
+                                Spacer(GlanceModifier.width(5.dp))
+                                Text("Dicter", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                             }
                         }
                         if (state.ask != null) {
                             Spacer(GlanceModifier.width(GAP.dp))
-                            RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = (micH - 4f).dp)
+                            RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = (micH - 2f).dp)
                         }
                         if (state.appUpdateReady) {
                             Spacer(GlanceModifier.width(GAP.dp))
-                            RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = (micH - 4f).dp)
+                            RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = (micH - 2f).dp)
                         }
                     }
                 }
                 // ---- the bridge: nothing on it, it is the frame ----
                 Spacer(GlanceModifier.width(middle.dp))
                 // ---- the right lens: Store and Wallet at the top, a silhouette in the middle, own, fave and inviter at the bottom ----
-                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight(), verticalAlignment = Alignment.Top, horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 2f).dp)) {
-                        Chip("Store", pill, fg, actionStartActivity<StoreActivity>(), GlanceModifier.defaultWeight(), height = (itemH + 2f).dp, textSize = 8.sp, hPad = 2.dp)
+                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 10.dp, end = 10.dp, bottom = 8.dp), verticalAlignment = Alignment.Top, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 1f).dp)) {
+                        Chip("Store", pill, fg, actionStartActivity<StoreActivity>(), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
                         Spacer(GlanceModifier.width(GAP.dp))
-                        Chip("Wallet", pill, fg, storeTab("wallet"), GlanceModifier.defaultWeight(), height = (itemH + 2f).dp, textSize = 8.sp, hPad = 2.dp)
+                        Chip("Wallet", pill, fg, storeTab("wallet"), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
                     }
                     // the silhouette: a person; a tap looks for an id or an account (a widget cannot hold a text field, the real one opens)
                     Box(modifier = GlanceModifier.fillMaxWidth().defaultWeight().clickable(actionStartActivity<SearchActivity>()), contentAlignment = Alignment.Center) {
-                        Image(provider = ImageProvider(R.drawable.ic_silhouette), contentDescription = "Chercher un identifiant ou un compte", modifier = GlanceModifier.size((h * 0.28f).coerceIn(24f, 40f).dp))
+                        Image(provider = ImageProvider(R.drawable.ic_silhouette), contentDescription = "Chercher un identifiant ou un compte", modifier = GlanceModifier.size((h * 0.24f).coerceIn(20f, 32f).dp))
                     }
-                    Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 2f).dp)) {
-                        Chip("own", pill, fg, storeTab("mine"), GlanceModifier.defaultWeight(), height = (itemH + 2f).dp, textSize = 8.sp, hPad = 1.dp)
+                    Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 1f).dp)) {
+                        Chip("own", pill, fg, storeTab("mine"), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
                         Spacer(GlanceModifier.width(3.dp))
-                        Chip("fave", pill, fg, storeTab("favorites"), GlanceModifier.defaultWeight(), height = (itemH + 2f).dp, textSize = 8.sp, hPad = 1.dp)
+                        Chip("fave", pill, fg, storeTab("favorites"), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
                         Spacer(GlanceModifier.width(3.dp))
-                        Chip("inviter", pill, fg, actionStartActivity<InviteActivity>(), GlanceModifier.defaultWeight(), height = (itemH + 2f).dp, textSize = 8.sp, hPad = 1.dp)
+                        Chip("inviter", pill, fg, actionStartActivity<InviteActivity>(), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
                     }
                 }
                 Spacer(GlanceModifier.width(outer.dp))
