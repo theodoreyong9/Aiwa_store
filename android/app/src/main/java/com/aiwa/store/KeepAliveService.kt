@@ -32,6 +32,7 @@ private const val NOTIFICATION_ID = 1
 // An app Claude sent (the "Store" mode) gets a notification of its own (with a sound and on the lock
 // screen): the card below is silent and permanent, and a new one is news.
 private const val APP_CHANNEL_ID = "aiwa_app"
+private const val AVAILABLE_NOTIFICATION_ID = 7421
 private const val APP_NOTIFICATION_ID = 2
 private const val ASK_NOTIFICATION_ID = 3
 private const val PAGES_NOTIFICATION_ID = 4
@@ -117,6 +118,7 @@ class KeepAliveService : Service() {
                 announceAsk(it)
                 announcePagesHint(it)
                 announceReady(it)
+                announceAvailability(it)
             }
         }
         if (poller?.isActive != true) poller = CoroutineScope(Dispatchers.IO).launch { pollBackend() }
@@ -130,6 +132,44 @@ class KeepAliveService : Service() {
         val was = spokenFresh
         spokenFresh = state.ciFresh
         if (state.ciFresh && !was && ReadySettings.enabled(applicationContext)) CoroutineScope(Dispatchers.Default).launch { Speaker.speakAndWait(applicationContext, "C'est prêt") }
+    }
+
+    // The super agent is set up but its listening is off: when something worth reporting happens (a new production, a failed workflow, a question), the phone speaks first and asks if the person is available.
+    // « Oui » is a tap (the notification, or the super agent button): the microphone cannot be opened from the background. The agent then reports the whole activity since the last message the person
+    // sent it, and proposes an idea. At most once in half an hour; can be switched off in the settings.
+    private var seenFresh = false
+    private var seenFailure = false
+    private var seenAsk = 0L
+
+    private fun announceAvailability(state: AiwaState) {
+        val fresh = state.ciFresh && !seenFresh
+        val failure = state.ciState == "failure" && !seenFailure
+        val ask = state.ask?.ts?.takeIf { it != seenAsk }
+        seenFresh = state.ciFresh
+        seenFailure = state.ciState == "failure"
+        if (ask != null) seenAsk = ask
+        if (!fresh && !failure && ask == null) return
+        val agent = state.agent ?: return
+        if ((agent.session == null && agent.llm != "ready") || agent.enabled || state.listening || !AvailabilitySettings.enabled(applicationContext)) return
+        val prefs = getSharedPreferences("aiwa_hints", MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        if (now - prefs.getLong("available_asked", 0L) < 30 * 60_000L) return
+        prefs.edit().putLong("available_asked", now).apply()
+        val tap = PendingIntent.getActivity(
+            this, 4, Intent(this, AgentToggleActivity::class.java).putExtra(AgentToggleActivity.EXTRA_REPORT, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val notification = Notification.Builder(this, APP_CHANNEL_ID)
+            .setContentTitle("Je suis disponible : un rapport ?")
+            .setContentText("Touche pour que le super agent te fasse le rapport de ton activité et te propose une idée.")
+            .setSmallIcon(R.drawable.ic_agent)
+            .setContentIntent(tap)
+            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_agent), "Oui", tap).build())
+            .setAutoCancel(true)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .build()
+        getSystemService(NotificationManager::class.java).notify(AVAILABLE_NOTIFICATION_ID, notification)
+        CoroutineScope(Dispatchers.Default).launch { Speaker.speakNatural(applicationContext, "Tu es disponible ? Je peux te faire le rapport de ton activité.") }
     }
 
     // The same story as the widget's first band.
@@ -400,4 +440,11 @@ object ReadySettings {
     private const val PREFS = "aiwa_listen"
     fun enabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("say_ready", true)
     fun set(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("say_ready", on).apply() }
+}
+
+/** « Je suis disponible ? »: the super agent asks first when its listening is off and something happened; on by default, switched in the settings. */
+object AvailabilitySettings {
+    private const val PREFS = "aiwa_listen"
+    fun enabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("ask_available", true)
+    fun set(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("ask_available", on).apply() }
 }

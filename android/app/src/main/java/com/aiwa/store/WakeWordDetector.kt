@@ -24,6 +24,8 @@ class WakeWordDetector(
     private val custom: List<String> = emptyList(),
     /** The spellings of the word chosen for the super agent (slot "liaison"); empty = only « mon super agent ». */
     private val liaison: List<String> = emptyList(),
+    /** The spellings chosen for instruction, stop, éteins and renvoi (empty lists = the words of origin only). */
+    private val more: com.aiwa.bridge.WakeCustoms = com.aiwa.bridge.WakeCustoms(),
     private val onWake: (WakeKind) -> Unit,
     private val onFailure: (String) -> Unit,
     /** True while a sound or a video plays on the phone (another app). With [pauseOnMedia], the microphone is then given back and listening waits: a video is never paused by it, and its own sound is never taken for a word. */
@@ -79,7 +81,7 @@ class WakeWordDetector(
         var interrupted = false
         var sinceCheck = 0
         try {
-            Recognizer(model, sampleRate.toFloat(), WakeWords.grammar(custom + liaison)).use { recognizer ->
+            Recognizer(model, sampleRate.toFloat(), WakeWords.grammar(custom + liaison + more.all())).use { recognizer ->
                 record.startRecording()
                 val buffer = ShortArray(2048)
                 while (running) {
@@ -89,7 +91,7 @@ class WakeWordDetector(
                     // about every second (8 reads of 128 ms): has a media started? then the microphone goes back and this listening ends
                     if (pauseOnMedia && ++sinceCheck >= 8) { sinceCheck = 0; if (mediaPlaying()) { interrupted = true; break } }
                     val heard = if (recognizer.acceptWaveForm(buffer, n)) JSONObject(recognizer.result).optString("text") else JSONObject(recognizer.partialResult).optString("partial")
-                    val kind = if (heard.isEmpty()) null else wakeKind(heard, custom, liaison)
+                    val kind = if (heard.isEmpty()) null else wakeKind(heard, custom, liaison, more)
                     if (kind != null) { woken = kind; running = false }
                 }
             }

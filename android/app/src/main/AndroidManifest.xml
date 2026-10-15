@@ -183,6 +183,10 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
+        <activity android:name=".RecognitionsActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".LlmKeyActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""

@@ -1587,6 +1587,14 @@ class HttpTests(Base):
             self.assertIn("Oublie le dernier message du super agent", sent[-1][1])
             self.assertEqual(self.call("/api/agent/stop", "{}")["told"], 0, "nobody left to tell")
 
+    def test_resending_the_instructions_makes_the_next_message_carry_them_in_full(self):
+        updated = []
+        with unittest.mock.patch.object(srv, "current_cloud", "session_X"), unittest.mock.patch.object(srv, "_update_session", lambda sid, **kw: updated.append((sid, kw))):
+            self.assertTrue(self.call("/api/instructions/resend", "")["ok"])
+        self.assertEqual(updated, [("session_X", {"instr": {}})])
+        with unittest.mock.patch.object(srv, "current_cloud", None):
+            self.assertFalse(self.call("/api/instructions/resend", "")["ok"])
+
     def test_changing_the_mode_never_changes_the_session_the_repository_the_model_or_the_push(self):
         self.addCleanup(lambda: [setattr(srv, k, v) for k, v in saved.items()])
         saved = {k: getattr(srv, k) for k in ("current_cloud", "last_cloud", "current_repo", "current_model", "current_effort", "push_main", "deploy_mode")}

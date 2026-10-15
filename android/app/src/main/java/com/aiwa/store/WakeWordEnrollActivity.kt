@@ -70,7 +70,9 @@ class WakeWordEnrollActivity : ComponentActivity() {
     private fun buildScreen() {
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(24), dp(20), dp(24)) }
         fun text(t: String, size: Float, bold: Boolean = false) = TextView(this).apply { text = t; textSize = size; if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD); setPadding(0, dp(6), 0, dp(6)) }
-        column.addView(text(if (liaisonSlot) "Mon mot pour le super agent" else "Mon mot d'éveil", 22f, true))
+        val recognition = com.aiwa.bridge.Recognitions.slot(slot)
+        column.addView(text("Mon mot : " + (recognition?.label ?: "éveil"), 22f, true))
+        recognition?.let { column.addView(text(it.help, 14f)) }
         column.addView(text("Dis ton mot trois fois, distinctement. Le téléphone garde la façon dont il l'entend : ça marche pour n'importe quel mot, même « Aiwa ». Tout reste sur le téléphone.", 15f))
         name = EditText(this).apply { hint = "Comment l'appeler à l'écran (facultatif)"; inputType = InputType.TYPE_CLASS_TEXT; setText(WakeWordSettings.name(this@WakeWordEnrollActivity, slot)) }
         column.addView(name)
@@ -79,7 +81,11 @@ class WakeWordEnrollActivity : ComponentActivity() {
         say = Button(this).apply { text = "Dire mon mot (1/3)"; isEnabled = false; setOnClickListener { sayWord() } }
         save = Button(this).apply { text = "Enregistrer ce mot"; visibility = View.GONE; setOnClickListener { saveWord() } }
         test = Button(this).apply { text = "Tester mon mot"; visibility = if (WakeWordSettings.variants(this@WakeWordEnrollActivity, slot).isEmpty()) View.GONE else View.VISIBLE; isEnabled = false; setOnClickListener { testWord() } }
-        reset = Button(this).apply { text = if (liaisonSlot) "Remettre « mon super agent »" else "Remettre « mon agent »"; setOnClickListener { WakeWordSettings.clear(this@WakeWordEnrollActivity, slot); name.setText(""); test.visibility = View.GONE; show(if (liaisonSlot) "C'est de nouveau « mon super agent »." else "C'est de nouveau « mon agent » (et « instruction »).") } }
+        reset = Button(this).apply {
+            val origin = recognition?.defaults?.joinToString(" / ") { "« $it »" } ?: "« mon agent »"
+            text = "Remettre $origin"
+            setOnClickListener { WakeWordSettings.clear(this@WakeWordEnrollActivity, slot); name.setText(""); test.visibility = View.GONE; Vocabulary.changed(this@WakeWordEnrollActivity); show("C'est de nouveau $origin.") }
+        }
         val pause = android.widget.CheckBox(this).apply {
             text = "Ne pas écouter pendant qu'un son ou une vidéo joue (la vidéo n'est plus mise en pause par le micro ; le mot d'éveil ne marche alors pas pendant la lecture)"
             isChecked = WakeWordSettings.pauseOnMedia(this@WakeWordEnrollActivity)
@@ -169,6 +175,7 @@ class WakeWordEnrollActivity : ComponentActivity() {
         if (pending.isEmpty()) return
         val label = name.text.toString().trim().ifEmpty { pending.first() }
         WakeWordSettings.save(this, label, pending, slot)
+        Vocabulary.changed(this)
         save.visibility = View.GONE; test.visibility = View.VISIBLE; tests = 0; recognised = 0
         show("C'est enregistré : « $label ». Appuie sur « Tester mon mot » et dis-le plusieurs fois pour voir s'il est bien reconnu.")
     }

@@ -14,7 +14,9 @@ private val STOP_PHRASE_ANYWHERE = Regex("""\bc['\s]?est\s+bon,?\s+vas[\s-]?y\b"
 // "Vas-y dis-lui": the proposal of the agent is to be sent (only listened for while one is waiting).
 private val SEND_PROPOSAL_REGEX = Regex("""\b(?:vas[\s-]?y,?\s+)?di[st][\s-]?lui\b[!.\s]*$""", RegexOption.IGNORE_CASE)
 
-fun containsStopPhrase(text: String): Boolean = STOP_PHRASE_ANYWHERE.containsMatchIn(text)
+/** The validation: « c'est bon vas-y », or what the person wrote for it (Recognitions « Validation »). */
+fun containsStopPhrase(text: String): Boolean =
+    STOP_PHRASE_ANYWHERE.containsMatchIn(text) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("validation", com.aiwa.bridge.WakeWords.plain(text))
 
 private fun stripStopPhrase(text: String): String? {
     val match = STOP_PHRASE_REGEX.find(text) ?: return null

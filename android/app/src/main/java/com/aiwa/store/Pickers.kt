@@ -759,6 +759,193 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Campagne : les propositions à valider", false, lines = 2) { open(ProposalsActivity::class.java) })
                 add(PickerEntry("Code de l'app (</>)", false, lines = 2) { open(OpenCodeActivity::class.java) })
                 add(PickerEntry("Aiwa", false, header = true) { })
+                add(PickerEntry("Mes mots : les neuf reconnaissances (réveil, super agent, instruction, pastilles, validation, stop, éteins, renvoi)", false, lines = 3) { open(RecognitionsActivity::class.java) })
+                add(PickerEntry("État d'Aiwa", false, header = true) { })
+                add(
+                    PickerEntry(
+                        if (state.backend == "up") "✓  Backend (Termux) : en marche"
+                        else if (state.backend == "missing") "⚠  Backend " + (if (state.backendMissing == "termux") ": Termux n'est pas installé" else "non installé dans Termux") + " — toucher pour copier la ligne d'installation"
+                        else "⚠  Backend " + (if (state.backend == "starting") "en démarrage…" else "arrêté") + " — toucher pour relancer",
+                        state.backend == "up",
+                    ) { if (state.backend == "missing") installBackend() else restartBackend() },
+                )
+                when (state.claudeLogin) {
+                    "ok" -> add(PickerEntry("✓  Claude : connecté", true) { })
+                    "needed" -> add(PickerEntry("⚠  Claude n'est pas connecté — connecter…", false) { openLogin() })
+                    else -> add(PickerEntry("…  Claude : connexion pas vérifiée — vérifier ou connecter…", false) { openLogin() })
+                }
+                when (state.relayCloud) {
+                    "ok" -> add(PickerEntry("✓  Alertes du cloud : le relais ntfy.sh répond", true) { })
+                    "pending" -> add(PickerEntry("⏳  Alertes du cloud : test en cours (la réponse de Claude peut prendre une minute)…", false, lines = 3) { })
+                    "missing" -> {
+                        add(PickerEntry("⚠  Alertes du cloud bloquées : le cloud ne joint pas ntfy.sh — autoriser…", false, lines = 3) { allowRelay() })
+                        add(
+                            PickerEntry(
+                                "Sur claude.ai/code : ton environnement (la roue crantée) → Accès réseau « Custom » → Domaines autorisés : " +
+                                    "ajoute ntfy.sh (et coche « Also include default list » pour garder les autres). « ntfy.sh » est copié quand tu touches la ligne du dessus ; ensuite, « Retester ».",
+                                false, lines = 7,
+                            ) { },
+                        )
+                        add(PickerEntry("Retester maintenant (demandé à la session en cours)", false) { retest() })
+                    }
+                    else -> {
+                        add(PickerEntry("…  Alertes du cloud : pas encore testées (le test part avec le premier message d'une nouvelle session)", false, lines = 3) { })
+                        add(PickerEntry("Tester maintenant (demandé à la session en cours)", false) { retest() })
+                    }
+                }
+                // What the Actions button is about: which GitHub run the backend follows.
+                state.ciDetail?.let { detail ->
+                    add(PickerEntry("Dernier résultat GitHub suivi : " + detail, false, lines = 4) { })
+                }
+                add(PickerEntry("Permissions Termux et notifications…", false) { go(SetupActivity::class.java) })
+                add(PickerEntry("Choisir la session…", false) { go(SessionPickerActivity::class.java) })
+            }
+            PickerSheet(entries) { finish() }
+        }
+    }
+
+    private fun go(target: Class<*>) {
+        startActivity(Intent(this, target))
+        finish()
+    }
+
+    private fun openLogin() = go(ClaudeLoginActivity::class.java)
+
+    private fun installBackend() {
+        startActivity(Intent(this, InstallHelpActivity::class.java))
+        finish()
+    }
+
+    private fun restartBackend() {
+        startAiwaBackendViaTermux(applicationContext, forceRestart = true)
+        toastOnMain(this, "Relance du backend demandée à Termux (10 à 20 s).")
+        finish()
+    }
+
+    private fun allowRelay() {
+        copyToClipboard(this, "ntfy.sh")
+        if (!openUrl(applicationContext, "https://claude.ai/code")) toastOnMain(this, "Impossible d'ouvrir le navigateur : va sur claude.ai/code.")
+        else toastOnMain(this, "« ntfy.sh » est copié : colle-le dans les domaines autorisés de ton environnement.")
+        finish()
+    }
+
+    private fun retest() {
+        val app = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch {
+            val bridge = LocalClaudeBridge()
+            try {
+                bridge.relayRetest()
+                toastOnMain(app, "Test demandé à la session : la réponse de Claude peut prendre une minute.")
+            } catch (err: Exception) {
+                toastOnMain(app, "Test non envoyé : ${err.message}")
+            }
+            BackendSync.refresh(bridge)
+            AiwaWidget().updateAll(app)
+        }
+    }
+}
+
+/**
+ * What Claude is asked to produce with the work: the widget's Deploy chip opens this list (it used
+ * to cycle through the four states at each tap). Told to Claude with the next message.
+ */
+class DeployPickerActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        wakeAiwa(applicationContext)
+        setContent {
+            val state by AiwaRepository.state.collectAsState()
+            val entries = buildList {
+                add(PickerEntry("Que doit produire Claude ? (dès le prochain message)", false, header = true) { })
+                // Level 1 (AccessGate) has GitHub Pages and the Android APK only.
+                DEPLOY_CHOICES.filter { state.accessLevel >= 2 || !deliversApp(it.id.orEmpty()) }.forEach { choice ->
+                    add(PickerEntry(choice.label, choice.id == state.deploy, lines = 3) { pick(choice.id) })
+                }
+            }
+            PickerSheet(entries) { finish() }
+        }
+    }
+
+    private fun pick(mode: String?) {
+        val app = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch { switchOptions(app, LocalClaudeBridge(), deploy = mode) }
+        // the campaign mode simply asks for a file: its window opens at once
+        if (mode == "campaign") startActivity(Intent(app, FileCreationActivity::class.java).putExtra("campaign", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+}
+
+
+/**
+ * The settings button of the widget: ONE list. What used to be four buttons (the model, the push, the state of the workflow) AND the whole menu d'Aiwa (the wake word, the state
+ * of Aiwa, the updates, the always-on listening), then ONE button for everything that can be said (the dictation instructions: VoiceCommandsHelpActivity), then the shape of
+ * the widget, classic or glasses. The pill on the widget says the state in a few words; this is where it is changed.
+ */
+class SettingsActivity : ComponentActivity() {
+    private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) turnOn() else toastOnMain(applicationContext, "Écoute permanente : sans la permission du micro, rien à faire.")
+    }
+
+    private fun turnOn() {
+        ListenSettings.setEnabled(this, true)
+        WakeWordService.start(this)
+    }
+
+    private fun toggle() {
+        if (ListenSettings.enabled(this)) {
+            ListenSettings.setEnabled(this, false)
+            WakeWordService.stop(this)
+        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            turnOn()
+        } else {
+            micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    private fun open(screen: Class<*>) {
+        finish()
+        startActivity(Intent(this, screen))
+    }
+
+    private fun shape(shape: String) {
+        val app = applicationContext
+        WidgetStyle.set(app, shape)
+        finish()
+        CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(app) }
+    }
+
+    private fun togglePush(direct: Boolean) {
+        val app = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch { switchOptions(app, LocalClaudeBridge(), pushMain = !direct) }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        wakeAiwa(applicationContext)
+        setContent {
+            val state by AiwaRepository.state.collectAsState()
+            val current = WidgetStyle.current(applicationContext)
+            val ci = when (state.ciState) { "success" -> "réussi ✓"; "failure" -> "échec ✗"; "running" -> "en cours …"; else -> "état inconnu" }
+            // the switch is the person's wish; "listening" is whether the service is running (after a restart of the phone it is not, until the app is opened)
+            val wanted = ListenSettings.enabled(this) || state.listening
+            val entries = buildList {
+                add(PickerEntry("Réglages", false, header = true) { })
+                // The widget holds the five kinds, the repository, the session, the microphone: everything else is here
+                add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
+                add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
+                add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
+                if (state.repo != null) {
+                    add(PickerEntry(if (state.pushMain) "Push : direct sur main — toucher pour passer sur une branche" else "Push : sur une branche — toucher pour passer sur main", false, lines = 2) { togglePush(state.pushMain) })
+                }
+                // One key for the speaker and the super agent
+                add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }} — pour le parleur et le super agent", false, lines = 2) { open(LlmKeyActivity::class.java) })
+                add(PickerEntry("Ouvrir la conversation dans Claude", false, lines = 2) { open(OpenClaudeActivity::class.java) })
+                add(PickerEntry("Boucles builder / critique${if (state.loopPair.isNotEmpty()) " : ${state.loopPair} en cours" else ""}", false, lines = 2) { open(LoopsActivity::class.java) })
+                add(PickerEntry("Campagne : les propositions à valider", false, lines = 2) { open(ProposalsActivity::class.java) })
+                add(PickerEntry("Code de l'app (</>)", false, lines = 2) { open(OpenCodeActivity::class.java) })
+                add(PickerEntry("Aiwa", false, header = true) { })
                 add(PickerEntry("Mon mot d'éveil : le choisir ou le changer, même « Aiwa »", false, lines = 2) { open(WakeWordEnrollActivity::class.java) })
                 add(PickerEntry("Mon mot pour le super agent : le choisir ou le changer (« mon super agent » par défaut)", false, lines = 2) {
                     startActivity(Intent(this@SettingsActivity, WakeWordEnrollActivity::class.java).putExtra("slot", "liaison"))
@@ -778,6 +965,9 @@ class SettingsActivity : ComponentActivity() {
 
                 add(PickerEntry(if (ReadySettings.enabled(applicationContext)) "✓  « C'est prêt » à voix haute quand une production arrive — toucher pour le couper" else "« C'est prêt » à voix haute : coupé — toucher pour le remettre", ReadySettings.enabled(applicationContext), lines = 2) {
                     ReadySettings.set(applicationContext, !ReadySettings.enabled(applicationContext)); finish()
+                })
+                add(PickerEntry(if (AvailabilitySettings.enabled(applicationContext)) "✓  Le super agent me demande si je suis disponible quand il y a du nouveau — toucher pour le couper" else "Le super agent ne me demande pas si je suis disponible — toucher pour le remettre", AvailabilitySettings.enabled(applicationContext), lines = 3) {
+                    AvailabilitySettings.set(applicationContext, !AvailabilitySettings.enabled(applicationContext)); finish()
                 })
                 add(PickerEntry("Écoute permanente", false, header = true) { })
                 // No switch to turn it on: the super agent button of the widget is its trigger (it asks for the microphone and starts it); what stays is the way to stop it

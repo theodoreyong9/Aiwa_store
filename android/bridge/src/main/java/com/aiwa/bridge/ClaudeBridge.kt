@@ -192,6 +192,8 @@ interface ClaudeBridge {
 
     // The person's own Anthropic key (optional): kept in the backend only. Returns the reason when it fails, else null. `llmKey(null)` removes it.
     suspend fun llmKey(key: String?): String? { throw UnsupportedOperationException("llmKey") }
+    /** The session in use will carry the general instructions (and those of the pills) in full with its next message; null when it did, else why not. */
+    suspend fun resendInstructions(): String? { throw UnsupportedOperationException("resendInstructions") }
     // A sentence the keyword parser did not understand, read by Claude: (spoken instruction for the parser, the rest for the work session), or null.
     suspend fun llmCommands(text: String): Pair<String, String>? { throw UnsupportedOperationException("llmCommands") }
 

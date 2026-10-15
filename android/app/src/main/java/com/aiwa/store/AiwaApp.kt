@@ -51,6 +51,7 @@ class AiwaApp : Application() {
         AiwaRepository.restore(this)
         AiwaRepository.update { it.copy(videoView = WidgetStyle.videoView(this)) }
         AccessGate.load(this)
+        WakeWordSettings.applyVocabulary(this)
         wakeAiwa(this)
     }
 }

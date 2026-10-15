@@ -377,3 +377,21 @@ suspend fun stopClaude(context: Context): Boolean {
     AiwaWidget().updateAll(context)
     return sent
 }
+
+/**
+ * « Renvoie les instructions »: the session in use is told to carry the general instructions again, and the message that goes now is the pills' (repository and session), which therefore
+ * brings both the general instructions and the pills' ones. True when the message went.
+ */
+suspend fun resendInstructions(context: Context): Boolean {
+    val bridge = LocalClaudeBridge()
+    val problem = try { bridge.resendInstructions() } catch (err: Exception) { err.message ?: "?" }
+    // no session yet: the next message carries everything anyway, the pills' message below is that message
+    if (problem != null && AiwaRepository.state.value.cloudSessionId != null) {
+        toastOnMain(context, "Instructions non renvoyées : $problem")
+        return false
+    }
+    val state = AiwaRepository.state.value
+    val sent = sendAndTrack(context, bridge, com.aiwa.bridge.pillInfoMessage(state.repo, if (state.cloudSessionId != null) state.session else null, "Voici de nouveau les instructions générales et celles des pastilles."), toastErrors = true)
+    AiwaWidget().updateAll(context)
+    return sent
+}

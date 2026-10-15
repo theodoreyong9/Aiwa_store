@@ -42,7 +42,11 @@ object ListenSettings {
 object WakeWordSettings {
     private const val PREFS = "aiwa_listen"
     // Two words can be chosen: slot "agent" (the wake word of the dictation, « mon agent » by default) and slot "liaison" (the call of the super agent, « mon super agent » by default).
-    private fun keys(slot: String) = if (slot == "liaison") "liaison_custom" to "liaison_name" else "custom" to "custom_name"
+    private fun keys(slot: String) = when (slot) {
+        "liaison" -> "liaison_custom" to "liaison_name"
+        "agent" -> "custom" to "custom_name"
+        else -> "v_$slot" to "n_$slot"      // the other recognitions (Recognitions.SLOTS)
+    }
     fun variants(context: Context, slot: String = "agent"): List<String> =
         (context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(keys(slot).first, "") ?: "").split('|').map { it.trim() }.filter { it.isNotEmpty() }
     fun name(context: Context, slot: String = "agent"): String = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(keys(slot).second, "") ?: ""
@@ -50,6 +54,24 @@ object WakeWordSettings {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(keys(slot).first, variants.joinToString("|")).putString(keys(slot).second, name.trim()).apply()
     }
     fun clear(context: Context, slot: String = "agent") { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(keys(slot).first).remove(keys(slot).second).apply() }
+
+    /** The words WRITTEN for a recognition (a single word or a phrase, plain), read in text by the parser and by the agent's conversation. */
+    fun written(context: Context, slot: String): List<String> =
+        (context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("w_$slot", "") ?: "").split('|').map { it.trim() }.filter { it.isNotEmpty() }
+    fun saveWritten(context: Context, slot: String, words: List<String>) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("w_$slot", words.joinToString("|") { com.aiwa.bridge.WakeWords.plain(it) }).apply()
+    }
+    fun clearWritten(context: Context, slot: String) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("w_$slot").apply() }
+
+    /** What the parser reads: the written words of every recognition, set where the bridge's parser can see them. Called at start and after every change. */
+    fun applyVocabulary(context: Context) {
+        com.aiwa.bridge.VoiceVocabulary.written = com.aiwa.bridge.Recognitions.SLOTS.associate { it.id to written(context, it.id).toSet() }.filterValues { it.isNotEmpty() }
+    }
+
+    /** The spellings of the wake-level words chosen by voice (instruction, stop, éteins, renvoi). */
+    fun customs(context: Context) = com.aiwa.bridge.WakeCustoms(
+        instruction = variants(context, "instruction"), stop = variants(context, "stop"), off = variants(context, "eteins"), resend = variants(context, "resend"),
+    )
 
     /** Whether listening waits while a sound or a video plays (default: yes: a video is not paused by the microphone, and its sound is not heard as a word). */
     fun pauseOnMedia(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("pause_on_media", true)
@@ -67,6 +89,7 @@ object WakeWordSettings {
  * and Android does not let a service of this kind start by itself after a restart of the phone: opening the app once starts it again.
  */
 // Said to the agent (already plain: lowercase, no accent): « repasse en manuel », and « vas-y dis-lui » (the recognizer also writes « dit lui »).
+private val RESEND_REGEX = Regex("""\brenvoi(?:e|es|ez|yer)?\b.*\binstructions?\b""")
 private val OFF_REGEX = Regex("""\beteins\b""")
 private val STOP_AGENT_REGEX = Regex("""(?:stop|arrete)(?:\s+(?:l\s+)?(?:super\s+)?(?:agent|claude))?""")
 private val MANUAL_REGEX = Regex("""\b(?:repasse|reviens|retourne|passe)\s+(?:en|au)\s+(?:mode\s+)?manuel\b|\b(?:ferme|quitte)\s+(?:l\s+)?agent\b""")
@@ -127,6 +150,19 @@ class WakeWordService : Service() {
         }
 
         fun stop(context: Context) { context.stopService(Intent(context, WakeWordService::class.java)) }
+
+        /** The words changed: the small model listens for the new ones (the detector is made again with them). */
+        fun reload(context: Context) { instance?.reloadWords() }
+    }
+
+    /** Makes the detector again with the words as they are now (only while the first listening is the one that listens). */
+    fun reloadWords() {
+        main.post {
+            if (agentMode || paused || dictation != null || model == null || detector == null) return@post
+            detector?.stop()
+            detector = null
+            listen()
+        }
     }
 
     /** « éteins »: no more permanent listening, and the super agent closes with it. */
@@ -278,8 +314,12 @@ class WakeWordService : Service() {
         waitToken++   // what was waited for is over: the person spoke
         scope.launch {
             when {
-                OFF_REGEX.containsMatchIn(plain) -> { agentBusy = false; switchOff(); return@launch }
-                STOP_AGENT_REGEX.matches(plain) -> {
+                OFF_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("eteins", plain) -> { agentBusy = false; switchOff(); return@launch }
+                (RESEND_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("resend", plain)) -> {
+                    val ok = resendInstructions(applicationContext)
+                    say(if (ok) "Instructions renvoyées à la session." else "Instructions non renvoyées.")
+                }
+                (STOP_AGENT_REGEX.matches(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("stop", plain)) -> {
                     // « stop »: what the agent was saying stops, what waits is dropped, and the sessions it last spoke to are asked to forget its last comment
                     val told = agentCall("stop")
                     say(if (told == null) "Stop : les sessions touchées en dernier oublient son dernier commentaire." else "Stop (les sessions n'ont pas été prévenues : $told)")
@@ -396,6 +436,7 @@ class WakeWordService : Service() {
             model = current,
             custom = WakeWordSettings.variants(this),
             liaison = WakeWordSettings.variants(this, "liaison"),
+            more = WakeWordSettings.customs(this),
             onWake = { kind -> main.post { heardWakeWord(kind) } },
             onFailure = { reason -> main.post { fail("Écoute permanente arrêtée : $reason") } },
             mediaPlaying = { (getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager).isMusicActive },
@@ -408,6 +449,15 @@ class WakeWordService : Service() {
         if (paused) return
         if (kind == WakeKind.LIAISON) { openAgent(); return }
         if (kind == WakeKind.OFF) { switchOff(); return }
+        if (kind == WakeKind.RESEND) {
+            say("Je renvoie les instructions à la session")
+            scope.launch {
+                val ok = resendInstructions(applicationContext)
+                Speaker.speakAndWait(applicationContext, if (ok) "J'ai renvoyé les instructions à la session." else "Je n'ai pas pu renvoyer les instructions.")
+                listen()
+            }
+            return
+        }
         if (kind == WakeKind.STOP) {
             // Not a dictation: Claude is asked to stop, at once, and the phone says it did.
             say("J'ai demandé à Claude de s'arrêter")

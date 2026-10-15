@@ -66,14 +66,18 @@ internal fun plainWord(word: String): String {
 
 private fun words(text: String): List<Word> = text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.map { Word(it, plainWord(it)) }
 
+private val RESEND_WORDS = setOf("renvoie", "renvoi", "renvoyer", "renvoyez", "renvoyes")
 private val TRIGGER = setOf("instruction", "instructions")
+private fun isTriggerWord(plain: String?) = plain != null && (plain in TRIGGER || VoiceVocabulary.hasWord("instruction", plain))
 // How a recognizer may write "Aiwa" said aloud: one word, or two (ai wa).
 private val AIWA = setOf("aiwa", "aiva", "aywa", "ayoua", "aiwha", "eiwa", "aiwah", "aywa", "aiouwa")
 private val MODEL_WORDS = setOf("modele", "modeles", "model")
 private val PUSH_WORDS = setOf("push")
 private val DEPLOY_WORDS = setOf("deploiement", "deploiements", "deploy")
 private val SESSION_WORDS = setOf("session", "sessions")
+private fun isSessionWord(plain: String?) = plain != null && (plain in SESSION_WORDS || VoiceVocabulary.hasWord("session", plain))
 private val REPO_WORDS = setOf("depot", "depots", "repo", "repos", "repository")
+private fun isRepoWord(plain: String?) = plain != null && (plain in REPO_WORDS || VoiceVocabulary.hasWord("repo", plain))
 private val NEW_WORDS = setOf("nouvelle", "nouveau")
 private val REPORT_WORDS = setOf("rapport", "statut", "bilan", "etat")
 private val STOP_WORDS = setOf("stop", "stoppe", "arrete", "arrete-toi", "stoppe-toi")
@@ -117,7 +121,7 @@ private fun explicitSections(all: List<Word>, startInInstructions: Boolean): Pai
     }
     val first = all.firstOrNull() ?: return null
     if (first.plain in COMMAND_WORDS) return emptyList<Word>() to afterCommand(1)
-    if (first.plain in TRIGGER) {
+    if (isTriggerWord(first.plain)) {
         val k = all.indexOfFirst { it.plain in COMMAND_WORDS }
         return if (k < 0) all.subList(1, all.size) to null else all.subList(1, k) to afterCommand(k + 1)
     }
@@ -133,12 +137,12 @@ private fun leadingRepoCommandAt(all: List<Word>): Int {
     if (all.isEmpty() || all[0].plain !in LEAD_VERBS) return -1
     var k = 1
     while (k < all.size && k <= 4 && all[k].plain in LEAD_FILLERS) k++
-    return if (k < all.size && all[k].plain in REPO_WORDS) k else -1
+    return if (k < all.size && isRepoWord(all[k].plain)) k else -1
 }
 
 private fun startsCommand(word: Word, next: Word?): Boolean =
-    word.plain in MODEL_WORDS || word.plain in PUSH_WORDS || word.plain in EFFORT_WORDS || word.plain in QUALITY_WORDS || word.plain in DEPLOY_WORDS || word.plain in SESSION_WORDS ||
-        word.plain in REPO_WORDS || (word.plain in NEW_WORDS && next?.plain in SESSION_WORDS) || (word.plain in TRIGGER)
+    word.plain in MODEL_WORDS || word.plain in PUSH_WORDS || word.plain in EFFORT_WORDS || word.plain in QUALITY_WORDS || word.plain in DEPLOY_WORDS || isSessionWord(word.plain) ||
+        isRepoWord(word.plain) || (word.plain in NEW_WORDS && isSessionWord(next?.plain)) || isTriggerWord((word.plain))
 
 /** « envoie la vidéo sur la TV du salon »: the name said after « TV » and the index after it, or null when these words are not that (« envoie le mail à Paul »). */
 private fun castAhead(segment: List<Word>, at: Int): Pair<String, Int>? {
@@ -199,7 +203,7 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
     var triggerLength = 0
     if (!startInInstructions) {
         for (i in all.indices) {
-            if (all[i].plain in TRIGGER) {
+            if (isTriggerWord(all[i].plain)) {
                 val n = isAiwa(all, i + 1)
                 if (n > 0) { trigger = i; triggerLength = 1 + n; break }
             }
@@ -231,7 +235,7 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
         val w = segment[i]
         val next = wordAt(i + 1)
         when {
-            w.plain in TRIGGER && isAiwa(segment, i + 1) > 0 -> { i += 1 + isAiwa(segment, i + 1) }
+            isTriggerWord(w.plain) && isAiwa(segment, i + 1) > 0 -> { i += 1 + isAiwa(segment, i + 1) }
 
             // "Aiwa" said again right after the keyword or a command is not text for Claude
             afterCommand && isAiwa(segment, i) > 0 -> { i += isAiwa(segment, i) }
@@ -344,9 +348,9 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
                 afterCommand = true
             }
 
-            w.plain in NEW_WORDS && next?.plain in SESSION_WORDS -> { commands.add(VoiceCommand.NewSession); i += 2; afterCommand = true }
+            w.plain in NEW_WORDS && isSessionWord(next?.plain) -> { commands.add(VoiceCommand.NewSession); i += 2; afterCommand = true }
 
-            w.plain in SESSION_WORDS -> {
+            isSessionWord(w.plain) -> {
                 if (next?.plain in NEW_WORDS) { commands.add(VoiceCommand.NewSession); i += 2 }
                 else {
                     val titles = sessions.map { it.id to plainText(it.title) }
@@ -358,7 +362,7 @@ fun parseDictation(heard: String, models: List<VoiceModel>, sessions: List<Voice
                 afterCommand = true
             }
 
-            w.plain in REPO_WORDS -> {
+            isRepoWord(w.plain) -> {
                 val start = skipSkippable(i + 1)
                 val keyed = repos.map { it to compact(it.substringAfter('/')) }
                 var picked: String? = null
@@ -490,18 +494,21 @@ fun statusReport(repo: String?, modelLabel: String, pushMain: Boolean, deploy: S
 }
 
 /** What woke the listening: "mon agent …" (the phone then reads where things stand) or "instruction …" (it goes straight to listening). */
-enum class WakeKind { AGENT, INSTRUCTION, STOP, LIAISON, OFF }
+enum class WakeKind { AGENT, INSTRUCTION, STOP, LIAISON, OFF, RESEND }
 
 /**
  * The wake word, as the detector hears it. "Aiwa" is not in the small French model's vocabulary, so it cannot be written in the grammar: the words of origin are French ones
  * ("mon agent", "instruction"), and a word of the person's own is SAID to the phone, which keeps how the engine hears it (WakeWords): `custom` holds those spellings.
  */
-fun wakeKind(heard: String, custom: List<String> = emptyList(), liaison: List<String> = emptyList()): WakeKind? {
+fun wakeKind(heard: String, custom: List<String> = emptyList(), liaison: List<String> = emptyList(), more: WakeCustoms = WakeCustoms()): WakeKind? {
     val list = words(heard)
     // "stop Claude" / "arrête Claude": said at any moment, it is not a dictation: it stops Claude (see StopClaude)
     for (i in 1 until list.size) if (list[i].plain == "claude" && list[i - 1].plain in STOP_WORDS) return WakeKind.STOP
+    if (more.stop.isNotEmpty() && WakeWords.heardCustom(heard, more.stop)) return WakeKind.STOP
     // « éteins »: the permanent listening and the super agent are turned off (said at any moment, even with the screen locked)
-    if (list.any { it.plain == "eteins" }) return WakeKind.OFF
+    if (list.any { it.plain == "eteins" } || (more.off.isNotEmpty() && WakeWords.heardCustom(heard, more.off))) return WakeKind.OFF
+    // « renvoie les instructions »: the general instructions and the pills' are sent again (before « instruction », whose word is in it)
+    if ((list.any { it.plain in RESEND_WORDS } && list.any { it.plain == "instructions" || it.plain == "instruction" }) || (more.resend.isNotEmpty() && WakeWords.heardCustom(heard, more.resend))) return WakeKind.RESEND
     // the word chosen for the super agent (WakeWords): it calls the liaison agent
     if (liaison.isNotEmpty() && WakeWords.heardCustom(heard, liaison)) return WakeKind.LIAISON
     // "mon super agent": the call of the liaison agent (the second listening, see WakeWordService); checked before "mon agent"
@@ -509,7 +516,7 @@ fun wakeKind(heard: String, custom: List<String> = emptyList(), liaison: List<St
     for (i in 1 until list.size) if (list[i].plain == "agent" && list[i - 1].plain == "mon") return WakeKind.AGENT
     // the word the person chose (WakeWords): it wakes like "mon agent"
     if (custom.isNotEmpty() && WakeWords.heardCustom(heard, custom)) return WakeKind.AGENT
-    return if (list.any { it.plain in TRIGGER }) WakeKind.INSTRUCTION else null
+    return if (list.any { isTriggerWord(it.plain) } || (more.instruction.isNotEmpty() && WakeWords.heardCustom(heard, more.instruction))) WakeKind.INSTRUCTION else null
 }
 
 fun isWakeWord(heard: String): Boolean = wakeKind(heard) != null

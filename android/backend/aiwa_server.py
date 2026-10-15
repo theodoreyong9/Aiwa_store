@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 98
+BACKEND_VERSION = 99
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2633,6 +2633,16 @@ def agent_confirm(proposal_id):
 AGENT_FORGET_WINDOW = 1800   # seconds: a stop reaches the sessions spoken to in the last half hour
 
 
+def instructions_resend():
+    """« renvoie les instructions »: the session in use forgets what it was told, so that its next message carries the general instructions (and those of the pills) in full again."""
+    with lock:
+        session = current_cloud
+    if not session:
+        return {"ok": False, "error": "pas de session en cours : le prochain message les portera en entier"}
+    _update_session(session, instr={})
+    return {"ok": True}
+
+
 def agent_stop():
     """« stop »: the proposal and the settings that wait are dropped, and the sessions the super agent last spoke to are asked to forget its last comment. Returns how many were told."""
     with agent_lock:
@@ -3392,6 +3402,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_json({"accepted": True})
             except OSError as err:
                 self.reply_json({"accepted": False, "reason": f"relais injoignable : {err}"})
+        elif self.path == "/api/instructions/resend":
+            self.reply_json(instructions_resend())
         elif self.path == "/api/repo":
             # Changing repository does not change session: the session in
             # progress is told, with its next message, to work on that one

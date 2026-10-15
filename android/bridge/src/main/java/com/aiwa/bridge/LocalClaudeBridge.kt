@@ -291,6 +291,11 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         if (json.optBoolean("ok", false)) null else json.optString("error", "l'agent n'a pas pu")
     }
 
+    override suspend fun resendInstructions(): String? = withContext(Dispatchers.IO) {
+        val json = JSONObject(postText("/api/instructions/resend", ""))
+        if (json.optBoolean("ok", false)) null else json.optString("error", "les instructions n'ont pas pu être renvoyées")
+    }
+
     override suspend fun llmKey(key: String?): String? = withContext(Dispatchers.IO) {
         val body = if (key == null) JSONObject().put("clear", true) else JSONObject().put("key", key)
         val json = JSONObject(postText("/api/llm/key", body.toString()))

@@ -110,10 +110,10 @@ Un **onglet par campagne** et un onglet **Nouvelle campagne**.
 | Bouton micro grisé quand le super agent est ouvert | **fait** |
 | « Éteins » | **fait** (petit modèle + écoute de l'agent) |
 | Stop → faire oublier le dernier commentaire aux sessions | **fait** (`/api/agent/stop`) |
-| Neuf reconnaissances personnalisables | trois emplacements aujourd'hui (réveil, agent, super agent) |
+| Neuf reconnaissances personnalisables | **fait** (Réglages → « Mes mots » : dire et/ou écrire chaque mot ; transmis au petit modèle, au parseur et au super agent) |
 | « C'est prêt » | **fait** (réglable) |
-| « Je suis disponible ? » + rapport + idée | à faire |
-| Clé Anthropic qui remplace le parseur | existe en partie (repli quand le parseur échoue) |
+| « Je suis disponible ? » + rapport + idée | **fait avec une limite** : le téléphone parle et pose une notification « Oui » ; la réponse est un appui (le micro ne peut pas s'ouvrir en arrière-plan) |
+| Clé Anthropic qui remplace le parseur | **fait** : avec la clé, Claude lit toute phrase dite au micro (avec ou sans « instruction ») |
 | Vidéos : cases documents, aperçu, cast, download, share, dossier | **fait** (fenêtre refaite ; les vidéos vivent dans `docs/videos/`) |
 | Envoi de fichiers du téléphone vers `docs/` | **pas fait** : écrire dans GitHub demande un jeton, et Aiwa n'en demande jamais ; piste : passer par la session (le fichier part dans le message, la session le range) |
 | Campagnes en onglets + formulaire | **fait** (un dossier par campagne dans `docs/campagnes/`, onglets, formulaire, propositions par canal, aperçu avant envoi, relancer) |
