@@ -1020,9 +1020,9 @@ private fun lightKinds(state: AiwaState, context: Context): List<LightKind> {
     return listOf(
         LightKind("documents", "Docs", Productions.has(context, state.repo, "documents"), tab == "media" && sub == "documents"),
         LightKind("video", "Vidéo", Productions.has(context, state.repo, "video"), tab == "media" && sub == "video"),
-        LightKind("pages", "Page", hasSite && state.siteKind != "apk" && state.siteState == "live", tab == "pages"),
-        LightKind("android", "App", hasSite && state.siteKind == "apk", tab == "android"),
-        LightKind("aiwa", "Aiwa", state.sentApp != null, tab == "aiwa" || tab == "store"),
+        LightKind("pages", "Page", Productions.has(context, state.repo, "page") || hasSite && state.siteKind != "apk" && state.siteState == "live", tab == "pages"),
+        LightKind("android", "App", Productions.has(context, state.repo, "apk") || hasSite && state.siteKind == "apk", tab == "android"),
+        LightKind("aiwa", "Aiwa", Productions.has(context, state.repo, "aiwa"), tab == "aiwa"),
     )
 }
 
@@ -1036,14 +1036,17 @@ class PickKindCallback : ActionCallback {
         val app = context.applicationContext
         val state = AiwaRepository.state.value
         selectAiwaMode(app, mode)
+        Productions.refresh(app, state.repo, force = true)
         if (!found) return
-        val screen: Class<*> = when (mode) {
-            "documents" -> DocumentsActivity::class.java
-            "video" -> VideosActivity::class.java
-            "aiwa" -> OpenStoreActivity::class.java
-            else -> if (state.repo != null && state.siteUrl != null) SiteButtonActivity::class.java else RepoPickerActivity::class.java
+        val repo = state.repo
+        val view = { url: String -> app.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        when (mode) {
+            "documents" -> app.startActivity(Intent(app, DocumentsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            "video" -> app.startActivity(Intent(app, VideosActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            "aiwa" -> app.startActivity(Intent(app, OpenStoreActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            "pages" -> if (repo != null) view("https://${repo.substringBefore('/')}.github.io/${repo.substringAfter('/')}/")
+            else -> if (repo != null) view("https://github.com/$repo/releases")
         }
-        app.startActivity(Intent(app, screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
 
