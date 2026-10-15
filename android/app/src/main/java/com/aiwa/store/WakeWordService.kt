@@ -320,9 +320,13 @@ class WakeWordService : Service() {
                     say(if (ok) "Instructions renvoyées à la session." else "Instructions non renvoyées.")
                 }
                 (STOP_AGENT_REGEX.matches(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("stop", plain)) -> {
-                    // « stop »: what the agent was saying stops, what waits is dropped, and the sessions it last spoke to are asked to forget its last comment
-                    val told = agentCall("stop")
-                    say(if (told == null) "Stop : les sessions touchées en dernier oublient son dernier commentaire." else "Stop (les sessions n'ont pas été prévenues : $told)")
+                    // « stop », CONFIRMED first: what waits is dropped, and the sessions the agent last spoke to are asked to forget its last comment
+                    if (!askAloud(applicationContext, "Tu veux que j'arrête ?") { Speaker.speakNatural(applicationContext, it) }) {
+                        say("Stop non confirmé : rien n'est arrêté.")
+                    } else {
+                        val told = agentCall("stop")
+                        say(if (told == null) "Stop : les sessions touchées en dernier oublient son dernier commentaire." else "Stop (les sessions n'ont pas été prévenues : $told)")
+                    }
                 }
                 MANUAL_REGEX.containsMatchIn(plain) -> { agentBusy = false; closeAgent(); return@launch }
                 AiwaRepository.state.value.agent?.command != null && APPLY_REGEX.containsMatchIn(plain) -> applyAgentCommand()
@@ -459,11 +463,15 @@ class WakeWordService : Service() {
             return
         }
         if (kind == WakeKind.STOP) {
-            // Not a dictation: Claude is asked to stop, at once, and the phone says it did.
-            say("J'ai demandé à Claude de s'arrêter")
+            // A stop is CONFIRMED (a word heard by mistake must not stop the work): the phone asks, and only « c'est bon vas-y » stops Claude.
+            say("Stop ? Dis « c'est bon vas-y » pour arrêter Claude")
             scope.launch {
-                val sent = stopClaude(applicationContext)
-                Speaker.speakAndWait(applicationContext, if (sent) "J'ai demandé à Claude de s'arrêter." else "Je n'ai pas pu envoyer l'arrêt à Claude.")
+                if (askAloud(applicationContext, "Tu veux que j'arrête Claude ?")) {
+                    val sent = stopClaude(applicationContext)
+                    Speaker.speakAndWait(applicationContext, if (sent) "J'ai demandé à Claude de s'arrêter." else "Je n'ai pas pu envoyer l'arrêt à Claude.")
+                } else {
+                    Speaker.speakAndWait(applicationContext, "D'accord, je n'arrête rien.")
+                }
                 listen()
             }
             return

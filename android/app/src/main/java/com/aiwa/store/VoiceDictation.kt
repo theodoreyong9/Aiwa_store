@@ -215,8 +215,10 @@ class VoiceDictation(
     // Applied at the end, in an order that makes sense (the session, then the repository it works on, then the rest), then the message.
     private suspend fun runInstructions(heard: Dictation) {
         val bridge = LocalClaudeBridge()
-        // A stop is done at once and never waits for a confirmation: stopping loses nothing, and every second counts.
-        if (heard.commands.any { it is VoiceCommand.StopClaude }) stopClaude(appContext)
+                // A stop is confirmed like the rest: a word heard by mistake must not stop Claude.
+        if (heard.commands.any { it is VoiceCommand.StopClaude }) {
+            if (confirmSentence("Tu veux que j'arrête Claude ?")) stopClaude(appContext) else toastOnMain(appContext, "Stop non confirmé : Claude n'est pas arrêté.")
+        }
         // The instruction mode knows ONLY the two pills, session and repository; model, effort, push, quality and deployment are set by hand.
         var dictation = heard.copy(commands = pillCommandsOnly(heard.commands))
         var repoConfirmed = false
