@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 95
+BACKEND_VERSION = 96
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -593,7 +593,7 @@ def _document_line(repo):
         "N'utilise que ce que le fichier dit : n'invente aucun poste, chiffre, client ni prix, et dans `facts.md` sépare ce qui vient du fichier de ce que tu ajoutes. "
         "Mes réalisations GitHub ne sont utilisées QUE si ma demande dit que je l'ai coché : alors prends parmi mes dépôts PUBLICS ceux qui servent le propos, "
         "montre-les au bon moment de la vidéo (vraies captures ou pages), liste ceux que tu retiens dans `brief.md`, jamais un dépôt privé que je n'ai pas nommé. "
-        "Sans cette mention, le fichier seul compte. Mets la vidéo dans `docs/` du dépôt en cours : l'appli montre la liste de toutes les vidéos de ce dépôt. "
+        "Sans cette mention, le fichier seul compte. Mets la vidéo dans `docs/videos/` du dépôt en cours : l'appli montre la liste de toutes les vidéos de ce dépôt. "
         "Mes fichiers sources sont dans le dossier `aiwa-campagne/` du dépôt en cours : quand ma demande en nomme, lis-les là (tu y as accès), un par un ; un CSV, un JSON ou un texte tels quels, "
         "un tableur .xlsx avec Python (openpyxl ou pandas), un PDF avec `pdftotext`, une image ou une vidéo en les citant ou en les intégrant telles quelles sans rien dire de leur contenu que tu n'as pas pu lire. "
         "Quand ma demande contient un document collé et te dit de le ranger, écris-en une copie dans `aiwa-campagne/` (même nom) et pousse-la avec la consigne Push."
@@ -604,7 +604,7 @@ def _video_full(repo):
     """The promotional video of a creation: the standard (a production in stages, each written down and checked), the tools, where the file goes."""
     return (
         "Vidéo : si je demande une vidéo promotionnelle de ma création, lis d'abord " + REFERENCE_RAW + "/docs/PROMO-VIDEO.md (le standard) et suis ses étapes DANS L'ORDRE, "
-        "en écrivant chacune dans un fichier sous `docs/video-<nom>/` et en relisant la précédente avant la suivante : 0 les faits (`facts.md` : ce qui est vrai, ce que ma création montre et fait, les vraies captures), "
+        "en écrivant chacune dans un fichier sous `docs/videos/<nom>/` et en relisant la précédente avant la suivante : 0 les faits (`facts.md` : ce qui est vrai, ce que ma création montre et fait, les vraies captures), "
         "1 le brief (`brief.md` : le public, UN message, le ton, la direction artistique prise dans ma création, l'appel à l'action), puis la stratégie de la section 0 du guide du réalisateur : le contexte, la tension vraie, 6 à 10 idées notées dont tu choisis la meilleure en disant pourquoi les autres perdent, une proposition unique, un pré-mortem de trois risques, et `style.md` (la feuille de style de TOUT le film : palette, typographie, mouvements, identité sonore, grade), "
         "2 le script (`script.md` : accroche dans les 2 premières secondes, tension, révélation, preuve, appel à l'action, texte de la voix off avec ses secondes, et le tableau des scènes : rôle dans l'histoire, émotion voulue, preuve montrée, durée, outil ; une scène sans rôle est coupée), "
         "3 le plan de plans (`video.html`, depuis `video-kit/template/cinematic.html` : un plan par temps du script, avec son mouvement, sa transition et son son ; c'est ici que tu consultes le registre des objets, lumières et textures (`asset-research`, voir plus bas) pour chaque scène que tu rends réelle, et que tu écris dans `script.md` le choix de chaque scène : page, 3D, footage ou générée), "
@@ -631,9 +631,9 @@ def _video_full(repo):
         "note de 1 à 5 l'accroche, la clarté du message, le rythme, le mouvement de chaque plan, la lisibilité, la direction artistique, le son, l'honnêteté (rien d'inventé) et l'appel à l'action ; "
         "corrige tout ce qui est sous 4 et recommence l'aperçu, jusqu'à trois tours ; si tu as un outil de sous-agent, confie la critique à un agent neuf qui ne voit que les images et le brief. "
         "Donne-moi les notes finales telles quelles. Le contrôle `video-kit check` signale `slideshow` quand l'image bouge trop peu : refais alors le plan concerné. Dis aussi ce qui est provisoire (la voix de synthèse, la musique générée). "
-        f"Termine toujours par le lien direct vers chaque fichier vidéo (`https://raw.githubusercontent.com/{repo}/main/docs/nom-9x16.mp4`), pour que je le trouve. "
-        f"Dépose chaque vidéo dans le dossier `docs/` du dépôt {repo} (un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4`, directement dans `docs/`, jamais ailleurs ; GitHub refuse un fichier de plus de 100 Mo : réencode-le plus léger), "
-        "avec ses fichiers d'étapes et son rapport de contrôle sous `docs/video-<nom>/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
+        f"Termine toujours par le lien direct vers chaque fichier vidéo (`https://raw.githubusercontent.com/{repo}/main/docs/videos/nom-9x16.mp4`), pour que je le trouve. "
+        f"Dépose chaque vidéo dans le dossier `docs/videos/` du dépôt {repo} (un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4`, directement dans `docs/videos/`, jamais ailleurs ; GitHub refuse un fichier de plus de 100 Mo : réencode-le plus léger), "
+        "avec ses fichiers d'étapes et son rapport de contrôle sous `docs/videos/<nom>/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
         "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg espeak-ng`, `npx playwright install chromium`, `sh video-kit/src/voice-setup.sh` pour la voix naturelle de la voix off, l'API GitHub avec le jeton de l'environnement) "
         "au lieu de t'arrêter."
     )
@@ -644,7 +644,7 @@ def _proposals_line(repo):
     I validate one by one in the app. The session prepares, it never sends anything."""
     return (
         "MODE CAMPAGNE : ce projet est une campagne de propositions, semi-automatisée. Elle part de ce que ma demande désigne : un fichier (dans mon message ou dans `aiwa-campagne/` : un CV, un argumentaire, une brochure…), "
-        "ma création dans le dépôt et ses vidéos (dans `docs/`), mes réalisations GitHub publiques si je l'ai coché : un fichier n'est PAS obligatoire. "
+        "ma création dans le dépôt et ses vidéos (dans `docs/videos/`), mes réalisations GitHub publiques si je l'ai coché : un fichier n'est PAS obligatoire. "
         "Si ma demande ne désigne rien de tout cela et que le dépôt est vide, demande-moi UNE fois par la question du widget (menu d'Aiwa → Créer à partir d'un fichier → Une campagne) et arrête-toi là. "
         "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Le paquet que tu livres : (1) la liste des cibles, (2) un site avec son arborescence, (3) une vidéo par cible, (4) `aiwa-proposals/proposals.json` ; "
         "ma demande dit ce qu'il faut produire pour chaque cible (un site, une vidéo, ou les deux) : ne fabrique que cela, et laisse `demoUrl` ou `videoUrl` vide pour ce qui n'est pas demandé. "
@@ -685,8 +685,8 @@ def _cut(text, start, end):
 
 VIDEO_WORKFLOW_FILE = (
     "name: aiwa-video\non:\n  push:\n    paths: ['docs/**']\n  workflow_dispatch:\njobs:\n  stages:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"
-    "      - name: Etapes\n        run: |\n          for d in docs/video-*/; do [ -d \"$d\" ] || continue; echo \"$d\"; for f in facts.md brief.md style.md script.md critique.md video.html; do\n            if [ -e \"$d$f\" ]; then echo \"fait : $f\"; else echo \"a faire : $f\"; fi\n          done; done\n"
-    "      - name: Controle des films\n        run: |\n          sudo apt-get install -y -qq ffmpeg > /dev/null\n          for v in docs/*.mp4; do [ -e \"$v\" ] || continue; ffprobe -v error -show_entries format=duration -of csv=p=0 \"$v\" || exit 1; done\n"
+    "      - name: Etapes\n        run: |\n          for d in docs/videos/*/; do [ -d \"$d\" ] || continue; echo \"$d\"; for f in facts.md brief.md style.md script.md critique.md video.html; do\n            if [ -e \"$d$f\" ]; then echo \"fait : $f\"; else echo \"a faire : $f\"; fi\n          done; done\n"
+    "      - name: Controle des films\n        run: |\n          sudo apt-get install -y -qq ffmpeg > /dev/null\n          for v in docs/videos/*.mp4 docs/*.mp4; do [ -e \"$v\" ] || continue; ffprobe -v error -show_entries format=duration -of csv=p=0 \"$v\" || exit 1; done\n"
 )
 
 
@@ -715,7 +715,7 @@ def _video_line_text(repo, quality="moyen"):
             "le rythme généré (`beat.py`, pas de recherche de musique) et une voix de synthèse courte (`voice.py`), assemble avec `video-kit assemble`, contrôle avec `video-kit check` et corrige UNE fois ce qu'il signale. "
             "Pas de recherche de campagnes, pas de plans 3D ni de catalogue, pas de critique en plusieurs tours. N'invente rien : tout ce qui est affiché vient de ce que j'ai fourni ou de ma création. "
             "Dis-moi que c'est la qualité simple, et ce qui est provisoire (voix de synthèse, rythme généré). "
-            f"Termine par le lien direct vers le fichier (`https://raw.githubusercontent.com/{repo}/main/docs/nom-9x16.mp4`), dépose-le dans `docs/` du dépôt (directement dans `docs/`, jamais ailleurs)."
+            f"Termine par le lien direct vers le fichier (`https://raw.githubusercontent.com/{repo}/main/docs/videos/nom-9x16.mp4`), dépose-le dans `docs/videos/` du dépôt (directement dans `docs/videos/`, jamais ailleurs)."
         )
     full = _video_full(repo)
     if quality == "extra":
@@ -2110,6 +2110,7 @@ def _videos_snapshot():
             return {"repo": repo, "videos": list(video_cache["items"])}
     try:
         docs_folder = _github_json(f"https://api.github.com/repos/{repo}/contents/docs")
+        videos_folder = _github_json(f"https://api.github.com/repos/{repo}/contents/docs/videos")
     except GithubUnavailable:
         # GitHub could not answer: what was known stays on the screen (an empty list would say the videos are gone), and it is tried again in a minute.
         with lock:
@@ -2121,12 +2122,15 @@ def _videos_snapshot():
                     kept = []
             video_cache.update(key=repo, items=kept, at=now)
         return {"repo": repo, "videos": kept}
-    # The architecture is the same for every repository: the videos are the video files at the root of docs/ (nothing else of docs/ is listed), by name, the latest first.
-    items = []
-    for entry in docs_folder if isinstance(docs_folder, list) else []:
-        name = str(entry.get("name") or "") if isinstance(entry, dict) else ""
-        if entry.get("type") == "file" and name.lower().endswith(VIDEO_EXT) and "/" not in name:
-            items.append({"name": name, "size": int(entry.get("size") or 0), "url": f"https://raw.githubusercontent.com/{repo}/HEAD/docs/{urllib.parse.quote(name)}", "ts": ""})
+    # The architecture is the same for every repository: the videos are the video files of docs/videos/ (and, for a project that keeps its own films there, the ones at the root of docs/);
+    # nothing else of docs/ is listed. By name, the latest first.
+    items, seen = [], set()
+    for folder, base in ((videos_folder, "docs/videos"), (docs_folder, "docs")):
+        for entry in folder if isinstance(folder, list) else []:
+            name = str(entry.get("name") or "") if isinstance(entry, dict) else ""
+            if entry.get("type") == "file" and name.lower().endswith(VIDEO_EXT) and "/" not in name and name not in seen:
+                seen.add(name)
+                items.append({"name": name, "size": int(entry.get("size") or 0), "url": f"https://raw.githubusercontent.com/{repo}/HEAD/{base}/{urllib.parse.quote(name)}", "ts": ""})
     items.sort(key=lambda v: v["name"], reverse=True)
     with lock:
         video_cache.update(key=repo, items=items, at=now)

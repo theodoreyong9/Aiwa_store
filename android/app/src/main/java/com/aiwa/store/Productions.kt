@@ -52,6 +52,12 @@ object Productions {
         }
     }
 
+    /** The document files of the folder `docs` of a repository (the names), for the lists to tick; empty when GitHub does not answer (a private repository). */
+    suspend fun documentFiles(repo: String): List<String> = withContext(Dispatchers.IO) {
+        val ext = listOf(".md", ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".csv", ".html")
+        (names("https://api.github.com/repos/$repo/contents/docs") ?: emptyList()).filter { n -> n.lowercase().let { l -> ext.any { l.endsWith(it) } } }.sorted()
+    }
+
     /**
      * Looks at what the repository holds, by the layout Aiwa gives it (the same for every repository): videos and documents (the files of `docs`), the page (the GitHub Pages address answers), the APK (a release with an .apk file), the Aiwa app (an `.aiwa.html` file in `aiwa-apps`). A question that GitHub did not
      * answer (rate limit, no network) leaves what was known: a button does not go grey for a failed request. At most every ten minutes per repository (GitHub allows 60 questions an hour
@@ -68,8 +74,12 @@ object Productions {
             val out = HashMap<String, Boolean?>()
             // ONE look at docs/: the videos and the documents of a repository live there, the same for all
             val docsDir = names("$api/contents/docs")
+            val videosDir = names("$api/contents/docs/videos")
             fun has(ext: List<String>) = docsDir?.any { n -> n.lowercase().let { l -> ext.any { l.endsWith(it) } } }
-            out["video"] = has(listOf(".mp4", ".webm", ".mov"))
+            val videoExt = listOf(".mp4", ".webm", ".mov")
+            // the videos of docs/videos/ (and the films a project keeps at the root of docs/)
+            out["video"] = if (videosDir?.any { n -> n.lowercase().let { l -> videoExt.any { l.endsWith(it) } } } == true || has(videoExt) == true) true
+                else if (videosDir == null || docsDir == null) null else false
             out["documents"] = has(listOf(".md", ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".csv"))
             val owner = repo.substringBefore('/'); val name = repo.substringAfter('/')
             out["page"] = get("https://$owner.github.io/$name/").first.let { if (it == 200) true else if (it == 404) false else null }

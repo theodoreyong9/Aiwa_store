@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -44,9 +46,9 @@ import com.aiwa.bridge.VideoList
 import kotlinx.coroutines.launch
 
 /**
- * "Vidéos": the promotional videos of the creation, files of the release `videos` of its GitHub repository (public: Aiwa asks
- * for no token). A tap on one plays it in the app (VideoPlayerActivity), the second button hands it to the browser; the button asks Claude, in the current session, for a new one (the instruction that
- * tells it how comes with the message: the standard, the tools, the honesty rule).
+ * "Vidéos": the videos of the creation, the video files of `docs/videos/` of its GitHub repository (public: Aiwa asks for no token). At the top, the LAST production: a tap plays it in the app,
+ * with its buttons cast, download and share; the folder of the videos is one button away. Under it, a new video: the documents of `docs/` to tick (or none), the quality, and the format; the request
+ * goes to Claude in the current session (the instruction that tells it how comes with the message: the standard, the tools, the honesty rule).
  */
 class VideosActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,6 +60,27 @@ class VideosActivity : ComponentActivity() {
 
 private fun sizeLabel(bytes: Long) = if (bytes >= 1_000_000) "%.1f Mo".format(bytes / 1_000_000.0) else "${bytes / 1000} Ko"
 
+/** The file goes to the Downloads folder of the phone (Android's download manager: a notification shows it). */
+private fun download(context: Context, url: String, name: String) {
+    try {
+        val request = android.app.DownloadManager.Request(Uri.parse(url))
+            .setTitle(name)
+            .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, name)
+        (context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager).enqueue(request)
+        toastOnMain(context, "Téléchargement de $name lancé (dossier Téléchargements).")
+    } catch (err: Exception) {
+        toastOnMain(context, "Téléchargement impossible : ${err.message ?: "?"}")
+        openUrl(context, url)
+    }
+}
+
+private fun share(context: Context, url: String, name: String) {
+    val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
+        .putExtra(android.content.Intent.EXTRA_SUBJECT, name).putExtra(android.content.Intent.EXTRA_TEXT, url)
+    try { context.startActivity(android.content.Intent.createChooser(send, "Partager la vidéo").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (err: Exception) { toastOnMain(context, "Partage impossible.") }
+}
+
 @Composable
 private fun VideosWindow(onClose: () -> Unit) {
     val context = LocalContext.current
@@ -67,6 +90,8 @@ private fun VideosWindow(onClose: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var quality by remember { mutableStateOf(AiwaRepository.state.value.videoQuality) }
+    var docs by remember { mutableStateOf<List<String>>(emptyList()) }
+    var ticked by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     LaunchedEffect(Unit) {
         try {
@@ -75,6 +100,7 @@ private fun VideosWindow(onClose: () -> Unit) {
             val had = Productions.has(context, repo, "video")
             val has = list?.videos?.isNotEmpty() == true
             if (repo != null && had != has) { Productions.set(context, repo, "video", has); AiwaWidget().updateAll(context) }
+            if (repo != null) docs = Productions.documentFiles(repo)
         } catch (err: Exception) { error = err.message ?: "Liste indisponible." }
     }
 
@@ -84,9 +110,11 @@ private fun VideosWindow(onClose: () -> Unit) {
         scope.launch {
             // the quality is chosen here, where the video is asked for: it goes to the brain just before the request
             switchOptions(context, bridge, videoQuality = quality)
+            val sources = if (ticked.isEmpty()) " N'utilise aucun document du dossier docs/ : seulement ma création."
+                else " Utilise ces documents du dossier docs/ (lis-les en entier) : " + ticked.sorted().joinToString(", ") { "docs/$it" } + "."
             val sent = sendAndTrack(
                 context, bridge,
-                "Fais une vidéo promotionnelle de ma création, au format $format. Ne me pose aucune question : décide et va jusqu'au bout.",
+                "Fais une vidéo promotionnelle de ma création, au format $format.$sources Ne me pose aucune question : décide et va jusqu'au bout.",
                 toastErrors = true,
             )
             busy = false
@@ -110,9 +138,13 @@ private fun VideosWindow(onClose: () -> Unit) {
                 modifier = Modifier.padding(24.dp).fillMaxWidth()
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Vidéos de ta création", style = MaterialTheme.typography.titleMedium)
                     val current = list
+                    fun play(video: com.aiwa.bridge.VideoItem) = context.startActivity(
+                        android.content.Intent(context, VideoPlayerActivity::class.java)
+                            .putExtra(VideoPlayerActivity.EXTRA_URL, video.url).putExtra(VideoPlayerActivity.EXTRA_TITLE, video.name),
+                    )
                     when {
                         error != null -> Text(error ?: "", color = MaterialTheme.colorScheme.error)
                         current == null -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -121,29 +153,44 @@ private fun VideosWindow(onClose: () -> Unit) {
                         }
                         current.repo == null -> Text("Choisis d'abord un dépôt (le bouton ⎇ du widget).")
                         current.videos.isEmpty() -> Text("Aucune vidéo pour l'instant dans ${current.repo}. Demande-en une ci-dessous ; elle apparaîtra ici dès que Claude l'aura déposée.")
-                        else -> current.videos.forEach { video ->
-                            // Played here, in the app; the second button hands the file to the browser, which can download it
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Button(
-                                    onClick = {
-                                        context.startActivity(
-                                            android.content.Intent(context, VideoPlayerActivity::class.java)
-                                                .putExtra(VideoPlayerActivity.EXTRA_URL, video.url).putExtra(VideoPlayerActivity.EXTRA_TITLE, video.name),
-                                        )
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                ) { Text("▶  " + video.name + " · " + sizeLabel(video.size), maxLines = 2) }
+                        else -> {
+                            // The last production: a tap plays it, then its three buttons
+                            val last = current.videos.first()
+                            Text("Dernière production", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                            Button(onClick = { play(last) }, modifier = Modifier.fillMaxWidth()) { Text("▶  " + last.name + " · " + sizeLabel(last.size), maxLines = 2) }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = {
                                     context.startActivity(
                                         android.content.Intent(context, CastActivity::class.java)
-                                            .putExtra(CastActivity.EXTRA_URL, video.url).putExtra(CastActivity.EXTRA_TITLE, video.name),
+                                            .putExtra(CastActivity.EXTRA_URL, last.url).putExtra(CastActivity.EXTRA_TITLE, last.name),
                                     )
-                                }) { Text("📺") }
-                                OutlinedButton(onClick = { openUrl(context, video.url) }) { Text("⇩") }
+                                }, modifier = Modifier.weight(1f)) { Text("📺 Cast") }
+                                OutlinedButton(onClick = { download(context, last.url, last.name) }, modifier = Modifier.weight(1f)) { Text("⇩ Download") }
+                                OutlinedButton(onClick = { share(context, last.url, last.name) }, modifier = Modifier.weight(1f)) { Text("↗ Share") }
+                            }
+                            current.videos.drop(1).forEach { video ->
+                                OutlinedButton(onClick = { play(video) }, modifier = Modifier.fillMaxWidth()) { Text("▶  " + video.name + " · " + sizeLabel(video.size), maxLines = 1) }
                             }
                         }
                     }
+                    current?.repo?.let { repo ->
+                        OutlinedButton(onClick = { openUrl(context, "https://github.com/$repo/tree/HEAD/docs/videos") }, modifier = Modifier.fillMaxWidth()) { Text("📁 Voir le dossier des vidéos") }
+                    }
                     Text("Nouvelle vidéo de ma création", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    // The documents of docs/ to use, or none (a private repository cannot be listed here: nothing to tick, the creation alone counts)
+                    if (docs.isEmpty()) Text("Documents du dossier docs/ : aucun trouvé (ou dépôt privé) — la vidéo part de ta création.", style = MaterialTheme.typography.bodySmall)
+                    else {
+                        Text("Documents du dossier docs/ à utiliser (aucun coché : ta création seule)", style = MaterialTheme.typography.bodySmall)
+                        docs.forEach { name ->
+                            Row(
+                                Modifier.fillMaxWidth().clickable { ticked = if (name in ticked) ticked - name else ticked + name },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Checkbox(checked = name in ticked, onCheckedChange = { ticked = if (it) ticked + name else ticked - name })
+                                Text(name, maxLines = 1)
+                            }
+                        }
+                    }
                     QualityChoice(quality) { quality = it }
                     // A video made from a file (a CV, a pitch, a brochure): it belongs here, with the videos of the creation. The campaign (a site and a video for each target) is the envelope's.
                     OutlinedButton(

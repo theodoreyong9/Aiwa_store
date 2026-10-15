@@ -70,7 +70,7 @@ La fenêtre Vidéos :
 - **cocher** des documents du dossier `docs/` — ou non ;
 - le **choix de la qualité** ;
 - l'**aperçu de la dernière production** (un appui la lit), avec les boutons **cast**, **download**, **share** ;
-- **voir le dossier des vidéos** (un sous-dossier de `docs/`).
+- **voir le dossier des vidéos** (`docs/videos/`, un sous-dossier de `docs/`).
 
 Documents : possibilité d'**envoyer** des fichiers et des vidéos **du téléphone vers GitHub** (dans `docs/`).
 
@@ -103,17 +103,17 @@ Un **onglet par campagne** et un onglet **Nouvelle campagne**.
 
 | Sujet | État |
 |---|---|
-| Parseur « instruction » | existe, mais reconnaît aussi modèle, effort, push, qualité, déploiement, TV → à réduire à session et repo |
-| Confirmation orale avant d'appliquer | existe (relecture de tout, validation) → à limiter session + repo |
-| Info pastille envoyée à la session | partielle (le cerveau la glisse au message suivant) → à envoyer tout de suite |
+| Parseur « instruction » | **fait** : session et repo seulement |
+| Confirmation orale avant d'appliquer | **fait** (session + repo, validation ou correction) |
+| Info pastille envoyée à la session | **fait** (message tout de suite) |
 | Super agent : écoute de réveil + deuxième écoute | existe (mots « mon agent », « mon super agent », « instruction », « stop Claude ») |
-| Bouton micro grisé quand le super agent est ouvert | à faire |
-| « Éteins » | à faire |
-| Stop → faire oublier le dernier commentaire aux sessions | à faire |
+| Bouton micro grisé quand le super agent est ouvert | **fait** |
+| « Éteins » | **fait** (petit modèle + écoute de l'agent) |
+| Stop → faire oublier le dernier commentaire aux sessions | **fait** (`/api/agent/stop`) |
 | Neuf reconnaissances personnalisables | trois emplacements aujourd'hui (réveil, agent, super agent) |
-| « C'est prêt » | à faire |
+| « C'est prêt » | **fait** (réglable) |
 | « Je suis disponible ? » + rapport + idée | à faire |
 | Clé Anthropic qui remplace le parseur | existe en partie (repli quand le parseur échoue) |
-| Vidéos : cases documents, aperçu, cast, download, share | fenêtre simple (liste, demande) → à refaire |
-| Envoi de fichiers du téléphone vers `docs/` | à faire |
+| Vidéos : cases documents, aperçu, cast, download, share, dossier | **fait** (fenêtre refaite ; les vidéos vivent dans `docs/videos/`) |
+| Envoi de fichiers du téléphone vers `docs/` | **pas fait** : écrire dans GitHub demande un jeton, et Aiwa n'en demande jamais ; piste : passer par la session (le fichier part dans le message, la session le range) |
 | Campagnes en onglets + formulaire | un seul écran de propositions → à refaire |
