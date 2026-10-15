@@ -787,6 +787,18 @@ internal fun mediaSub(state: AiwaState): String = if (state.videoView) "video" e
 suspend fun selectAiwaMode(context: Context, mode: String) {
     val app = context.applicationContext
     val before = AiwaRepository.state.value
+    // Every mode has its own session: leave the one of the mode we are in, take the one of the mode chosen (a new one the first time)
+    val leaving = ModeSessions.key(before.videoView, before.deploy)
+    val arriving = when {
+        mode == "video" -> "video"
+        mode == "media" -> if (before.deploy in MEDIA_DEPLOYS) leaving else "video"
+        else -> mode
+    }
+    if (leaving != arriving) {
+        ModeSessions.remember(app, leaving, before.cloudSessionId)
+        val wanted = ModeSessions.recall(app, arriving)?.takeIf { id -> before.cloudSessions.any { it.id == id } } ?: "new"
+        if (wanted != (before.cloudSessionId ?: "new")) switchCloud(app, LocalClaudeBridge(), wanted)
+    }
     if (mode == "media" || mode == "video") {
         // Média alone leaves what the selector is on when it already belongs to it; else it shows the videos
         if (mode == "video" || before.deploy !in MEDIA_DEPLOYS) {

@@ -808,37 +808,20 @@ class SettingsActivity : ComponentActivity() {
 
 /** The mode menu of the Light-shaped widget: Vidéos, Documents, Page, App, Store, Aiwa. Picking one is what a tap on the tabs of the Aiwa shape does. */
 class ModePickerActivity : ComponentActivity() {
+    /** A tap on the mode: the mode is chosen (and with it its own session, see ModeSessions). */
     private fun pick(mode: String) {
         val app = applicationContext
         finish()
         CoroutineScope(Dispatchers.Default).launch { selectAiwaMode(app, mode) }
     }
 
-    private fun prodLabel(state: AiwaState): String = when {
-        aiwaTab(state) == "media" -> when (mediaSub(state)) { "campaign" -> "✉ Les propositions de la campagne"; "documents" -> "📄 Les documents"; else -> "🎬 Les vidéos" }
-        deliversApp(state.deploy) -> "▦ L'app produite (publier ou installer)"
-        state.siteKind == "apk" -> "⇩ L'APK produit"
-        else -> "🌐 Le site produit"
-    }
-
-    private fun openProd(state: AiwaState) {
-        val screen: Class<*> = when {
-            aiwaTab(state) == "media" -> when (mediaSub(state)) { "campaign" -> ProposalsActivity::class.java; "documents" -> DocumentsActivity::class.java; else -> VideosActivity::class.java }
-            deliversApp(state.deploy) -> OpenStoreActivity::class.java
-            state.repo != null && state.siteUrl != null -> SiteButtonActivity::class.java
-            else -> RepoPickerActivity::class.java
-        }
+    /** The side button of a mode: what the mode has produced. */
+    private fun open(screen: Class<*>) {
         finish()
         startActivity(Intent(applicationContext, screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    /** Vidéos and Documents: the mode is set and the screen opens, as in the Média list. */
-    private fun go(mode: String, screen: Class<*>) {
-        val app = applicationContext
-        finish()
-        CoroutineScope(Dispatchers.Default).launch { selectAiwaMode(app, mode) }
-        app.startActivity(Intent(app, screen).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    }
+    private fun site(state: AiwaState): Class<*> = if (state.repo != null && state.siteUrl != null) SiteButtonActivity::class.java else RepoPickerActivity::class.java
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -846,17 +829,16 @@ class ModePickerActivity : ComponentActivity() {
         setContent {
             val state by AiwaRepository.state.collectAsState()
             val tab = aiwaTab(state)
+            val sub = mediaSub(state)
             val entries = buildList {
-                add(PickerEntry("Ouvrir ce que ce mode a produit", false, header = true) { })
-                add(PickerEntry(prodLabel(state), false, lines = 2) { openProd(state) })
-                add(PickerEntry("Mode", false, header = true) { })
-                add(PickerEntry("🎬 Vidéos — la liste, ou en demander une", state.videoView, lines = 2) { go("video", VideosActivity::class.java) })
-                add(PickerEntry("📄 Documents — ceux que Claude a créés", !state.videoView && state.deploy == "documents", lines = 2) { go("documents", DocumentsActivity::class.java) })
-                add(PickerEntry("Page — un site sur GitHub Pages", tab == "pages") { pick("pages") })
-                add(PickerEntry("App — une application Android", tab == "android") { pick("android") })
+                add(PickerEntry("Mode (chacun a sa session) · le bouton à droite ouvre sa production", false, header = true) { })
+                add(PickerEntry("🎬 Vidéos", tab == "media" && sub == "video", lines = 1, side = "Ouvrir", onSide = { open(VideosActivity::class.java) }) { pick("video") })
+                add(PickerEntry("📄 Documents", tab == "media" && sub == "documents", lines = 1, side = "Ouvrir", onSide = { open(DocumentsActivity::class.java) }) { pick("documents") })
+                add(PickerEntry("Page", tab == "pages", lines = 1, side = "Ouvrir", onSide = { open(site(state)) }) { pick("pages") })
+                add(PickerEntry("App", tab == "android", lines = 1, side = "Ouvrir", onSide = { open(site(state)) }) { pick("android") })
                 if (state.accessLevel >= 2) {
-                    add(PickerEntry("Store — publier dans le Store", tab == "store") { pick("store") })
-                    add(PickerEntry("Aiwa — le projet Aiwa lui-même", tab == "aiwa") { pick("aiwa") })
+                    add(PickerEntry("Store", tab == "store", lines = 1, side = "Ouvrir", onSide = { open(OpenStoreActivity::class.java) }) { pick("store") })
+                    add(PickerEntry("Aiwa", tab == "aiwa", lines = 1, side = "Ouvrir", onSide = { open(OpenStoreActivity::class.java) }) { pick("aiwa") })
                 }
             }
             PickerSheet(entries) { finish() }
