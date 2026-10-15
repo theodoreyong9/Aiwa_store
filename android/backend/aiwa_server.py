@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 97
+BACKEND_VERSION = 98
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2551,13 +2551,14 @@ def agent_snapshot():
     if proposal:
         entry = _session_entry(proposal["session"]) or {}
         proposal["session_title"] = entry.get("title") or proposal["session"]
-        proposal["read_back"] = agent_lib.read_back(proposal["session_title"], proposal["message"])
+        targets = [(proposal["session_title"], proposal["message"])] + [((_session_entry(m["session"]) or {}).get("title") or m["session"], m["message"]) for m in proposal.get("more", [])]
+        proposal["read_back"] = agent_lib.read_back_all(targets)
     out["proposal"] = proposal
     with agent_lock:
         command = dict(agent["command"]) if agent["command"] else None
     if command:
         spoken, instruction = agent_lib.command_phrases(command["items"], lambda sid: (_session_entry(sid) or {}).get("title") or sid)
-        command = {"id": command["id"], "read_back": spoken, "instruction": instruction}
+        command = {"id": command["id"], "read_back": spoken, "instruction": instruction, "cast": command["items"].get("cast")}
     out["command"] = command
     return out
 
@@ -2613,16 +2614,20 @@ def agent_confirm(proposal_id):
         proposal = dict(agent["proposal"]) if agent["proposal"] else None
     if proposal is None or proposal["id"] != proposal_id:
         return {"ok": False, "error": "cette proposition n'est plus d'actualité"}
-    result = _queue_followup(proposal["session"], proposal["message"] + _loop_block_for(proposal["session"]))
-    if not result["ok"]:
-        return {"ok": False, "error": result["error"]}
+    targets = [(proposal["session"], proposal["message"])] + [(m["session"], m["message"]) for m in proposal.get("more", [])]
+    sent = []
+    for session_id, message in targets:
+        result = _queue_followup(session_id, message + _loop_block_for(session_id))
+        if not result["ok"]:
+            return {"ok": False, "error": result["error"], "sent": sent}
+        sent.append(session_id)
     with agent_lock:
         if agent["proposal"] and agent["proposal"]["id"] == proposal_id:
             agent["proposal"] = None
-        # the sessions the super agent last spoke to: « stop » asks them to forget it
-        recent = [(sid, at) for sid, at in agent.get("last_sent", []) if sid != proposal["session"] and time.time() - at < AGENT_FORGET_WINDOW]
-        agent["last_sent"] = recent + [(proposal["session"], time.time())]
-    return {"ok": True, "session": proposal["session"]}
+        # the sessions the super agent last spoke to: « stop » asks them to forget its last comment
+        recent = [(sid, at) for sid, at in agent.get("last_sent", []) if sid not in sent and time.time() - at < AGENT_FORGET_WINDOW]
+        agent["last_sent"] = recent + [(sid, time.time()) for sid in sent]
+    return {"ok": True, "session": proposal["session"], "sent": sent}
 
 
 AGENT_FORGET_WINDOW = 1800   # seconds: a stop reaches the sessions spoken to in the last half hour
@@ -3338,6 +3343,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_json(agent_spoken(str(data.get("id") or "")))
             elif action == "stop":
                 self.reply_json(agent_stop())
+            elif action == "report":
+                self.reply_json(agent_send(spoken=agent_lib.REPORT_REQUEST))
+            elif action == "vocabulary":
+                words = data.get("words") if isinstance(data.get("words"), dict) else {}
+                clean = {str(k)[:40]: [str(v)[:60] for v in vals[:8]] for k, vals in list(words.items())[:12] if isinstance(vals, list)}
+                self.reply_json(agent_send(spoken=agent_lib.vocabulary_message(clean)) if clean else {"ok": False})
             else:
                 self.send_error(404)
         elif self.path == "/api/llm/key":

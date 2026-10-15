@@ -28,7 +28,7 @@ class Agent(unittest.TestCase):
     def test_a_reply_is_read_and_a_proposal_must_name_a_known_session_that_is_not_the_agent(self):
         known = {"session_A", "session_AGENT"}
         ok = A.parse_message(json.dumps({"say": "Le site est en échec.", "send": {"session": "session_A", "message": "regarde le workflow"}}), known, "session_AGENT")
-        self.assertEqual(ok["proposal"], {"session": "session_A", "message": "regarde le workflow"})
+        self.assertEqual(ok["proposal"], {"session": "session_A", "message": "regarde le workflow", "more": []})
         unknown = A.parse_message(json.dumps({"say": "x", "send": {"session": "session_Z", "message": "m"}}), known, "session_AGENT")
         self.assertIsNone(unknown["proposal"])
         self_send = A.parse_message(json.dumps({"say": "x", "send": {"session": "session_AGENT", "message": "m"}}), known, "session_AGENT")
@@ -56,15 +56,47 @@ class CommandTest(unittest.TestCase):
         known = {"session_WORK", "session_AGENT"}
         raw = {"say": "ok", "do": {"model": "opus", "push": "Main", "deploy": "pages", "evil": "x", "repo": "a;rm -rf", "session": "session_WORK", "effort": ""}}
         parsed = A.parse_message(raw, known, "session_AGENT")
-        self.assertEqual(parsed["command"], {"model": "opus", "push": "main", "deploy": "pages", "session": "session_WORK"})
+        self.assertEqual(parsed["command"], {"session": "session_WORK"}, "model, effort, push and deploy are no longer spoken settings")
         self.assertIsNone(A.parse_command({"session": "session_AGENT"}, known, "session_AGENT"), "never the agent itself")
         self.assertIsNone(A.parse_command({"session": "session_UNKNOWN", "push": "force"}, known))
         self.assertEqual(A.parse_command({"session": "nouvelle"}, known), {"session": "nouvelle"})
         self.assertIsNone(A.parse_command("opus", known))
 
+    def test_the_cast_is_a_command_of_its_own_and_is_not_in_the_instruction(self):
+        cast = A.parse_command({"cast": {"tv": "Salon", "wait": True}}, set())
+        self.assertEqual(cast, {"cast": {"tv": "Salon", "wait": True}})
+        spoken, instruction = A.command_phrases(cast)
+        self.assertEqual(spoken, "J'applique : la prochaine vidéo sur la télévision « Salon ».")
+        self.assertEqual(instruction, "", "the phone does the cast itself, its parser has nothing to read")
+        self.assertEqual(A.parse_command({"cast": "salon"}, set())["cast"], {"tv": "salon", "wait": False})
+        self.assertIsNone(A.parse_command({"cast": {"tv": "a;b"}}, set()))
+        both = A.command_phrases({"repo": "test", "cast": {"tv": "", "wait": False}})
+        self.assertEqual(both, ("J'applique : dépôt test, la dernière vidéo sur la télévision.", "instruction aiwa dépôt test"))
+
+    def test_several_sessions_can_be_proposed_at_once_and_are_all_read_back(self):
+        known = {"session_A", "session_B", "session_AGENT"}
+        raw = {"say": "x", "send": [{"session": "session_A", "message": "ajoute un test"}, {"session": "session_B", "message": "regarde le workflow"}, {"session": "session_A", "message": "double"}]}
+        proposal = A.parse_message(raw, known, "session_AGENT")["proposal"]
+        self.assertEqual(proposal["session"], "session_A")
+        self.assertEqual(proposal["more"], [{"session": "session_B", "message": "regarde le workflow"}], "the same session twice counts once")
+        said = A.read_back_all([("Site", "ajoute un test"), ("App", "regarde le workflow")])
+        self.assertTrue(said.startswith("J'envoie à 2 sessions."))
+        self.assertIn("À la session App : regarde le workflow.", said)
+        self.assertEqual(A.read_back_all([("Site", "m")]), "J'envoie à la session Site : m.")
+
+    def test_the_agent_is_an_intermediary_and_knows_the_vocabulary_message(self):
+        charter = A.charter("http://relay/t")
+        for wanted in ("INTERMÉDIAIRE", "JAMAIS rien toi-même", "cast", "corpus", "résumé"):
+            self.assertIn(wanted, charter)
+        self.assertIn("INTERMÉDIAIRE", A.direct_system(set()))
+        text = A.vocabulary_message({"Réveil": ["mon agent"], "Stop": ["stop claude", "arrête claude"], "Vide": []})
+        self.assertIn("Réveil : mon agent", text)
+        self.assertIn("Stop : stop claude / arrête claude", text)
+        self.assertNotIn("Vide", text)
+
     def test_a_command_alone_is_a_reply_and_is_read_as_an_instruction(self):
-        parsed = A.parse_message({"do": {"model": "sonnet", "push": "branche"}}, set())
+        parsed = A.parse_message({"do": {"repo": "test", "session": "nouvelle"}}, set())
         self.assertEqual(parsed["say"], "")
         spoken, instruction = A.command_phrases(parsed["command"])
-        self.assertEqual(spoken, "J'applique : modèle sonnet, push branche.")
-        self.assertEqual(instruction, "instruction aiwa modèle sonnet push branche")
+        self.assertEqual(spoken, "J'applique : nouvelle session, dépôt test.")
+        self.assertEqual(instruction, "instruction aiwa nouvelle session dépôt test")
