@@ -625,6 +625,14 @@ private fun GlassesContent(state: AiwaState) {
                                 Text("Dicter", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                             }
                         }
+                        // the super agent, beside the dictation
+                        val ag = state.agent
+                        Spacer(GlanceModifier.width(GAP.dp))
+                        RoundButton(
+                            icon = R.drawable.ic_agent, description = "Super agent : ouvrir ou fermer",
+                            background = if (ag != null && (ag.say != null || ag.proposal != null || ag.command != null)) alertRed else if (ag?.enabled == true) green else pill,
+                            action = actionStartActivity<AgentToggleActivity>(), diameter = (micH - 2f).dp,
+                        )
                         if (state.ask != null) {
                             Spacer(GlanceModifier.width(GAP.dp))
                             RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = (micH - 2f).dp)
