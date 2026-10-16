@@ -37,7 +37,7 @@ rien ne passe par un serveur à nous.
 7. [Chaînes et boucles d'agents](#7-chaînes-et-boucles-dagents) — producteur, critique, soutien critique
 8. [Vidéos, cast TV, campagnes](#8-vidéos-cast-tv-campagnes)
 9. [Le cerveau (Termux)](#9-le-cerveau-termux) — installation, mises à jour, sécurité
-10. [Le Store, le registre, le wallet, le token](#10-le-store-le-registre-le-wallet-le-token)
+10. [Le Store, le registre, le wallet, le token AIWA, le Yellow Paper](#10-le-store-le-registre-le-wallet-le-token-aiwa-le-yellow-paper) — l'idée, les piliers, écrire un contrat, le registre
 11. [Architecture](#11-architecture) — schémas : vue d'ensemble, voix, boucles, protocole, livraison, données
 12. [Développer sur ce dépôt](#12-développer-sur-ce-dépôt)
 13. [Ce qui est vérifié, ce qui ne l'est pas](#13-ce-qui-est-vérifié-ce-qui-ne-lest-pas)
@@ -246,19 +246,129 @@ sessions, les boucles, l'agent, les campagnes et les vidéos.
   relais public (ntfy.sh, qu'un environnement cloud doit autoriser) **ou**, en repli, par un fichier `aiwa-out/SIGNAL` poussé sur la branche de la
   session ; une session reçoit les paroles d'un autre critique comme *données*, jamais comme ordres.
 
-## 10. Le Store, le registre, le wallet, le token
+## 10. Le Store, le registre, le wallet, le token AIWA, le Yellow Paper
 
-*Livré et testé en CI (démo : l'application GitHub et le réseau Solana sont des doublures).*
+Rien de cela n'a quitté le projet : tout est dans le dépôt (`packages/`, `registry/`, `apps/web/`, `store/`, `docs/YELLOWPAPER.md`…). Ce qui suit est la
+vue d'ensemble ; le détail est dans les documents cités. *Livré et testé en CI ; la démo utilise des doublures pour l'application GitHub et pour Solana.*
 
-- **Une appli web** (le Store et le wallet) dans une WebView ; elle suit le site (GitHub Pages) et a une copie dans l'APK.
-- **Wallet** : identité par 12 mots, carnet d'événements signés ; AIWA est créé par du **travail vérifiable** de ton téléphone, après **un** brûlage de SOL.
-  Envoi par QR code ou texte, même hors ligne. Des téléphones ouverts se trouvent via un relais public qui ne voit pas les données.
-- **Registre** = un workflow GitHub : il vérifie signature, preuve et brûlage, puis classe les contrats par `score / laps` (ce que l'auteur peut
-  réclamer, sur les époques depuis sa dernière action). Rien n'est édité à la main.
-- **Store** : la liste **classée** (contrats Aiwa, vérifiés contre la signature de leur auteur) et la **Library** (apps des comptes GitHub que tu suis).
-  Chaque app tourne dans une boîte scellée (`iframe sandbox`), sans accès à ton wallet sauf si elle le demande (bannière, puis feuille de paiement).
-- **Détail** : [`docs/EXPLAINED.md`](docs/EXPLAINED.md) · [en français](docs/EXPLICATION.md), [`docs/YELLOWPAPER.md`](docs/YELLOWPAPER.md) (protocole),
-  [`docs/CONTRACTS.md`](docs/CONTRACTS.md) (écrire un contrat), [`docs/BUSINESS.md`](docs/BUSINESS.md).
+### 10.1 L'idée
+
+**Un écosystème d'applications distribué, dans la poche : construire une app en lui parlant, la publier d'un appui, être classé par le travail derrière
+elle, et payer des gens directement. Pas de serveur à nous, pas de registre partagé.** Chaque téléphone garde son *propre* historique d'événements
+signés et le montre aux autres quand c'est utile ; comme n'importe qui peut vérifier le travail d'un inconnu en quelques millisecondes, un simple dépôt
+GitHub peut être le registre et le classement, un paiement peut être un fichier, et deux téléphones peuvent régler un jeu sans rien entre eux. Solana
+n'est utilisé qu'**une fois**, pour le brûlage. Les briques sont connues (journaux signés, preuves de travail séquentiel, brûlage comme coût) ; les assembler
+ainsi est le but.
+
+| | |
+|---|---|
+| **Construire** | dicter à Claude Code (le widget) : un site, un APK, une app qui reste dans ton GitHub, un contrat Aiwa, une campagne, des vidéos. Tu relis et essaies tout avant que rien ne parte |
+| **Soumettre** | *contrats Aiwa seulement* : un appui, le Store signe avec ton wallet, ajoute la preuve du travail fait et ouvre la pull request sur ton compte GitHub. Une app de bibliothèque n'a besoin de rien de cela |
+| **Store** | deux listes. La liste **classée** (les contrats Aiwa, ordonnés par ce que chaque auteur a *miné*, pas par des pubs ou des notes ; personne ne l'édite ; chaque contrat est vérifié contre la signature de son auteur avant de s'ouvrir). La **Library** : les apps des comptes GitHub que tu suis, sans registre ni classement, modifiables par leurs auteurs. Chaque app tourne dans une boîte scellée. Fonctionne hors ligne. Onglets *Own*, *Fave*, commentaires |
+| **Token** | **AIWA** est créé par ton téléphone qui fait un travail vérifiable, après **un** brûlage de SOL : ni réseau de mineurs, ni bourse. Envoi par QR code ou texte, même sans connexion |
+| **Se connecter et voir** | les wallets ouverts se trouvent seuls (un relais public les présente, sans voir les données) et échangent ce qui leur manque ; *Relier un autre téléphone* le fait à la main avec deux codes. Chacun signe un reçu de ce qu'il a reçu, et le wallet montre où en est chaque identité dont il détient quelque chose : ce qui est prouvé, le vote, un fork, son rythme face au tien |
+| **Jouer et payer** | une app peut utiliser ton wallet. Le [duel de clics](docs/demo-apps/click-duel.html) : deux téléphones, un prix par clic, 20 secondes, celui qui a le moins cliqué paie ce qu'il a cliqué, et rien n'est signé par clic |
+
+### 10.2 Le chemin d'une app dans le système
+
+<!-- diagram: readme-01-c914959d.png -->
+![Diagram: 10.2 Le chemin d'une app dans le système](docs/img/diagrams/readme-01-c914959d.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
+```mermaid
+flowchart LR
+  A["1. Construire<br/>dicter, Claude Code<br/>écrit l'app"] --> B["2. Gagner<br/>brûler du SOL une fois,<br/>le téléphone travaille app ouverte"]
+  B --> C["3. Soumettre<br/>un appui: app signée<br/>+ preuve du travail"]
+  C --> D["4. Classer<br/>un workflow GitHub vérifie<br/>et classe"]
+  D --> E["5. Utiliser<br/>chaque Store vérifie,<br/>ouvre scellé, l'app peut payer"]
+```
+
+</details>
+<!-- /diagram -->
+
+1. **Construire.** Le widget envoie ta voix à Claude Code, qui écrit ce que le mode demande : une app qui reste dans ton GitHub, ou **un contrat publié par Aiwa**
+   (signé et épinglé par son hash).
+2. **Gagner.** La seule chose qui coûte quelque chose, et la seule qui demande Solana, est le brûlage. **0,1 %** de la part que tu choisis de mettre de
+   côté (appelée **T**) va au créateur du logiciel, dans la même transaction, montré avant de signer. À T = 0, rien. Ensuite chaque unité de travail est
+   signée, vérifiable en quelques millisecondes, et ce que tu peux réclamer croît avec le temps.
+3. **Soumettre** (contrats). Ton app, signée avec ton wallet, avec la preuve de ton travail, en pull request.
+4. **Classer** (contrats). Le registre est un workflow GitHub : il vérifie la signature, la preuve et le brûlage **sur Solana lui-même**, puis te classe par
+   `score / laps` (ce que tu peux réclamer, sur les époques écoulées depuis ta dernière action).
+5. **Utiliser.** Chaque Store vérifie chaque app contre la signature de son auteur avant de l'ouvrir. Une app qui dit utiliser ton wallet reçoit une bannière
+   et peut demander à payer : une feuille du Store te demande d'abord (ce paiement, ou un budget jusqu'à la fermeture de l'app), et rien ne sort du
+   wallet sans cela.
+
+GitHub garde la liste, Solana garde les brûlages, chaque téléphone garde son historique signé.
+
+### 10.3 Les trois piliers du protocole
+
+Tout ce que fait le carnet de chaque téléphone relève d'un de ces trois métiers (Yellow Paper, parties II–III) :
+
+| Pilier | Question | Réponse | § |
+|---|---|---|---|
+| **Progression** | comment montrer que du temps a passé, sans horloge ? | en faisant du **travail** séquentiel que chacun peut vérifier | 6 |
+| **Conservation** | à qui appartient quoi, comment payer sans payer deux fois ? | des **créances** qui ne se déplacent qu'une fois ; la double dépense est détectée | 7 |
+| **Mirror** | qu'ai-je reçu des autres ? | des **reçus signés** | 8 |
+
+Un seul prérequis extérieur : le brûlage qui ouvre l'accumulation (§9). Ensuite un domaine travaille hors ligne. Une branche n'est pas un conflit ; les
+événements en conflit sont repliés dans un ordre fixe, le même pour tout le monde (§13.4). Perdre son téléphone : les 12 mots restaurent l'identité ;
+l'historique se récupère auprès des autres (§15).
+
+### 10.4 Écrire un contrat
+
+Un contrat n'est pas du code qu'une machine exécute pour tous : c'est un ensemble de règles **état + événement → nouvel état**, que chaque détenteur
+rejoue à partir des événements qu'il a. Deux détenteurs avec les mêmes événements obtiennent le même état. Le SDK est un module (`lib/aiwa.js`) que l'app importe
+par son adresse. Un vote en quelques lignes (l'exemple complet : [`docs/aiwa-app-example.html`](docs/aiwa-app-example.html)) :
+
+```js
+import { generateIdentity, EventLog, createMemoryBackend, defineContract, Contract, signedAction, verifySignedAction }
+  from 'https://theodoreyong9.github.io/Aiwa_store/lib/aiwa.js';
+
+const definition = defineContract({
+  initialState: () => ({ votes: {} }),
+  handlers: {
+    vote: async (state, event) => {
+      const action = event.payload;
+      if (!(await verifySignedAction(action))) return state;       // pas signé par celui qu'il prétend être
+      if (action.choice !== 'yes' && action.choice !== 'no') return state;
+      if (action.from in state.votes) return state;                // un vote par identité : le premier compte
+      return { votes: { ...state.votes, [action.from]: action.choice } };
+    },
+  },
+});
+```
+
+**Trois règles** : (1) *prouver qui agit à l'intérieur de l'action* (`signedAction` / `verifySignedAction` : un `payload.from` seul ne prouve rien) ;
+(2) *des gestionnaires purs* (ni horloge, ni hasard, ni réseau : tout lecteur les rejoue) ; (3) *un conflit a un seul vainqueur, le même pour tous* (écris la
+règle pour que le premier compte). Dans Aiwa, Claude écrit le **test du contrat avant l'app** (§4). Voir [`docs/CONTRACTS.md`](docs/CONTRACTS.md).
+
+### 10.5 Le registre
+
+Une pull request qui publie une app ajoute **un** fichier `submissions/<nom>.json` (le Store le fabrique et ouvre la pull request ; depuis un navigateur il
+te donne le fichier). Le workflow **Registry** lit ce fichier *comme une donnée* (jamais exécuté), vérifie signature, preuve de travail et brûlage sur Solana,
+écrit `store/` si accepté, et **ferme la pull request avec le verdict**. Deux sortes de paquets : *code* (le code voyage dans le paquet) ou *contrat Aiwa* (un
+pointeur signé vers un bundle épinglé par hash : changer le code, c'est publier une autre version). Le classement est `score / laps`, avec des références
+publiques. Voir [`registry/README.md`](registry/README.md) et [`submissions/README.md`](submissions/README.md).
+
+### 10.6 Le wallet
+
+Une identité par **12 mots** (la seule façon de revenir sur un autre téléphone), un carnet d'événements signés, la sauvegarde / restauration, la part du
+créateur visible avant toute signature, l'envoi par QR code ou texte, le réseau (une salle Trystero, puis le réplicateur) et *Relier un autre téléphone*
+(deux codes). *Qui ce téléphone a vu* montre la position, la preuve, le vote, le fork et le rythme (Yellow Paper §19).
+
+### 10.7 Lire le détail
+
+| | |
+|---|---|
+| [`docs/EXPLAINED.md`](docs/EXPLAINED.md) · [`EXPLICATION.md`](docs/EXPLICATION.md) (FR) | tout expliqué en mots simples, avec des schémas |
+| [`docs/YELLOWPAPER.md`](docs/YELLOWPAPER.md) | le protocole formel : identité, événements et journal, actions signées (I) · progression, conservation, mirror (II) · engagement de genèse, accumulation, part du créateur, ce qu'un tiers peut lire (III) · partition, stockage borné, récupération (IV) · contrats, bundles, le Store (V) · observation, matériel (VI) · menaces, limites, annexes dont les formats de fils et les paramètres (VII) |
+| [`docs/CONTRACTS.md`](docs/CONTRACTS.md) | écrire un contrat : un vote, les trois règles, partager des événements entre téléphones, publier, ce qu'un contrat ne peut pas faire |
+| [`docs/BUSINESS.md`](docs/BUSINESS.md) | le modèle économique, chiffres et limites |
+| [`docs/PLAN.md`](docs/PLAN.md) | ce que contient la version 1, ce qu'elle laisse de côté, où en est chaque étape |
+| [`docs/GAME-FOUNDATION.md`](docs/GAME-FOUNDATION.md) · [`docs/VISION-SOCIETE-AUGMENTEE.md`](docs/VISION-SOCIETE-AUGMENTEE.md) | le standard des jeux · la vision |
+| [`docs/PROMO-VIDEO.md`](docs/PROMO-VIDEO.md) · [`DIRECTOR-PLAYBOOK.md`](docs/DIRECTOR-PLAYBOOK.md) · [`VOICE-VIDEO-CAMPAIGNS.md`](docs/VOICE-VIDEO-CAMPAIGNS.md) | la chaîne vidéo, la voix, les campagnes |
 
 ## 11. Architecture
 
@@ -267,8 +377,8 @@ sessions, les boucles, l'agent, les campagnes et les vidéos.
 Cinq endroits, et une règle : **le téléphone ne produit rien lui-même**. Il écoute, relit, confirme et transmet ; ce sont les sessions Claude Code
 (dans le cloud de Claude) qui écrivent, *dans ton dépôt GitHub*.
 
-<!-- diagram: readme-01-65ba2d44.png -->
-![Diagram: 11.1 Vue d'ensemble : qui parle à qui](docs/img/diagrams/readme-01-65ba2d44.png)
+<!-- diagram: readme-02-65ba2d44.png -->
+![Diagram: 11.1 Vue d'ensemble : qui parle à qui](docs/img/diagrams/readme-02-65ba2d44.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -315,8 +425,8 @@ Trois frontières de confiance :
 
 ### 11.2 Du micro à la session : le chemin d'une commande
 
-<!-- diagram: readme-02-46910341.png -->
-![Diagram: 11.2 Du micro à la session : le chemin d'une commande](docs/img/diagrams/readme-02-46910341.png)
+<!-- diagram: readme-03-46910341.png -->
+![Diagram: 11.2 Du micro à la session : le chemin d'une commande](docs/img/diagrams/readme-03-46910341.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -352,8 +462,8 @@ Les **instructions générales** partent au premier message d'une session (puis 
 
 ### 11.3 L'application Android : trois couches
 
-<!-- diagram: readme-03-a1dfaa83.png -->
-![Diagram: 11.3 L'application Android : trois couches](docs/img/diagrams/readme-03-a1dfaa83.png)
+<!-- diagram: readme-04-a1dfaa83.png -->
+![Diagram: 11.3 L'application Android : trois couches](docs/img/diagrams/readme-04-a1dfaa83.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -395,8 +505,8 @@ flowchart TB
 
 ### 11.4 La voix
 
-<!-- diagram: readme-04-03893869.png -->
-![Diagram: 11.4 La voix](docs/img/diagrams/readme-04-03893869.png)
+<!-- diagram: readme-05-03893869.png -->
+![Diagram: 11.4 La voix](docs/img/diagrams/readme-05-03893869.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -420,8 +530,8 @@ flowchart LR
 
 ### 11.5 Boucles et liens
 
-<!-- diagram: readme-05-225c1bd1.png -->
-![Diagram: 11.5 Boucles et liens](docs/img/diagrams/readme-05-225c1bd1.png)
+<!-- diagram: readme-06-225c1bd1.png -->
+![Diagram: 11.5 Boucles et liens](docs/img/diagrams/readme-06-225c1bd1.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -444,8 +554,8 @@ tour, et le cerveau envoie à l'autre son message suivant, avec la branche à li
 
 ### 11.6 Le protocole, le Store et le registre
 
-<!-- diagram: readme-06-6c2a7637.png -->
-![Diagram: 11.6 Le protocole, le Store et le registre](docs/img/diagrams/readme-06-6c2a7637.png)
+<!-- diagram: readme-07-6c2a7637.png -->
+![Diagram: 11.6 Le protocole, le Store et le registre](docs/img/diagrams/readme-07-6c2a7637.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -472,8 +582,8 @@ flowchart BT
 
 Une flèche signifie « utilise » ; rien dans `core` ne connaît ce qui est au-dessus.
 
-<!-- diagram: readme-07-f28dee12.png -->
-![Diagram: 11.6 Le protocole, le Store et le registre](docs/img/diagrams/readme-07-f28dee12.png)
+<!-- diagram: readme-08-f28dee12.png -->
+![Diagram: 11.6 Le protocole, le Store et le registre](docs/img/diagrams/readme-08-f28dee12.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -500,8 +610,8 @@ sequenceDiagram
 
 ### 11.7 Livraison et mises à jour
 
-<!-- diagram: readme-08-f7d4c994.png -->
-![Diagram: 11.7 Livraison et mises à jour](docs/img/diagrams/readme-08-f7d4c994.png)
+<!-- diagram: readme-09-f7d4c994.png -->
+![Diagram: 11.7 Livraison et mises à jour](docs/img/diagrams/readme-09-f7d4c994.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
