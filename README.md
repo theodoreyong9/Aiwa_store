@@ -22,7 +22,7 @@ rien ne passe par un serveur à nous.
 > **Où ça en est, sans détour.** Le dépôt est testé en CI (protocole, registre, appli web dans un vrai Chromium, cerveau Python, tests Kotlin du
 > pont), et l'APK **compile** en CI. **Rien de ce qui suit n'a été fait tourner de bout en bout sur un vrai téléphone**, ni sur le vrai réseau Solana,
 > ni sur de vraies lunettes connectées. Chaque section dit ce qui est *livré*, *écrit mais non essayé sur téléphone*, ou *vision*.
-> Détail : [Ce qui est vérifié, ce qui ne l'est pas](#12-ce-qui-est-vérifié-ce-qui-ne-lest-pas).
+> Détail : [Ce qui est vérifié, ce qui ne l'est pas](#13-ce-qui-est-vérifié-ce-qui-ne-lest-pas).
 
 ---
 
@@ -38,10 +38,11 @@ rien ne passe par un serveur à nous.
 8. [Vidéos, cast TV, campagnes](#8-vidéos-cast-tv-campagnes)
 9. [Le cerveau (Termux)](#9-le-cerveau-termux) — installation, mises à jour, sécurité
 10. [Le Store, le registre, le wallet, le token](#10-le-store-le-registre-le-wallet-le-token)
-11. [Développer sur ce dépôt](#11-développer-sur-ce-dépôt)
-12. [Ce qui est vérifié, ce qui ne l'est pas](#12-ce-qui-est-vérifié-ce-qui-ne-lest-pas)
-13. [Vision (pas démontrée)](#13-vision-pas-démontrée)
-14. [Licences et crédits](#14-licences-et-crédits)
+11. [Architecture](#11-architecture) — schémas : vue d'ensemble, voix, boucles, protocole, livraison, données
+12. [Développer sur ce dépôt](#12-développer-sur-ce-dépôt)
+13. [Ce qui est vérifié, ce qui ne l'est pas](#13-ce-qui-est-vérifié-ce-qui-ne-lest-pas)
+14. [Vision (pas démontrée)](#14-vision-pas-démontrée)
+15. [Licences et crédits](#15-licences-et-crédits)
 
 ---
 
@@ -259,7 +260,279 @@ sessions, les boucles, l'agent, les campagnes et les vidéos.
 - **Détail** : [`docs/EXPLAINED.md`](docs/EXPLAINED.md) · [en français](docs/EXPLICATION.md), [`docs/YELLOWPAPER.md`](docs/YELLOWPAPER.md) (protocole),
   [`docs/CONTRACTS.md`](docs/CONTRACTS.md) (écrire un contrat), [`docs/BUSINESS.md`](docs/BUSINESS.md).
 
-## 11. Développer sur ce dépôt
+## 11. Architecture
+
+### 11.1 Vue d'ensemble : qui parle à qui
+
+Cinq endroits, et une règle : **le téléphone ne produit rien lui-même**. Il écoute, relit, confirme et transmet ; ce sont les sessions Claude Code
+(dans le cloud de Claude) qui écrivent, *dans ton dépôt GitHub*.
+
+<!-- diagram: readme-01-65ba2d44.png -->
+![Diagram: 11.1 Vue d'ensemble : qui parle à qui](docs/img/diagrams/readme-01-65ba2d44.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
+```mermaid
+flowchart LR
+  subgraph Phone["Ton téléphone Android"]
+    APK["APK Aiwa<br/>WebView (Store, wallet)<br/>widget Glance, fenêtres Compose<br/>voix: Vosk, TextToSpeech"]
+    Brain["Cerveau (Termux)<br/>aiwa_server.py 127.0.0.1:8787<br/>agent, boucles, LLM, GitHub, voix"]
+  end
+  subgraph Cloud["Cloud de Claude"]
+    Sessions["Sessions Claude Code<br/>une session = un dépôt"]
+  end
+  subgraph GH["GitHub (ton dépôt)"]
+    Repo["docs/ docs/videos/ docs/campagnes/<br/>aiwa-apps/ aiwa-out/ aiwa-papers/"]
+    Pages["Pages, Releases (.apk)"]
+    Reg["Registre (workflows, store/)"]
+  end
+  Relay["Relais public (ntfy.sh)"]
+  Sol["Solana (un brûlage)"]
+  APK -- "HTTP local: /api/..." --> Brain
+  Brain -- "CLI claude (messages, commandes)" --> Sessions
+  Sessions -- "git push (branche de la session)" --> Repo
+  Sessions -- "curl: app, attend, check" --> Relay
+  Relay --> Brain
+  Brain -. "repli: aiwa-out/SIGNAL" .-> Repo
+  Brain -- "git fetch / API publique (sans jeton)" --> Repo
+  Repo --> Pages
+  APK -- "suit le site, l'APK" --> Pages
+  APK -- "publication signée: pull request" --> Reg
+  Reg -- "vérifie le brûlage" --> Sol
+```
+
+</details>
+<!-- /diagram -->
+
+Trois frontières de confiance :
+
+| Frontière | Ce qui la traverse | Ce qui ne la traverse jamais |
+|---|---|---|
+| téléphone ⇄ cerveau | HTTP **local** (`127.0.0.1` seulement) | rien n'est exposé sur le réseau |
+| cerveau ⇄ Claude / GitHub | messages à une session, lectures publiques de GitHub | aucun jeton GitHub demandé ; la clé Anthropic facultative reste dans Termux |
+| appli ⇄ registre / Solana | une publication **signée** par ton wallet, une preuve de brûlage | la phrase de 12 mots ; l'accès du wallet aux apps sans ton accord |
+
+### 11.2 Du micro à la session : le chemin d'une commande
+
+<!-- diagram: readme-02-46910341.png -->
+![Diagram: 11.2 Du micro à la session : le chemin d'une commande](docs/img/diagrams/readme-02-46910341.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
+```mermaid
+sequenceDiagram
+  actor U as Toi
+  participant W as Widget / micro
+  participant P as Parseur (téléphone)
+  participant B as Cerveau (Termux)
+  participant S as Session Claude Code
+  participant G as GitHub
+  U->>W: « instruction session X dépôt Y »
+  W->>P: texte reconnu (Android)
+  P->>U: relit session + dépôt (voix)
+  U->>P: « c'est bon vas-y »
+  P->>B: /api/repo, /api/cloud/select
+  B->>S: information de pastille
+  U->>W: « fais-moi une vidéo… » (commande)
+  W->>B: /api/cloud/message (+ consignes écrites du mode)
+  B->>S: message, avec instructions générales (une fois)
+  S->>G: commits sur la branche de la session
+  S-->>B: signal (relais ntfy ou aiwa-out/SIGNAL)
+  B-->>W: état: production captée
+  W->>U: « c'est prêt » (voix, si activé)
+```
+
+</details>
+<!-- /diagram -->
+
+Les **instructions générales** partent au premier message d'une session (puis seulement si elles changent ou sur « renvoie les instructions ») ; les
+**consignes du mode** (Docs, Vidéo, Page, App, Aiwa, campagne) sont ajoutées au message, par écrit.
+
+### 11.3 L'application Android : trois couches
+
+<!-- diagram: readme-03-a1dfaa83.png -->
+![Diagram: 11.3 L'application Android : trois couches](docs/img/diagrams/readme-03-a1dfaa83.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
+```mermaid
+flowchart TB
+  subgraph app["android/app (Kotlin: Compose, Glance, services)"]
+    W1["Widget (Light, Glasses)"]
+    Win["Fenêtres: Vidéos, Campagnes, Boucles, Agent, Mes mots, Réglages"]
+    Svc["KeepAliveService (boucle 10 s)<br/>WakeWordService (écoute Vosk)"]
+    St["AiwaRepository (état) + BackendSync"]
+  end
+  subgraph bridge["android/bridge (Kotlin pur, testé en JVM)"]
+    Parse["VoiceCommands: parseur, pilules, mots"]
+    Rec["Recognitions, WakeWords"]
+    API["ClaudeBridge / LocalClaudeBridge (HTTP vers le cerveau)"]
+  end
+  subgraph back["android/backend (Python)"]
+    Srv["aiwa_server.py"]
+    Mods["aiwa_agent, aiwa_loops, aiwa_llm,<br/>aiwa_github, aiwa_voice"]
+  end
+  W1 --> St
+  Win --> St
+  Svc --> St
+  St --> API
+  Svc --> Parse
+  Parse --> Rec
+  API -- "HTTP local" --> Srv
+  Srv --> Mods
+```
+
+</details>
+<!-- /diagram -->
+
+- **`android/bridge`** ne dépend pas d'Android : tout ce qui se teste sans téléphone y est (parseur de la voix, mots, pilules, conversion des campagnes,
+  lecture des réponses du cerveau).
+- **L'état** est unique (`AiwaRepository`) : `BackendSync` lit `/api/status` et le widget se redessine quand la clé d'état change (une seule mise à jour à la fois).
+- **Services** : `KeepAliveService` maintient le cerveau en vie, surveille les mises à jour et les productions ; `WakeWordService` est l'écoute permanente.
+
+### 11.4 La voix
+
+<!-- diagram: readme-04-03893869.png -->
+![Diagram: 11.4 La voix](docs/img/diagrams/readme-04-03893869.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
+```mermaid
+flowchart LR
+  Mic["Micro"] --> Vosk["Vosk (local)<br/>grammaire: mots de réveil"]
+  Vosk -->|"WakeKind"| Kinds{"réveil, instruction, super agent,<br/>stop, éteins, renvoi, t'es où là"}
+  Kinds --> Dict["Dictée (Android)"]
+  Dict --> Pill["Parseur: pastilles session / dépôt seulement"]
+  Pill --> Conf["Relecture + « c'est bon vas-y »"]
+  Dict --> Msg["Le reste = message à la session"]
+  Kinds --> Ag["Mode super agent<br/>(texte libre → cerveau)"]
+  Ag --> LLM["Clé Anthropic: Claude lit la phrase<br/>sinon: la session de l'agent"]
+  LLM --> Prop["Propositions: send, do (session, repo, open, cast)"]
+  Prop --> Conf
+```
+
+</details>
+<!-- /diagram -->
+
+### 11.5 Boucles et liens
+
+<!-- diagram: readme-05-225c1bd1.png -->
+![Diagram: 11.5 Boucles et liens](docs/img/diagrams/readme-05-225c1bd1.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
+```mermaid
+flowchart LR
+  B1["Session A (producteur)"] -- "tour" --> C1["Session B (critique)"]
+  C1 -- "tour" --> B1
+  C1 --- Papers["aiwa-papers/ (relu à chaque tour)"]
+  C1 -. "lien accepté: contribution = donnée" .- C2["Session C (critique)"]
+  Com["Commentaires du registre"] --> C1
+```
+
+</details>
+<!-- /diagram -->
+
+Le cerveau est le **coursier** : une session peut recevoir un message mais pas en envoyer à une autre. Chacune travaille sur sa branche, signale la fin de son
+tour, et le cerveau envoie à l'autre son message suivant, avec la branche à lire. Un tour est limité, la boucle peut être arrêtée, relancée ou **ramenée en arrière**
+(avec toute la chaîne qui lui est connectée). Le **registre des expéditeurs acceptés** fait qu'un message entre critiques ne circule que dans un lien accepté.
+
+### 11.6 Le protocole, le Store et le registre
+
+<!-- diagram: readme-06-6c2a7637.png -->
+![Diagram: 11.6 Le protocole, le Store et le registre](docs/img/diagrams/readme-06-6c2a7637.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
+```mermaid
+flowchart BT
+  core["packages/core<br/>identité, événements signés,<br/>travail vérifiable, conservation"]
+  platform["packages/platform<br/>transport, réplication, stockage, bundles"]
+  lib["packages/lib<br/>API du wallet, SDK des contrats"]
+  registry["registry<br/>valide les soumissions, classe"]
+  web["apps/web<br/>Store + wallet"]
+  android["android<br/>APK: WebView + widget"]
+  platform --> core
+  lib --> platform
+  lib --> core
+  registry --> lib
+  web --> lib
+  web --> registry
+  android -. "porte le build de" .-> web
+```
+
+</details>
+<!-- /diagram -->
+
+Une flèche signifie « utilise » ; rien dans `core` ne connaît ce qui est au-dessus.
+
+<!-- diagram: readme-07-f28dee12.png -->
+![Diagram: 11.6 Le protocole, le Store et le registre](docs/img/diagrams/readme-07-f28dee12.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
+```mermaid
+sequenceDiagram
+  participant A as Auteur (téléphone)
+  participant R as GitHub: workflow Registry
+  participant S as Solana
+  participant X as Un autre Store
+  A->>A: brûle SOL une fois, mine (travail vérifiable)
+  A->>R: pull request: submissions/nom.json (app signée + preuve)
+  R->>S: le brûlage est-il réel ?
+  S-->>R: oui
+  R->>R: vérifie signature, preuve, classe par score / laps
+  R->>R: écrit store/ puis Pages publie
+  X->>R: lit la liste
+  X->>X: vérifie la signature de chaque app avant de l'ouvrir
+  X->>X: l'ouvre dans une boîte scellée (iframe sandbox)
+```
+
+</details>
+<!-- /diagram -->
+
+### 11.7 Livraison et mises à jour
+
+<!-- diagram: readme-08-f7d4c994.png -->
+![Diagram: 11.7 Livraison et mises à jour](docs/img/diagrams/readme-08-f7d4c994.png)
+
+<details>
+<summary>The source of this diagram (Mermaid)</summary>
+
+```mermaid
+flowchart LR
+  Push["push sur clean / main"] --> CI["CI: tests protocole, registre, web"]
+  Push --> And["Android: tests du cerveau et du pont, build"]
+  And --> Rel["Release android-latest (APK)"]
+  Rel -- "chaque minute (requête conditionnelle)" --> Phone["Appli: bouton ↻ vert"]
+  Phone --> Inst["Installateur d'Android"]
+  Main["main"] -- "bootstrap.sh / mise à jour automatique" --> Brain["Cerveau: git fast-forward + redémarrage"]
+  Inst -. "l'appli attend EXPECTED_BACKEND_VERSION" .-> Brain
+```
+
+</details>
+<!-- /diagram -->
+
+### 11.8 Où vivent les données
+
+| Quoi | Où | Pour toujours ? |
+|---|---|---|
+| Productions (docs, vidéos, apps, campagnes) | **ton dépôt GitHub** | oui, c'est à toi |
+| Conversations avec Claude | cloud de Claude (claude.ai) | selon ton compte |
+| Sessions connues, dépôts, état, boucles, agent | fichiers dans le `$HOME` de Termux (`.aiwa_*.json`) | sur ce téléphone |
+| Clé Anthropic (facultative) | `~/.aiwa_anthropic_key` (Termux) | sur ce téléphone |
+| Wallet : 12 mots, carnet d'événements | l'appli (sauvegarde chiffrée possible) | **toi seul** : sans les 12 mots, rien ne revient |
+| Liste classée des contrats | `store/` du dépôt, servi par Pages | publique |
+| Brûlages | Solana | publique |
+
+## 12. Développer sur ce dépôt
 
 ```
 packages/core       le protocole (identité, événements signés, travail vérifiable, conservation, part du créateur)
@@ -303,7 +576,7 @@ Règles de contribution : une ligne dans `CHANGELOG.md` (« Unreleased ») par c
 Ce que seul le propriétaire du dépôt peut faire : activer GitHub Pages (*Source : GitHub Actions*), créer l'OAuth App *Aiwa Store* (Device Flow) pour
 la connexion GitHub de la feuille de publication, déposer `DEVNET_PHRASE`, et faire le premier essai réel sur un téléphone.
 
-## 12. Ce qui est vérifié, ce qui ne l'est pas
+## 13. Ce qui est vérifié, ce qui ne l'est pas
 
 | Testé en CI | **Non vérifié** |
 |---|---|
@@ -317,7 +590,7 @@ la connexion GitHub de la feuille de publication, déposer `DEVNET_PHRASE`, et f
 
 Aucune critique n'est indépendante tant qu'elle est faite par la même chaîne qui produit.
 
-## 13. Vision (pas démontrée)
+## 14. Vision (pas démontrée)
 
 Ce qui suit est **l'intention du projet**, pas ce qui tourne :
 
@@ -329,7 +602,7 @@ Ce qui suit est **l'intention du projet**, pas ce qui tourne :
   reste est à construire.
 - **Code 100 % open en 2027.**
 
-## 14. Licences et crédits
+## 15. Licences et crédits
 
 MIT, voir [`LICENSE`](LICENSE).
 
