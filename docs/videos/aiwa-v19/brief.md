@@ -1,0 +1,3 @@
+# Film v19 — pages enchaînées plus vite
+Couverture : AIWA + « Le super agent Claude Code. » (la carte de clôture garde « Ton univers. Ta volonté. »). Dix pages : 1 « Crée ce que tu veux. » (les six icônes) — 2 « Grâce à un widget gratuit. » (widget forme light) — 3 « Adaptable aux lunettes connectées. » (widget forme glasses) — 4 Tout à la voix — 5 chaînes et boucles — 6 super agent — 7 créations à la chaîne — 8 vote collectif — 9 Preuve de Volonté — 10 économie interplanétaire. Retirées : « Déploiement… gratuit » (0 €), la page lunettes de la fin, la page proximité. Pages enchaînées à la demi-mesure (plus de pause entre les phrases), 48 s au lieu de 64 s.
+Voix : Piper « siwis » (synthèse). Musique : « Killers », Kevin MacLeod, CC BY 4.0. Non regardé en mouvement.
