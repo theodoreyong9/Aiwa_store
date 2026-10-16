@@ -78,20 +78,21 @@ private fun AgentWindow(onClose: () -> Unit) {
         }
     }
 
-    MaterialTheme {
+    DarkSheetTheme {
         Box(
             Modifier.fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.35f))
+                .background(Color.Black.copy(alpha = 0.62f))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClose() },
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                shape = RoundedCornerShape(20.dp),
-                tonalElevation = 6.dp,
-                modifier = Modifier.padding(24.dp).fillMaxWidth()
+                shape = RoundedCornerShape(18.dp),
+                color = SheetBg,
+                border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
+                modifier = Modifier.padding(14.dp).fillMaxWidth()
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
-                Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.padding(14.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("L'agent", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Une session Claude à part. Elle suit tes dépôts, tes sessions et tes boucles, et te parle à voix haute. On l'ouvre en disant « mon super agent » (écoute de réveil allumée) ou avec le bouton ; « repasse en manuel » la ferme. " +

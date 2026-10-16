@@ -243,18 +243,18 @@ private fun ProposalsWindow(onClose: () -> Unit) {
         }
     }
 
-    AiwaTheme {
+    DarkSheetTheme {
         Box(
-            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f))
+            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.62f))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClose() },
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                shape = RoundedCornerShape(20.dp), tonalElevation = 6.dp,
-                modifier = Modifier.padding(16.dp).fillMaxWidth()
+                shape = RoundedCornerShape(18.dp), color = SheetBg, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
+                modifier = Modifier.padding(12.dp).fillMaxWidth()
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
-                Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.padding(14.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Campagnes", style = MaterialTheme.typography.titleMedium)
                     // the tabs: one per campaign, then the new one
                     val list = campaigns ?: emptyList()
@@ -353,7 +353,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                 if (group.isNotEmpty()) {
                                     Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                                     group.forEach { p ->
-                                        Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
+                                        Surface(shape = RoundedCornerShape(12.dp), color = SheetChip, modifier = Modifier.fillMaxWidth()) {
                                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                                 ModeButtons(context, p)
                                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

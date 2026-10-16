@@ -60,17 +60,26 @@ import kotlinx.coroutines.withContext
 class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val side2: String? = null, val onSide2: () -> Unit = {}, val onClick: () -> Unit)
 
 // The look of the sheets: dark whatever the phone's theme (it opens over the home screen, like the widget), compact rows, one accent.
-private val SheetBg = Color(0xFF14141A)
-private val SheetLine = Color(0x1FFFFFFF)
-private val SheetText = Color(0xFFE9E7F1)
-private val SheetDim = Color(0xFF9694A6)
-private val SheetChip = Color(0xFF24242E)
-private val Accent = Color(0xFFFF4B1F)
+internal val SheetBg = Color(0xFF14141A)
+internal val SheetLine = Color(0x1FFFFFFF)
+internal val SheetText = Color(0xFFE9E7F1)
+internal val SheetDim = Color(0xFF9694A6)
+internal val SheetChip = Color(0xFF24242E)
+internal val Accent = Color(0xFFFF4B1F)
 
 /** The sheets are dark whatever the phone's theme. */
 @Composable
-private fun DarkSheetTheme(content: @Composable () -> Unit) {
+internal fun DarkSheetTheme(content: @Composable () -> Unit) {
     MaterialTheme(
+        typography = androidx.compose.material3.Typography(
+            titleMedium = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+            titleSmall = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+            bodyLarge = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, lineHeight = 18.sp),
+            bodyMedium = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, lineHeight = 17.sp),
+            bodySmall = androidx.compose.ui.text.TextStyle(fontSize = 11.sp, lineHeight = 15.sp),
+            labelLarge = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+            labelMedium = androidx.compose.ui.text.TextStyle(fontSize = 11.sp, letterSpacing = 1.sp),
+        ),
         colorScheme = androidx.compose.material3.darkColorScheme(
             primary = Accent, onPrimary = Color.White, surface = SheetBg, onSurface = SheetText, surfaceVariant = SheetChip, onSurfaceVariant = SheetDim,
             outline = Color(0x55FFFFFF), primaryContainer = Color(0xFF3A1F17), onPrimaryContainer = Color.White,
