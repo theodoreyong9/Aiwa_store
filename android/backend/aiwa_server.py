@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 110
+BACKEND_VERSION = 111
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -657,18 +657,22 @@ def _proposals_line(repo):
         "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Pour chaque cible, ce que tu livres est PERSONNALISÉ : une vidéo, des documents, une page (UNE seule page web avec son arborescence : un lien personnalisé par cible, dans le même site), "
         "et sa proposition dans `docs/campagnes/<campagne>/proposals.json`. Ma demande dit lesquelles : ne fabrique que cela, et laisse `videoUrl`, `docsUrl` ou `demoUrl` vide pour ce qui n'est pas demandé. "
         "L'application (APK) et l'app Aiwa ne se personnalisent pas : si ma demande les nomme, mets seulement leurs liens, tels que le dépôt les produit déjà (`appUrl`, `aiwaUrl`). "
-        "REPÉRAGE : quand ma demande vise des sites dépassés à remplacer, cherche les cibles avec tes outils de recherche web et ne retiens un site que sur des CONSTATS MESURÉS, jamais sur un avis : "
+        "REPÉRAGE : ma demande dit QUELLES cibles chercher (par exemple des maisons d'hôtes dont le site n'a pas de back-end, ou seulement un formulaire de contact, pour leur proposer un nouveau site) : suis-la à la lettre. "
+        "Cherche les cibles avec tes outils de recherche web, ouvre leur site, ANALYSE-le et ne retiens une cible que sur des CONSTATS MESURÉS, jamais sur un avis. Pour « sans back-end ou juste un formulaire de contact » : "
+        "site statique, ni réservation en ligne, ni paiement, ni compte (cherche dans le HTML et les requêtes : formulaires, scripts de réservation ou de paiement tiers, appels à une API). Selon ta demande, d'autres constats comptent aussi : "
         "(1) pas de HTTPS ou certificat expiré (`curl -sI`) ; (2) pas adapté au téléphone : pas de `<meta name=\"viewport\">`, ou défilement horizontal à 390 px de large (Playwright, capture mobile) ; "
         "(3) technologies d'un autre âge : Flash, cadres (`<frame>`), mise en page en tableaux imbriqués, balises `<font>`, jQuery très ancien ; (4) contenu daté : année de copyright ou dernière mise à jour de plus de 5 ans ; "
         "(5) lourd ou lent : poids de la page, nombre de requêtes, temps de chargement mesuré ; (6) liens ou images cassés (statuts HTTP ≥ 400) ; (7) aucun moyen de contact lisible depuis un téléphone (ni formulaire, ni numéro cliquable, ni adresse). "
-        "Écris pour chaque cible, dans `liste.md`, les constats avec leur valeur mesurée (les chiffres, pas « semble ancien »), garde-les dans `reasons` en une ligne, et mets l'adresse du site actuel dans `currentUrl`. Ne retiens pas une cible qui n'a qu'un constat faible. "
+        "Écris pour chaque cible, dans `liste.md`, les constats avec leur valeur mesurée (les chiffres, pas « semble ancien »), garde-les dans `reasons` en une ligne, et mets l'adresse du site actuel dans `currentUrl`. Ne retiens pas une cible qui ne répond pas clairement à ma demande. Une cible n'est retenue que si tu as au moins UN point de contact public (e-mail, WhatsApp, Telegram, LinkedIn…) pour la joindre. "
         "POINTS DE CONTACT : relève, sur le site de la cible lui-même, ses points de contact PUBLICS (e-mail, téléphone, adresse, horaires, formulaire, réseaux) : seulement ce qu'elle y publie, jamais une donnée déduite ou privée ; mets-les dans `contacts`, et l'e-mail et le téléphone dans `email` et `phone` s'ils y sont. "
         "La maquette REMPLAÇANTE reprend tous ces points de contact tels que la cible les publie (elle reste utilisable le jour même par ses clients), avec un site moderne qui règle chacun des constats, et sans copier ni logo ni photo sans droit. "
         "CIBLE PAR CIBLE, SANS ATTENDRE : tu ne me demandes la validation d'aucune liste. Tiens `docs/campagnes/<campagne>/liste.md` à jour (les cibles traitées, avec pourquoi chacune est retenue). Traite UNE cible à la fois : trouve-la, fabrique ce qui est demandé pour elle, "
         "pousse (un commit par cible), ajoute SA proposition à `proposals.json`, puis passe à la suivante. Ne regroupe jamais plusieurs cibles avant de pousser : les propositions m'arrivent UNE PAR UNE, et je valide la cible et ce que tu as fabriqué pour elle ENSEMBLE, dans l'application. "
         "ARRÊT : continue jusqu'à ce que je t'écrive « [Aiwa — stop campagne] » : arrête-toi alors tout de suite (la cible en cours est soit terminée et poussée, soit laissée de côté ; jamais à moitié dans `proposals.json`) et dis-moi en une phrase combien de propositions sont prêtes. "
         "Plafond de sécurité : 30 cibles dans une même campagne, puis arrête-toi et dis-le moi. "
-"Le rendu de chaque cible : une page sous `docs/campagnes/<campagne>/<cible>/`, dans le MÊME site (l'arborescence d'un seul site, publié par GitHub Pages, adresses non listées ; pas un dépôt par cible) : "
+"LE NOUVEAU SITE DE CHAQUE CIBLE est fait à la qualité de nos outils, pas en vitesse : applique la consigne Design (références MESURÉES, vérification Playwright à 390 px et 1440 px, `aiwa-design/references.md`), la direction créative et la consigne Vidéo si une vidéo est demandée ; "
+        "il part de ce que le site actuel de la cible dit et montre (son contenu, ses photos qu'elle publie, ses points de contact) et règle chacun des constats. "
+        "Le rendu de chaque cible : une page sous `docs/campagnes/<campagne>/<cible>/`, dans le MÊME site (l'arborescence d'un seul site, publié par GitHub Pages, adresses non listées ; pas un dépôt par cible) : "
         "la maquette porte en haut, bien visible, « Maquette de démonstration, pas le site officiel de <cible> », n'utilise de la cible que ce qu'elle publie elle-même, ne copie ni logo ni photo sans droit, et n'invente rien (ni chiffre, ni client, ni avis) ; "
         "si une vidéo est demandée : une vidéo de présentation à la qualité que j'ai choisie (la consigne vidéo s'applique : stratégie, style, critique) ; un prix proposé, justifié en une phrase dans la liste. "
         "Puis écris `docs/campagnes/<campagne>/proposals.json` : une liste d'objets "

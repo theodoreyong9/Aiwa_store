@@ -484,7 +484,7 @@ class ProposalsTests(unittest.TestCase):
         srv.deploy_mode = "campaign"
         self.addCleanup(setattr, srv, "deploy_mode", "pages")
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
-        for wanted in ("ne fabrique que cela", "CIBLE PAR CIBLE, SANS ATTENDRE", "UNE PAR UNE", "[Aiwa — stop campagne]", "ne se personnalisent pas", "REPÉRAGE", "CONSTATS MESURÉS", "POINTS DE CONTACT", "maquette REMPLAÇANTE", "currentUrl", "reasons", "contacts", "CANAL PAR CANAL", "« classique »", "« innovante »", "chatBody", "xBody", "un fichier n'est PAS obligatoire", "n'ENVOIES JAMAIS", "docs/campagnes/<campagne>/proposals.json", "Maquette de démonstration, pas le site officiel", "n'invente rien", "jamais à moitié dans `proposals.json`"):
+        for wanted in ("ne fabrique que cela", "CIBLE PAR CIBLE, SANS ATTENDRE", "UNE PAR UNE", "sans back-end", "LE NOUVEAU SITE DE CHAQUE CIBLE", "UN point de contact public", "[Aiwa — stop campagne]", "ne se personnalisent pas", "REPÉRAGE", "CONSTATS MESURÉS", "POINTS DE CONTACT", "maquette REMPLAÇANTE", "currentUrl", "reasons", "contacts", "CANAL PAR CANAL", "« classique »", "« innovante »", "chatBody", "xBody", "un fichier n'est PAS obligatoire", "n'ENVOIES JAMAIS", "docs/campagnes/<campagne>/proposals.json", "Maquette de démonstration, pas le site officiel", "n'invente rien", "jamais à moitié dans `proposals.json`"):
             self.assertIn(wanted, text)
 
 
