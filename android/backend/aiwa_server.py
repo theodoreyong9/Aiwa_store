@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 105
+BACKEND_VERSION = 106
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -2146,6 +2146,70 @@ def _campaigns_snapshot():
     return {"repo": repo, "campaigns": campaigns}
 
 
+def _video_items(repo, in_videos, in_docs):
+    """The videos of a repository from the names of the files of docs/videos/ and of the root of docs/ ([(name, size)]): the same for every repository; by number in the name, the latest first,
+    docs/videos/ before the root of docs/."""
+    items, seen = [], set()
+    for entries, base in ((in_videos, "docs/videos"), (in_docs, "docs")):
+        for name, size in entries:
+            if name.lower().endswith(VIDEO_EXT) and "/" not in name and name not in seen:
+                seen.add(name)
+                items.append({"name": name, "size": size, "url": f"https://raw.githubusercontent.com/{repo}/HEAD/{base}/{urllib.parse.quote(name)}", "ts": ""})
+
+    def _natural(v):
+        return [int(x) if x.isdigit() else x for x in re.split(r"(\d+)", v["name"].lower())]
+    items.sort(key=lambda v: (v["url"].find("/docs/videos/") >= 0, [(0, x) if isinstance(x, int) else (1, x) for x in _natural(v)]), reverse=True)
+    return items
+
+
+def _videos_remember(repo, items):
+    with store_lock:
+        try:
+            try:
+                saved = json.loads(VIDEO_STORE.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                saved = {}
+            saved = saved if isinstance(saved, dict) else {}
+            saved[repo] = items
+            VIDEO_STORE.write_text(json.dumps(saved), encoding="utf-8")
+        except OSError:
+            pass
+
+
+GIT_CACHE = Path(os.environ.get("AIWA_GIT_CACHE") or Path.home() / ".aiwa_gitcache")
+
+
+def _videos_via_git(repo):
+    """([(name, 0)] of docs/videos/, [(name, 0)] of docs/) read with git (a shallow, blob-less fetch of the repository's default branch: nothing is downloaded but the tree), or None when git cannot
+    (not installed, a private repository, no network). Sizes are not known this way (0)."""
+    if not shutil.which("git") or os.environ.get("AIWA_NO_GIT_LIST"):
+        return None
+    folder = GIT_CACHE / (repo.replace("/", "__") + ".git")
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+
+    def git(*args, timeout=60):
+        return subprocess.run(["git", *args], capture_output=True, timeout=timeout, env=env)
+    try:
+        GIT_CACHE.mkdir(parents=True, exist_ok=True)
+        if not folder.exists():
+            made = git("clone", "--bare", "--depth", "1", "--filter=blob:none", f"{os.environ.get('AIWA_GIT_BASE', 'https://github.com')}/{repo}.git", str(folder), timeout=120)
+            if made.returncode != 0:
+                shutil.rmtree(folder, ignore_errors=True)
+                return None
+        got = git("-C", str(folder), "fetch", "-q", "--depth", "1", "origin", "HEAD")
+        if got.returncode != 0:
+            return None
+        names = []
+        for path in ("docs/videos/", "docs/"):
+            listed = git("-C", str(folder), "ls-tree", "-z", "--name-only", "FETCH_HEAD", path)
+            if listed.returncode != 0:
+                return None
+            names.append([(n.rsplit("/", 1)[-1], 0) for n in listed.stdout.decode("utf-8", "replace").split("\0") if n and not n.endswith("/")])
+        return names[0], names[1]
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 def _videos_snapshot():
     """The promotional videos of the session's repository: the files of its GitHub release `videos`, newest first. Only a public repository can say
     (nothing is read with a token); for a private one the list is empty and the session sends the link."""
@@ -2159,6 +2223,14 @@ def _videos_snapshot():
     with lock:
         if video_cache["key"] == repo and now - video_cache["at"] < 15:
             return {"repo": repo, "videos": list(video_cache["items"])}
+    # First by git itself (a shallow fetch: always the latest, and the hourly limit of GitHub's API does not apply to it); the API only when git cannot (no git, a private repository).
+    by_git = _videos_via_git(repo)
+    if by_git is not None:
+        items = _video_items(repo, *by_git)
+        with lock:
+            video_cache.update(key=repo, items=items, at=now)
+        _videos_remember(repo, items)
+        return {"repo": repo, "videos": items}
     try:
         docs_folder = _github_json(f"https://api.github.com/repos/{repo}/contents/docs")
         videos_folder = _github_json(f"https://api.github.com/repos/{repo}/contents/docs/videos")
@@ -2173,32 +2245,11 @@ def _videos_snapshot():
                     kept = []
             video_cache.update(key=repo, items=kept, at=now)
         return {"repo": repo, "videos": kept}
-    # The architecture is the same for every repository: the videos are the video files of docs/videos/ (and, for a project that keeps its own films there, the ones at the root of docs/);
-    # nothing else of docs/ is listed. By name, the latest first.
-    items, seen = [], set()
-    for folder, base in ((videos_folder, "docs/videos"), (docs_folder, "docs")):
-        for entry in folder if isinstance(folder, list) else []:
-            name = str(entry.get("name") or "") if isinstance(entry, dict) else ""
-            if entry.get("type") == "file" and name.lower().endswith(VIDEO_EXT) and "/" not in name and name not in seen:
-                seen.add(name)
-                items.append({"name": name, "size": int(entry.get("size") or 0), "url": f"https://raw.githubusercontent.com/{repo}/HEAD/{base}/{urllib.parse.quote(name)}", "ts": ""})
-    # The latest first: the numbers of a name count as numbers (v12 before v11, v9 before v10 is wrong the other way round), and docs/videos/ before the root of docs/.
-    def _natural(v):
-        return [int(x) if x.isdigit() else x for x in re.split(r"(\d+)", v["name"].lower())]
-    items.sort(key=lambda v: (v["url"].find("/docs/videos/") >= 0, [(0, x) if isinstance(x, int) else (1, x) for x in _natural(v)]), reverse=True)
+    items = _video_items(repo, [(str(e.get("name") or ""), int(e.get("size") or 0)) for e in (videos_folder if isinstance(videos_folder, list) else []) if isinstance(e, dict) and e.get("type") == "file"],
+                         [(str(e.get("name") or ""), int(e.get("size") or 0)) for e in (docs_folder if isinstance(docs_folder, list) else []) if isinstance(e, dict) and e.get("type") == "file"])
     with lock:
         video_cache.update(key=repo, items=items, at=now)
-    with store_lock:
-        try:
-            try:
-                saved = json.loads(VIDEO_STORE.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                saved = {}
-            saved = saved if isinstance(saved, dict) else {}
-            saved[repo] = items
-            VIDEO_STORE.write_text(json.dumps(saved), encoding="utf-8")
-        except OSError:
-            pass
+    _videos_remember(repo, items)
     return {"repo": repo, "videos": items}
 
 

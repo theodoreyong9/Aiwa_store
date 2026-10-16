@@ -31,6 +31,7 @@ os.environ["PATH"] = f"{BIN}{os.pathsep}{os.environ['PATH']}"
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import aiwa_github as gh  # noqa: E402
+os.environ.setdefault("AIWA_NO_GIT_LIST", "1")   # the lists of videos are tested through the API stubs; the git route has its own test
 import aiwa_server as srv  # noqa: E402
 
 FAKE_CLAUDE = r'''#!/usr/bin/env python3
@@ -1873,6 +1874,41 @@ class AgentDestroyTests(unittest.TestCase):
             self.assertFalse(srv.agent["enabled"])
             self.assertIsNone(srv.agent["proposal"])
             self.assertEqual([e["id"] for e in json.loads(srv.CLOUD_STORE.read_text(encoding="utf-8"))], ["session_01ZZZZZZZZZZZZZZZZZZZZZZ"], "only the agent's session is forgotten")
+
+
+class VideosByGitTests(unittest.TestCase):
+    def test_the_videos_are_listed_with_git_without_the_api_and_the_latest_is_first(self):
+        import subprocess
+        import shutil
+        if not shutil.which("git"):
+            self.skipTest("no git")
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d) / "base"
+            work = base / "o" / "r.git"
+            work.parent.mkdir(parents=True)
+            subprocess.run(["git", "init", "-q", "-b", "main", str(work)], check=True)
+            (work / "docs" / "videos").mkdir(parents=True)
+            for name in ("aiwa-v9-16x9.mp4", "aiwa-v10-16x9.mp4", "notes.md"):
+                (work / "docs" / "videos" / name).write_bytes(b"x")
+            (work / "docs" / "old.mp4").write_bytes(b"x")
+            env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+            subprocess.run(["git", "-C", str(work), "add", "-A"], check=True, env=env)
+            subprocess.run(["git", "-C", str(work), "commit", "-q", "-m", "x"], check=True, env=env)
+            old = {k: os.environ.get(k) for k in ("AIWA_NO_GIT_LIST", "AIWA_GIT_BASE")}
+            os.environ.pop("AIWA_NO_GIT_LIST", None)
+            os.environ["AIWA_GIT_BASE"] = base.as_uri()
+            try:
+                with unittest.mock.patch.object(srv, "GIT_CACHE", Path(d) / "cache"):
+                    got = srv._videos_via_git("o/r")
+            finally:
+                for k, v in old.items():
+                    if v is None:
+                        os.environ.pop(k, None)
+                    else:
+                        os.environ[k] = v
+            self.assertIsNotNone(got)
+            items = srv._video_items("o/r", *got)
+            self.assertEqual([v["name"] for v in items], ["aiwa-v10-16x9.mp4", "aiwa-v9-16x9.mp4", "old.mp4"], "numbers count as numbers, docs/videos/ first, the root of docs/ after")
 
 if __name__ == "__main__":
     unittest.main()

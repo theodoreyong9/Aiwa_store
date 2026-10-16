@@ -58,7 +58,7 @@ class VideosActivity : ComponentActivity() {
     }
 }
 
-private fun sizeLabel(bytes: Long) = if (bytes >= 1_000_000) "%.1f Mo".format(bytes / 1_000_000.0) else "${bytes / 1000} Ko"
+private fun sizeLabel(bytes: Long) = if (bytes <= 0) "" else if (bytes >= 1_000_000) "%.1f Mo".format(bytes / 1_000_000.0) else "${bytes / 1000} Ko"
 
 /** The file goes to the Downloads folder of the phone (Android's download manager: a notification shows it). */
 private fun download(context: Context, url: String, name: String) {
@@ -157,7 +157,7 @@ private fun VideosWindow(onClose: () -> Unit) {
                             // The last production: a tap plays it, then its three buttons
                             val last = current.videos.first()
                             Text("Dernière production", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                            Button(onClick = { play(last) }, modifier = Modifier.fillMaxWidth()) { Text("▶  " + last.name + " · " + sizeLabel(last.size), maxLines = 2) }
+                            Button(onClick = { play(last) }, modifier = Modifier.fillMaxWidth()) { Text("▶  " + last.name + sizeLabel(last.size).let { if (it.isEmpty()) "" else " · $it" }, maxLines = 2) }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = {
                                     context.startActivity(
