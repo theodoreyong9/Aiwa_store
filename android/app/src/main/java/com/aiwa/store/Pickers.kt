@@ -59,77 +59,98 @@ import kotlinx.coroutines.withContext
 // side: a second, small button at the end of the row (a repository's page on GitHub, for instance) with its own action.
 class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val side2: String? = null, val onSide2: () -> Unit = {}, val onClick: () -> Unit)
 
+// The look of the sheets: dark whatever the phone's theme (it opens over the home screen, like the widget), compact rows, one accent.
+private val SheetBg = Color(0xFF14141A)
+private val SheetLine = Color(0x1FFFFFFF)
+private val SheetText = Color(0xFFE9E7F1)
+private val SheetDim = Color(0xFF9694A6)
+private val SheetChip = Color(0xFF24242E)
+private val Accent = Color(0xFFFF4B1F)
+
+/** The sheets are dark whatever the phone's theme. */
+@Composable
+private fun DarkSheetTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = androidx.compose.material3.darkColorScheme(
+            primary = Accent, onPrimary = Color.White, surface = SheetBg, onSurface = SheetText, surfaceVariant = SheetChip, onSurfaceVariant = SheetDim,
+            outline = Color(0x55FFFFFF), primaryContainer = Color(0xFF3A1F17), onPrimaryContainer = Color.White,
+        ),
+        content = content,
+    )
+}
+
 @Composable
 private fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQuery: (String) -> Unit = {}, onDismiss: () -> Unit) {
-    AiwaTheme {
+    DarkSheetTheme {
         Box(
             Modifier.fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(Color.Black.copy(alpha = 0.62f))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onDismiss() },
             contentAlignment = Alignment.BottomCenter,
         ) {
             Surface(
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 3.dp,
-                modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)
+                shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+                color = SheetBg,
+                border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp)
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column {
                     // the handle: the sheet is a sheet, and it goes away with a tap outside it
-                    Box(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp), contentAlignment = Alignment.Center) {
-                        Box(Modifier.size(width = 40.dp, height = 4.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(2.dp)))
+                    Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(width = 32.dp, height = 3.dp).background(Color(0x44FFFFFF), RoundedCornerShape(2.dp)))
                     }
                     if (query != null) {
-                        androidx.compose.material3.OutlinedTextField(
-                            value = query, onValueChange = onQuery, singleLine = true, label = { Text("Rechercher un dépôt (ou coller propriétaire/nom)") },
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                        )
+                        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp).background(SheetChip, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 9.dp)) {
+                            androidx.compose.foundation.text.BasicTextField(
+                                value = query, onValueChange = onQuery, singleLine = true,
+                                textStyle = androidx.compose.ui.text.TextStyle(color = SheetText, fontSize = 14.sp),
+                                cursorBrush = androidx.compose.ui.graphics.SolidColor(Accent),
+                                modifier = Modifier.fillMaxWidth(),
+                                decorationBox = { inner -> if (query.isEmpty()) Text("Rechercher, ou coller propriétaire/nom", color = SheetDim, fontSize = 14.sp); inner() },
+                            )
+                        }
                     }
-                    LazyColumn(Modifier.padding(horizontal = 12.dp).padding(bottom = 16.dp)) {
+                    LazyColumn(Modifier.padding(horizontal = 8.dp).padding(bottom = 12.dp)) {
                         items(entries) { entry ->
                             if (entry.header) {
                                 Text(
                                     text = entry.label.uppercase(),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 1.2.sp,
-                                    modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 18.dp, bottom = 6.dp),
+                                    color = Accent,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = 1.6.sp,
+                                    modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 3.dp),
                                 )
                             } else {
-                                val shape = RoundedCornerShape(16.dp)
+                                val shape = RoundedCornerShape(12.dp)
                                 val info = !entry.active && entry.side == null && entry.lines >= 3          // a sentence that explains, not a choice
                                 Row(
-                                    Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                                        .background(if (entry.active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, shape)
+                                    Modifier.fillMaxWidth().padding(vertical = 1.dp)
+                                        .background(if (entry.active) Accent.copy(alpha = 0.16f) else Color.Transparent, shape)
                                         .clickable { entry.onClick() },
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
+                                    if (entry.active) Box(Modifier.padding(start = 6.dp).size(width = 3.dp, height = 18.dp).background(Accent, RoundedCornerShape(2.dp)))
                                     Text(
                                         text = entry.label,
-                                        style = if (info) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
-                                        color = if (entry.active) MaterialTheme.colorScheme.onPrimaryContainer else if (info) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                                        fontSize = if (info) 12.sp else 14.sp,
+                                        lineHeight = if (info) 16.sp else 18.sp,
+                                        color = if (entry.active) Color.White else if (info) SheetDim else SheetText,
                                         fontWeight = if (entry.active) FontWeight.SemiBold else FontWeight.Normal,
                                         maxLines = entry.lines,
-                                        modifier = Modifier.weight(1f).padding(start = 14.dp, end = 8.dp, top = 13.dp, bottom = 13.dp),
+                                        modifier = Modifier.weight(1f).padding(start = if (entry.active) 8.dp else 14.dp, end = 8.dp, top = 9.dp, bottom = 9.dp),
                                     )
-                                    if (entry.active) Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 16.dp))
                                     if (entry.side2 != null) {
                                         Text(
-                                            text = entry.side2,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            modifier = Modifier.padding(end = 6.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                                                .clickable { entry.onSide2() }.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            text = entry.side2, color = SheetText, fontSize = 12.sp,
+                                            modifier = Modifier.padding(end = 4.dp).background(SheetChip, RoundedCornerShape(10.dp)).clickable { entry.onSide2() }.padding(horizontal = 10.dp, vertical = 5.dp),
                                         )
                                     }
                                     if (entry.side != null) {
                                         Text(
-                                            text = entry.side,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            modifier = Modifier.padding(end = 8.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                                                .clickable { entry.onSide() }.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            text = entry.side, color = if (entry.side == "★") Accent else SheetText, fontSize = 12.sp,
+                                            modifier = Modifier.padding(end = 8.dp).background(SheetChip, RoundedCornerShape(10.dp)).clickable { entry.onSide() }.padding(horizontal = 10.dp, vertical = 5.dp),
                                         )
                                     }
                                 }
@@ -941,14 +962,14 @@ class ProjectNameActivity : ComponentActivity() {
         if (repo == null) { finish(); return }
         setContent {
             var text by remember { mutableStateOf(repo.substringAfter('/')) }
-            AiwaTheme {
+            DarkSheetTheme {
                 Box(
                     Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f))
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { finish() },
                     contentAlignment = Alignment.BottomCenter,
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp,
+                        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp), color = SheetBg, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
                         modifier = Modifier.fillMaxWidth().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
                     ) {
                         Column(Modifier.padding(20.dp)) {
