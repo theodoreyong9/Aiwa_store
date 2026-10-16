@@ -326,7 +326,7 @@ private const val CLAUDE_APP_PACKAGE = "com.anthropic.claude"
 
 /**
  * Opens the current cloud session (or, when the next message will start a
- * new one, Claude's Code tab) where its conversation actually lives:
+ * new one, the last one) where its conversation actually lives:
  * the Claude app (Code tab). Aiwa can't show cloud replies itself, so this
  * is the one way to read them. The app is asked first (it may claim
  * claude.ai/code links); without it, whatever handles the link — the
@@ -335,8 +335,7 @@ private const val CLAUDE_APP_PACKAGE = "com.anthropic.claude"
  */
 fun openClaudeApp(context: Context): Boolean {
     val state = AiwaRepository.state.value
-    // « New session » is chosen: there is no session to open yet, so the button opens Claude's Code tab (where the next one is made), not the previous one
-    val sessionId = state.cloudSessionId
+    val sessionId = state.cloudSessionId ?: state.lastSessionId
     val url = sessionId?.let { id -> state.cloudSessions.find { it.id == id }?.url }
     val target = Uri.parse(url?.takeIf { it.startsWith("https://claude.ai/") } ?: if (sessionId != null) "https://claude.ai/code/$sessionId" else "https://claude.ai/code")
     fun view() = Intent(Intent.ACTION_VIEW, target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

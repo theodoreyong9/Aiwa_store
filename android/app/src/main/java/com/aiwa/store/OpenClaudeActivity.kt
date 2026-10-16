@@ -18,7 +18,7 @@ class OpenClaudeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
-        val known = AiwaRepository.state.value.let { it.cloudSessionId != null }
+        val known = AiwaRepository.state.value.let { it.cloudSessionId != null || it.lastSessionId != null }
         if (known && openClaudeApp(this)) {
             finish()
             return
