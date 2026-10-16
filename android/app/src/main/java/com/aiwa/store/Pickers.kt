@@ -1,4 +1,5 @@
 package com.aiwa.store
+import androidx.compose.runtime.rememberCoroutineScope
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -56,10 +57,10 @@ import kotlinx.coroutines.withContext
 
 // header: a section title, not something to tap. lines: how many lines the label may take.
 // side: a second, small button at the end of the row (a repository's page on GitHub, for instance) with its own action.
-class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val onClick: () -> Unit)
+class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val side2: String? = null, val onSide2: () -> Unit = {}, val onClick: () -> Unit)
 
 @Composable
-private fun PickerSheet(entries: List<PickerEntry>, onDismiss: () -> Unit) {
+private fun PickerSheet(entries: List<PickerEntry>, onDismiss: () -> Unit, query: String? = null, onQuery: (String) -> Unit = {}) {
     AiwaTheme {
         Box(
             Modifier.fillMaxSize()
@@ -78,6 +79,12 @@ private fun PickerSheet(entries: List<PickerEntry>, onDismiss: () -> Unit) {
                     // the handle: the sheet is a sheet, and it goes away with a tap outside it
                     Box(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp), contentAlignment = Alignment.Center) {
                         Box(Modifier.size(width = 40.dp, height = 4.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(2.dp)))
+                    }
+                    if (query != null) {
+                        androidx.compose.material3.OutlinedTextField(
+                            value = query, onValueChange = onQuery, singleLine = true, label = { Text("Rechercher un dépôt (ou coller propriétaire/nom)") },
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                        )
                     }
                     LazyColumn(Modifier.padding(horizontal = 12.dp).padding(bottom = 16.dp)) {
                         items(entries) { entry ->
@@ -107,6 +114,15 @@ private fun PickerSheet(entries: List<PickerEntry>, onDismiss: () -> Unit) {
                                         modifier = Modifier.weight(1f).padding(start = 14.dp, end = 8.dp, top = 13.dp, bottom = 13.dp),
                                     )
                                     if (entry.active) Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 16.dp))
+                                    if (entry.side2 != null) {
+                                        Text(
+                                            text = entry.side2,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            modifier = Modifier.padding(end = 6.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                                                .clickable { entry.onSide2() }.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        )
+                                    }
                                     if (entry.side != null) {
                                         Text(
                                             text = entry.side,
@@ -274,8 +290,11 @@ class RepoPickerActivity : ComponentActivity() {
             val state by AiwaRepository.state.collectAsState()
             var repos by remember { mutableStateOf<List<RepoInfo>?>(null) }
             var starting by remember { mutableStateOf(false) }
+            var query by remember { mutableStateOf("") }
+            var reload by remember { mutableStateOf(0) }
+            val scope = rememberCoroutineScope()
             val note by problem
-            LaunchedEffect(Unit) {
+            LaunchedEffect(reload) {
                 val bridge = LocalClaudeBridge()
                 // The backend may not be running (a widget tap never went
                 // through the app): start it and wait, don't show an empty list.
@@ -302,10 +321,24 @@ class RepoPickerActivity : ComponentActivity() {
                 if (list == null) {
                     add(PickerEntry(if (starting) "Démarrage du backend (Termux)… quelques secondes" else "Chargement des dépôts…", false) { })
                 } else {
-                    list.forEach { r ->
-                        add(PickerEntry(r.name + if (r.isPrivate) "  (privé)" else "", r.name == state.repo, side = "↗", onSide = { openRepoOnGithub(r.name) }) { pickRepo(r.name) })
+                    val q = query.trim()
+                    val shown = list.filter { q.isBlank() || it.name.contains(q, ignoreCase = true) }
+                    // A name that is not in the list (a private repository, one of another owner): added to the favourites by its exact name
+                    val typed = parseRepoRef(q)
+                    if (typed != null && list.none { it.name.equals(typed, ignoreCase = true) }) {
+                        add(PickerEntry("＋  Ajouter « $typed » aux favoris (nom exact)", false) {
+                            scope.launch { val bridge = LocalClaudeBridge(); val error = withContext(Dispatchers.IO) { bridge.favoriteRepo(typed, true) }; if (error != null) problem.value = error else { query = ""; reload++ } }
+                        })
                     }
-                    if (list.isEmpty()) add(PickerEntry("Aucun dépôt trouvé", false) { })
+                    var section = ""
+                    shown.forEach { r ->
+                        val head = if (r.favorite) "★ Favoris" else if (list.any { it.favorite }) "Les autres dépôts" else ""
+                        if (head != section) { section = head; if (head.isNotEmpty()) add(PickerEntry(head, false, header = true) { }) }
+                        add(PickerEntry(r.name + if (r.isPrivate) "  (privé)" else "", r.name == state.repo,
+                            side = if (r.favorite) "★" else "☆", onSide = { scope.launch { withContext(Dispatchers.IO) { LocalClaudeBridge().favoriteRepo(r.name, !r.favorite) }; reload++ } },
+                            side2 = "↗", onSide2 = { openRepoOnGithub(r.name) }) { pickRepo(r.name) })
+                    }
+                    if (shown.isEmpty()) add(PickerEntry(if (q.isBlank()) "Aucun dépôt trouvé" else "Aucun dépôt ne correspond. Colle son nom exact (propriétaire/nom) pour l'ajouter.", false, lines = 3) { })
                 }
                 // Repositories Claude may ALSO work on, told to it with the next message.
                 if (state.repo != null) {
@@ -320,7 +353,7 @@ class RepoPickerActivity : ComponentActivity() {
                 // it shows the real state and offers Connect or Disconnect accordingly.
                 add(PickerEntry("🔗  Connexion GitHub de Claude : connecter, changer, déconnecter ↗", false) { openPage(CLAUDE_CONNECTORS_URL) })
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, { finish() }, query = query, onQuery = { query = it })
         }
     }
 

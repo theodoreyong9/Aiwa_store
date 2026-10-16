@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 111
+BACKEND_VERSION = 112
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -238,6 +238,7 @@ ci_announced = {}
 # commit only counts as news if its runs finished after it.
 last_message_at = 0
 REPOS_STORE = Path.home() / ".aiwa_repos.json"
+FAVORITES_STORE = Path.home() / ".aiwa_favorite_repos.json"
 store_lock = threading.Lock()
 # Two `claude -p --cloud <id>` runs never overlap (a send and the /rename
 # that follows a creation, for instance).
@@ -1531,6 +1532,29 @@ def _owner_repos_current(owner):
     return github.owner_repos(owner, max_age=max_age)
 
 
+def _favorite_repos():
+    try:
+        favs = json.loads(FAVORITES_STORE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        favs = []
+    return [r for r in favs if isinstance(r, str) and github.REPO_RE.fullmatch(r)]
+
+
+def set_favorite(repo, on):
+    """Stars (or unstars) a repository: the favourites come first in the list, whether or not GitHub's public list shows them (a private one is added by its name)."""
+    if not isinstance(repo, str) or not github.REPO_RE.fullmatch(repo):
+        return {"ok": False, "error": "nom de dépôt invalide (propriétaire/nom)"}
+    with store_lock:
+        favs = [r for r in _favorite_repos() if r != repo]
+        if on:
+            favs = [repo] + favs
+        try:
+            FAVORITES_STORE.write_text(json.dumps(favs[:100]), encoding="utf-8")
+        except OSError as err:
+            return {"ok": False, "error": str(err)}
+    return {"ok": True, "favorite": bool(on)}
+
+
 def _repo_choices():
     """Known repositories first (most recently used), then the ones a
     connected `gh` knows about, if there is one."""
@@ -1563,7 +1587,11 @@ def _repo_choices():
             offer(item)
     for item in github.gh_repos():
         offer(item)
-    return choices
+    # The favourites first (a private one, added by its name, is not in GitHub's public list), then the others
+    favs = _favorite_repos()
+    by_name = {c["name"]: c for c in choices}
+    starred = [dict(by_name.get(f, {"name": f, "private": False}), favorite=True) for f in favs]
+    return starred + [dict(c, favorite=False) for c in choices if c["name"] not in favs]
 
 
 def _ping_seen(text):
@@ -3683,6 +3711,13 @@ class Handler(BaseHTTPRequestHandler):
             if running:
                 _follow_repo(running, requested)
             self.reply_json({"accepted": True, "repo": current_repo})
+        elif self.path == "/api/github/favorite":
+            try:
+                data = json.loads(body)
+            except ValueError:
+                data = {}
+            data = data if isinstance(data, dict) else {}
+            self.reply_json(set_favorite(str(data.get("repo") or "").strip(), data.get("favorite") is not False))
         elif self.path == "/api/github/extra":
             # Checks or unchecks a repository Claude may ALSO work on ("" = none). Told
             # to it with the next message; whether it can reach the repository is the

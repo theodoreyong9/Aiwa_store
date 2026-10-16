@@ -122,7 +122,7 @@ data class BackendStatus(
 
 data class CloudSessionInfo(val id: String, val title: String, val url: String, val repo: String? = null)
 data class CloudSendResult(val ok: Boolean, val sessionId: String?, val url: String?, val error: String?)
-data class RepoInfo(val name: String, val isPrivate: Boolean)
+data class RepoInfo(val name: String, val isPrivate: Boolean, val favorite: Boolean = false)
 
 interface ClaudeBridge {
     /** « Arrêter la campagne »: the session at work is told to stop. Null when it was sent, otherwise why not. */
@@ -138,6 +138,9 @@ interface ClaudeBridge {
     suspend fun sendCloud(text: String): CloudSendResult
     suspend fun sendCloudCommand(text: String): CloudSendResult
     suspend fun githubRepos(): List<RepoInfo>
+
+    /** Stars or unstars a repository (a private one is added by its exact name). Null when done, otherwise why not. */
+    suspend fun favoriteRepo(repo: String, favorite: Boolean): String? = "non disponible"
     suspend fun selectRepo(repo: String)
     suspend fun addRepo(text: String)
 

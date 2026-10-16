@@ -192,8 +192,13 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         val array = json.getJSONArray("repos")
         (0 until array.length()).map {
             val entry = array.getJSONObject(it)
-            RepoInfo(name = entry.getString("name"), isPrivate = entry.optBoolean("private", false))
+            RepoInfo(name = entry.getString("name"), isPrivate = entry.optBoolean("private", false), favorite = entry.optBoolean("favorite", false))
         }
+    }
+
+    override suspend fun favoriteRepo(repo: String, favorite: Boolean): String? = withContext(Dispatchers.IO) {
+        val json = JSONObject(postText("/api/github/favorite", JSONObject().put("repo", repo).put("favorite", favorite).toString()))
+        if (json.optBoolean("ok", false)) null else json.optString("error", "le favori n'a pas été enregistré")
     }
 
     // Changing repository does not change session: the session in progress is told, with its next message, to work on that repository

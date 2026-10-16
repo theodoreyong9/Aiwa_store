@@ -2065,3 +2065,30 @@ class CiWatchAfterFailureTests(unittest.TestCase):
             self.assertEqual(srv._ci_ttl(recent, now), srv.CI_POLL_FAST)
             self.assertEqual(srv._ci_ttl(old, now), srv.CI_POLL_IDLE)
             self.assertEqual(srv._ci_ttl({"state": "success"}, now), srv.CI_POLL_IDLE)
+
+
+
+class FavoriteReposTests(unittest.TestCase):
+    """The favourites come first, and a private repository is added by its exact name (it is not in GitHub's public list)."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        for name in ("FAVORITES_STORE", "REPOS_STORE"):
+            self.addCleanup(setattr, srv, name, getattr(srv, name))
+        srv.FAVORITES_STORE = Path(self.tmp.name) / "favs.json"
+        srv.REPOS_STORE = Path(self.tmp.name) / "repos.json"
+
+    def test_a_favourite_is_listed_first_even_when_the_public_list_does_not_have_it(self):
+        with unittest.mock.patch.object(srv.github, "gh_repos", lambda: []), unittest.mock.patch.object(srv.github, "checkout_owner", lambda: None):
+            self.assertTrue(srv.set_favorite("moi/prive", True)["ok"])
+            names = [c["name"] for c in srv._repo_choices()]
+            self.assertEqual(names[0], "moi/prive")
+            self.assertTrue(srv._repo_choices()[0]["favorite"])
+            self.assertTrue(srv.set_favorite("moi/prive", False)["ok"])
+            self.assertNotIn("moi/prive", [c["name"] for c in srv._repo_choices()])
+
+    def test_a_name_that_is_not_owner_slash_name_is_refused(self):
+        self.assertFalse(srv.set_favorite("pas un depot", True)["ok"])
+        self.assertFalse(srv.set_favorite("", True)["ok"])
