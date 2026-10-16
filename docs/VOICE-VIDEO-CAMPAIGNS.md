@@ -78,6 +78,8 @@ Documents : possibilité d'**envoyer** des fichiers et des vidéos **du téléph
 
 ## 3. Les campagnes
 
+Une campagne avance **cible par cible, sans validation de liste** : pour chaque cible, la session fabrique ce qui est demandé (vidéo, documents, page), pousse, ajoute sa proposition, puis passe à la suivante, jusqu'à l'arrêt (ou 30 cibles). Les propositions arrivent **une par une** et on valide **la cible et sa production ensemble**, dans l'appli.
+
 Un **onglet par campagne** et un onglet **Nouvelle campagne**.
 
 ### 3.1 Nouvelle campagne (le formulaire)
@@ -87,8 +89,8 @@ Un **onglet par campagne** et un onglet **Nouvelle campagne**.
 - cocher la **liste de documents** du dossier documents ;
 - cocher **test** ;
 - cocher la **liste de repos GitHub** ;
-- cocher les **créations à produire, personnalisées** (vidéo, docs) ;
-- cocher si on utilise **page, app, aiwa** du repo ;
+- cocher les **créations à produire, personnalisées** pour chaque cible : **vidéo, documents, page** (une seule page web avec son arborescence : un lien personnalisé par cible) ;
+- cocher si on utilise **app, aiwa** du repo, tels quels : l'APK et l'app Aiwa **ne se personnalisent pas** ;
 - **prompt** texte ;
 - **Valider** : envoi, et le formulaire **devient l'onglet de la campagne**.
 
@@ -99,6 +101,7 @@ Un **onglet par campagne** et un onglet **Nouvelle campagne**.
 - si **test** avait été coché : seulement les modes et un bouton share **normal** ;
 - le bouton **share** ouvre d'abord un **aperçu** de ce qui est envoyé (le message personnalisé et, en plus, les liens docs, vidéo, page, app, aiwa), **avant confirmation** ;
 - on ne peut **lancer qu'une proposition à la fois** ;
+- **Arrêter les travaux de la campagne** (avec confirmation) : la session est prévenue (`[Aiwa — stop campagne]`) et s'arrête à la fin de son étape en cours (une session cloud ne s'interrompt pas de l'extérieur) ;
 - **relancer** : redonne le choix session et repo, test, documents, repos et modes, pour faire une nouvelle campagne.
 
 ## 4. État de l'existant (au moment de l'écriture)

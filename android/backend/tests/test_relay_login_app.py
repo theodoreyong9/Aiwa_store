@@ -456,11 +456,35 @@ class ProposalsTests(unittest.TestCase):
         self.assertIn("MODE CAMPAGNE", lines["proposals"])
         self.assertIn("GitHub Pages", lines["deploy"])         # the campaign publishes its site like the pages mode does
 
+    def test_the_campaign_asks_no_validation_of_a_list_and_stops_on_demand(self):
+        srv.deploy_mode = "campaign"
+        self.addCleanup(setattr, srv, "deploy_mode", "pages")
+        text = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
+        self.assertNotIn("ATTENDS ma réponse", text)
+        self.assertNotIn("au plus 20 cibles", text)
+        self.assertIn('"makes":["video","docs","page"]', text)
+        self.assertIn('"uses":["app","aiwa"]', text)
+
+    def test_stopping_the_campaign_tells_the_session_at_work(self):
+        sent = []
+        original = srv._queue_followup
+        srv._queue_followup = lambda session_id, text: (sent.append((session_id, text)), {"ok": True, "url": None, "error": None})[1]
+        self.addCleanup(setattr, srv, "_queue_followup", original)
+        self.addCleanup(setattr, srv, "current_cloud", srv.current_cloud)
+        srv.current_cloud = "session_CAMP12345"
+        self.assertTrue(srv.campaign_stop()["ok"])
+        self.assertEqual(sent[-1][0], "session_CAMP12345")
+        self.assertIn("stop campagne", sent[-1][1])
+        srv.current_cloud = None
+        self.addCleanup(setattr, srv, "last_cloud", srv.last_cloud)
+        srv.last_cloud = None
+        self.assertFalse(srv.campaign_stop()["ok"])
+
     def test_the_instruction_prepares_and_never_sends(self):
         srv.deploy_mode = "campaign"
         self.addCleanup(setattr, srv, "deploy_mode", "pages")
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
-        for wanted in ("ne fabrique que cela", "REPÉRAGE", "CONSTATS MESURÉS", "POINTS DE CONTACT", "maquette REMPLAÇANTE", "currentUrl", "reasons", "contacts", "CANAL PAR CANAL", "« classique »", "« innovante »", "chatBody", "xBody", "un fichier n'est PAS obligatoire", "n'ENVOIES JAMAIS", "docs/campagnes/<campagne>/proposals.json", "Maquette de démonstration, pas le site officiel", "au plus 20 cibles", "n'invente rien", "ATTENDS ma réponse"):
+        for wanted in ("ne fabrique que cela", "CIBLE PAR CIBLE, SANS ATTENDRE", "UNE PAR UNE", "[Aiwa — stop campagne]", "ne se personnalisent pas", "REPÉRAGE", "CONSTATS MESURÉS", "POINTS DE CONTACT", "maquette REMPLAÇANTE", "currentUrl", "reasons", "contacts", "CANAL PAR CANAL", "« classique »", "« innovante »", "chatBody", "xBody", "un fichier n'est PAS obligatoire", "n'ENVOIES JAMAIS", "docs/campagnes/<campagne>/proposals.json", "Maquette de démonstration, pas le site officiel", "n'invente rien", "jamais à moitié dans `proposals.json`"):
             self.assertIn(wanted, text)
 
 

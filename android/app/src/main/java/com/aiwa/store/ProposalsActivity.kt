@@ -197,6 +197,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
     var uses by remember { mutableStateOf<Set<String>>(emptySet()) }
     var sending by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
+    var confirmStop by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         try {
@@ -303,13 +304,13 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                         }
                         Text("Créations à produire pour chaque cible", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            listOf("video" to "Vidéo", "docs" to "Documents").forEach { (k, label) ->
+                            listOf("video" to "Vidéo", "docs" to "Documents", "page" to "Page").forEach { (k, label) ->
                                 Row(Modifier.clickable { makes = if (k in makes) makes - k else makes + k }, verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = k in makes, onCheckedChange = { makes = if (it) makes + k else makes - k }); Text(label) }
                             }
                         }
-                        Text("Utiliser ce que le dépôt produit", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Text("Utiliser tel quel (non personnalisable)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            listOf("page" to "Page", "app" to "App", "aiwa" to "Aiwa").forEach { (k, label) ->
+                            listOf("app" to "App", "aiwa" to "Aiwa").forEach { (k, label) ->
                                 Row(Modifier.clickable { uses = if (k in uses) uses - k else uses + k }, verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = k in uses, onCheckedChange = { uses = if (it) uses + k else uses - k }); Text(label) }
                             }
                         }
@@ -326,6 +327,21 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                             OutlinedButton(onClick = { repo?.let { openUrl(context, "https://github.com/$it/tree/HEAD/$folder") } }, modifier = Modifier.weight(1f)) { Text("📁 Voir le dossier") }
                             if (campaign != null) OutlinedButton(onClick = { fillFrom(campaign) }, modifier = Modifier.weight(1f)) { Text("↻ Relancer") }
                         }
+                        // The work goes on target by target until it is stopped: the session is told to stop, and reads it at the end of its current step
+                        if (!isTest) {
+                            if (!confirmStop) OutlinedButton(onClick = { confirmStop = true }, modifier = Modifier.fillMaxWidth()) { Text("■ Arrêter les travaux de la campagne") }
+                            else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = {
+                                    confirmStop = false
+                                    scope.launch {
+                                        val problem = try { bridge.campaignStop() } catch (err: Exception) { err.message ?: "?" }
+                                        note = problem ?: "Arrêt envoyé : la session s'arrête à la fin de son étape en cours (un arrêt immédiat se fait dans l'appli Claude)."
+                                    }
+                                }, modifier = Modifier.weight(1f)) { Text("Oui, arrêter") }
+                                OutlinedButton(onClick = { confirmStop = false }, modifier = Modifier.weight(1f)) { Text("Non") }
+                            }
+                        }
+                        if (tab != "new") note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                         val items = proposals
                         when {
                             items == null -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {

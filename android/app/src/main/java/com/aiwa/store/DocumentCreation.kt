@@ -90,10 +90,10 @@ fun documentVideoRequest(doc: PickedDocument?, format: String, withGithub: Boole
     "Fais une vidéo à partir de ${sourcesPhrase(doc, repoFiles, repoKnown)}, au format $format. " + githubPhrase(withGithub) +
         "Si un choix ne t'appartient pas, demande-le moi par la question du widget." + documentBlock(doc)
 
-/** The request for a campaign of proposals from a document and/or files: the agent proposes the list of targets first and WAITS for my answer; nothing is sent by it. */
+/** The request for a campaign of proposals from a document and/or files: the agent works target by target (no list to validate) until I stop it; nothing is sent by it. */
 fun campaignRequest(doc: PickedDocument?, targets: String, withGithub: Boolean, repoFiles: List<String> = emptyList(), repoKnown: Boolean = false, channels: String = "", produce: String = "both"): String =
     "Prépare une campagne de propositions à partir de " + campaignSources(doc, repoFiles, repoKnown, withGithub) + ". Les cibles : ${targets.trim()}. " + githubPhrase(withGithub) +
-        "Établis d'abord la liste des cibles et envoie-la moi pour validation par la question du widget : ATTENDS ma réponse avant de fabriquer quoi que ce soit. " +
+        "Travaille cible par cible, sans attendre de validation de liste : pour chaque cible, fabrique ce qui est demandé, pousse, ajoute sa proposition, puis passe à la suivante, jusqu'à mon message « [Aiwa — stop campagne] ». " +
         when (produce) {
             "site" -> "Pour chaque cible, je veux SEULEMENT un site (la maquette) et un prix, pas de vidéo, sous `aiwa-proposals/`. "
             "video" -> "Pour chaque cible, je veux SEULEMENT une vidéo et un prix, pas de maquette de site, sous `aiwa-proposals/`. "
@@ -275,7 +275,7 @@ private fun FileCreationWindow(startCampaign: Boolean, videoOnly: Boolean, onClo
                             "Un fichier n'est pas obligatoire : ta création du dépôt, ses vidéos et (si tu coches) tes réalisations GitHub peuvent suffire. Claude te propose d'abord la liste : tu la valides. Il prépare ensuite, pour chaque cible, une maquette, une vidéo et un prix. Rien n'est envoyé : tu valides chaque proposition et tu l'envoies toi-même depuis ta messagerie.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Button(onClick = { send(campaignRequest(doc, targets, withGithub, chosen.toList(), repoKnown, CampaignChannels.phrase(innovative, state.repo?.let { lastSentByChannel(context, it, proposalList) } ?: emptyMap()), produce)) }, enabled = (hasSource || repoKnown || withGithub) && targets.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Proposer la liste des cibles") }
+                        Button(onClick = { send(campaignRequest(doc, targets, withGithub, chosen.toList(), repoKnown, CampaignChannels.phrase(innovative, state.repo?.let { lastSentByChannel(context, it, proposalList) } ?: emptyMap()), produce)) }, enabled = (hasSource || repoKnown || withGithub) && targets.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) { Text("Lancer la campagne") }
                     }
                     OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
                 }

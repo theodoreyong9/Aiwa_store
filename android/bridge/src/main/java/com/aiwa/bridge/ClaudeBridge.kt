@@ -125,6 +125,9 @@ data class CloudSendResult(val ok: Boolean, val sessionId: String?, val url: Str
 data class RepoInfo(val name: String, val isPrivate: Boolean)
 
 interface ClaudeBridge {
+    /** « Arrêter la campagne »: the session at work is told to stop. Null when it was sent, otherwise why not. */
+    suspend fun campaignStop(): String? = "non disponible"
+
     suspend fun status(): BackendStatus
     suspend fun selectModel(id: String?)
     suspend fun selectEffort(level: String?)

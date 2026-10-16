@@ -162,10 +162,10 @@ object CampaignRequest {
         if (test) parts.add("TEST : ne cherche aucune vraie cible, prépare une seule proposition pour moi-même, avec les productions demandées.")
         parts.add(if (documents.isEmpty()) "Aucun document du dossier docs/ à utiliser." else "Documents du dossier docs/ à utiliser (lis-les en entier) : " + documents.joinToString(", ") { "docs/$it" } + ".")
         if (repos.isNotEmpty()) parts.add("Mes réalisations GitHub à utiliser (dépôts publics) : " + repos.joinToString(", ") + ".")
-        parts.add(if (makes.isEmpty()) "Rien de personnalisé à produire pour chaque cible." else "Pour chaque cible, produis en personnalisé : " + makes.joinToString(", ") { if (it == "video") "une vidéo" else "des documents" } + ".")
-        if (uses.isNotEmpty()) parts.add("Utilise ce que le dépôt produit déjà : " + uses.joinToString(", ") + " (mets leurs liens dans les propositions).")
+        parts.add(if (makes.isEmpty()) "Rien de personnalisé à produire pour chaque cible." else "Pour chaque cible, produis en personnalisé : " + makes.joinToString(", ") { when (it) { "video" -> "une vidéo"; "page" -> "une page (dans l'arborescence du site de la campagne, avec son lien personnalisé)"; else -> "des documents" } } + ".")
+        if (uses.isNotEmpty()) parts.add("Utilise ce que le dépôt produit déjà (ce n'est pas personnalisé) : " + uses.joinToString(", ") + " (mets leurs liens dans les propositions).")
         if (prompt.isNotBlank()) parts.add("Ma demande : ${prompt.trim()}")
-        parts.add("Écris d'abord docs/campagnes/$slug/campaign.json avec ces choix. Ne me pose aucune question sauf la liste des cibles.")
+        parts.add("Écris d'abord docs/campagnes/$slug/campaign.json avec ces choix. Ne me pose aucune question et n'attends aucune validation : travaille cible par cible, pousse chaque cible avec sa proposition, et continue jusqu'à mon message « [Aiwa — stop campagne] ».")
         return parts.joinToString("\n")
     }
 }

@@ -12,12 +12,14 @@ class CampaignRequestTest {
     }
 
     @Test fun theRequestNamesTheFolderAndWhatWasTicked() {
-        val text = CampaignRequest.message("Démo", "demo", false, listOf("cv.pdf"), listOf("o/site"), listOf("video"), listOf("page", "aiwa"), "fais court")
+        val text = CampaignRequest.message("Démo", "demo", false, listOf("cv.pdf"), listOf("o/site"), listOf("video", "page"), listOf("app", "aiwa"), "fais court")
         assertTrue(text.contains("docs/campagnes/demo/"))
         assertTrue(text.contains("docs/cv.pdf"))
         assertTrue(text.contains("o/site"))
         assertTrue(text.contains("une vidéo"))
-        assertTrue(text.contains("page, aiwa"))
+        assertTrue(text.contains("app, aiwa"))
+        assertTrue(text.contains("une page"))
+        assertTrue(text.contains("stop campagne"))
         assertTrue(text.contains("Ma demande : fais court"))
         assertTrue(!text.contains("TEST"))
         val test = CampaignRequest.message("Démo", "demo", true, emptyList(), emptyList(), emptyList(), emptyList(), "")

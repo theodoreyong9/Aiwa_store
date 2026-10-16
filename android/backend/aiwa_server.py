@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 109
+BACKEND_VERSION = 110
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -648,14 +648,15 @@ def _proposals_line(repo):
     """The campaign mode: a file (and, if I ticked it, my GitHub work) becomes a package: a list of targets that I validate, a site with its tree, a video and a price for each, and the proposals
     I validate one by one in the app. The session prepares, it never sends anything."""
     return (
-        "MODE CAMPAGNE : ce projet est une campagne de propositions, semi-automatisée. Elle part de ce que ma demande désigne : un fichier (dans mon message ou dans `aiwa-campagne/` : un CV, un argumentaire, une brochure…), "
+        "MODE CAMPAGNE : ce projet est une campagne de propositions, semi-automatisée, qui avance CIBLE PAR CIBLE. Elle part de ce que ma demande désigne : un fichier (dans mon message ou dans `aiwa-campagne/` : un CV, un argumentaire, une brochure…), "
         "ma création dans le dépôt et ses vidéos (dans `docs/videos/`), mes réalisations GitHub publiques si je l'ai coché : un fichier n'est PAS obligatoire. "
         "Si ma demande ne désigne rien de tout cela et que le dépôt est vide, demande-moi UNE fois par la question du widget (menu d'Aiwa → Créer à partir d'un fichier → Une campagne) et arrête-toi là. "
         "DOSSIER : chaque campagne a le sien, `docs/campagnes/<campagne>/` (<campagne> = le nom de la campagne en minuscules, sans accent, avec des tirets). Écris-y d'abord `campaign.json` : "
-        "`{\"name\":\"le nom\",\"test\":false,\"createdAt\":1760000000,\"documents\":[\"ceux de docs/ que je t'ai fait utiliser\"],\"repos\":[\"mes dépôts utilisés\"],\"makes\":[\"video\",\"docs\"],\"uses\":[\"page\",\"app\",\"aiwa\"],\"prompt\":\"ma demande\"}`. "
+        "`{\"name\":\"le nom\",\"test\":false,\"createdAt\":1760000000,\"documents\":[\"ceux de docs/ que je t'ai fait utiliser\"],\"repos\":[\"mes dépôts utilisés\"],\"makes\":[\"video\",\"docs\",\"page\"],\"uses\":[\"app\",\"aiwa\"],\"prompt\":\"ma demande\"}`. "
         "Si ma demande dit TEST, ne cherche aucune vraie cible : prépare UNE proposition pour moi-même, avec les productions demandées, pour que j'essaie le circuit sur moi. "
-        "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Le paquet que tu livres : (1) la liste des cibles, (2) un site avec son arborescence, (3) une vidéo par cible, (4) `docs/campagnes/<campagne>/proposals.json` ; "
-        "ma demande dit ce qu'il faut produire pour chaque cible (un site, une vidéo, ou les deux) : ne fabrique que cela, et laisse `demoUrl` ou `videoUrl` vide pour ce qui n'est pas demandé. "
+        "Tu PRÉPARES, tu n'ENVOIES JAMAIS. Pour chaque cible, ce que tu livres est PERSONNALISÉ : une vidéo, des documents, une page (UNE seule page web avec son arborescence : un lien personnalisé par cible, dans le même site), "
+        "et sa proposition dans `docs/campagnes/<campagne>/proposals.json`. Ma demande dit lesquelles : ne fabrique que cela, et laisse `videoUrl`, `docsUrl` ou `demoUrl` vide pour ce qui n'est pas demandé. "
+        "L'application (APK) et l'app Aiwa ne se personnalisent pas : si ma demande les nomme, mets seulement leurs liens, tels que le dépôt les produit déjà (`appUrl`, `aiwaUrl`). "
         "REPÉRAGE : quand ma demande vise des sites dépassés à remplacer, cherche les cibles avec tes outils de recherche web et ne retiens un site que sur des CONSTATS MESURÉS, jamais sur un avis : "
         "(1) pas de HTTPS ou certificat expiré (`curl -sI`) ; (2) pas adapté au téléphone : pas de `<meta name=\"viewport\">`, ou défilement horizontal à 390 px de large (Playwright, capture mobile) ; "
         "(3) technologies d'un autre âge : Flash, cadres (`<frame>`), mise en page en tableaux imbriqués, balises `<font>`, jQuery très ancien ; (4) contenu daté : année de copyright ou dernière mise à jour de plus de 5 ans ; "
@@ -663,11 +664,13 @@ def _proposals_line(repo):
         "Écris pour chaque cible, dans `liste.md`, les constats avec leur valeur mesurée (les chiffres, pas « semble ancien »), garde-les dans `reasons` en une ligne, et mets l'adresse du site actuel dans `currentUrl`. Ne retiens pas une cible qui n'a qu'un constat faible. "
         "POINTS DE CONTACT : relève, sur le site de la cible lui-même, ses points de contact PUBLICS (e-mail, téléphone, adresse, horaires, formulaire, réseaux) : seulement ce qu'elle y publie, jamais une donnée déduite ou privée ; mets-les dans `contacts`, et l'e-mail et le téléphone dans `email` et `phone` s'ils y sont. "
         "La maquette REMPLAÇANTE reprend tous ces points de contact tels que la cible les publie (elle reste utilisable le jour même par ses clients), avec un site moderne qui règle chacun des constats, et sans copier ni logo ni photo sans droit. "
-        "D'abord la liste : établis-la d'après ma demande (au plus 20 cibles par lot ; seulement des coordonnées professionnelles publiques ou que je t'ai données, jamais de données privées) et écris-la dans `docs/campagnes/<campagne>/liste.md` avec, pour chaque cible, pourquoi elle est retenue. "
-        "Envoie-moi cette liste (noms seulement, courte) par la question du widget, avec trois choix : « Prépare ces cibles », « Retire-en… », « Annule » : c'est la SEULE fois où tu t'arrêtes pour m'attendre, ATTENDS ma réponse avant de fabriquer quoi que ce soit. "
-        "Ensuite le rendu, pour chaque cible : une maquette de site sous `docs/campagnes/<campagne>/<cible>/`, dans le MÊME site (l'arborescence d'un seul site, publié par GitHub Pages, adresses non listées ; pas un dépôt par cible) : "
+        "CIBLE PAR CIBLE, SANS ATTENDRE : tu ne me demandes la validation d'aucune liste. Tiens `docs/campagnes/<campagne>/liste.md` à jour (les cibles traitées, avec pourquoi chacune est retenue). Traite UNE cible à la fois : trouve-la, fabrique ce qui est demandé pour elle, "
+        "pousse (un commit par cible), ajoute SA proposition à `proposals.json`, puis passe à la suivante. Ne regroupe jamais plusieurs cibles avant de pousser : les propositions m'arrivent UNE PAR UNE, et je valide la cible et ce que tu as fabriqué pour elle ENSEMBLE, dans l'application. "
+        "ARRÊT : continue jusqu'à ce que je t'écrive « [Aiwa — stop campagne] » : arrête-toi alors tout de suite (la cible en cours est soit terminée et poussée, soit laissée de côté ; jamais à moitié dans `proposals.json`) et dis-moi en une phrase combien de propositions sont prêtes. "
+        "Plafond de sécurité : 30 cibles dans une même campagne, puis arrête-toi et dis-le moi. "
+"Le rendu de chaque cible : une page sous `docs/campagnes/<campagne>/<cible>/`, dans le MÊME site (l'arborescence d'un seul site, publié par GitHub Pages, adresses non listées ; pas un dépôt par cible) : "
         "la maquette porte en haut, bien visible, « Maquette de démonstration, pas le site officiel de <cible> », n'utilise de la cible que ce qu'elle publie elle-même, ne copie ni logo ni photo sans droit, et n'invente rien (ni chiffre, ni client, ni avis) ; "
-        "une vidéo de présentation à la qualité que j'ai choisie (la consigne vidéo s'applique : stratégie, style, critique) ; un prix proposé, justifié en une phrase dans la liste. "
+        "si une vidéo est demandée : une vidéo de présentation à la qualité que j'ai choisie (la consigne vidéo s'applique : stratégie, style, critique) ; un prix proposé, justifié en une phrase dans la liste. "
         "Puis écris `docs/campagnes/<campagne>/proposals.json` : une liste d'objets "
         "`{\"id\":\"cible\",\"name\":\"nom de la cible\",\"email\":\"adresse\",\"phone\":\"+41791234567\",\"subject\":\"…\",\"body\":\"le message, court, signé de mon nom, sans lien (les liens sont ajoutés à part)\",\"chatBody\":\"la version courte pour WhatsApp, SMS et Telegram\",\"xBody\":\"la version pour un post sur X, 200 caractères au plus, sans lien\",\"style\":\"le style de cette création en une phrase, avec les références des registres utilisées (ids)\",\"currentUrl\":\"https://… le site actuel de la cible\",\"reasons\":\"les constats mesurés qui font juger ce site dépassé, en une ligne\",\"contacts\":\"les points de contact publics de la cible, relevés sur son site\",\"price\":\"prix proposé\",\"videoUrl\":\"https://…\",\"demoUrl\":\"https://<utilisateur>.github.io/<dépôt>/docs/campagnes/<campagne>/<cible>/\"}` "
         "(champs en plus : `type` = le canal de cette cible, « whatsapp », « telegram », « mail » ou « linkedin » ; `profileUrl` = le lien de son profil ou de sa page ; `docsUrl`, `appUrl`, `aiwaUrl` pour ce que tu as produit en plus ; tous en https ; videoUrl et demoUrl en https ; si tu n'as pas d'adresse sûre, laisse `email` vide ; `phone` est un numéro public de la cible au format international avec le +, ou vide : il sert à ouvrir WhatsApp ou un SMS que JE valide et envoie). "
@@ -677,7 +680,7 @@ def _proposals_line(repo):
         "« innovante » = cherche AUTRE CHOSE (références éloignées : traits, palette et ambiance différents) tout en respectant le brief, le format et les licences. Pour un canal sans dernier envoi, pars du brief. "
         "Consulte les registres du dépôt de référence (design : `design-research/src/cli.js search`, musique, objets) pour trouver ces références, compare avec les traits du dernier style, et note dans `style` de chaque proposition le style retenu et les ids des références, "
         "pour que le prochain envoi puisse s'en servir. Ne prétends pas avoir comparé ce que tu n'as pas lu. "
-        "Pousse le tout sur la branche principale, puis dis-moi en une phrase combien de propositions sont prêtes : je les relis et je les envoie moi-même, une par une, depuis l'application (le bouton Campagne du widget : un onglet par campagne)."
+        "Pousse sur la branche principale à chaque cible : je relis et j'envoie moi-même, une par une, depuis l'application (le bouton Campagne du widget : un onglet par campagne)."
     )
 
 
@@ -2737,6 +2740,20 @@ def agent_confirm(proposal_id):
 AGENT_FORGET_WINDOW = 1800   # seconds: a stop reaches the sessions spoken to in the last half hour
 
 
+CAMPAIGN_STOP_TEXT = ("[Aiwa — stop campagne] Arrête la campagne maintenant : ne commence aucune nouvelle cible. La cible en cours est soit terminée et poussée, soit laissée de côté (jamais à moitié dans `proposals.json`). "
+                      "Dis-moi en une phrase combien de propositions sont prêtes.")
+
+
+def campaign_stop():
+    """« Arrêter la campagne »: the session that works on it is told to stop (it reads it at the end of its current step: a cloud session cannot be interrupted from outside), and nothing else is started."""
+    with lock:
+        session = current_cloud or last_cloud
+    if not session:
+        return {"ok": False, "error": "pas de session en cours"}
+    result = _queue_followup(session, CAMPAIGN_STOP_TEXT)
+    return {"ok": bool(result.get("ok")), "session": session, "error": result.get("error")}
+
+
 def instructions_resend():
     """« renvoie les instructions »: the session in use forgets what it was told, so that its next message carries the general instructions (and those of the pills) in full again."""
     with lock:
@@ -3639,6 +3656,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_json({"accepted": False, "reason": f"relais injoignable : {err}"})
         elif self.path == "/api/instructions/resend":
             self.reply_json(instructions_resend())
+        elif self.path == "/api/campaign/stop":
+            self.reply_json(campaign_stop())
         elif self.path == "/api/repo":
             # Changing repository does not change session: the session in
             # progress is told, with its next message, to work on that one
