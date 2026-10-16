@@ -71,6 +71,8 @@ data class BackendStatus(
     // low / medium / high / xhigh / max, null = automatic.
     val effort: String? = null,
     val version: Int,
+    // When the brain was last updated (epoch seconds, 0 = unknown).
+    val updatedAt: Long = 0,
     val cloudSession: String?,
     // The session most recently in use, kept when the next message will
     // start a new one — so its conversation can still be opened.

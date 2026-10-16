@@ -63,6 +63,7 @@ object BackendSync {
                     cloudSessions = sessions,
                     model = status.model,
                     backendVersion = status.version,
+                    backendUpdatedAt = status.updatedAt,
                     repo = status.repo,
                     extraRepos = status.extraRepos,
                     pushMain = status.pushMain,

@@ -68,6 +68,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             model = json.str("model"),
             effort = json.str("effort"),
             version = json.optInt("version", 0),
+            updatedAt = json.optLong("updated_at", 0),
             cloudSession = json.str("cloud_session"),
             lastSession = json.str("last_session"),
             repo = json.str("repo"),

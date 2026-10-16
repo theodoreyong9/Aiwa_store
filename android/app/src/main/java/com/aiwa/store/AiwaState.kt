@@ -93,6 +93,7 @@ data class AiwaState(
     val cloudSessions: List<CloudSessionInfo> = emptyList(),
     val model: String? = null,
     val backendVersion: Int = 0,
+    val backendUpdatedAt: Long = 0,
     // Instructions integrated into the conversation — Claude Code does the
     // work itself: the repository new sessions start on (null = the plain
     // chat), push straight to the main branch, publish with GitHub Pages,

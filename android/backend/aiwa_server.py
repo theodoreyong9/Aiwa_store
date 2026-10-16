@@ -58,6 +58,11 @@ PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
 BACKEND_VERSION = 106
+# When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
+try:
+    BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
+except (OSError, ValueError):
+    BACKEND_UPDATED_AT = 0
 # Passed to `claude --model` when a new cloud session is created, and to
 # `/model` in an existing one. Kept restrictive: it ends up as a
 # command-line argument / slash-command argument.
@@ -3339,7 +3344,7 @@ class Handler(BaseHTTPRequestHandler):
             with lock:
                 sending, sending_since, sending_note = cloud_busy, cloud_busy_since, cloud_progress
             self.reply_json({
-                "version": BACKEND_VERSION, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
+                "version": BACKEND_VERSION, "updated_at": BACKEND_UPDATED_AT, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "video_quality": vquality, "extra": own, "extra_repos": more, "source_repos": inspiration,
                 "waiting": is_waiting, "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(), "cast": _cast_ready(),
