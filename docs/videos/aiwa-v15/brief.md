@@ -1,0 +1,3 @@
+# Film v15 — derniers détails de la v14
+Textes centrés partout (légendes) ; page 1 : « Création de documents, vidéos, jeux, site internet, applications android et smart contracts » (six icônes dont un smart contract) ; page 2 remplacée par « Déploiement dans votre propre environnement gratuit » ; page 8 : « Grâce à la Preuve de Volonté » ; plus aucun bandeau « vision » ; page 9 : « interplanétaire » et « et » décollés (la mesure du mot italique était fausse) ; carte AIWA finale descendue, et répliquée en toute première page (AIWA + « Ton univers. Ta volonté. »).
+Voix : Piper « siwis » (synthèse) ; elle dit la même phrase que celle écrite. Musique : « Killers », Kevin MacLeod, CC BY 4.0. Non regardé en mouvement.
