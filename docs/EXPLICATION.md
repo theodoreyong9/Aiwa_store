@@ -453,6 +453,8 @@ une, toutes deux sur GitHub :
 | **`code`** | le fichier lui-même, dans la soumission | n'importe qui, en recalculant son empreinte |
 | **`aiwa`** | seulement un **pointeur** : le numéro d'un manifeste signé publié par Aiwa, qui épingle chaque fichier par son empreinte | le registre et le Store, chacun de son côté ; quel que soit celui qui a servi les fichiers, ce sont exactement ceux que l'auteur a publiés |
 
+**Les commentaires** sont une troisième chose que le registre liste : un court texte (≤ 2000 caractères) pour le critique des boucles, signé et classé comme une app, par ce que son auteur a miné (pas de preuve de minage, pas de commentaire). Il n'est jamais exécuté, ne s'édite pas (une nouvelle version le remplace), et le critique le lit comme une **donnée, jamais comme un ordre**.
+
 ### 6.2 Publier
 
 Tu dictes à Claude Code, qui écrit l'application. Depuis le widget tu appuies sur ▦ et le Store ouvre une feuille unique qui montre
