@@ -584,8 +584,8 @@ private fun GlassesContent(state: AiwaState) {
     val middle = w - 2 * outer - 2 * inner
     val top = h * 0.17f
     val micH = (h * 0.20f).coerceIn(20f, 28f)
-    // the left lens: a column of six small buttons (the five kinds and the settings) and, under them, the dictation row
-    val itemH = ((h * 0.66f - 8f - micH) / 7f).coerceIn(8f, 13f)
+    // the left lens: a column of seven small buttons (the project, the five kinds and the settings) and, under them, the dictation row
+    val itemH = ((h * 0.66f - 8f - micH) / 8f).coerceIn(8f, 13f)
     val colW = 40f
     val band = bandInfo(state, inner - colW - 24f)
     val agentOn = state.agent?.enabled == true
@@ -605,6 +605,13 @@ private fun GlassesContent(state: AiwaState) {
                     Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
                         // the column: Docs, Vidéo, Page, App, Aiwa (grey until the repository holds one), then the settings, which hold everything else
                         Column(modifier = GlanceModifier.width(colW.dp).fillMaxHeight(), verticalAlignment = Alignment.Top) {
+                            // the named pair (session + repository) now on the pills, or the invitation to name it
+                            Chip(
+                                fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", colW - 4f, fontScale),
+                                if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
+                                lockable(locked, actionStartActivity<ProjectPickerActivity>()),
+                                GlanceModifier.fillMaxWidth(), height = itemH.dp, textSize = 7.sp, hPad = 1.dp,
+                            )
                             lightKinds(state, context).forEach { kind ->
                                 Chip(
                                     kind.word, if (kind.found) green else PILL_DIM, if (kind.found) fg else TEXT_DIM,
