@@ -15,7 +15,7 @@ CAPS=[("Dis-le au *widget*.",1,23,'widget',1.0),
 ("Pilote un *super agent*.",9,9,9,0.0),
 ("Qui te *parle*.",10,9,40,0.0),
 ("Et te *pousse* à créer.",11,9,41,0.0),
-("De plus en plus *fort*.",12,34,42,0.0),
+("De plus en plus *fort*.",12,34,42,1.0),
 ("Et *vote*.",13,14,14,0.2),
 ("Pour les *mises à jour*.",14,35,43,0.2),
 ("Une *nouvelle idée* du web.",15,36,44,0.0),
@@ -25,11 +25,14 @@ scn=[]
 scn.append(dict(t=0.0,d=22,o='cover',c='',v=0))
 t=4*beat
 cues=[]
-# page 1: "Imagine", the six kinds one at a time
-for q,(d,o) in enumerate(TYPES):
-    scn.append(dict(t=round(t+q*beat*1.25,3),d=d,o=o,c='*Imagine*.' if q==0 else '',v=durs[0] if q==0 else 0))
+# page 1: "Imagine" on its own, then each kind is a page
+scn.append(dict(t=round(t,3),d=22,o='imag',c='*Imagine*.',v=durs[0]))
 cues.append((round(t,3),V[0]))
-t=t+6*beat*1.25+0.1
+t=math.ceil((t+durs[0]*1.12+0.08+0.3)/half)*half
+for q,(d,o) in enumerate(TYPES):
+    scn.append(dict(t=round(t,3),d=d,o=o,c='',v=0))
+    t+=beat*1.5
+t=t+0.1
 t=math.ceil(t/half)*half
 for text,vi,d,o,extra in CAPS:
     v=durs[vi]
