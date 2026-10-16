@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 108
+BACKEND_VERSION = 109
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -2453,7 +2453,7 @@ def _comments_take():
 # ---------- the agent: a session of its own that follows the others and talks with the person (see aiwa_agent.py) ----------
 AGENT_FILE = LOOPS_FILE.with_name("aiwa-agent.json")
 agent_lock = threading.Lock()
-agent = {"command": None, "enabled": False, "session": None, "interval": agent_lib.INTERVAL_DEFAULT, "sig": None, "last": 0.0, "say": None, "proposal": None, "creating": False, "error": None}
+agent = {"command": None, "enabled": False, "session": None, "repo": None, "decisions": [], "interval": agent_lib.INTERVAL_DEFAULT, "sig": None, "last": 0.0, "say": None, "proposal": None, "creating": False, "error": None}
 
 
 def _agent_load():
@@ -2468,13 +2468,14 @@ def _agent_load():
         agent.update(
             session=session if isinstance(session, str) and CLOUD_ID_RE.fullmatch(session) else None,
             interval=agent_lib.clamp_interval(raw.get("interval", agent_lib.INTERVAL_DEFAULT)),
+            repo=raw.get("repo") if isinstance(raw.get("repo"), str) and github.REPO_RE.fullmatch(raw.get("repo")) else None,
         )
         agent["enabled"] = False   # the agent follows only while the person has its listening open (never kept from a previous run)
 
 
 def _agent_save():
     try:
-        AGENT_FILE.write_text(json.dumps({"enabled": agent["enabled"], "session": agent["session"], "interval": agent["interval"]}), encoding="utf-8")
+        AGENT_FILE.write_text(json.dumps({"enabled": agent["enabled"], "session": agent["session"], "interval": agent["interval"], "repo": agent["repo"]}), encoding="utf-8")
     except OSError:
         pass
 
@@ -2541,10 +2542,13 @@ def agent_send(spoken=None, direct=True):
     if not session:
         return {"ok": False, "error": "pas d'agent : crée-le d'abord"}
     text, sig = _agent_digest()
-    result = _queue_followup(session, agent_lib.point_message(text, _loops_relay_url(), spoken=spoken, stamp=time.strftime("%H:%M")))
+    with agent_lock:
+        told = list(agent.get("decisions", []))
+    result = _queue_followup(session, agent_lib.point_message(text, _loops_relay_url(), spoken=spoken, stamp=time.strftime("%H:%M"), decisions=told))
     if result["ok"]:
         with agent_lock:
             agent["sig"], agent["last"] = sig, time.time()
+            agent["decisions"] = agent.get("decisions", [])[len(told):]
     return result
 
 
@@ -2615,7 +2619,7 @@ def agent_snapshot():
     with agent_lock:
         say = agent["say"] if agent["say"] and not agent["say"]["spoken"] else None
         proposal = dict(agent["proposal"]) if agent["proposal"] else None
-        out = {"enabled": agent["enabled"], "session": agent["session"], "interval": agent["interval"], "creating": agent["creating"], "error": agent["error"], "voice": voice.state, "llm": llm.state,
+        out = {"enabled": agent["enabled"], "session": agent["session"], "repo": agent["repo"], "interval": agent["interval"], "creating": agent["creating"], "error": agent["error"], "voice": voice.state, "llm": llm.state,
                "say": {k: say[k] for k in ("id", "text", "ts")} if say else None}
     if proposal:
         entry = _session_entry(proposal["session"]) or {}
@@ -2632,8 +2636,10 @@ def agent_snapshot():
     return out
 
 
-def agent_create():
-    """Creates the agent session (on the repository in use, which is only an address: the agent changes nothing), then switches it on."""
+def agent_create(repo=None):
+    """Creates the agent session, on the repository the person chose for it (its own: it keeps its registry there) or, with none, on the repository in use (only an address then), then switches it on."""
+    if repo is not None and not github.REPO_RE.fullmatch(repo):
+        return {"ok": False, "error": "dépôt invalide"}
     with agent_lock:
         if agent["creating"]:
             return {"ok": False, "error": "la création est en cours"}
@@ -2642,22 +2648,24 @@ def agent_create():
         agent.update(creating=True, error=None)
 
     def run():
-        global current_cloud, last_cloud
+        global current_cloud, last_cloud, current_repo
         with lock:
-            previous = (current_cloud, last_cloud)
+            previous = (current_cloud, last_cloud, current_repo)
             current_cloud = None            # a new session is made, and the one in use stays the one in use
+            if repo:
+                current_repo = repo         # ... and so does the repository in use
         try:
-            result = cloud_send(agent_lib.charter(_loops_relay_url()))
+            result = cloud_send(agent_lib.charter(_loops_relay_url(), repo))
         except Exception as err:
             result = {"ok": False, "error": str(err)}
         finally:
             with lock:
-                current_cloud, last_cloud = previous
+                current_cloud, last_cloud, current_repo = previous
                 _save_state()
         with agent_lock:
             agent["creating"] = False
             if result.get("ok"):
-                agent.update(session=result["session_id"], enabled=False, last=0.0, sig=None)
+                agent.update(session=result["session_id"], repo=repo, enabled=False, last=0.0, sig=None)
             else:
                 agent["error"] = str(result.get("error"))[:300]
             _agent_save()
@@ -2673,7 +2681,7 @@ def agent_destroy():
         session = agent["session"]
         if agent["creating"]:
             return {"ok": False, "error": "la création est en cours"}
-        agent.update(session=None, enabled=False, command=None, proposal=None, say=None, sig=None, last=0.0, error=None)
+        agent.update(session=None, repo=None, decisions=[], enabled=False, command=None, proposal=None, say=None, sig=None, last=0.0, error=None)
         _agent_save()
     if session:
         with store_lock:
@@ -2722,6 +2730,7 @@ def agent_confirm(proposal_id):
         # the sessions the super agent last spoke to: « stop » asks them to forget its last comment
         recent = [(sid, at) for sid, at in agent.get("last_sent", []) if sid not in sent and time.time() - at < AGENT_FORGET_WINDOW]
         agent["last_sent"] = recent + [(sid, time.time()) for sid in sent]
+        agent["decisions"] = (agent.get("decisions", []) + [f"proposition pour {', '.join(_loops_titles().get(sid, sid) for sid in sent)} : CONFIRMÉE et envoyée — « {proposal['message'][:140]} »"])[-12:]
     return {"ok": True, "session": proposal["session"], "sent": sent}
 
 
@@ -2760,6 +2769,7 @@ def agent_cancel(proposal_id):
     """Drops the proposal, or the settings, that has this id (the phone also calls it once it has applied the settings: they are not applied twice)."""
     with agent_lock:
         if agent["proposal"] and agent["proposal"]["id"] == proposal_id:
+            agent["decisions"] = (agent.get("decisions", []) + [f"proposition « {agent['proposal']['message'][:140]} » : ANNULÉE"])[-12:]
             agent["proposal"] = None
         if agent["command"] and agent["command"]["id"] == proposal_id:
             agent["command"] = None
@@ -3561,7 +3571,7 @@ class Handler(BaseHTTPRequestHandler):
             data = data if isinstance(data, dict) else {}
             action = self.path.rsplit("/", 1)[1]
             if action == "create":
-                self.reply_json(agent_create())
+                self.reply_json(agent_create(str(data.get("repo") or "").strip() or None))
             elif action == "set":
                 self.reply_json(agent_set(data.get("enabled") if isinstance(data.get("enabled"), bool) else None, data.get("interval")))
             elif action == "now":

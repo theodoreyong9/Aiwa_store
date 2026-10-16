@@ -1,4 +1,5 @@
 package com.aiwa.store
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -94,15 +95,15 @@ private fun AgentWindow(onClose: () -> Unit) {
                     Text("L'agent", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Une session Claude à part. Elle suit tes dépôts, tes sessions et tes boucles, et te parle à voix haute. On l'ouvre en disant « mon super agent » (écoute de réveil allumée) ou avec le bouton ; « repasse en manuel » la ferme. " +
-                            "Elle n'écrit jamais dans un dépôt et n'envoie rien toute seule : dis « vas-y dis-lui », le téléphone relit, tu dis « c'est bon vas-y ».",
+                            "Elle n'écrit que dans son registre (le dossier aiwa-agent/ de son dépôt) et n'envoie rien toute seule : dis « vas-y dis-lui », le téléphone relit, tu dis « c'est bon vas-y ».",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     if (agent == null) {
                         Text("Le cerveau d'Aiwa dans Termux n'est pas joignable (ou trop ancien : cd ~/aiwa_store && git pull).")
                     } else if (agent.session == null && agent.llm != "ready") {
-                        Text("Elle sera créée sur le dépôt choisi dans le widget (il ne sert que d'adresse).")
-                        Button(onClick = { act("create") }, enabled = !busy && !agent.creating, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (agent.creating) "Création…" else "Créer l'agent")
+                        Text("Elle a son propre dépôt GitHub : elle y tient son registre (ses propositions, ce que tu en décides, ce que tu lui donnes à garder), dans le dossier aiwa-agent/. Choisis-le : un dépôt à elle, privé de préférence.")
+                        Button(onClick = { app.startActivity(Intent(app, AgentRepoPickerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); onClose() }, enabled = !busy && !agent.creating, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (agent.creating) "Création…" else "Choisir son dépôt et créer l'agent")
                         }
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -145,6 +146,7 @@ private fun AgentWindow(onClose: () -> Unit) {
                         }
                     }
                     if (agent != null && agent.session != null) {
+                        agent.repo?.let { Text("Son dépôt : $it (registre : aiwa-agent/)", style = MaterialTheme.typography.bodySmall) }
                         if (confirmDestroy) {
                             Text("Détruire le super agent ? Aiwa l'oublie (session, propositions, réglages en attente) et on peut en créer un autre. La conversation reste dans claude.ai : tu peux l'y archiver.", style = MaterialTheme.typography.bodySmall)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -110,3 +110,22 @@ class CommandTest(unittest.TestCase):
         spoken, instruction = A.command_phrases(parsed["command"])
         self.assertEqual(spoken, "J'applique : nouvelle session, dépôt test.")
         self.assertEqual(instruction, "instruction aiwa nouvelle session dépôt test")
+
+
+class RegistryTests(unittest.TestCase):
+    def test_the_charter_gives_a_registry_only_with_a_repository_of_its_own(self):
+        with_repo = A.charter("http://relay/t", "moi/agent")
+        self.assertIn("REGISTRE", with_repo)
+        self.assertIn("moi/agent", with_repo)
+        self.assertIn("aiwa-agent/journal.md", with_repo)
+        self.assertIn("sauf ton registre", with_repo)
+        without = A.charter("http://relay/t")
+        self.assertNotIn("REGISTRE", without)
+        self.assertNotIn("sauf ton registre", without)
+
+    def test_the_person_s_decisions_reach_the_agent_with_the_next_point(self):
+        message = A.point_message("Sessions :\n- x", "http://relay/t", stamp="09:30", decisions=["proposition pour A : CONFIRMÉE", "proposition « b » : ANNULÉE"])
+        self.assertIn("Décisions de la personne", message)
+        self.assertIn("CONFIRMÉE", message)
+        self.assertIn("ANNULÉE", message)
+        self.assertNotIn("Décisions de la personne", A.point_message("x", "http://relay/t"))

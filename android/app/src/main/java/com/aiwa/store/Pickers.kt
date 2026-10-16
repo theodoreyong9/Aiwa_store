@@ -933,3 +933,49 @@ class ProjectNameActivity : ComponentActivity() {
         }
     }
 }
+
+
+/** The repository of the super agent, chosen when it is created: its own, where it keeps its registry (the folder aiwa-agent/). */
+class AgentRepoPickerActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        wakeAiwa(applicationContext)
+        setContent {
+            val state by AiwaRepository.state.collectAsState()
+            var repos by remember { mutableStateOf<List<RepoInfo>?>(null) }
+            LaunchedEffect(Unit) {
+                val bridge = LocalClaudeBridge()
+                ensureBackend(applicationContext, bridge)
+                BackendSync.refresh(bridge)
+                repos = try { bridge.githubRepos() } catch (err: Exception) { emptyList() }
+            }
+            val entries = buildList {
+                add(PickerEntry("Le dépôt de ton agent : il y écrit son registre (dossier aiwa-agent/), et nulle part ailleurs. Un dépôt à lui, privé de préférence.", false, lines = 4) { })
+                add(PickerEntry("＋  Créer un dépôt GitHub pour l'agent ↗ (puis reviens ici)", false) {
+                    if (!openUrl(applicationContext, "https://github.com/new?name=aiwa-agent&visibility=private&description=Registre%20de%20mon%20super%20agent%20Aiwa")) toastOnMain(applicationContext, "Impossible d'ouvrir le navigateur.")
+                    finish()
+                })
+                val list = repos
+                if (list == null) add(PickerEntry("Chargement des dépôts…", false) { })
+                else {
+                    list.forEach { r -> add(PickerEntry(r.name + if (r.isPrivate) "  (privé)" else "", r.name == state.agent?.repo) { create(r.name) }) }
+                    if (list.isEmpty()) add(PickerEntry("Aucun dépôt trouvé", false) { })
+                }
+                state.repo?.let { add(PickerEntry("Utiliser le dépôt en cours ($it)", false) { create(it) }) }
+            }
+            PickerSheet(entries) { finish() }
+        }
+    }
+
+    private fun create(repo: String) {
+        val appContext = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch {
+            val bridge = LocalClaudeBridge()
+            val error = try { bridge.agent("create", mapOf("repo" to repo)) } catch (err: Exception) { err.message ?: "?" }
+            if (error != null) toastOnMain(appContext, error) else toastOnMain(appContext, "Création de l'agent sur $repo… quelques secondes.")
+            try { BackendSync.refresh(bridge) } catch (err: Exception) { }
+            AiwaWidget().updateAll(appContext)
+        }
+    }
+}

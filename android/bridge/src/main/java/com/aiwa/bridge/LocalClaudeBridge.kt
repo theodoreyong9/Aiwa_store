@@ -106,6 +106,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                     a.optString("voice", "none"),
                     a.optJSONObject("command")?.let { c -> AgentCommand(c.optString("id"), c.optString("read_back"), c.optString("instruction"), c.optJSONObject("cast")?.let { k -> AgentCast(k.optString("tv"), k.optBoolean("wait", false)) }, c.optString("open").takeIf { it.isNotBlank() && it != "null" }) },
                     a.optString("llm", "none"),
+                    a.str("repo"),
                 )
             },
             sentApp = json.optJSONObject("sent_app")?.let {
