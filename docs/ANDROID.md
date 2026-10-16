@@ -94,6 +94,8 @@ by itself. (`BackendHealth.kt`, tested on a JVM; the widget and the activity are
 
 ### The widget: what each part is
 
+> **Partly out of date.** The widget now has two shapes, *Light* and *Glasses* (the *Classic* and *Aiwa* shapes are gone), the modes are no longer chosen in a pill but are written instructions, and a session belongs to a repository. The current description is in the [README](../README.md#3-le-widget); this table keeps the history of the parts and their source files.
+
 Two shapes, chosen in the settings list (`WidgetStyle`): **Classic** (four bands, below) and **Glasses** (two lenses with five things each, the microphone on the bridge between them: the left lens is the context — session and state, repository, settings, mode, Claude — and the right one what the work gives — the site or the proposals, ▦ and `</>`, videos, the GitHub guide; only what exists is shown). Classic, from the top: four bands: the title and status (the logo opens the app), the **repository**, **model** and **push** chips, the **project type** chip with its round buttons, and the voice row. Everything it does is an instruction sent into the conversation with Claude Code; the widget itself builds, signs and publishes nothing.
 
 | Part | What it is | Source |
