@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 107
+BACKEND_VERSION = 108
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -3409,19 +3409,26 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_json({"accepted": False, "reason": "invalid cloud session"})
                 return
             _clear_waiting()
+            follow = None
             with lock:
                 current_cloud = None if target == "new" else target
                 if target != "new":
                     last_cloud = target
-                    # A session belongs to the repository it was started on,
-                    # and keeps the model / effort last asked for it.
+                    # The pills are free: choosing a session does not change the repository chosen (the session is told, with its next
+                    # message, to work on it). With no repository chosen yet, the session's own is taken. It keeps the model / effort
+                    # last asked for it.
                     entry = _session_entry(target)
-                    current_repo = entry.get("repo")
+                    if current_repo is None:
+                        current_repo = entry.get("repo")
+                    elif entry and entry.get("repo") != current_repo:
+                        follow = current_repo
                     if "model" in entry:
                         current_model = entry["model"] or None
                     if "effort" in entry:
                         current_effort = entry["effort"] or None
                 _save_state()
+            if follow:
+                _follow_repo(target, follow)
             self.reply_json({"accepted": True, "cloud_session": current_cloud})
         elif self.path == "/api/cloud/clear":
             # The list Aiwa keeps of its sessions, emptied: nothing is touched in Claude, the sessions stay there.

@@ -142,10 +142,7 @@ suspend fun switchModel(context: Context, bridge: ClaudeBridge, modelId: String?
 
 /** The repository Claude works on: the session in progress is told with its next message (it stays); with none, the next session starts there. */
 suspend fun switchRepo(context: Context, bridge: ClaudeBridge, repo: String): String? {
-    // A repository has ITS session: the one of the repository we leave is remembered, the one of the repository we enter is taken again (a new one the first time)
-    val before = AiwaRepository.state.value
-    val leaving = before.repo
-    if (leaving != null && leaving != repo) ModeSessions.remember(context, leaving, before.cloudSessionId)
+    // The two pills are free: choosing a repository does not change the session (it is told, with its next message, to work on this one)
     var problem: String? = null
     try {
         bridge.selectRepo(repo)
@@ -154,16 +151,19 @@ suspend fun switchRepo(context: Context, bridge: ClaudeBridge, repo: String): St
         toastOnMain(context, problem)
     }
     BackendSync.refresh(bridge)
-    if (problem == null && leaving != repo) {
-        val now = AiwaRepository.state.value
-        val wanted = ModeSessions.recall(context, repo)?.takeIf { id -> now.cloudSessions.any { it.id == id } } ?: "new"
-        if (wanted != (now.cloudSessionId ?: "new")) switchCloud(context, bridge, wanted)
-    }
     // Said only if it is true: what the brain answers now is what the pill shows
     val shown = AiwaRepository.state.value.repo
     if (problem == null && shown != repo) problem = "le cerveau répond encore « ${shown ?: "aucun"} » (le cerveau est-il à jour ?)"
     AiwaWidget().updateAll(context)
     return problem
+}
+
+/** A named pair is taken as it was: the repository, then the session (a new one when the session is gone from the list). */
+suspend fun applyProject(context: Context, bridge: ClaudeBridge, project: Project) {
+    switchRepo(context, bridge, project.repo)
+    val now = AiwaRepository.state.value
+    val wanted = if (project.session == "new" || now.cloudSessions.none { it.id == project.session }) "new" else project.session
+    if (wanted != (now.cloudSessionId ?: "new")) switchCloud(context, bridge, wanted)
 }
 
 /** owner/name out of an address copied from GitHub (a link, a git remote) or typed as owner/name, or null. */

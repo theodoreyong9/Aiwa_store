@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
@@ -854,6 +855,81 @@ class MediaPickerActivity : ComponentActivity() {
                 add(PickerEntry("Nouvelle campagne à partir d'un fichier", false, lines = 2) { go("campaign", FileCreationActivity::class.java, campaignFile = true) })
             }
             PickerSheet(entries) { finish() }
+        }
+    }
+}
+
+
+/** A pair as a line: the session, then the repository. */
+private fun pairLine(state: AiwaState, repo: String?, session: String): String {
+    val title = if (session == "new") "Nouvelle session" else (state.cloudSessions.firstOrNull { it.id == session }?.title?.take(28) ?: session.take(8))
+    return "$title · ${repo?.substringAfter('/') ?: "aucun dépôt"}"
+}
+
+/** The « Projet » button: the names given to pairs (session, repository), each removable; and the naming of the pair now on the pills when it has none. */
+class ProjectPickerActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        wakeAiwa(applicationContext)
+        setContent {
+            val state by AiwaRepository.state.collectAsState()
+            var projects by remember { mutableStateOf(Projects.all(applicationContext)) }
+            val session = state.cloudSessionId ?: "new"
+            val entries = buildList {
+                if (state.repo != null && projects.none { it.repo == state.repo && it.session == session }) {
+                    add(PickerEntry("＋  Nommer la paire actuelle : " + pairLine(state, state.repo, session), false) {
+                        startActivity(Intent(this@ProjectPickerActivity, ProjectNameActivity::class.java)); finish()
+                    })
+                }
+                if (projects.isEmpty()) add(PickerEntry("Aucun projet nommé. Un projet est un nom pour une session et un dépôt pris ensemble : le toucher remet les deux pastilles.", false, lines = 3) { })
+                projects.forEach { p ->
+                    add(PickerEntry(p.name + "\n" + pairLine(state, p.repo, p.session), p.repo == state.repo && p.session == session, side = "🗑",
+                        onSide = { Projects.remove(applicationContext, p.name); projects = Projects.all(applicationContext) }) { pick(p) })
+                }
+            }
+            PickerSheet(entries) { finish() }
+        }
+    }
+
+    private fun pick(project: Project) {
+        val appContext = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch { applyProject(appContext, LocalClaudeBridge(), project) }
+    }
+}
+
+/** The name of the pair now on the pills (the repository's name to begin with). */
+class ProjectNameActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val state = AiwaRepository.state.value
+        val repo = state.repo
+        val session = state.cloudSessionId ?: "new"
+        if (repo == null) { finish(); return }
+        setContent {
+            var text by remember { mutableStateOf(repo.substringAfter('/')) }
+            AiwaTheme {
+                Box(
+                    Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f))
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { finish() },
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp,
+                        modifier = Modifier.fillMaxWidth().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
+                    ) {
+                        Column(Modifier.padding(20.dp)) {
+                            Text("Nommer cette paire", style = MaterialTheme.typography.titleMedium)
+                            Text(pairLine(state, repo, session), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+                            androidx.compose.material3.OutlinedTextField(value = text, onValueChange = { text = it.take(40) }, singleLine = true, label = { Text("Nom du projet") }, modifier = Modifier.fillMaxWidth())
+                            Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
+                                androidx.compose.material3.TextButton(onClick = { finish() }) { Text("Annuler") }
+                                androidx.compose.material3.Button(enabled = text.isNotBlank(), onClick = { Projects.add(applicationContext, Project(text.trim(), repo, session)); val app = applicationContext; CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(app) }; finish() }) { Text("Enregistrer") }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -455,9 +455,18 @@ private fun LightContent(state: AiwaState) {
             val fs = context.resources.configuration.fontScale
             val rounds = 0
             // the room each of the two pills really has: the row, less the round buttons and the gaps, shared by two
-            val each = (avail - rounds * (chipH + GAP) - GAP) / 2f - 12f
+            val projW = 62f
+            val each = (avail - rounds * (chipH + GAP) - GAP * 2 - projW) / 2f - 12f
             val sessionTitle = bandInfo(state, each).title
             val sessionBad = sessionTitle.endsWith("▸")
+            // The « Projet » button: the name of the pair now on the two pills (or the invitation to name it)
+            Chip(
+                fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", projW - 12f, fs),
+                if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
+                lockable(locked, actionStartActivity<ProjectPickerActivity>()),
+                GlanceModifier.width(projW.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
             Chip(
                 if (sessionBad) sessionTitle else fitLabel(state.session, each - textWidth(" ▾", fs), fs) + " ▾",
                 if (locked) PILL_DIM else if (sessionBad) alertRed else pill, if (locked) TEXT_DIM else fg,

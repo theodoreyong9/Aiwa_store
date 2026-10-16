@@ -1810,6 +1810,26 @@ class HttpTests(Base):
         self.assertNotIn("Ta session a démarré sur", sent[-1])
         self.assertIsNone(srv._session_entry("session_MOVE12345")["origin"])
 
+    def test_choosing_a_session_does_not_change_the_repository_chosen_and_the_session_is_told(self):
+        # The two pills are free: neither remembers the other. A session started on o/r, picked while p/q is chosen, stays on p/q
+        # and is told with its next message.
+        self.addCleanup(self.forget_sessions)
+        self.addCleanup(setattr, srv, "current_repo", srv.current_repo)
+        self.addCleanup(setattr, srv, "current_cloud", srv.current_cloud)
+        self.forget_sessions()
+        srv._save_cloud_session("session_FREE12345", "titre", None, repo="o/r", work="aiwa/1", base="main", direct=True)
+        srv.current_cloud, srv.current_repo = None, "p/q"
+        with unittest.mock.patch.object(gh, "default_branch", lambda repo: "trunk"):
+            self.assertTrue(self.call("/api/cloud/select", "session_FREE12345")["accepted"])
+        status = self.call("/api/status")
+        self.assertEqual((status["repo"], status["cloud_session"]), ("p/q", "session_FREE12345"))
+        self.assertEqual(srv._session_entry("session_FREE12345")["repo"], "p/q", "the session is told to work on the repository chosen")
+        # with no repository chosen, the session's own is taken
+        srv.current_repo = None
+        self.assertTrue(self.call("/api/cloud/select", "new")["accepted"])
+        self.assertTrue(self.call("/api/cloud/select", "session_FREE12345")["accepted"])
+        self.assertEqual(self.call("/api/status")["repo"], "p/q")
+
     def test_with_no_session_in_progress_changing_repository_only_sets_where_the_next_one_starts(self):
         self.addCleanup(setattr, srv, "current_repo", srv.current_repo)
         self.forget_sessions()
