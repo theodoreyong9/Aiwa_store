@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 106
+BACKEND_VERSION = 107
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1537,6 +1537,14 @@ def _repo_choices():
     known = _known_repos()
     for name in known:
         offer({"name": name, "private": False})
+    # The repositories of the Claude Code sessions already seen (made here or in the Claude app): the only way, without a token, to
+    # list private repositories that the person works on
+    for entry in _load_cloud_sessions():
+        name = entry.get("repo")
+        if isinstance(name, str) and github.REPO_RE.fullmatch(name):
+            offer({"name": name, "private": False})
+            if name not in known:
+                known = known + [name]
     # Discovered on their own: the public repositories of the owner of the
     # checkout Aiwa came from, and of the owners of repositories already used.
     owners = []
