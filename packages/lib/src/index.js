@@ -11,3 +11,4 @@ export { Channel } from './channel.js';
 export { encodeOfflineBundle, decodeOfflineBundle } from './offline-bundle.js';
 export { collectAncestors } from './ancestors.js';
 export { defineContract, Contract, signedAction, verifySignedAction } from './contract.js';
+export { callDoor, doorAvailable, doorStorage, createDoorBackend, loadOrCreateIdentity } from './door.js';

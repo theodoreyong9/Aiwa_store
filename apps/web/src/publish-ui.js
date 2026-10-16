@@ -224,7 +224,7 @@ export function initPublish() {
   $('app-name').addEventListener('input', () => { if (!$('app-id').dataset.touched) $('app-id').value = slug($('app-name').value); });
   $('app-id').addEventListener('input', () => { $('app-id').dataset.touched = '1'; });
   $('sheet-try').addEventListener('click', () => {
-    if (job?.mode === 'publish') openViewer({ name: $('app-name').value.trim() || 'Preview', meta: 'preview, not published', html: htmlOf(job.app) });
+    if (job?.mode === 'publish') openViewer({ name: $('app-name').value.trim() || 'Preview', meta: 'preview, not published', html: htmlOf(job.app), appId: `preview/${$('app-name').value.trim() || 'Preview'}` });
   });
   $('sheet-go').addEventListener('click', go);
   $('sheet-close').addEventListener('click', close);

@@ -510,14 +510,17 @@ private fun LightContent(state: AiwaState) {
                     Text("Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 }
             }
-            Spacer(GlanceModifier.width(GAP.dp))
-            RoundButton(
-                icon = R.drawable.ic_claude,
-                description = if (state.waiting) "Claude attend ta réponse : ouvrir" else "Ouvrir la conversation dans Claude",
-                background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
-                action = actionStartActivity<OpenClaudeActivity>(),
-                diameter = chipH.dp,
-            )
+            // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
+            if (state.cloudSessionId != null) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(
+                    icon = R.drawable.ic_claude,
+                    description = if (state.waiting) "Claude attend ta réponse : ouvrir" else "Ouvrir la conversation dans Claude",
+                    background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
+                    action = actionStartActivity<OpenClaudeActivity>(),
+                    diameter = chipH.dp,
+                )
+            }
             if (state.ask != null) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)

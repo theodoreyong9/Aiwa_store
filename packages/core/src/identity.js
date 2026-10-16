@@ -13,6 +13,9 @@ export class Identity {
     this._secretKey = secretKeyHex;
   }
 
+  /** The secret key, hex: for an app that keeps its own identity between two openings (aiwa-lib's loadOrCreateIdentity). Null for a remote identity. */
+  exportSecretKey() { return this._secretKey ?? null; }
+
   /** Signs bytes; hex signature. An identity without its secret key can only verify. */
   async sign(bytes) {
     if (!this._secretKey) throw new Error('This identity has no secret key: it can verify, never sign.');

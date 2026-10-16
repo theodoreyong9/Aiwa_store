@@ -21,6 +21,11 @@
 //   hideCode                {}
 //   scanCode { title }      text                                      a code read by the camera, or pasted
 //   config                  { iceServers }                            how to reach a phone nearby (the deployment's)
+//
+// The other door, for EVERY app (no declaration, no banner): its own reserve, which outlives the frame (an app has no storage of its own).
+//   storage.get { key }     { value | null }      storage.set { key, value }      storage.remove { key }      storage.keys {}  { keys }
+// One reserve per app (`aiwa-app:<appId>:` in the Store's storage), strings only, with limits so that no app fills the phone: a key of
+// up to 100 characters, a value of up to 256 KB, 2000 keys, 2 MB in all. An app reaches only its own reserve, never another's, never the wallet's.
 import { encodeOfflineBundle, decodeOfflineBundle } from 'aiwa-lib';
 import { config } from './config.js';
 import { session, connected } from './session.js';
@@ -194,15 +199,50 @@ const commands = {
   scanCode,
 };
 
-/** Answers the messages of the app in `frame`, and only that frame's. Returns the function that stops. */
-export function attachDoor(frame, { name = 'This app' } = {}) {
-  const door = { name, allowance: 0n, silentUntil: 0, queue: Promise.resolve() };      // what the player allowed this app, until it is closed
+// ---------- the app's own reserve ----------
+
+const KEY_RE = /^[\w.:@/-]{1,100}$/;
+const VALUE_MAX = 256 * 1024;
+const KEYS_MAX = 2000;
+const TOTAL_MAX = 2 * 1024 * 1024;
+const reserve = (door) => `aiwa-app:${door.appId}:`;
+const mine = (door) => {
+  const prefix = reserve(door);
+  const found = [];
+  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(prefix)) found.push(k); }
+  return found;
+};
+const checkKey = (key) => { if (typeof key !== 'string' || !KEY_RE.test(key)) throw new Error('key: up to 100 characters of letters, digits and . : @ / _ -'); return key; };
+
+const storageCommands = {
+  async 'storage.get'({ key }, door) { return { value: localStorage.getItem(reserve(door) + checkKey(key)) }; },
+  async 'storage.set'({ key, value }, door) {
+    const full = reserve(door) + checkKey(key);
+    if (typeof value !== 'string') throw new Error('value: a string (JSON.stringify an object)');
+    if (value.length > VALUE_MAX) throw new Error('value: up to 256 KB');
+    const keys = mine(door);
+    const others = keys.filter((k) => k !== full);
+    if (!keys.includes(full) && keys.length >= KEYS_MAX) throw new Error('this app keeps too many keys (2000)');
+    if (others.reduce((sum, k) => sum + (localStorage.getItem(k) ?? '').length, 0) + value.length > TOTAL_MAX) throw new Error('this app keeps too much (2 MB)');
+    try { localStorage.setItem(full, value); } catch { throw new Error('the Store has no room left to keep this'); }
+    return {};
+  },
+  async 'storage.remove'({ key }, door) { localStorage.removeItem(reserve(door) + checkKey(key)); return {}; },
+  async 'storage.keys'(_args, door) { return { keys: mine(door).map((k) => k.slice(reserve(door).length)) }; },
+};
+
+/** Answers the messages of the app in `frame`, and only that frame's. Returns the function that stops. An app that did not declare the
+ *  wallet is answered only for its own reserve (the rest of its messages are ignored, as if nobody listened). */
+export function attachDoor(frame, { name = 'This app', appId = name, wallet = true } = {}) {
+  const door = { name, appId: String(appId).slice(0, 200), allowance: 0n, silentUntil: 0, queue: Promise.resolve() };      // what the player allowed this app, until it is closed
+  const table = wallet ? { ...commands, ...storageCommands } : storageCommands;
   const onMessage = async (event) => {
     const m = event.data;
     if (event.source !== frame.contentWindow || !m || m.aiwa !== 1 || !Number.isInteger(m.id)) return;
     const reply = (body) => frame.contentWindow?.postMessage({ aiwa: 1, id: m.id, ...body }, '*');   // an opaque origin takes no other target
-    if (typeof m.cmd !== 'string' || !Object.hasOwn(commands, m.cmd)) return reply({ error: `unknown command ${String(m.cmd).slice(0, 40)}` });
-    try { reply({ result: await commands[m.cmd](m.args ?? {}, door) }); } catch (error) { reply({ error: error.message || String(error) }); }
+    if (!wallet && !(typeof m.cmd === 'string' && Object.hasOwn(table, m.cmd))) return;     // not declared: only its own reserve is answered
+    if (typeof m.cmd !== 'string' || !Object.hasOwn(table, m.cmd)) return reply({ error: `unknown command ${String(m.cmd).slice(0, 40)}` });
+    try { reply({ result: await table[m.cmd](m.args ?? {}, door) }); } catch (error) { reply({ error: error.message || String(error) }); }
   };
   window.addEventListener('message', onMessage);
   return () => { window.removeEventListener('message', onMessage); closeSheet(); closeConsent(null); };

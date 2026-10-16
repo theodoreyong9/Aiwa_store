@@ -75,7 +75,7 @@ async function openApp(entry, button) {
   button.textContent = '…';
   try {
     const { html } = await loadApp({ entry, baseUrl: config.registryUrl, cache });
-    openViewer({ name: entry.name, meta: `v${entry.version} · ${shortAddress(entry.author)}`, html });
+    openViewer({ name: entry.name, meta: `v${entry.version} · ${shortAddress(entry.author)}`, html, appId: `${entry.author}/${entry.name}` });
   } catch (err) {
     $('store-status').textContent = String(err.message ?? err);
   } finally {
@@ -511,7 +511,7 @@ async function openLink(entry, button, readOnly) {
       $('code-proof').textContent = 'Read live from GitHub. Nothing is signed or pinned here: it is whatever the author has there now.';
       fillCode(Object.entries(files));
     } else {
-      openViewer({ name: entry.name, meta: `github.com/${entry.repo}`, html });
+      openViewer({ name: entry.name, meta: `github.com/${entry.repo}`, html, appId: `github/${entry.repo}` });
     }
   } catch (err) {
     $('store-status').textContent = String(err.message ?? err);

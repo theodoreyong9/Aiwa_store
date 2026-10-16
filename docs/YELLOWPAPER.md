@@ -1436,7 +1436,10 @@ still spend what the player allows. That is kept apart from the isolation, which
 
 *Does not guarantee.* That the application cannot use the network (it can), or that it is not malicious towards its own user (it
 is not reviewed). Storage inside a fully opaque origin is unreliable: an application cannot count on `IndexedDB` persisting
-across sessions; an in-memory event log is the safe default for its internal state.
+across sessions. What it keeps between two openings it asks the Store to keep, through a second door open to every app with no declaration:
+one reserve per app (`storage.get`, `storage.set`, `storage.remove`, `storage.keys`; strings, bounded: 256 KB a value, 2 MB in all), never another
+app's and never the wallet's. The SDK's `createDoorBackend()` and `loadOrCreateIdentity()` use it; outside the Store the door does not answer and
+the app falls back to memory.
 
 ---
 

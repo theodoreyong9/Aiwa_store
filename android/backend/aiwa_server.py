@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 113
+BACKEND_VERSION = 114
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -918,7 +918,9 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             "Déploiement (Store Aiwa) : le livrable est UNE app pour le Store Aiwa, un fichier `nom.app.html` (nom en minuscules, chiffres et tirets, 40 caractères au plus) : "
             "un `index.html` complet et autonome. Le Store l'ouvre dans un cadre isolé (`<iframe sandbox=\"allow-scripts\">`, origine opaque), donc : "
             "(1) un seul fichier, 512 Ko au plus ; ses dépendances se chargent depuis un CDN, en URL ABSOLUE, jamais en chemin relatif ; "
-            "(2) ni `localStorage`, ni cookies, ni `IndexedDB` (inaccessibles dans ce cadre) : l'état reste en mémoire, ou se charge par `fetch` ; "
+            "(2) ni `localStorage`, ni cookies, ni `IndexedDB` (inaccessibles dans ce cadre) : pour GARDER quelque chose d'une ouverture à l'autre, le Store prête à chaque app une réserve à elle, par une porte : "
+            "`parent.postMessage({aiwa:1,id,cmd,args},'*')` avec cmd `storage.set` {key,value (une chaîne)}, `storage.get` {key}, `storage.remove` {key} ou `storage.keys`, et la réponse arrive en message {aiwa:1,id,result|error} "
+            "(clé de 100 caractères au plus, valeur de 256 Ko au plus, 2 Mo en tout, sa réserve seulement) ; hors du Store la porte ne répond pas : l'app doit alors marcher en mémoire ; "
             "(3) aucun accès au wallet ni à la page qui l'ouvre ; le réseau est permis ; "
             "(4) un `<title>` (il devient le nom) et un `<meta name=\"description\">` de 280 caractères au plus ; "
             "(5) pensée d'abord pour un téléphone (~390 px de large), sans débordement horizontal. "
@@ -944,9 +946,11 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             "(un vote, un score, un jeton, un jeu…), sans avoir à croire personne. Je la publie moi-même depuis le Store : elle devient immuable (signée, identifiée par son hash) "
             "le Store la range en deux fichiers dans le registre GitHub : un pointeur signé (le numéro du manifeste, qui épingle chaque fichier par son hash) et le paquet de code signé que ce pointeur désigne. Changer le code, c'est publier une autre version. Le Store l'ouvre dans un cadre isolé (`<iframe sandbox=\"allow-scripts\">`, origine opaque), donc : "
             "(1) un seul fichier, 512 Ko au plus ; "
-            f"(2) le SDK Aiwa est UN module ES, chargé par son adresse ABSOLUE : `import {{ generateIdentity, defineContract, Contract, signedAction, verifySignedAction, EventLog, createMemoryBackend }} from '{AIWA_SDK_URL}'` ; "
+            f"(2) le SDK Aiwa est UN module ES, chargé par son adresse ABSOLUE : `import {{ generateIdentity, defineContract, Contract, signedAction, verifySignedAction, EventLog, createMemoryBackend, createDoorBackend, loadOrCreateIdentity, doorStorage }} from '{AIWA_SDK_URL}'` ; "
             "jamais de chemin relatif ; "
-            "(3) ni `localStorage`, ni cookies, ni `IndexedDB` : l'état reste en mémoire, ou se rejoue depuis des événements ; "
+            "(3) ni `localStorage`, ni cookies, ni `IndexedDB` : pour que l'app GARDE son journal et l'identité du joueur d'une ouverture à l'autre, le SDK ouvre la porte du Store : "
+            "`createDoorBackend()` à la place de `createMemoryBackend()` (le journal d'événements survit à la fermeture), `loadOrCreateIdentity()` à la place de `generateIdentity()` (le même joueur à chaque ouverture) "
+            "et `doorStorage.get/set/remove/keys` (des chaînes, 256 Ko par valeur) ; hors du Store tout retombe en mémoire, l'app marche quand même ; "
             "(4) aucun accès au wallet de la page qui l'ouvre : l'app fait ses propres identités (`generateIdentity`) et ne peut dépenser l'AIWA de personne ; "
             "(5) une action n'est prouvée que par la signature placée DANS l'action (`signedAction` à l'émission, `verifySignedAction` dans le gestionnaire), jamais par l'auteur de l'événement : "
             "un gestionnaire qui saute cette vérification se laisse usurper ; "

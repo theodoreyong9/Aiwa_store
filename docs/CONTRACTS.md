@@ -45,9 +45,28 @@ const { votes } = await contract.state();
 3. **A conflict has one winner, the same for everyone.** Two votes by one identity, one coin spent twice: readers fold the events in
    a fixed order, so they all pick the same one (§13.4). Write the rule so that the first counts, as above.
 
+## Keeping the state between two openings
+
+An app has no storage of its own (its frame has an opaque origin). The Store lends each app a **reserve of its own** through the door, and the SDK
+speaks to it, so that the journal and the player survive the frame:
+
+```js
+import { EventLog, Contract, defineContract, createDoorBackend, loadOrCreateIdentity, doorStorage }
+  from 'https://theodoreyong9.github.io/Aiwa_store/lib/aiwa.js';
+
+const me = await loadOrCreateIdentity();                      // the same player at each opening
+const log = new EventLog(createDoorBackend());                // the events outlive the frame
+const contract = new Contract({ identity: me, log, domain: 'show-of-hands', definition });
+await doorStorage.set('best', '12');                          // strings, short keys
+```
+
+The reserve is the app's alone (never another app's, never the wallet's) and bounded: a key of up to 100 characters, a value of 256 KB, 2000 keys,
+2 MB in all. Outside the Store the door does not answer and everything falls back to memory: the app still runs, it only forgets when it closes. A reserve is
+on this phone only: to share events between players, see below.
+
 ## Sharing events between phones
 
-The example does not do this: its log is in memory, so **a vote counts only on the phone that cast it**. Events are plain data. They
+The example does not do this: its log is in memory (or, with `createDoorBackend()`, on this phone), so **a vote counts only on the phone that cast it**. Events are plain data. They
 travel as text, by a QR code, a paste or a data channel (the [click duel](demo-apps/click-duel.html) links two phones with two codes):
 
 ```js

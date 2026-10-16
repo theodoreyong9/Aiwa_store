@@ -834,6 +834,43 @@ test('an app that says it uses the wallet gets a banner and a door; one that doe
 });
 
 
+test('every app has a reserve of its own that outlives the frame; the wallet stays closed to an app that did not declare it, and one app never reads another\'s', async () => {
+  const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
+  // first opening: it keeps a value and an identity-sized secret; the wallet's commands get no answer
+  let frame = await tryApp(page, 'Keeper', doorProbe(false, `
+    const set = await door('storage.set', { key: 'score', value: '42' });
+    const big = await door('storage.set', { key: 'big', value: 'x'.repeat(300000) });
+    const badKey = await door('storage.set', { key: 'no spaces', value: '1' });
+    const notString = await door('storage.set', { key: 'n', value: 7 });
+    out({ set: set.result, big: big.error, badKey: badKey.error, notString: notString.error });`));
+  const first = JSON.parse(await until(() => frame.locator('#r').textContent().then((t) => t.startsWith('{') && t), { what: 'the reserve to answer' }));
+  assert.deepEqual(first.set, {});
+  assert.match(first.big, /256 KB/);
+  assert.match(first.badKey, /key:/);
+  assert.match(first.notString, /a string/);
+  await page.click('#viewer-close');
+  await page.click('#sheet-close').catch(() => {});
+
+  // a second opening of the same app: the value is there
+  frame = await tryApp(page, 'Keeper', doorProbe(false, `
+    const got = await door('storage.get', { key: 'score' });
+    const keys = await door('storage.keys');
+    const wallet = await Promise.race([door('whoami'), new Promise((r) => setTimeout(() => r('closed'), 800))]);
+    out({ got: got.result, keys: keys.result, wallet });`));
+  const second = JSON.parse(await until(() => frame.locator('#r').textContent().then((t) => t.startsWith('{') && t), { what: 'the reserve to answer again' }));
+  assert.deepEqual(second.got, { value: '42' });
+  assert.deepEqual(second.keys, { keys: ['score'] });
+  assert.equal(second.wallet, 'closed', 'an app that did not declare the wallet gets no answer from it');
+  await page.click('#viewer-close');
+  await page.click('#sheet-close').catch(() => {});
+
+  // another app: its own reserve, empty
+  frame = await tryApp(page, 'Other', doorProbe(false, "out(await door('storage.get', { key: 'score' }));"));
+  assert.deepEqual(JSON.parse(await until(() => frame.locator('#r').textContent().then((t) => t.startsWith('{') && t), { what: 'the other reserve' })), { aiwa: 1, id: 1, result: { value: null } });
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('the wallet door asks before it pays: a refusal pays nothing and silences the app, a budget covers what the player allows, beyond it the sheet comes back', async () => {
   const { page, errors, context } = await openPage(async (p) => { await injectSolana(p); await injectHost(p); });
   await fundInPage(page);
