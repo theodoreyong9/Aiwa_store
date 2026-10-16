@@ -17,8 +17,17 @@ for (const btn of document.querySelectorAll('#app-nav button[data-view]')) btn.a
 
 $('link-source').href = `https://github.com/${config.repository}`;
 for (const link of document.querySelectorAll('#view-papers a[data-doc]')) link.href = `https://github.com/${config.repository}/${link.dataset.doc}`;
-// The film's file name carries its version (docs/videos/aiwa-v25-16x9.mp4): a new film is a new name, so a phone never shows an old copy from its cache. Read straight from raw.githubusercontent.com (no redirect).
-$('papers-video-vision').src = $('papers-video-vision-link').href = `https://raw.githubusercontent.com/${config.repository}/main/docs/videos/aiwa-v25-16x9.mp4`;
+// The current film is named by docs/videos/latest.json (its file name carries its version: a new film is a new name, so a phone never shows an old copy from its cache).
+// Reading the name there rather than writing it here means a new film changes no file of the web app, hence no « update » on the phone. Read straight from raw.githubusercontent.com (no redirect).
+{
+  const raw = `https://raw.githubusercontent.com/${config.repository}/main/docs/videos/`;
+  $('papers-video-vision-link').href = `https://github.com/${config.repository}/tree/main/docs/videos`;
+  fetch(`${raw}latest.json?t=${Math.floor(Date.now() / 60000)}`, { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((film) => {
+    if (!film || !film.file) return;
+    $('papers-video-vision').src = $('papers-video-vision-link').href = raw + film.file;
+    if (film.label) $('papers-video-title').textContent = `Aiwa · ${film.label}`;
+  }).catch(() => {});
+}
 
 initPublish();
 initStore();
