@@ -6,7 +6,7 @@ name: Android
 on:
   push:
     branches: [main, clean]
-    paths: ['android/**', 'apps/web/**', 'packages/**', 'registry/**', 'scripts/describe-site.mjs', 'deployment.json', '.github/workflows/android.yml']
+    paths: ['android/**', 'packages/**', '.github/workflows/android.yml']   # not apps/web/** nor registry/**: the phone gets the site from the site release, and a new APK for a web-only change made the update button appear for nothing
   workflow_dispatch:
 
 permissions:
