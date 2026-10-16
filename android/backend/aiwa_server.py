@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 112
+BACKEND_VERSION = 113
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -953,6 +953,8 @@ def _instruction_lines(repo, work, base, direct, origin=None):
             "(6) un `<title>` (il devient le nom) et un `<meta name=\"description\">` de 280 caractères au plus ; "
             "(7) pensée d'abord pour un téléphone (~390 px de large), sans débordement horizontal. "
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/aiwa-app-example.html. "
+            f"Lis d'abord le guide court d'écriture d'un contrat ({REFERENCE_RAW}/docs/CONTRACTS.md : l'état et les événements, trois règles, le partage des événements entre téléphones, ce qu'un contrat ne peut pas faire) ; pour un jeu à plusieurs, "
+            f"l'exemple {REFERENCE_RAW}/docs/demo-apps/click-duel.html (deux téléphones échangent leurs événements). "
             f"Lis aussi le yellow paper ({REFERENCE_RAW}/docs/YELLOWPAPER.md : identité, journal d'événements, contrats) : ce que l'app fait avec le SDK doit correspondre à ce document, pas à ce que tu supposes. "
             + (
                 "Place-la aussi dans le dépôt, sous `aiwa-apps/nom.aiwa.html` (crée le dossier), avec la consigne Push ci-dessus : c'est la copie de travail dans le dépôt (je relis le brouillon dans le Store, et le code publié avec le bouton </> du widget). "
