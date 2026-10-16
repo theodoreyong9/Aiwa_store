@@ -1,0 +1,3 @@
+# Film v18 — la v17 réordonnée
+1. Création de documents, vidéos, jeux, site internet, applications android et smart contracts (les six icônes animées, comme avant) — 2. « Dans un simple widget. » (le widget forme light) — 3. Déploiement dans votre propre environnement gratuit (0 €) — 4. Tout à la voix — 5. chaînes et boucles — 6. super agent — 7. créations à la chaîne — 8. vote collectif — 9. Preuve de Volonté — 10. économie interplanétaire — 11. Adaptable aux lunettes connectées (le widget forme glasses) — 12. Découverte, engagement et création de proximité (le radar). Carte AIWA + « Ton univers. Ta volonté. » en ouverture et en clôture.
+Voix : Piper « siwis » (synthèse). Musique : « Killers », Kevin MacLeod, CC BY 4.0. Non regardé en mouvement.
