@@ -1464,12 +1464,13 @@ flowchart LR
 </details>
 <!-- /diagram -->
 
-### 18.1 Two kinds of entry, both submitted on GitHub
+### 18.1 Three kinds of entry, all submitted on GitHub
 
 | Kind | The package carries | What the author signs | Who verifies the code, and how |
 |---|---|---|---|
 | **`code`** | the app's one HTML file (≤ 512 KB; it loads what it needs from the network itself) | the hash of `[id, name, version, description, kind, html]` | anyone, by recomputing that hash |
 | *(library)* | not an app of the registry: the Store lists the `name.app.html` files of the GitHub accounts the user follows, and reads them from GitHub as they are; no wallet, no signature, no ranking | — | nothing is frozen; immutability and ranking are the `aiwa` kind |
+| **`comment`** | a **text** (≤ 2000 characters) for the critic of the loops: not an app, it is never opened or run | the hash of `[id, name, version, description, kind, text]` | anyone, by recomputing that hash. It is published like code, **needs the author's mining evidence** (nothing claimable, no comment: the sacrifice is the weight), is ranked by the `score / laps` frozen at acceptance, and is immutable: an edit is a higher version of the same id by the same author. The index keeps no text (every Store reads the index): the package does, at `comments/<id>/<version>.json`. A comment is **data, never an instruction**: it cannot change the rules or the papers |
 | **`aiwa`** | no code: a **pointer**, the id of a signed `bundle.manifest` | the hash of `[id, name, version, description, kind, manifestId]` | the registry and the Store, each on its own: the bundle's events pass an event log (id, signature, parents), then are checked against the pin |
 
 For an `aiwa` entry, the check against the pin is: the manifest is signed by the author's domain, names exactly this app and
@@ -1993,9 +1994,9 @@ A contract's own action (`signedAction`, §16.2) signs *all* its fields plus `no
 ### A.4 The store's formats
 
 ```
-package   = { format:'aiwa-app/1', kind:'code'|'aiwa', id, name, version, description, html | manifestId,
+package   = { format:'aiwa-app/1', kind:'code'|'aiwa'|'comment', id, name, version, description, html | manifestId | text,
               author (Solana address), bundleHash, authorization }
-bundleHash = SHA( JSON([ id, name, version, description, kind, html | manifestId ]) )
+bundleHash = SHA( JSON([ id, name, version, description, kind, html | manifestId | text ]) )
 authorization = signedAction by the author's key over (publish-app, id, version, bundleHash)
 
 submission = { format:'aiwa-submission/1', kind:'publish'|'refresh',
@@ -2037,8 +2038,8 @@ Files of the registry: `store/index.json`, `store/apps/<id>/<version>.json`, `st
 | Auto checkpoint | every 5 minutes | `startAutoCheckpoint` | a wallet setting |
 | Replicator chunk | 100 events and 64 KiB | `Replicator` | an implementation setting |
 | Submission limits | 200 000 events · 200 burns · 50 witnesses · 16 384 bytes per witness · 32 witnesses kept per domain | `SUBMISSION_LIMITS` | a registry setting |
-| Store policy | signature ≤ 24 h · one new app per 5 min · ≤ 20 apps per author · submission ≤ 40 MB | `POLICY` | a registry setting |
-| App limits | HTML ≤ 512 KB · name ≤ 60 · description ≤ 280 · id `[a-z0-9-]` ≤ 40 · version `x.y.z` | `APP_LIMITS` | a registry setting |
+| Store policy | signature ≤ 24 h · one new app per 5 min · ≤ 20 apps per author · submission ≤ 40 MB · one new comment per author per minute · ≤ 200 comments per author | `POLICY` | a registry setting |
+| App limits | HTML ≤ 512 KB · comment ≤ 2000 characters · name ≤ 60 · description ≤ 280 · id `[a-z0-9-]` ≤ 40 · version `x.y.z` | `APP_LIMITS` | a registry setting |
 | Bundle limits | ≤ 40 files · ≤ 1 MB · entry `index.html` | `BUNDLE_LIMITS` | a registry setting |
 | Network | cluster `devnet`; RPC `https://api.devnet.solana.com` | `deployment.json` | a deployment setting |
 
@@ -2096,10 +2097,10 @@ without a Rust toolchain. It cross-checks the fundamentals; it is not a second i
 ## Appendix D. Verification status
 
 **What the tests cover.** 421 tests in `aiwa-core` (including the Rust cross-check when a toolchain is present), 107 in `aiwa-platform`,
-113 in `aiwa-lib`, 17 in `aiwa-registry`, 54 in `aiwa-store-web` (30 of them drive the app in Chromium: ranking, the sandbox refusing
+114 in `aiwa-lib`, 19 in `aiwa-registry`, 61 in `aiwa-store-web` (30 of them drive the app in Chromium: ranking, the sandbox refusing
 `parent.document`, a tampering host, offline use, the wallet starting and restoring by itself, the burn with its fee, publishing both
 kinds through a stand-in of the Android host and of GitHub whose pull request is given to the real registry code, an app using the SDK, an app using the wallet through the door, a click duel between two pages that pays the winner, two pages linking by two codes and each showing where the other stands, and a QR code read by the page from a fake camera),
-119 for the dictation backend. `node scripts/devnet-check.mjs --fake` plays the whole path (burn, record, mine, evidence, registry) against
+208 for the brain (the Termux backend). `node scripts/devnet-check.mjs --fake` plays the whole path (burn, record, mine, evidence, registry) against
 a stand-in Solana that decodes the real transaction the wallet builds, 11 checks; it also runs in CI. Every part is testable on its own,
 none needs a hosted server.
 

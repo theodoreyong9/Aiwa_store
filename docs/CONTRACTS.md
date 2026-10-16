@@ -65,9 +65,10 @@ in `lib/aiwa.js`.
 
 ## Publishing it
 
-In the widget, the **Deploy** chip's *Aiwa* mode makes Claude write exactly this kind of file, named `name.aiwa.html`. The Store's
-publish sheet (▦) then publishes it through Aiwa: the registry keeps two files per version, a package that is only a pointer (the number of a signed manifest) and the signed bundle that carries the files, every one pinned by its
-hash ([docs/ANDROID.md](ANDROID.md#the-store-and-aiwa-modes)).
+In the widget, the **Aiwa** kind (the *Aiwa* button) makes Claude write exactly this kind of file, named `name.aiwa.html`, **after its test**
+(`name.aiwa.test.mjs`, run with `node`: signed events in, expected state and refusals out, a replay gives the same state). Claude delivers a **draft** into the
+author's library and publishes nothing. The author then publishes it (the **⇪** of *Mes apps*, or the publish sheet ▦), through Aiwa: the registry keeps two files per version, a package that is only a pointer (the number of a signed manifest) and the signed bundle that carries the files, every one pinned by its
+hash ([docs/ANDROID.md](ANDROID.md)).
 
 A file written by hand, such as the example above, is published from the Store itself: press **＋**, paste the file, and the same sheet follows
 (a file that imports `lib/aiwa.js` is taken for a contract). Publishing needs a wallet that has mined: the app is ranked by what its author has

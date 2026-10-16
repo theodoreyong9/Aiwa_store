@@ -15,6 +15,8 @@ The papers themselves are the documents of [`docs/`](../docs); this index says w
 | [`docs/EXPLAINED.md`](../docs/EXPLAINED.md) | the same, in plain words, with what is not solved |
 | [`docs/VISION-SOCIETE-AUGMENTEE.md`](../docs/VISION-SOCIETE-AUGMENTEE.md) | the vision the product serves |
 | [`docs/ANDROID.md`](../docs/ANDROID.md) | the phone app, the widget, the backend |
+| [`docs/VOICE-VIDEO-CAMPAIGNS.md`](../docs/VOICE-VIDEO-CAMPAIGNS.md) | the voice, the super agent, the videos and the campaigns: what is done and what is not |
+| [`docs/PROMO-VIDEO.md`](../docs/PROMO-VIDEO.md) | how a film is made, stage by stage |
 
 ## What the critic defends (read with the papers)
 

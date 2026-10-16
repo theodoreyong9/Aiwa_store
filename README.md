@@ -12,267 +12,165 @@
 
 # Ton univers. Ta volonté.
 
-**Aiwa : un système d'élevage d'agents personnels avec GitHub et Claude Code, sur Android.** Tu parles (même écran verrouillé) ; des sessions Claude Code
-créent, *dans ton propre dépôt*, des documents, des vidéos, des jeux, des sites, des applications Android et des smart contracts. Tu gardes tout :
-rien ne passe par un serveur à nous.
+**Un système d'élevage d'agents personnels avec GitHub et Claude Code, sur Android.** Tu parles, même écran verrouillé ; des sessions Claude Code créent,
+*dans ton propre dépôt*, des documents, vidéos, jeux, sites, applications Android et smart contracts. Aucun serveur à nous.
 
-▶ **Le film** (55 à 65 s, fait avec les outils de ce dépôt) : [`docs/videos/aiwa-v18-16x9.mp4`](docs/videos/aiwa-v18-16x9.mp4)
-· l'onglet *Papers* de l'application le lit.
+▶ Le film : [`docs/videos/aiwa-v18-16x9.mp4`](docs/videos/aiwa-v18-16x9.mp4) (fait avec les outils de ce dépôt).
 
-> **Où ça en est, sans détour.** Le dépôt est testé en CI (protocole, registre, appli web dans un vrai Chromium, cerveau Python, tests Kotlin du
-> pont), et l'APK **compile** en CI. **Rien de ce qui suit n'a été fait tourner de bout en bout sur un vrai téléphone**, ni sur le vrai réseau Solana,
-> ni sur de vraies lunettes connectées. Chaque section dit ce qui est *livré*, *écrit mais non essayé sur téléphone*, ou *vision*.
-> Détail : [Ce qui est vérifié, ce qui ne l'est pas](#13-ce-qui-est-vérifié-ce-qui-ne-lest-pas).
-
----
+> **Statut.** Testé en CI ; l'APK compile en CI. **Jamais essayé de bout en bout sur un vrai téléphone, sur le vrai Solana, ni sur de vraies lunettes.**
+> Voir [§12](#12-vérifié-et-non-vérifié).
 
 ## Sommaire
 
-1. [Ce qu'il te faut](#1-ce-quil-te-faut)
-2. [Installer (Android)](#2-installer-android)
-3. [Le widget](#3-le-widget) — formes *light* et *glasses*
-4. [Ce que Claude écrit, et où](#4-ce-que-claude-écrit-et-où) — la structure de ton dépôt
-5. [La voix](#5-la-voix) — micro, « instruction », les 11 mots, écoute permanente
-6. [Le super agent](#6-le-super-agent)
-7. [Chaînes et boucles d'agents](#7-chaînes-et-boucles-dagents) — producteur, critique, soutien critique
-8. [Vidéos, cast TV, campagnes](#8-vidéos-cast-tv-campagnes)
-9. [Le cerveau (Termux)](#9-le-cerveau-termux) — installation, mises à jour, sécurité
-10. [Le Store, le registre, le wallet, le token AIWA, le Yellow Paper](#10-le-store-le-registre-le-wallet-le-token-aiwa-le-yellow-paper) — l'idée, les piliers, écrire un contrat, le registre
-11. [Architecture](#11-architecture) — schémas : vue d'ensemble, voix, boucles, protocole, livraison, données
-12. [Développer sur ce dépôt](#12-développer-sur-ce-dépôt)
-13. [Ce qui est vérifié, ce qui ne l'est pas](#13-ce-qui-est-vérifié-ce-qui-ne-lest-pas)
-14. [Vision (pas démontrée)](#14-vision-pas-démontrée)
-15. [Licences et crédits](#15-licences-et-crédits)
+1. [Prérequis](#1-prérequis) · 2. [Installer](#2-installer) · 3. [Le widget](#3-le-widget) · 4. [Ce que Claude écrit, et où](#4-ce-que-claude-écrit-et-où)
+5. [La voix](#5-la-voix) · 6. [Le super agent](#6-le-super-agent) · 7. [Boucles](#7-boucles-dagents) · 8. [Vidéos, cast, campagnes](#8-vidéos-cast-campagnes)
+9. [Le cerveau](#9-le-cerveau-termux) · 10. [Store, registre, wallet, token, Yellow Paper](#10-store-registre-wallet-token-yellow-paper)
+11. [Architecture](#11-architecture) · 12. [Vérifié et non vérifié](#12-vérifié-et-non-vérifié) · 13. [Développer](#13-développer) · 14. [Vision](#14-vision) · 15. [Licences](#15-licences)
 
 ---
 
-## 1. Ce qu'il te faut
+## 1. Prérequis
 
-| | |
-|---|---|
-| Un téléphone **Android** | pour l'appli, le widget et le micro |
-| **Termux** (depuis **F-Droid** ou ses releases GitHub) | le « cerveau » d'Aiwa y tourne. La version du Play Store est une copie ancienne, non officielle : elle n'a pas l'appel `RUN_COMMAND` que le widget utilise |
-| Un compte **Claude** (Claude Code dans le cloud) | c'est lui qui écrit : les sessions vivent chez Claude, pas sur ton téléphone |
-| Un compte **GitHub** et au moins un dépôt | tout ce qui est produit y est rangé. L'application GitHub *Claude* doit avoir accès à tes dépôts (`github.com/settings/installations` → **Claude** → *All repositories*, une fois) |
-| *(facultatif)* une **clé Anthropic** | pour parler au super agent en langage naturel (§6). Elle reste dans Termux, chez toi |
+- Un téléphone **Android**.
+- **Termux** depuis **F-Droid** (ou ses releases GitHub) : le cerveau y tourne. Pas la version Play Store (copie ancienne, sans `RUN_COMMAND`).
+- Un compte **Claude** (Claude Code dans le cloud) et un compte **GitHub** avec un dépôt. L'application GitHub *Claude* doit avoir accès à tes dépôts
+  (`github.com/settings/installations` → **Claude** → *All repositories*).
+- *Facultatif* : une **clé Anthropic** (§6), gardée dans Termux.
 
-**Aiwa ne te demande jamais de jeton GitHub.** Ce qu'il lit sur GitHub, il le lit sans connexion (dépôts publics) ; ce qui est écrit est écrit par les
-sessions Claude, avec leur propre accès.
+**Aiwa ne demande jamais de jeton GitHub** : il lit GitHub sans connexion (dépôts publics) ; ce sont les sessions Claude qui écrivent.
 
-## 2. Installer (Android)
+## 2. Installer
 
-1. **L'APK.** Télécharge `Aiwa_store.apk` sur la [release `android-latest`](https://github.com/theodoreyong9/Aiwa_store/releases/tag/android-latest)
-   (reconstruite à chaque build réussi, depuis `clean` comme depuis `main`) et installe-le (Android demande une fois d'autoriser l'installation).
-   Une nouvelle version s'installe par-dessus et garde tes données.
-2. **Le cerveau.** Dans Termux, une seule ligne, aussi pour les mises à jour :
+1. Télécharge `Aiwa_store.apk` sur la [release `android-latest`](https://github.com/theodoreyong9/Aiwa_store/releases/tag/android-latest) et installe-le
+   (une nouvelle version s'installe par-dessus).
+2. Dans Termux (aussi pour mettre à jour) :
    ```sh
    curl -fsSL https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/android/backend/bootstrap.sh | bash
    ```
-   Elle installe le cerveau dans `~/aiwa_store`. Si Termux ou le cerveau manque, le widget le dit (« Termux manquant », « Installation manquante ») et un
-   appui copie la ligne.
-3. **Le widget.** L'appli propose de l'ajouter à l'écran d'accueil (un appui sur *Ajouter*) ; sinon appui long → *Widgets* → *Aiwa Store*. Android
-   ouvre une courte configuration : autoriser Aiwa à lancer des commandes Termux, et les notifications.
-4. **Connecter Claude** (bouton du widget) : une page s'ouvre, tu te connectes avec ton compte, le code revient dans la même fenêtre.
-5. **Choisis un dépôt** (pastille *dépôt* du widget). Tout est prêt : dicte.
+3. Ajoute le widget (l'appli le propose ; sinon appui long → *Widgets* → *Aiwa Store*). Autorise Termux et les notifications.
+4. **Connecter Claude** (bouton du widget), puis choisis un **dépôt**. Dicte.
 
-La première fois, Claude Code est installé dans une couche Linux (proot) de Termux : le script la marque lui-même comme expérimentale.
+Si Termux ou le cerveau manque, le widget le dit et un appui copie la ligne. Claude Code s'installe dans une couche proot de Termux, marquée expérimentale.
 
 ## 3. Le widget
 
-Deux formes, au choix dans *Réglages → Forme du widget*. Passer de l'une à l'autre redessine le widget (une seule mise à jour à la fois ; si c'est lent,
-un message dit combien de secondes a pris Aiwa lui-même).
+*Réglages → Forme du widget.* Un changement redessine le widget (un redessin à la fois ; un message dit si Aiwa lui-même est lent).
 
-### Forme **Light** (par défaut)
+**Light** (défaut), de haut en bas :
 
-De haut en bas :
+1. **Session ▾ · ⎇ dépôt ▾**. *Une session appartient à un dépôt.*
+2. **Docs · Vidéo · Page · App · Aiwa** : **gris** tant que le dépôt n'a rien de ce type, **coloré** sinon ; un appui l'ouvre.
+3. **Dicter**, **Claude** (rouge si Claude attend ou se tait), **?** (question de Claude), **↻** (APK plus récent prêt, sinon absent).
+4. **Aiwa**, **super agent**, **Réglages**.
 
-1. **Session ▾ · ⎇ dépôt ▾** : la session de travail et le dépôt. *Une session appartient à un dépôt* ; changer de dépôt ne change pas de « mode ».
-2. **Docs · Vidéo · Page · App · Aiwa** : les cinq productions du dépôt. Un bouton est **gris** tant que le dépôt n'en contient pas, **coloré** quand il y
-   en a une ; un appui l'ouvre (Docs et Vidéo s'ouvrent toujours : c'est la fenêtre pour en demander une). Voir §4 pour ce qui est détecté.
-3. **Dicter** (le micro), **Claude** (ouvre la conversation ; rouge quand Claude attend ou se tait trop longtemps), **?** (quand Claude te pose une
-   question), **↻** (mise à jour d'Aiwa prête : n'apparaît que quand un APK plus récent est téléchargé).
-4. En bas : **Aiwa** (l'application), **super agent** (§6), **Réglages**.
+**Glasses** : deux verres. Gauche : les cinq productions, une rangée workflow · boucles · campagne, réglages, *Dicter*, super agent. Droit : Store, Wallet,
+recherche, own, fave, inviter. *Jamais essayé sur de vraies lunettes.*
 
-### Forme **Glasses**
-
-Deux verres. À gauche : la colonne Docs/Vidéo/Page/App/Aiwa, une rangée workflow · boucles · campagne, les réglages, *Dicter* et le super agent ; à droite :
-Store, Wallet, une silhouette (chercher un identifiant ou un compte), *own*, *fave*, *inviter*. C'est une **forme de widget pour des lunettes
-connectées** ; **aucune lunette réelle n'a été essayée**.
-
-### Réglages
-
-*Session, dépôt, modèle, push (direct sur main ou branche), clé Anthropic, super agent (réglages, **détruire et recommencer**), « Mes mots » (§5),
-état d'Aiwa, version (appli, cerveau, **date de la dernière mise à jour du cerveau**), commentaire pour le critique, « c'est prêt » à voix haute,
-« je suis disponible ? », écoute permanente, forme du widget.* Les entrées qui répètent le widget Light (session, dépôt, boucles…) n'apparaissent que
-sur la forme Glasses.
+**Réglages** : modèle, push, clé Anthropic, super agent (dont **détruire et recommencer**), *Mes mots*, état, version (appli, cerveau, **date de dernière mise à
+jour du cerveau**), commentaire pour le critique, « c'est prêt », « je suis disponible ? », écoute permanente, forme.
 
 ## 4. Ce que Claude écrit, et où
 
-Aiwa impose une structure à **tous** les dépôts, pour retrouver ce qui a été produit sans rien configurer :
+La même structure pour tous les dépôts :
 
-| Production | Où | Comment Aiwa la détecte (sans jeton) |
+| Production | Où | Détection (sans jeton) |
 |---|---|---|
-| **Documents** | `docs/` (`.md`, `.pdf`, `.docx`, `.xlsx`, `.pptx`, `.txt`, `.csv`…) | fichiers de `docs/` |
-| **Vidéos** | `docs/videos/` (étapes de fabrication dans `docs/videos/<nom>/`) | fichiers vidéo de `docs/videos/` (et de la racine de `docs/`) |
-| **Campagnes** | `docs/campagnes/<campagne>/` (`campaign.json`, `proposals.json`…) | dossier de campagne |
-| **Page** (site) | GitHub Pages du dépôt | `https://<compte>.github.io/<dépôt>/` répond 200 |
-| **App** (Android) | release du dépôt avec un `.apk` | une release contient un `.apk` |
-| **Aiwa** (apps) | `aiwa-apps/` | `*.aiwa.html` (contrats) ; `*.app.html` pour les apps de bibliothèque |
-| Signaux de repli | `aiwa-out/SIGNAL` sur la branche de la session | lu si le relais public est bloqué |
-| Référence du critique | `aiwa-papers/` | lu à chaque tour d'une boucle |
+| Documents | `docs/` | fichiers `.md .pdf .docx .xlsx .pptx .txt .csv` |
+| Vidéos | `docs/videos/` (étapes dans `docs/videos/<nom>/`) | fichiers vidéo (surveillé ~45 s) |
+| Campagnes | `docs/campagnes/<campagne>/` | `campaign.json`, `proposals.json` |
+| Page | GitHub Pages | `https://<compte>.github.io/<dépôt>/` répond 200 |
+| App Android | release avec `.apk` | un `.apk` dans une release |
+| Aiwa | `aiwa-apps/` | `*.aiwa.html` (contrats), `*.app.html` (bibliothèque) |
+| Repli de signal | `aiwa-out/SIGNAL` (branche de la session) | lu si le relais est bloqué |
+| Référence du critique | `aiwa-papers/` | relu à chaque tour |
 
-Le bouton **Vidéo** surveille `docs/videos/` toutes les ~45 s (une requête conditionnelle : GitHub répond 304, ce qui ne compte pas dans sa limite). Les
-autres boutons sont revérifiés environ toutes les 10 minutes ; un appui force une vérification.
+**Les modes sont des instructions écrites** ajoutées au prochain message ; ils ne se disent pas.
 
-**Modes = instructions écrites.** Docs, Vidéo, Page, App, Aiwa, campagne : choisir l'un d'eux ajoute des *consignes écrites* au prochain message
-envoyé à la session (ce que Claude doit produire, où, avec quels contrôles). Les modes **ne se disent pas** : ils se règlent à la main (§5).
-
-### Deux sortes d'apps
-
-- **App de bibliothèque** (`aiwa-apps/nom.app.html`) : un seul fichier HTML, dans **ton** dépôt public, modifiable quand tu veux. Pas de registre, pas de
-  wallet, pas de score. C'est le **brouillon / le test**. Le Store la lit en suivant ton compte GitHub (onglet *Library*).
-- **Contrat Aiwa** (`nom.aiwa.html`) : la même sorte de fichier, mais dont la logique est un **contrat** que n'importe qui peut rejouer à partir des
-  événements signés. Publié dans le registre, **immuable** (signé, identifié par son hash), classé, avec brûlage de SOL. Voir §10 et
-  [`docs/CONTRACTS.md`](docs/CONTRACTS.md).
-
-En mode *Aiwa*, Claude livre **toujours d'abord un brouillon** dans ta bibliothèque, **avec son test écrit en premier** (`nom.aiwa.test.mjs`, lancé avec
-`node`) ; il ne publie rien dans le registre. Dans *Mes apps*, le bouton **⇪** d'une app de bibliothèque ouvre la feuille de publication avec ton
-wallet.
+- **App de bibliothèque** `aiwa-apps/nom.app.html` : un fichier HTML dans ton dépôt public, modifiable. Ni registre, ni wallet, ni score : le **brouillon / test**.
+- **Contrat Aiwa** `nom.aiwa.html` : logique rejouable à partir d'événements signés, publié au registre, **immuable**, classé, avec brûlage de SOL.
+  Claude écrit **d'abord le test** (`nom.aiwa.test.mjs`, lancé avec `node`), livre un **brouillon** dans ta bibliothèque et **ne publie rien** : tu publies
+  avec ton wallet (**⇪** dans *Mes apps*).
 
 ## 5. La voix
 
-Le micro du widget est le **mode agent**. Un parseur (sur le téléphone, sans réseau) lit ce qui est dit :
+Le micro du widget est le **mode agent**.
 
-- **« instruction … »** : règle **uniquement les pastilles session et dépôt** (« instruction session X dépôt Y »). Le téléphone **relit** ce qu'il a
-  compris, attend « **c'est bon vas-y** » (ou une correction), applique, puis envoie à la session l'information de pastille.
-- **Tout le reste** : une *commande* envoyée telle quelle à la session en cours.
+- **« instruction … »** règle **uniquement session et dépôt** ; le téléphone relit, tu valides par **« c'est bon vas-y »**.
+- **Le reste** part tel quel à la session.
 
-Le modèle, l'effort, le push, la qualité et les modes ne se disent plus : tout cela est manuel (écrit).
+**Écoute permanente** : Vosk (local, ~41 Mo), même écran verrouillé, lancée par le bouton du super agent.
 
-### L'écoute permanente
+**Onze mots personnalisables** (*Réglages → Mes mots* ; à dire et/ou à écrire ; chaque changement est transmis au petit modèle, au parseur et au super agent) :
 
-Un petit modèle local (**Vosk**, ~41 Mo, rien n'est envoyé) écoute les mots de réveil, **même écran verrouillé** (service au premier plan : le point vert du
-micro reste affiché, la batterie baisse plus vite). Elle s'allume avec le bouton du super agent (qui demande la permission du micro).
-
-### Les onze mots personnalisables (*Réglages → Mes mots*)
-
-Chacun se **dit** (le téléphone retient comment le modèle l'entend) et/ou s'**écrit**. Chaque changement est transmis au petit modèle, au parseur et au
-super agent.
-
-| # | Mot (par défaut) | Effet |
+| # | Mot (défaut) | Effet |
 |---|---|---|
-| 1 | Réveil (« mon agent ») | réveille l'écoute : tu dictes |
-| 2 | Super agent (« mon super agent ») | ouvre le super agent |
-| 3 | Instruction | ce qui suit règle session et dépôt |
-| 4 | Pastille session | « session … » |
-| 5 | Pastille dépôt (« dépôt », « repo ») | « dépôt … » |
-| 6 | Validation (« c'est bon vas-y ») | valide ce que le téléphone vient de relire |
-| 7 | Stop (« stop Claude », « arrête Claude ») | arrête la production — **toujours confirmé** — et fait oublier à la dernière session son dernier commentaire |
-| 8 | Éteins | éteint l'écoute permanente et le super agent |
-| 9 | Renvoi (« renvoie les instructions ») | la session reçoit de nouveau les instructions générales et celles des pastilles |
-| 10 | **T'es où là** | le téléphone lit à voix haute les pastilles du widget (dépôt, session, modèle, push) |
-| 11 | **Fais ton rapport** | (super agent ouvert) son rapport d'activité et **une idée** |
+| 1 | Réveil (« mon agent ») | tu dictes |
+| 2 | Super agent (« mon super agent ») | l'ouvre |
+| 3 | Instruction | règle session et dépôt |
+| 4–5 | Pastille session · dépôt (« repo ») | « session … », « dépôt … » |
+| 6 | Validation (« c'est bon vas-y ») | valide la relecture |
+| 7 | Stop (« stop Claude ») | arrête, **toujours confirmé**, fait oublier le dernier commentaire |
+| 8 | Éteins | coupe l'écoute et le super agent |
+| 9 | Renvoi (« renvoie les instructions ») | renvoie instructions générales et pastilles |
+| 10 | **T'es où là** | lit les pastilles du widget |
+| 11 | **Fais ton rapport** | rapport du super agent + une idée |
 
-Annonces : « c'est prêt » à chaque production captée (réglable) ; quand le super agent est réglé mais l'écoute coupée, il demande « je suis
-disponible ? » par une notification (un appui, le micro ne peut pas s'ouvrir en arrière-plan).
-
-Limites : la reconnaissance du texte libre est celle d'Android ; l'écoute de « t'es où là » par le petit modèle français n'a pas été essayée.
+« C'est prêt » annonce chaque production captée (réglable). Non essayé : « t'es où là » par le petit modèle, la voix de bout en bout.
 
 ## 6. Le super agent
 
-Une **deuxième écoute**, parlée : une session Claude de supervision qui peut parler à toutes tes sessions. Il est un **intermédiaire** : *il ne fait jamais
-rien lui-même* (ni code, ni dépôt, ni envoi) ; il reconnaît ce que tu veux, le propose à la bonne session, et converse.
+Une session de supervision parlée, **intermédiaire** : il ne fait rien lui-même. Il propose, tu valides :
 
-- **Ce qu'il peut proposer** (jamais exécuté sans ton accord) : envoyer un message à une ou plusieurs sessions (`send`), changer les pastilles session /
-  dépôt, **ouvrir une production** (documents, vidéo, page, app, aiwa : « montre-moi ma vidéo »), lancer le **cast** de la dernière vidéo (ou de la
-  prochaine) sur la télévision.
-- **Avant** que quoi que ce soit parte, il annonce en une phrase ce qu'il propose ; le téléphone relit, tu valides (« c'est bon vas-y ») ou tu corriges.
-- **Avec une clé Anthropic** (Réglages) : tu parles en langage naturel, la clé remplace le parseur, la réponse vient en une ou deux secondes.
-  Sans clé, c'est la session de l'agent qui répond.
-- **Détruire et recommencer** : *Réglages → Super agent*. Aiwa oublie sa session et ses réglages en attente ; la conversation reste dans claude.ai
-  (à archiver là-bas : aucun outil d'ici ne supprime une session cloud).
-- Tant qu'il est ouvert, le bouton micro est grisé.
+- `send` : un message à une ou plusieurs sessions ;
+- `do` : session, dépôt, **ouvrir une production** (« montre-moi ma vidéo »), **cast** sur la TV.
 
-## 7. Chaînes et boucles d'agents
+Avec une **clé Anthropic**, il comprend le langage naturel et la clé remplace le parseur. **Détruire et recommencer** : *Réglages → Super agent* (la
+conversation reste dans claude.ai à archiver). Ouvert, il grise le micro.
 
-Des conversations **entre sessions** : un *producteur* (builder) et un *critique* (critic), éventuellement un *soutien critique*, qui se répondent tour
-à tour (nombre de tours limité) pour des agents plus exigeants. L'écran *Boucles* a un **graphe pondéré** : les paires, leur état, leurs tours.
+## 7. Boucles d'agents
 
-- Deux sessions **déjà existantes** s'associent (Aiwa ne crée pas de session critique : crée-la dans claude.ai puis ajoute-la par son lien, avec le
-  bon dépôt choisi).
-- Le critique relit **`aiwa-papers/`** à chaque tour et cite ce sur quoi il s'appuie.
-- **Échanges entre critiques** : deux critiques s'écrivent, ou l'un aide l'autre dans la session d'un producteur (« parasite bienveillant »). Le
-  destinataire est invité, accepte ou refuse ; Aiwa garde le registre des expéditeurs acceptés et ne transporte un message que dans un lien accepté.
-  Ce que dit l'autre critique est une **donnée**, jamais un ordre. Flèches violettes en pointillés dans le graphe.
-- **Commentaires du registre** : au départ d'une boucle, le critique reçoit les meilleurs commentaires non lus du registre (signés par un wallet).
+Des échanges **entre sessions** : producteur, critique, soutien critique, tour à tour (nombre de tours limité), avec un **graphe pondéré** (*Boucles*).
 
-*Écrit et testé avec de faux serveurs ; jamais lancé entre de vraies sessions.*
+- Le critique relit **`aiwa-papers/`** à chaque tour et reçoit les meilleurs **commentaires** du registre.
+- **Liens entre critiques** : invitation, acceptation, registre des expéditeurs acceptés ; ce que dit l'autre est une **donnée**, jamais un ordre.
+- Aiwa ne crée pas de session critique : crée-la dans claude.ai, ajoute-la par son lien.
 
-## 8. Vidéos, cast TV, campagnes
+*Testé contre de faux serveurs ; jamais entre de vraies sessions.*
 
-### Vidéos
+## 8. Vidéos, cast, campagnes
 
-La fenêtre **Vidéos** : la dernière production en tête (lecture, **Cast**, **Download**, **Share**), « Voir le dossier des vidéos » (`docs/videos/`), les
-**documents de `docs/` à cocher** (aucun coché : ta création seule), la qualité, et les formats 9:16 / 16:9 / 1:1. La liste est lue avec `git`
-(un `fetch` superficiel, toujours à jour, qui n'use pas la limite de l'API GitHub) ; l'API ne sert que de repli.
-
-La fabrication est un enchaînement d'étapes écrites (`docs/PROMO-VIDEO.md`) : faits → brief → script → plan → son → aperçu → critique → rendu. Outils :
-[`video-kit`](video-kit) (rendu image par image dans Chromium, ffmpeg, contrôle qualité), [`music-research`](music-research) (registre de musiques libres),
-[`asset-research`](asset-research) (modèles, HDRI, textures CC0), [`video-research`](video-research) (campagnes dont s'inspirer),
-[`design-research`](design-research). Voix : Piper « siwis » (synthèse locale). Les films de ce dépôt (v12 à v18) sont dans `docs/videos/`.
-
-### Cast TV
-
-Envoi d'une vidéo à une télévision (DLNA / UPnP), depuis la fenêtre Vidéos, ou **à la voix via le super agent**.
-
-### Campagnes
-
-Un dossier par campagne dans `docs/campagnes/<campagne>/`. La fenêtre **Campagnes** a un onglet par campagne et **＋ Nouvelle** (nom, session et dépôt,
-documents à utiliser, dépôts GitHub, créations à produire, page/app/aiwa, test, prompt). Une campagne produit des **propositions par canal**
-(WhatsApp, Telegram, mail, LinkedIn) avec des liens de partage ; **Partager** ouvre d'abord un aperçu de ce qui part, puis l'application du canal —
-**une proposition à la fois**. *Relancer* refait un formulaire pré-rempli. Rien n'est envoyé par Aiwa : c'est ton application de messagerie qui envoie.
+- **Vidéos** : dernière production en tête (lecture, Cast, Download, Share), dossier `docs/videos/`, documents de `docs/` à cocher, qualité, formats. Liste lue
+  par `git` (pas de limite d'API). Chaîne : `docs/PROMO-VIDEO.md`, [`video-kit`](video-kit), [`music-research`](music-research),
+  [`asset-research`](asset-research), [`video-research`](video-research), [`design-research`](design-research) ; voix Piper (locale).
+- **Cast TV** : DLNA / UPnP, depuis la fenêtre ou à la voix.
+- **Campagnes** : un onglet par campagne, propositions par canal (WhatsApp, Telegram, mail, LinkedIn), aperçu avant partage, **une à la fois** ; Aiwa
+  n'envoie rien, c'est ton application qui envoie.
 
 ## 9. Le cerveau (Termux)
 
-Un serveur Python local (`android/backend/aiwa_server.py`, port local) : il relaie le widget et l'appli vers Claude Code (CLI cloud), lit GitHub, garde les
-sessions, les boucles, l'agent, les campagnes et les vidéos.
+Serveur Python local (`android/backend/aiwa_server.py`, `127.0.0.1:8787`) : relaie vers Claude Code, lit GitHub, garde sessions, boucles, agent, campagnes, vidéos.
 
-- **Mise à jour** : la même ligne `bootstrap.sh` ; le cerveau se met aussi à jour tout seul (il récupère `main`, avance en *fast-forward*, redémarre),
-  et l'appli demande un redémarrage si son cerveau est plus ancien que ce qu'elle attend (`EXPECTED_BACKEND_VERSION`). *Réglages → Version* affiche
-  la version et la date de dernière mise à jour.
-- **L'appli** se met à jour par l'APK : le widget cherche une nouvelle version chaque minute (requête conditionnelle) ; un bouton vert apparaît quand
-  elle est prête, un appui ouvre l'installateur d'Android.
-- **Sécurité** : aucun jeton GitHub demandé ; la clé Anthropic (facultative) reste dans Termux ; les messages de Claude vers le téléphone passent par un
-  relais public (ntfy.sh, qu'un environnement cloud doit autoriser) **ou**, en repli, par un fichier `aiwa-out/SIGNAL` poussé sur la branche de la
-  session ; une session reçoit les paroles d'un autre critique comme *données*, jamais comme ordres.
+- **Mise à jour** : `bootstrap.sh`, ou automatiquement (fast-forward de `main`, redémarrage) ; l'appli demande un redémarrage si le cerveau est plus ancien que
+  `EXPECTED_BACKEND_VERSION`. L'APK : le widget cherche chaque minute (requête conditionnelle) ; ↻ vert ouvre l'installateur.
+- **Sécurité** : écoute sur `127.0.0.1` seulement ; aucun jeton GitHub ; clé Anthropic locale ; relais ntfy.sh ou repli `aiwa-out/SIGNAL` ; ce que dit un autre
+  critique est une donnée.
 
-## 10. Le Store, le registre, le wallet, le token AIWA, le Yellow Paper
+## 10. Store, registre, wallet, token, Yellow Paper
 
-Rien de cela n'a quitté le projet : tout est dans le dépôt (`packages/`, `registry/`, `apps/web/`, `store/`, `docs/YELLOWPAPER.md`…). Ce qui suit est la
-vue d'ensemble ; le détail est dans les documents cités. *Livré et testé en CI ; la démo utilise des doublures pour l'application GitHub et pour Solana.*
+*Livré et testé en CI ; Solana et l'application GitHub y sont des doublures.* Tout est dans le dépôt : `packages/`, `registry/`, `apps/web/`, `store/`.
 
-### 10.1 L'idée
-
-**Un écosystème d'applications distribué, dans la poche : construire une app en lui parlant, la publier d'un appui, être classé par le travail derrière
-elle, et payer des gens directement. Pas de serveur à nous, pas de registre partagé.** Chaque téléphone garde son *propre* historique d'événements
-signés et le montre aux autres quand c'est utile ; comme n'importe qui peut vérifier le travail d'un inconnu en quelques millisecondes, un simple dépôt
-GitHub peut être le registre et le classement, un paiement peut être un fichier, et deux téléphones peuvent régler un jeu sans rien entre eux. Solana
-n'est utilisé qu'**une fois**, pour le brûlage. Les briques sont connues (journaux signés, preuves de travail séquentiel, brûlage comme coût) ; les assembler
-ainsi est le but.
+**L'idée.** Chaque téléphone garde son *propre* historique d'événements signés. Comme n'importe qui vérifie le travail d'un inconnu en millisecondes, un dépôt GitHub
+peut être le registre et le classement, un paiement un fichier, et deux téléphones régler un jeu sans intermédiaire. Solana ne sert qu'**une fois** : le brûlage.
 
 | | |
 |---|---|
-| **Construire** | dicter à Claude Code (le widget) : un site, un APK, une app qui reste dans ton GitHub, un contrat Aiwa, une campagne, des vidéos. Tu relis et essaies tout avant que rien ne parte |
-| **Soumettre** | *contrats Aiwa seulement* : un appui, le Store signe avec ton wallet, ajoute la preuve du travail fait et ouvre la pull request sur ton compte GitHub. Une app de bibliothèque n'a besoin de rien de cela |
-| **Store** | deux listes. La liste **classée** (les contrats Aiwa, ordonnés par ce que chaque auteur a *miné*, pas par des pubs ou des notes ; personne ne l'édite ; chaque contrat est vérifié contre la signature de son auteur avant de s'ouvrir). La **Library** : les apps des comptes GitHub que tu suis, sans registre ni classement, modifiables par leurs auteurs. Chaque app tourne dans une boîte scellée. Fonctionne hors ligne. Onglets *Own*, *Fave*, commentaires |
-| **Token** | **AIWA** est créé par ton téléphone qui fait un travail vérifiable, après **un** brûlage de SOL : ni réseau de mineurs, ni bourse. Envoi par QR code ou texte, même sans connexion |
-| **Se connecter et voir** | les wallets ouverts se trouvent seuls (un relais public les présente, sans voir les données) et échangent ce qui leur manque ; *Relier un autre téléphone* le fait à la main avec deux codes. Chacun signe un reçu de ce qu'il a reçu, et le wallet montre où en est chaque identité dont il détient quelque chose : ce qui est prouvé, le vote, un fork, son rythme face au tien |
-| **Jouer et payer** | une app peut utiliser ton wallet. Le [duel de clics](docs/demo-apps/click-duel.html) : deux téléphones, un prix par clic, 20 secondes, celui qui a le moins cliqué paie ce qu'il a cliqué, et rien n'est signé par clic |
-
-### 10.2 Le chemin d'une app dans le système
+| **Store** | liste **classée** (contrats Aiwa, par ce que l'auteur a *miné*, vérifiés contre sa signature) et **Library** (apps des comptes GitHub suivis, sans classement). Boîte scellée, hors ligne |
+| **Token AIWA** | créé par du **travail vérifiable** de ton téléphone, après **un** brûlage de SOL ; envoi par QR ou texte, même hors ligne |
+| **Wallet** | 12 mots, carnet d'événements signés, sauvegarde, réseau (salle Trystero, réplicateur), *Relier un autre téléphone* (deux codes) |
+| **Payer / jouer** | une app peut demander à payer (feuille de confirmation) ; [duel de clics](docs/demo-apps/click-duel.html) |
 
 <!-- diagram: readme-01-c914959d.png -->
-![Diagram: 10.2 Le chemin d'une app dans le système](docs/img/diagrams/readme-01-c914959d.png)
+![Diagram: 10. Store, registre, wallet, token, Yellow Paper](docs/img/diagrams/readme-01-c914959d.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -288,97 +186,34 @@ flowchart LR
 </details>
 <!-- /diagram -->
 
-1. **Construire.** Le widget envoie ta voix à Claude Code, qui écrit ce que le mode demande : une app qui reste dans ton GitHub, ou **un contrat publié par Aiwa**
-   (signé et épinglé par son hash).
-2. **Gagner.** La seule chose qui coûte quelque chose, et la seule qui demande Solana, est le brûlage. **0,1 %** de la part que tu choisis de mettre de
-   côté (appelée **T**) va au créateur du logiciel, dans la même transaction, montré avant de signer. À T = 0, rien. Ensuite chaque unité de travail est
-   signée, vérifiable en quelques millisecondes, et ce que tu peux réclamer croît avec le temps.
-3. **Soumettre** (contrats). Ton app, signée avec ton wallet, avec la preuve de ton travail, en pull request.
-4. **Classer** (contrats). Le registre est un workflow GitHub : il vérifie la signature, la preuve et le brûlage **sur Solana lui-même**, puis te classe par
-   `score / laps` (ce que tu peux réclamer, sur les époques écoulées depuis ta dernière action).
-5. **Utiliser.** Chaque Store vérifie chaque app contre la signature de son auteur avant de l'ouvrir. Une app qui dit utiliser ton wallet reçoit une bannière
-   et peut demander à payer : une feuille du Store te demande d'abord (ce paiement, ou un budget jusqu'à la fermeture de l'app), et rien ne sort du
-   wallet sans cela.
+1. **Construire** : une app dans ton GitHub, ou un contrat publié par Aiwa. 2. **Gagner** : brûlage de SOL ; **0,1 % de T** (la part mise de côté) au créateur,
+montré avant de signer ; ensuite du travail signé, ce que tu réclames croît avec le temps. 3. **Soumettre** : pull request signée + preuve.
+4. **Classer** : le workflow vérifie signature, preuve et brûlage **sur Solana**, classe par `score / laps`. 5. **Utiliser** : chaque Store vérifie avant d'ouvrir.
 
-GitHub garde la liste, Solana garde les brûlages, chaque téléphone garde son historique signé.
+**Les trois piliers** (Yellow Paper II–III) : **Progression** (du temps sans horloge : du travail séquentiel vérifiable, §6) · **Conservation** (une créance ne
+se déplace qu'une fois, §7) · **Mirror** (des reçus signés de ce qu'on a reçu, §8).
 
-### 10.3 Les trois piliers du protocole
+**Un contrat** = règles *état + événement → état*, rejouées par chaque détenteur. Trois règles : prouver qui agit **dans** l'action (`signedAction` /
+`verifySignedAction`) ; gestionnaires **purs** ; un conflit a **un** vainqueur, le même pour tous. Exemple : [`docs/aiwa-app-example.html`](docs/aiwa-app-example.html),
+guide : [`docs/CONTRACTS.md`](docs/CONTRACTS.md).
 
-Tout ce que fait le carnet de chaque téléphone relève d'un de ces trois métiers (Yellow Paper, parties II–III) :
+**Le registre** : une PR ajoute `submissions/<nom>.json` ; le workflow le lit comme une donnée, vérifie, écrit `store/`, ferme la PR avec le verdict. Trois sortes de
+paquets : **code**, **contrat Aiwa** (pointeur signé vers un bundle épinglé par hash) et **commentaire** pour le critique (≤ 2000 caractères, classé comme
+le code, jamais exécuté).
 
-| Pilier | Question | Réponse | § |
-|---|---|---|---|
-| **Progression** | comment montrer que du temps a passé, sans horloge ? | en faisant du **travail** séquentiel que chacun peut vérifier | 6 |
-| **Conservation** | à qui appartient quoi, comment payer sans payer deux fois ? | des **créances** qui ne se déplacent qu'une fois ; la double dépense est détectée | 7 |
-| **Mirror** | qu'ai-je reçu des autres ? | des **reçus signés** | 8 |
-
-Un seul prérequis extérieur : le brûlage qui ouvre l'accumulation (§9). Ensuite un domaine travaille hors ligne. Une branche n'est pas un conflit ; les
-événements en conflit sont repliés dans un ordre fixe, le même pour tout le monde (§13.4). Perdre son téléphone : les 12 mots restaurent l'identité ;
-l'historique se récupère auprès des autres (§15).
-
-### 10.4 Écrire un contrat
-
-Un contrat n'est pas du code qu'une machine exécute pour tous : c'est un ensemble de règles **état + événement → nouvel état**, que chaque détenteur
-rejoue à partir des événements qu'il a. Deux détenteurs avec les mêmes événements obtiennent le même état. Le SDK est un module (`lib/aiwa.js`) que l'app importe
-par son adresse. Un vote en quelques lignes (l'exemple complet : [`docs/aiwa-app-example.html`](docs/aiwa-app-example.html)) :
-
-```js
-import { generateIdentity, EventLog, createMemoryBackend, defineContract, Contract, signedAction, verifySignedAction }
-  from 'https://theodoreyong9.github.io/Aiwa_store/lib/aiwa.js';
-
-const definition = defineContract({
-  initialState: () => ({ votes: {} }),
-  handlers: {
-    vote: async (state, event) => {
-      const action = event.payload;
-      if (!(await verifySignedAction(action))) return state;       // pas signé par celui qu'il prétend être
-      if (action.choice !== 'yes' && action.choice !== 'no') return state;
-      if (action.from in state.votes) return state;                // un vote par identité : le premier compte
-      return { votes: { ...state.votes, [action.from]: action.choice } };
-    },
-  },
-});
-```
-
-**Trois règles** : (1) *prouver qui agit à l'intérieur de l'action* (`signedAction` / `verifySignedAction` : un `payload.from` seul ne prouve rien) ;
-(2) *des gestionnaires purs* (ni horloge, ni hasard, ni réseau : tout lecteur les rejoue) ; (3) *un conflit a un seul vainqueur, le même pour tous* (écris la
-règle pour que le premier compte). Dans Aiwa, Claude écrit le **test du contrat avant l'app** (§4). Voir [`docs/CONTRACTS.md`](docs/CONTRACTS.md).
-
-### 10.5 Le registre
-
-Une pull request qui publie une app ajoute **un** fichier `submissions/<nom>.json` (le Store le fabrique et ouvre la pull request ; depuis un navigateur il
-te donne le fichier). Le workflow **Registry** lit ce fichier *comme une donnée* (jamais exécuté), vérifie signature, preuve de travail et brûlage sur Solana,
-écrit `store/` si accepté, et **ferme la pull request avec le verdict**. Deux sortes de paquets : *code* (le code voyage dans le paquet) ou *contrat Aiwa* (un
-pointeur signé vers un bundle épinglé par hash : changer le code, c'est publier une autre version). Le classement est `score / laps`, avec des références
-publiques. Voir [`registry/README.md`](registry/README.md) et [`submissions/README.md`](submissions/README.md).
-
-### 10.6 Le wallet
-
-Une identité par **12 mots** (la seule façon de revenir sur un autre téléphone), un carnet d'événements signés, la sauvegarde / restauration, la part du
-créateur visible avant toute signature, l'envoi par QR code ou texte, le réseau (une salle Trystero, puis le réplicateur) et *Relier un autre téléphone*
-(deux codes). *Qui ce téléphone a vu* montre la position, la preuve, le vote, le fork et le rythme (Yellow Paper §19).
-
-### 10.7 Lire le détail
-
-| | |
+| Documents | |
 |---|---|
-| [`docs/EXPLAINED.md`](docs/EXPLAINED.md) · [`EXPLICATION.md`](docs/EXPLICATION.md) (FR) | tout expliqué en mots simples, avec des schémas |
-| [`docs/YELLOWPAPER.md`](docs/YELLOWPAPER.md) | le protocole formel : identité, événements et journal, actions signées (I) · progression, conservation, mirror (II) · engagement de genèse, accumulation, part du créateur, ce qu'un tiers peut lire (III) · partition, stockage borné, récupération (IV) · contrats, bundles, le Store (V) · observation, matériel (VI) · menaces, limites, annexes dont les formats de fils et les paramètres (VII) |
-| [`docs/CONTRACTS.md`](docs/CONTRACTS.md) | écrire un contrat : un vote, les trois règles, partager des événements entre téléphones, publier, ce qu'un contrat ne peut pas faire |
-| [`docs/BUSINESS.md`](docs/BUSINESS.md) | le modèle économique, chiffres et limites |
-| [`docs/PLAN.md`](docs/PLAN.md) | ce que contient la version 1, ce qu'elle laisse de côté, où en est chaque étape |
-| [`docs/GAME-FOUNDATION.md`](docs/GAME-FOUNDATION.md) · [`docs/VISION-SOCIETE-AUGMENTEE.md`](docs/VISION-SOCIETE-AUGMENTEE.md) | le standard des jeux · la vision |
-| [`docs/PROMO-VIDEO.md`](docs/PROMO-VIDEO.md) · [`DIRECTOR-PLAYBOOK.md`](docs/DIRECTOR-PLAYBOOK.md) · [`VOICE-VIDEO-CAMPAIGNS.md`](docs/VOICE-VIDEO-CAMPAIGNS.md) | la chaîne vidéo, la voix, les campagnes |
+| [`EXPLAINED`](docs/EXPLAINED.md) · [`EXPLICATION`](docs/EXPLICATION.md) | tout en mots simples |
+| [`YELLOWPAPER`](docs/YELLOWPAPER.md) | protocole formel (7 parties, 4 annexes) |
+| [`CONTRACTS`](docs/CONTRACTS.md) · [`BUSINESS`](docs/BUSINESS.md) · [`PLAN`](docs/PLAN.md) | écrire un contrat · modèle économique · périmètre v1 |
+| [`ANDROID`](docs/ANDROID.md) · [`PROMO-VIDEO`](docs/PROMO-VIDEO.md) · [`VOICE-VIDEO-CAMPAIGNS`](docs/VOICE-VIDEO-CAMPAIGNS.md) | l'appli et le widget · la chaîne vidéo · voix et campagnes |
 
 ## 11. Architecture
 
-### 11.1 Vue d'ensemble : qui parle à qui
-
-Cinq endroits, et une règle : **le téléphone ne produit rien lui-même**. Il écoute, relit, confirme et transmet ; ce sont les sessions Claude Code
-(dans le cloud de Claude) qui écrivent, *dans ton dépôt GitHub*.
+**Vue d'ensemble.** Le téléphone ne produit rien : les sessions Claude Code écrivent dans ton dépôt.
 
 <!-- diagram: readme-02-65ba2d44.png -->
-![Diagram: 11.1 Vue d'ensemble : qui parle à qui](docs/img/diagrams/readme-02-65ba2d44.png)
+![Diagram: 11. Architecture](docs/img/diagrams/readme-02-65ba2d44.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -415,18 +250,16 @@ flowchart LR
 </details>
 <!-- /diagram -->
 
-Trois frontières de confiance :
-
-| Frontière | Ce qui la traverse | Ce qui ne la traverse jamais |
+| Frontière | Traverse | Ne traverse jamais |
 |---|---|---|
-| téléphone ⇄ cerveau | HTTP **local** (`127.0.0.1` seulement) | rien n'est exposé sur le réseau |
-| cerveau ⇄ Claude / GitHub | messages à une session, lectures publiques de GitHub | aucun jeton GitHub demandé ; la clé Anthropic facultative reste dans Termux |
-| appli ⇄ registre / Solana | une publication **signée** par ton wallet, une preuve de brûlage | la phrase de 12 mots ; l'accès du wallet aux apps sans ton accord |
+| téléphone ⇄ cerveau | HTTP local (`127.0.0.1`) | rien d'exposé sur le réseau |
+| cerveau ⇄ Claude / GitHub | messages, lectures publiques | jeton GitHub ; la clé Anthropic quitte Termux |
+| appli ⇄ registre / Solana | publication **signée**, preuve de brûlage | les 12 mots |
 
-### 11.2 Du micro à la session : le chemin d'une commande
+**Du micro à la session.**
 
 <!-- diagram: readme-03-46910341.png -->
-![Diagram: 11.2 Du micro à la session : le chemin d'une commande](docs/img/diagrams/readme-03-46910341.png)
+![Diagram: 11. Architecture](docs/img/diagrams/readme-03-46910341.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -457,13 +290,10 @@ sequenceDiagram
 </details>
 <!-- /diagram -->
 
-Les **instructions générales** partent au premier message d'une session (puis seulement si elles changent ou sur « renvoie les instructions ») ; les
-**consignes du mode** (Docs, Vidéo, Page, App, Aiwa, campagne) sont ajoutées au message, par écrit.
-
-### 11.3 L'application Android : trois couches
+**Les trois couches de l'appli** : `app` (Compose, Glance, services), `bridge` (Kotlin pur, testé en JVM : parseur, mots, pilules, API du cerveau), `backend` (Python).
 
 <!-- diagram: readme-04-a1dfaa83.png -->
-![Diagram: 11.3 L'application Android : trois couches](docs/img/diagrams/readme-04-a1dfaa83.png)
+![Diagram: 11. Architecture](docs/img/diagrams/readme-04-a1dfaa83.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -498,15 +328,10 @@ flowchart TB
 </details>
 <!-- /diagram -->
 
-- **`android/bridge`** ne dépend pas d'Android : tout ce qui se teste sans téléphone y est (parseur de la voix, mots, pilules, conversion des campagnes,
-  lecture des réponses du cerveau).
-- **L'état** est unique (`AiwaRepository`) : `BackendSync` lit `/api/status` et le widget se redessine quand la clé d'état change (une seule mise à jour à la fois).
-- **Services** : `KeepAliveService` maintient le cerveau en vie, surveille les mises à jour et les productions ; `WakeWordService` est l'écoute permanente.
-
-### 11.4 La voix
+**La voix.**
 
 <!-- diagram: readme-05-03893869.png -->
-![Diagram: 11.4 La voix](docs/img/diagrams/readme-05-03893869.png)
+![Diagram: 11. Architecture](docs/img/diagrams/readme-05-03893869.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -528,10 +353,10 @@ flowchart LR
 </details>
 <!-- /diagram -->
 
-### 11.5 Boucles et liens
+**Boucles** : le cerveau est le **coursier** (une session reçoit mais n'envoie pas à une autre).
 
 <!-- diagram: readme-06-225c1bd1.png -->
-![Diagram: 11.5 Boucles et liens](docs/img/diagrams/readme-06-225c1bd1.png)
+![Diagram: 11. Architecture](docs/img/diagrams/readme-06-225c1bd1.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -548,14 +373,10 @@ flowchart LR
 </details>
 <!-- /diagram -->
 
-Le cerveau est le **coursier** : une session peut recevoir un message mais pas en envoyer à une autre. Chacune travaille sur sa branche, signale la fin de son
-tour, et le cerveau envoie à l'autre son message suivant, avec la branche à lire. Un tour est limité, la boucle peut être arrêtée, relancée ou **ramenée en arrière**
-(avec toute la chaîne qui lui est connectée). Le **registre des expéditeurs acceptés** fait qu'un message entre critiques ne circule que dans un lien accepté.
-
-### 11.6 Le protocole, le Store et le registre
+**Protocole.** Une flèche = « utilise ».
 
 <!-- diagram: readme-07-6c2a7637.png -->
-![Diagram: 11.6 Le protocole, le Store et le registre](docs/img/diagrams/readme-07-6c2a7637.png)
+![Diagram: 11. Architecture](docs/img/diagrams/readme-07-6c2a7637.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -580,10 +401,10 @@ flowchart BT
 </details>
 <!-- /diagram -->
 
-Une flèche signifie « utilise » ; rien dans `core` ne connaît ce qui est au-dessus.
+**Publication.**
 
 <!-- diagram: readme-08-f28dee12.png -->
-![Diagram: 11.6 Le protocole, le Store et le registre](docs/img/diagrams/readme-08-f28dee12.png)
+![Diagram: 11. Architecture](docs/img/diagrams/readme-08-f28dee12.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -608,10 +429,10 @@ sequenceDiagram
 </details>
 <!-- /diagram -->
 
-### 11.7 Livraison et mises à jour
+**Livraison.**
 
 <!-- diagram: readme-09-f7d4c994.png -->
-![Diagram: 11.7 Livraison et mises à jour](docs/img/diagrams/readme-09-f7d4c994.png)
+![Diagram: 11. Architecture](docs/img/diagrams/readme-09-f7d4c994.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -630,92 +451,63 @@ flowchart LR
 </details>
 <!-- /diagram -->
 
-### 11.8 Où vivent les données
+| Donnée | Où |
+|---|---|
+| Productions | ton dépôt GitHub |
+| Conversations | claude.ai |
+| Sessions, dépôts, état, boucles, agent | `$HOME` de Termux (`.aiwa_*.json`) |
+| Clé Anthropic | `~/.aiwa_anthropic_key` |
+| Wallet (12 mots, carnet) | l'appli : **toi seul** |
+| Liste classée | `store/` (Pages) · brûlages : Solana |
 
-| Quoi | Où | Pour toujours ? |
-|---|---|---|
-| Productions (docs, vidéos, apps, campagnes) | **ton dépôt GitHub** | oui, c'est à toi |
-| Conversations avec Claude | cloud de Claude (claude.ai) | selon ton compte |
-| Sessions connues, dépôts, état, boucles, agent | fichiers dans le `$HOME` de Termux (`.aiwa_*.json`) | sur ce téléphone |
-| Clé Anthropic (facultative) | `~/.aiwa_anthropic_key` (Termux) | sur ce téléphone |
-| Wallet : 12 mots, carnet d'événements | l'appli (sauvegarde chiffrée possible) | **toi seul** : sans les 12 mots, rien ne revient |
-| Liste classée des contrats | `store/` du dépôt, servi par Pages | publique |
-| Brûlages | Solana | publique |
-
-## 12. Développer sur ce dépôt
-
-```
-packages/core       le protocole (identité, événements signés, travail vérifiable, conservation, part du créateur)
-packages/platform   transport, réplication, stockage, bundles
-packages/lib        l'API du wallet et le SDK des contrats
-registry/           ce qui décide des apps listées et de leur ordre
-apps/web/           le Store et le wallet (une appli web)
-android/app         l'APK : WebView + widget + voix + fenêtres (Kotlin, Jetpack Compose, Glance)
-android/bridge      le pont Kotlin testé (parseur vocal, mots, pilules, API du cerveau)
-android/backend     le cerveau Python (+ tests), les scripts Termux
-docs/               documents ; docs/videos/ les films ; docs/campagnes/ les campagnes
-video-kit/ music-research/ asset-research/ video-research/ design-research/   la chaîne vidéo
-aiwa-papers/        ce que lit le critique à chaque tour
-deployment.json     paramètres partagés par le wallet et le registre
-access.json         liste d'accès (désactivée : `enforce: false`)
-```
-
-Commandes :
-
-```sh
-npm install
-npm test                                       # protocole, registre, appli web (Chromium : npx -w aiwa-store-web playwright install chromium)
-npm run build -w aiwa-store-web                # apps/web/dist
-python3 -m unittest discover -s android/backend/tests    # le cerveau
-gradle -p android :bridge:testDebugUnitTest    # le pont Kotlin
-gradle -p android :app:assembleDebug           # l'APK (Android SDK requis ; la CI le fait)
-node scripts/devnet-check.mjs --fake           # tout le chemin, contre un Solana de substitution
-```
-
-| Workflow | Quand | Fait quoi |
-|---|---|---|
-| **CI** | chaque push | toute la suite de tests, les diagrammes, le contrôle à blanc du réseau réel |
-| **Android** | un push touchant l'appli (`main` et `clean`) | tests du cerveau et du pont, build de l'APK, publication de `android-latest` |
-| **Registry** | une PR ajoutant `submissions/*.json` | valide, écrit `store/`, ferme la PR avec le verdict |
-| **Pages** | push sur `main` ou après le registre | publie le site |
-| **Devnet check** | à la main | un brûlage sur le vrai devnet (rouge tant que `DEVNET_PHRASE` n'existe pas) |
-
-Règles de contribution : une ligne dans `CHANGELOG.md` (« Unreleased ») par changement ; si le cerveau change de façon visible pour l'appli, augmenter
-`BACKEND_VERSION` (`aiwa_server.py`) **et** `EXPECTED_BACKEND_VERSION` (`AiwaState.kt`) ; ne fusionner dans `main` que CI et Android au vert.
-
-Ce que seul le propriétaire du dépôt peut faire : activer GitHub Pages (*Source : GitHub Actions*), créer l'OAuth App *Aiwa Store* (Device Flow) pour
-la connexion GitHub de la feuille de publication, déposer `DEVNET_PHRASE`, et faire le premier essai réel sur un téléphone.
-
-## 13. Ce qui est vérifié, ce qui ne l'est pas
+## 12. Vérifié et non vérifié
 
 | Testé en CI | **Non vérifié** |
 |---|---|
-| Le protocole (identité, événements, preuves de travail, double dépense) avec un recoupement contre une implémentation Rust indépendante | Un vrai brûlage sur Solana |
-| Le wallet, la part du créateur, la sauvegarde / restauration | L'appli et le widget sur un **vrai téléphone** (keystore, connexion GitHub, widget, mise à jour par le site) |
-| Le registre (signatures, preuves, brûlage, classement) | Une vraie pull request par le workflow du registre |
-| L'appli web dans Chromium (classement, bac à sable, falsification, hors ligne, publication, apps qui paient, duel entre deux pages) | La voix de bout en bout (mots de réveil sur écran verrouillé, « t'es où là », super agent parlé) |
-| Le cerveau (les relais, sessions, boucles et liens, campagnes, agent, vidéos) contre de faux serveurs | De **vraies** sessions Claude Code cloud pilotées par le cerveau (boucles, agent, campagnes) |
-| Le pont Kotlin (parseur, mots, pilules, campagnes) | Le widget **forme glasses** sur de vraies lunettes connectées |
-| La chaîne vidéo (rendu, contrôle, voix, musique) | Le cast TV sur une vraie télévision |
+| Protocole, wallet, registre, appli web (Chromium) ; recoupement avec une implémentation Rust | Vrai brûlage sur Solana ; vraie pull request par le registre |
+| Cerveau (relais, sessions, boucles, campagnes, agent, vidéos) contre de faux serveurs ; pont Kotlin | **Vrai téléphone** : keystore, connexion GitHub, widget, mise à jour par le site |
+| Chaîne vidéo (rendu, contrôle, voix, musique) | Voix de bout en bout ; vraies sessions Claude Code pilotées par le cerveau |
+| | Forme glasses sur de vraies lunettes ; cast sur une vraie TV |
 
-Aucune critique n'est indépendante tant qu'elle est faite par la même chaîne qui produit.
+Aucune critique n'est indépendante tant qu'elle est faite par la chaîne qui produit.
 
-## 14. Vision (pas démontrée)
+## 13. Développer
 
-Ce qui suit est **l'intention du projet**, pas ce qui tourne :
+```
+packages/core | platform | lib   protocole · transport, stockage · API du wallet et SDK des contrats
+registry/  apps/web/             registre · Store et wallet
+android/app | bridge | backend   APK Kotlin · pont testé · cerveau Python
+docs/  docs/videos/  docs/campagnes/    documents, films, campagnes
+video-kit/ music- asset- video- design-research/    chaîne vidéo
+aiwa-papers/  deployment.json  access.json    référence du critique · paramètres · liste d'accès (`enforce:false`)
+```
 
-- **Mise à jour du corps par vote collectif** : décider des versions de l'application par un vote.
-- **Registre interplanétaire**, store sans permission, nouveau genre de smart contract, **économie** gouvernée par le peuple, avec **brûlage de Solana**.
-- **Preuve de Volonté** : nom donné dans le film à la preuve qui fonde le réseau. *Ce qui est spécifié aujourd'hui dans le yellow paper est la preuve
-  de travail séquentiel (voir `docs/YELLOWPAPER.md`) ; « Preuve de Volonté » n'est pas encore définie dans les documents.*
-- **Réseau social de découverte, d'engagement et de création de proximité** : les wallets ouverts se trouvent déjà et échangent ce qui leur manque ; le
-  reste est à construire.
-- **Code 100 % open en 2027.**
+```sh
+npm install && npm test                                  # Chromium: npx -w aiwa-store-web playwright install chromium
+python3 -m unittest discover -s android/backend/tests    # le cerveau
+gradle -p android :bridge:testDebugUnitTest              # le pont Kotlin
+gradle -p android :app:assembleDebug                     # l'APK (SDK Android ; la CI le fait)
+node scripts/devnet-check.mjs --fake                     # tout le chemin contre un Solana de substitution
+```
 
-## 15. Licences et crédits
+| Workflow | Fait quoi |
+|---|---|
+| **CI** | tests, diagrammes, contrôle à blanc du réseau réel |
+| **Android** | tests cerveau et pont, build ; publie `android-latest` (depuis `main` et `clean`) |
+| **Registry** | valide `submissions/*.json`, écrit `store/`, ferme la PR |
+| **Pages** | publie le site |
+| **Devnet check** | à la main ; rouge tant que `DEVNET_PHRASE` n'existe pas |
 
-MIT, voir [`LICENSE`](LICENSE).
+Règles : une ligne dans `CHANGELOG.md` par changement ; si le cerveau change côté appli, `BACKEND_VERSION` **et** `EXPECTED_BACKEND_VERSION` ; `main` seulement
+CI et Android au vert. Au propriétaire : activer Pages (*GitHub Actions*), créer l'OAuth App *Aiwa Store* (Device Flow), `DEVNET_PHRASE`, le premier essai sur téléphone.
 
-- Film : musique « *Killers* », **Kevin MacLeod** (incompetech.com), licence **CC BY 4.0** (créditée dans le film) ; voix : synthèse Piper ; polices Space
-  Grotesk, Fraunces, JetBrains Mono (SIL OFL).
-- Les catalogues de `music-research`, `asset-research` et `video-research` indiquent chacun la source et la licence de ce qu'ils référencent.
+## 14. Vision
+
+Intention, pas état : mise à jour du « corps » par **vote collectif** ; registre interplanétaire, store sans permission, économie gouvernée par le peuple avec
+**brûlage de Solana** ; **Preuve de Volonté** (nom du film ; le Yellow Paper spécifie aujourd'hui la preuve de travail séquentiel, pas celle-ci) ; réseau de
+**découverte, d'engagement et de création de proximité** ; code **100 % open en 2027**.
+
+## 15. Licences
+
+MIT ([`LICENSE`](LICENSE)). Film : « *Killers* », Kevin MacLeod (incompetech.com), CC BY 4.0 ; voix Piper ; polices Space Grotesk, Fraunces, JetBrains Mono (OFL).
+Chaque catalogue de recherche indique source et licence.

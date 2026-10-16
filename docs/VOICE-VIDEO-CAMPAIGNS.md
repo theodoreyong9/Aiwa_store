@@ -44,7 +44,7 @@ Il **ne fait jamais rien lui-même** : c'est un intermédiaire entre les session
 - **« stop »** arrête la production de l'agent ou du super agent ; il demande aussi à la ou aux **dernières sessions de son intermédiation en cours d'oublier son dernier commentaire**.
 - **« éteins »** demande au super agent de s'éteindre : **plus d'écoute permanente**. Le petit modèle d'arrière-plan (écran verrouillé) doit lui aussi reconnaître « éteins ».
 
-### 1.4 Les neuf reconnaissances personnalisables
+### 1.4 Les onze reconnaissances personnalisables
 
 Pour l'agent et le super agent. **À chaque changement, l'information est transmise au petit modèle, à l'agent et au super agent.**
 
@@ -57,6 +57,8 @@ Pour l'agent et le super agent. **À chaque changement, l'information est transm
 7. **Stop**
 8. **Éteins**
 9. **Demande de renvoi** des instructions générales et des instructions pastilles
+10. **T'es où là** : le téléphone lit à voix haute les pastilles du widget (dépôt, session, modèle, push)
+11. **Fais ton rapport** : (super agent ouvert) son rapport d'activité depuis le dernier message, et une idée
 
 ### 1.5 Les annonces
 
@@ -110,10 +112,13 @@ Un **onglet par campagne** et un onglet **Nouvelle campagne**.
 | Bouton micro grisé quand le super agent est ouvert | **fait** |
 | « Éteins » | **fait** (petit modèle + écoute de l'agent) |
 | Stop → faire oublier le dernier commentaire aux sessions | **fait** (`/api/agent/stop`) |
-| Neuf reconnaissances personnalisables | **fait** (Réglages → « Mes mots » : dire et/ou écrire chaque mot ; transmis au petit modèle, au parseur et au super agent) |
+| Onze reconnaissances personnalisables | **fait** (Réglages → « Mes mots » : dire et/ou écrire chaque mot ; transmis au petit modèle, au parseur et au super agent) |
+| « T'es où là » (mot 10) et « fais ton rapport » (mot 11) | **fait** ; « t'es où là » par le petit modèle français **pas essayé** |
+| Le super agent ouvre une production (documents, vidéo, page, app, aiwa) en langage naturel, relu puis validé | **fait**, jamais essayé à la voix sur un téléphone |
+| Détruire le super agent et en recommencer un (Réglages → Super agent) | **fait** (la conversation reste dans claude.ai) |
 | « C'est prêt » | **fait** (réglable) |
 | « Je suis disponible ? » + rapport + idée | **fait avec une limite** : le téléphone parle et pose une notification « Oui » ; la réponse est un appui (le micro ne peut pas s'ouvrir en arrière-plan) |
 | Clé Anthropic qui remplace le parseur | **fait** : avec la clé, Claude lit toute phrase dite au micro (avec ou sans « instruction ») |
-| Vidéos : cases documents, aperçu, cast, download, share, dossier | **fait** (fenêtre refaite ; les vidéos vivent dans `docs/videos/`) |
+| Vidéos : cases documents, aperçu, cast, download, share, dossier | **fait** (fenêtre refaite ; les vidéos vivent dans `docs/videos/` ; la liste est lue avec `git`, l'API de GitHub n'étant qu'un repli ; la taille d'un film n'est plus affichée) |
 | Envoi de fichiers du téléphone vers `docs/` | **pas fait** : écrire dans GitHub demande un jeton, et Aiwa n'en demande jamais ; piste : passer par la session (le fichier part dans le message, la session le range) |
 | Campagnes en onglets + formulaire | **fait** (un dossier par campagne dans `docs/campagnes/`, onglets, formulaire, propositions par canal, aperçu avant envoi, relancer) |

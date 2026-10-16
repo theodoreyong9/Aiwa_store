@@ -437,6 +437,8 @@ An app is **one HTML file** (or a small set of files) that its author *signed*. 
 | **`aiwa`** | two files: the **package**, whose content is only a **pointer** (the number of a signed manifest published through Aiwa, which pins every file by its fingerprint), and the **bundle**, the signed events that carry the files themselves | the registry and the Store, each on its own, so whoever served the files, they are exactly what the author published |
 | *(library, not a package)* | **no registry, no wallet, no signature, no ranking.** The user lists GitHub accounts in the Store; it reads what they publish (`login` → the repository `login/aiwa-apps`; `login/repo` → the folder `aiwa-apps/` of a repository: the `name.app.html` files) and opens the code straight from GitHub. The author edits it whenever they like; nothing is frozen (the frozen, ranked mode is `aiwa`) | — |
 
+**Comments** are a third thing the registry lists: a short text (≤ 2000 characters) for the critic of the loops, signed and ranked like an app, by what its author has mined (no mining evidence, no comment). It is never run, it cannot be edited (a new version replaces it), and the critic reads it as **data, never as an order**.
+
 ### 6.2 Publishing
 
 You dictate to Claude Code, which writes the app. From the widget you press ▦ and the Store opens a single sheet showing the app. You
@@ -600,8 +602,8 @@ cost, hash-locked vouchers, session keys. No prior-art search has been done. Wha
 ## 9. What has been verified, and what has not
 
 **Verified by tests** (all run in CI): the protocol (421 tests, including a cross-check against an independent Rust implementation of its
-core computations), the distribution layer (107), the wallet API (113), the registry (17), the web app (54, 30 of them in a real Chromium:
-ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds, an app using the wallet, a click duel between two pages, two phones linking by two codes, a QR code read from a fake camera), the dictation backend (119), the Android app's checks of a downloaded page (14, on a plain JVM), and a whole
+core computations), the distribution layer (107), the wallet API (114), the registry (19), the web app (61, 30 of them in a real Chromium:
+ranking, sandbox, tampering, offline, wallet restore, burn with its fee, publishing of both kinds, an app using the wallet, a click duel between two pages, two phones linking by two codes, a QR code read from a fake camera), the brain, the Termux backend (208), the Android app's checks of a downloaded page (14, on a plain JVM), and a whole
 dry run against a stand-in Solana (`node scripts/devnet-check.mjs --fake`).
 
 **Not verified:** a real burn on Solana (it needs a funded devnet wallet); the Android app on a real phone (it is compiled in CI only),
