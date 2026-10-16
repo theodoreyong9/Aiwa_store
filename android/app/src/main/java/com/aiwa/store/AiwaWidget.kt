@@ -1,4 +1,5 @@
 package com.aiwa.store
+import kotlinx.coroutines.launch
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -401,13 +402,18 @@ class PickKindCallback : ActionCallback {
 /** Opens what the repository produced of one kind (« documents », « video », « pages », « android », « aiwa »): the same for the tap on one of the five and for the super agent (« ouvre ma vidéo »). */
 suspend fun openProduction(app: Context, mode: String, found: Boolean? = null) {
     val state = AiwaRepository.state.value
-    selectAiwaMode(app, mode)
-    Productions.refresh(app, state.repo, force = true)
-    val has = found ?: Productions.has(app, state.repo, if (mode == "pages") "page" else if (mode == "android") "apk" else mode)
-    // Vidéo and Docs open even when grey (the window to ask for one; the folder or a word that there is none yet); the others only when something was produced
-    if (!has && mode != "video" && mode != "documents") { toastOnMain(app, "Rien à ouvrir pour l'instant dans ce dépôt."); return }
     val repo = state.repo
+    val kind = if (mode == "pages") "page" else if (mode == "android") "apk" else mode
     val view = { url: String -> app.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    // What is known (the widget's own grey / white) decides at once; the network is asked only when it says "nothing", and then only to be sure
+    var has = found ?: Productions.has(app, repo, kind)
+    // Vidéo and Docs open even when grey (the window to ask for one; the folder or a word that there is none yet); the others only when something was produced
+    if (!has && mode != "video" && mode != "documents") {
+        Productions.refresh(app, repo, force = true)
+        has = Productions.has(app, repo, kind)
+        if (!has) { toastOnMain(app, "Rien à ouvrir pour l'instant dans ce dépôt."); return }
+    }
+    // The window opens first: choosing the mode (which redraws the widget) and the check of the repository come after, off the way
     when (mode) {
         "documents" -> app.startActivity(Intent(app, DocumentsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         "video" -> app.startActivity(Intent(app, VideosActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -415,6 +421,8 @@ suspend fun openProduction(app: Context, mode: String, found: Boolean? = null) {
         "pages" -> if (repo != null) view("https://${repo.substringBefore('/')}.github.io/${repo.substringAfter('/')}/")
         else -> if (repo != null) view("https://github.com/$repo/releases")
     }
+    selectAiwaMode(app, mode)
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { runCatching { Productions.refresh(app, repo, force = true) } }
 }
 
 @Composable
