@@ -370,6 +370,7 @@ class KeepAliveService : Service() {
         var versionKicked = false
         var lastSiteCheck = 0L
         var lastAppCheck = 0L
+        var lastVideoWatch = 0L
         while (true) {
             try {
                 BackendSync.refresh(bridge)
@@ -401,6 +402,11 @@ class KeepAliveService : Service() {
                     lastAppCheck = clock
                     val ready = withContext(Dispatchers.IO) { AppUpdater.prepareQuietly(applicationContext) }
                     if (ready != null) announceAppUpdate(ready)
+                }
+                // The videos of the repository in use: a cheap look (ETag) about every 45 seconds, so that a new film shows on the widget's button soon after it is merged
+                if (lastVideoWatch == 0L || clock - lastVideoWatch > 45_000L) {
+                    lastVideoWatch = clock
+                    Productions.watchVideos(applicationContext, AiwaRepository.state.value.repo)
                 }
                 val restricted = BatteryExemption.shouldWarn(applicationContext)
                 if (restricted != AiwaRepository.state.value.batteryRestricted) AiwaRepository.update { it.copy(batteryRestricted = restricted) }

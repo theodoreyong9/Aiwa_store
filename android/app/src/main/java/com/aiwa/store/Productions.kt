@@ -52,6 +52,41 @@ object Productions {
         }
     }
 
+    /**
+     * The fast watch of the videos: the folder `docs/videos` asked with the ETag of the last answer, so that GitHub answers 304 (which does not count in its limit of 60 questions an hour
+     * without a token) while nothing changed, and the new film shows on the button within a minute. Asked from the keep-alive service about every 45 seconds.
+     */
+    suspend fun watchVideos(context: Context, repo: String?) {
+        if (repo == null || !Regex("[A-Za-z0-9._-]+/[A-Za-z0-9._-]+").matches(repo)) return
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val found = withContext(Dispatchers.IO) {
+            try {
+                (URL("https://api.github.com/repos/$repo/contents/docs/videos").openConnection() as HttpURLConnection).run {
+                    connectTimeout = 8000; readTimeout = 8000
+                    setRequestProperty("Accept", "application/vnd.github+json")
+                    setRequestProperty("User-Agent", "aiwa")
+                    prefs.getString("etag:$repo", null)?.let { setRequestProperty("If-None-Match", it) }
+                    when (val code = responseCode) {
+                        304 -> null                                       // nothing changed
+                        404 -> { prefs.edit().remove("etag:$repo").apply(); false }
+                        200 -> {
+                            getHeaderField("ETag")?.let { prefs.edit().putString("etag:$repo", it).apply() }
+                            val a = JSONArray(inputStream.bufferedReader().readText())
+                            (0 until a.length()).any { i -> a.getJSONObject(i).optString("name").lowercase().let { n -> n.endsWith(".mp4") || n.endsWith(".webm") || n.endsWith(".mov") } }
+                        }
+                        else -> null                                      // rate limit, no network: what was known stays
+                    }
+                }
+            } catch (e: Exception) { null }
+        }
+        if (found != null) {
+            val changed = has(context, repo, "video") != found
+            set(context, repo, "video", found)
+            // a new film (even when there was one already): the Videos window asks the brain again, and the widget is redrawn when the button changes
+            if (changed) AiwaWidget().updateAll(context)
+        }
+    }
+
     /** The document files of the folder `docs` of a repository (the names), for the lists to tick; empty when GitHub does not answer (a private repository). */
     suspend fun documentFiles(repo: String): List<String> = withContext(Dispatchers.IO) {
         val ext = listOf(".md", ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".csv", ".html")
