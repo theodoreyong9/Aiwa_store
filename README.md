@@ -15,7 +15,7 @@
 **Un système d'élevage d'agents personnels avec GitHub et Claude Code, sur Android.** Tu parles, même écran verrouillé ; des sessions Claude Code créent,
 *dans ton propre dépôt*, des documents, vidéos, jeux, sites, applications Android et smart contracts. Aucun serveur à nous.
 
-▶ Le film : [`docs/videos/aiwa-v20-16x9.mp4`](docs/videos/aiwa-v18-16x9.mp4) (fait avec les outils de ce dépôt).
+▶ Le film : [`docs/videos/aiwa-v21-16x9.mp4`](docs/videos/aiwa-v21-16x9.mp4) (fait avec les outils de ce dépôt).
 
 > **Statut.** Testé en CI ; l'APK compile en CI. **Jamais essayé de bout en bout sur un vrai téléphone, sur le vrai Solana, ni sur de vraies lunettes.**
 > Voir [§12](#12-vérifié-et-non-vérifié).
