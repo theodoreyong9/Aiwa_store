@@ -60,7 +60,7 @@ import kotlinx.coroutines.withContext
 class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val side2: String? = null, val onSide2: () -> Unit = {}, val onClick: () -> Unit)
 
 @Composable
-private fun PickerSheet(entries: List<PickerEntry>, onDismiss: () -> Unit, query: String? = null, onQuery: (String) -> Unit = {}) {
+private fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQuery: (String) -> Unit = {}, onDismiss: () -> Unit) {
     AiwaTheme {
         Box(
             Modifier.fillMaxSize()
@@ -353,7 +353,7 @@ class RepoPickerActivity : ComponentActivity() {
                 // it shows the real state and offers Connect or Disconnect accordingly.
                 add(PickerEntry("🔗  Connexion GitHub de Claude : connecter, changer, déconnecter ↗", false) { openPage(CLAUDE_CONNECTORS_URL) })
             }
-            PickerSheet(entries, { finish() }, query = query, onQuery = { query = it })
+            PickerSheet(entries, query = query, onQuery = { query = it }) { finish() }
         }
     }
 
