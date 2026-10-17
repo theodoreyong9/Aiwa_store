@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 116
+BACKEND_VERSION = 117
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -690,7 +690,7 @@ def _proposals_line(repo):
     )
 
 
-VIDEO_QUALITIES = ("simple", "moyen", "extra")
+VIDEO_QUALITIES = ("simple", "moyen", "extra", "max")
 
 
 def _cut(text, start, end):
@@ -735,6 +735,17 @@ def _video_line_text(repo, quality="moyen"):
             f"Termine par le lien direct vers le fichier (`https://raw.githubusercontent.com/{repo}/main/docs/videos/nom-9x16.mp4`), dépose-le dans `docs/videos/` du dépôt (directement dans `docs/videos/`, jamais ailleurs)."
         )
     full = _video_full(repo)
+    if quality == "max":
+        return (
+            "Vidéo, qualité MAX (le plus haut niveau : tout l'extra, et une mise en scène réelle ; très longue à produire, plusieurs heures, rien n'est sauté). "
+            "AVANT de commencer, préviens-moi en une phrase, dans ta première réponse : la qualité max prend très longtemps (les rendus 3D sont lents), et je peux la remplacer par extra, moyenne ou simple si je suis pressé ; puis travaille sans attendre ma réponse et donne-moi l'avancement à chaque étape. "
+            + full + " Exigences propres à la qualité MAX : "
+            "1 une SCÈNE, pas un objet : au moins la moitié des plans se passent dans un lieu réel en 3D (décor, lumière HDRI et matières pris dans le catalogue, caméra qui bouge, profondeur de champ), lis la section « Make it a scene, not an object » de " + REFERENCE_RAW + "/video-kit/shots/README.md, et construis ces plans avec `video-kit/shots/blender/examples/desk.py` comme point de départ ; "
+            "2 des films différents pour des gens différents : dans le catalogue, ne prends jamais le premier résultat ; retiens les 8 premiers de chaque recherche et tire-en un au hasard avec une graine (`date +%s` mêlé au nom de ma création), tire aussi la palette, l'association de polices et la famille de mouvements de caméra, et écris la graine et tes tirages dans `brief.md` ; "
+            "3 UNE seule langue visuelle du début à la fin (jamais une page dans un style puis la suivante dans un autre) ; deux langues ne se mêlent qu'à l'intérieur d'une même scène quand l'une sert l'autre ; "
+            "4 un son conçu : `video-kit/src/sfx.py` (souffles, pizzicati, pings, bruit de pièce, montée, impact), la voix naturelle (`sh video-kit/src/voice-setup.sh`) baissée sous la musique, un seul étalonnage (`--grade=cinematic --bloom --grain --vignette`) ; "
+            "5 une critique en plusieurs tours sur une planche d'une image par seconde, confiée à un sous-agent neuf, et un film qui finit sur le nom de ma création, jamais sur une vue d'ensemble."
+        )
     if quality == "extra":
         return (
             "Vidéo, qualité EXTRA (cinématographique, très longue à produire : prends le temps qu'il faut, rien n'est sauté). "

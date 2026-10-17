@@ -329,6 +329,7 @@ class VoiceCommandsTest {
 
     @Test fun theVideoQualityIsHeardWithOrWithoutTheWordQuality() {
         assertEquals(listOf(VoiceCommand.VideoQuality("extra", "extra")), parse("instruction aiwa qualité vidéo extra").commands)
+        assertEquals(listOf(VoiceCommand.VideoQuality("max", "max")), parse("instruction aiwa qualité vidéo maximum").commands)
         assertEquals(listOf(VoiceCommand.VideoQuality("simple", "simple")), parse("instruction aiwa vidéo simple").commands)
         assertEquals(listOf(VoiceCommand.VideoQuality("moyen", "moyenne")), parse("instruction aiwa qualité moyenne").commands)
         val d = parse("instruction aiwa fais une vidéo de présentation")
@@ -367,7 +368,7 @@ class VoiceCommandsTest {
         assertTrue(sections.getValue("effort").contains("très élevé"))
         assertTrue(sections.getValue("déploiement").contains("Campagne"))
         assertFalse(sections.getValue("déploiement").contains("aucun"))
-        assertEquals("simple · moyenne · extra", sections.getValue("qualité vidéo"))
+        assertEquals("simple · moyenne · extra · max", sections.getValue("qualité vidéo"))
     }
 
     @Test fun similarityIsOneForTheSameNameAndLowForOtherNames() {

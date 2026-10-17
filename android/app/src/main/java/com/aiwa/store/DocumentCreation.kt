@@ -106,7 +106,7 @@ fun QualityChoice(selected: String, onSelect: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("Qualité de la vidéo", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("simple" to "Simple", "moyen" to "Moyen", "extra" to "Extra").forEach { (id, label) ->
+            listOf("simple" to "Simple", "moyen" to "Moyen", "extra" to "Extra", "max" to "Max").forEach { (id, label) ->
                 if (id == selected) Button(onClick = { onSelect(id) }, modifier = Modifier.weight(1f)) { Text(label) }
                 else OutlinedButton(onClick = { onSelect(id) }, modifier = Modifier.weight(1f)) { Text(label) }
             }
@@ -114,6 +114,7 @@ fun QualityChoice(selected: String, onSelect: (String) -> Unit) {
         Text(
             when (selected) {
                 "simple" -> "Quelques minutes : pages animées, rythme, sans voix."
+                "max" -> "Décors 3D réels, son conçu, un film unique par utilisateur. Le plus long, plusieurs heures."
                 "extra" -> "Cinématographique : plans 3D, critique poussée. TRÈS long, plusieurs heures."
                 else -> "Vraie musique, voix, un tour de critique."
             },

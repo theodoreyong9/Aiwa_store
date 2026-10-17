@@ -85,7 +85,7 @@ data class BackendStatus(
     val pushMain: Boolean = true,
     // none / pages (GitHub Pages) / android (the APK as a GitHub release) / store (an app for the Store).
     val deploy: String = "none",
-    // simple / moyen / extra: how far a video goes (and how long it takes).
+    // simple / moyen / extra / max: how far a video goes (and how long it takes).
     val videoQuality: String = "moyen",
     val extra: String = "",
     // Claude pinged the relay: it is waiting for an answer. alertLast: epoch

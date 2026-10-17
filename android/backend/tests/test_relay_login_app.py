@@ -341,6 +341,10 @@ class VideoQualityTests(unittest.TestCase):
             self.assertIn(wanted, extra)
         self.assertLess(len(simple), len(mid))
         self.assertLess(len(mid), len(extra))
+        top = srv._video_line("o/r", "max")
+        for wanted in ("MAX", "une SCÈNE", "graine", "sfx.py", "STYLE.md", "asset-research", "plusieurs heures"):
+            self.assertIn(wanted, top)
+        self.assertLess(len(extra), len(top))
 
     def test_the_game_instruction_uses_the_registers_and_keeps_credits(self):
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["game"]

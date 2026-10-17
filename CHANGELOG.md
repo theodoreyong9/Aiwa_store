@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Nouvelle qualité vidéo « max » (au-dessus d'extra) : décors 3D réels, tirage au sort dans le catalogue avec graine pour que chaque film soit différent, une seule langue visuelle, son conçu, critique par sous-agent. Dite « qualité vidéo max », choisie dans l'app comme les autres.
 - Nouveau guide de style `video-kit/STYLE.md` (une langue visuelle par film, caméra qui évolue, phrases courtes, fin sur le nom), lu par les qualités moyenne et extra.
 - La qualité vidéo simple n'a plus de voix de synthèse : pages animées et rythme, texte à l'écran seulement.
 

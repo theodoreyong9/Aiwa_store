@@ -31,6 +31,7 @@ object PillReference {
         PillValue("simple", "simple", setOf("simple", "rapide")),
         PillValue("moyen", "moyenne", setOf("moyen", "moyenne", "normale")),
         PillValue("extra", "extra", setOf("extra", "cinema", "cinematographique", "cine")),
+        PillValue("max", "max", setOf("max", "maximum")),
     )
 
     /** What Claude is asked to produce (the project-type pill). Aiwa is said apart: its spelling varies with the recognizer (see VoiceCommands). */
