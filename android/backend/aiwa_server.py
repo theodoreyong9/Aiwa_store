@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 121
+BACKEND_VERSION = 122
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4108,11 +4108,22 @@ def _self_update_once(run=subprocess.run, root=REPO_ROOT):
         return f"failed: {err}"
 
 
+def _disk_version():
+    """The BACKEND_VERSION written in this file on disk now (None when it cannot be read)."""
+    try:
+        found = re.search(r"^BACKEND_VERSION = (\d+)", Path(__file__).read_text(encoding="utf-8"), re.M)
+        return int(found.group(1)) if found else None
+    except OSError:
+        return None
+
+
 def _self_update_loop():
     time.sleep(120)
     while True:
         result = _self_update_once()
         self_update_last.update(at=time.time(), result=result)
+        if result == "current" and _disk_version() not in (None, BACKEND_VERSION):
+            result = "updated"      # the files were moved forward by something else (Termux's script) and this process still runs the old code
         if result == "updated":
             print(f"{time.strftime('%H:%M:%S')} Aiwa backend updated itself, restarting", flush=True)
             _save_state()
