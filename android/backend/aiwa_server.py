@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 120
+BACKEND_VERSION = 121
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -2374,6 +2374,73 @@ def _all_items(repo, paths, kind):
     return out
 
 
+INDEX_FILE = Path.home() / ".aiwa_index.json"
+index_lock = threading.Lock()
+index_store = {}     # repo -> {"at", "readable", "counts": {kind: n}, "examples": {kind: [names]}}
+index_loaded = False
+index_refresh = {"at": 0.0}
+
+
+def _index_load():
+    global index_loaded
+    with index_lock:
+        if index_loaded:
+            return
+        index_loaded = True
+        try:
+            data = json.loads(INDEX_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                index_store.update({k: v for k, v in data.items() if isinstance(v, dict)})
+        except (OSError, ValueError):
+            pass
+
+
+def _index_update(repo, paths):
+    """What a repository holds, kept as a by-product of reading its tree. Disposable: git is the truth, the file is rebuilt when it is missing."""
+    _index_load()
+    entry = {"at": int(time.time()), "readable": paths is not None, "counts": {}, "examples": {}}
+    for kind in ALL_KINDS:
+        items = _all_items(repo, paths or [], kind)
+        if items:
+            entry["counts"][kind] = len(items)
+            entry["examples"][kind] = [i["name"] for i in items[:4]]
+    with index_lock:
+        index_store[repo] = entry
+        try:
+            INDEX_FILE.write_text(json.dumps(index_store, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
+
+
+def _index_digest():
+    """The super agent's view of everything the person has, one line per repository, so that it knows what exists before it goes looking."""
+    _index_load()
+    words = {"video": "film", "documents": "document", "pages": "page", "android": "app Android", "aiwa": "contrat Aiwa"}
+    with index_lock:
+        rows = sorted(index_store.items(), key=lambda kv: -kv[1].get("at", 0))[:25]
+    lines = []
+    for repo, entry in rows:
+        if not entry.get("readable"):
+            lines.append(f"- {repo} : illisible pour Aiwa (privé ou hors ligne)")
+            continue
+        parts = []
+        for kind, n in entry.get("counts", {}).items():
+            names = ", ".join(entry.get("examples", {}).get(kind, [])[:3])
+            parts.append(f"{n} {words[kind]}" + (f" ({names})" if names and kind in ("video", "documents", "aiwa") else ""))
+        lines.append(f"- {repo} : " + ("; ".join(parts) or "rien d'Aiwa"))
+    if not lines:
+        return ""
+    return "\n\nCe que contiennent les dépôts de la personne (index d'Aiwa, lu avec git ; il dit où chercher, pas ce que contiennent les fichiers) :\n" + "\n".join(lines)
+
+
+def _index_refresh_async():
+    """Brings the index up to date in the background, at most every ten minutes (the trees are read with git, nothing goes through GitHub's API)."""
+    if time.time() - index_refresh["at"] < ALL_MAX_AGE:
+        return
+    index_refresh["at"] = time.time()
+    threading.Thread(target=lambda: _all_snapshot("video"), daemon=True).start()
+
+
 def _all_snapshot(kind):
     """The « Tous » view: one kind of production across every repository the person works on (the list of the repository pill), read by the brain
     itself with git. A repository that cannot be read (private without a connected `gh`, offline) is counted in `unreadable`, not hidden."""
@@ -2389,6 +2456,7 @@ def _all_snapshot(kind):
             return known[1]
         got = _tree_via_git(repo)
         all_cache[repo] = (time.time(), got)
+        _index_update(repo, got)
         return got
     with ThreadPoolExecutor(max_workers=4) as pool:
         trees = list(pool.map(paths_of, repos))
@@ -2712,7 +2780,9 @@ def _agent_digest():
     with lock:
         pending = list(_asks_pending())
     asks = [{"session": (_session_entry(a.get("session")) or {}).get("title") if a.get("session") else None, "question": a["question"]} for a in pending]
-    return agent_lib.digest(sessions, loops, asks, current_id=in_use)
+    text, sig = agent_lib.digest(sessions, loops, asks, current_id=in_use)
+    _index_refresh_async()
+    return text + _index_digest(), sig
 
 
 def _agent_direct(spoken=None):
@@ -3602,6 +3672,10 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(_login_snapshot())
         elif self.path == "/api/sent-app":
             self.reply_json({"sent_app": _sent_app_snapshot()})
+        elif self.path == "/api/index":
+            _index_load()
+            with index_lock:
+                self.reply_json({"ok": True, "repos": dict(index_store)})
         elif self.path.startswith("/api/all"):
             query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
             self.reply_json(_all_snapshot((query.get("kind") or [""])[0]))

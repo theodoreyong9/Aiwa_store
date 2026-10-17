@@ -2027,6 +2027,24 @@ class AllViewTests(unittest.TestCase):
         srv.all_cache.clear()
 
 
+
+class IndexTests(unittest.TestCase):
+    """The index is a by-product of reading the trees: kept on disk, rebuilt when missing, told to the super agent."""
+
+    def test_reading_a_tree_feeds_the_index_and_its_digest(self):
+        with tempfile.TemporaryDirectory() as d, unittest.mock.patch.object(srv, "INDEX_FILE", Path(d) / "index.json"):
+            srv.index_store.clear()
+            srv.index_loaded = True
+            srv._index_update("o/a", ["docs/videos/a.mp4", "docs/n.md"])
+            srv._index_update("o/b", None)
+            digest = srv._index_digest()
+            self.assertIn("o/a : 1 film (a.mp4); 1 document (n.md)", digest)
+            self.assertIn("o/b : illisible", digest)
+            self.assertIn("o/a", json.loads((Path(d) / "index.json").read_text())) 
+            srv.index_store.clear()
+            self.assertEqual(srv._index_digest(), "")
+
+
 if __name__ == "__main__":
     unittest.main()
 
