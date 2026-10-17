@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 118
+BACKEND_VERSION = 119
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -3505,7 +3505,7 @@ class Handler(BaseHTTPRequestHandler):
                 "version": BACKEND_VERSION, "updated_at": BACKEND_UPDATED_AT, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "video_quality": vquality, "extra": own, "extra_repos": more, "source_repos": inspiration,
-                "waiting": is_waiting, "attachments": len(attachments), "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(), "cast": _cast_ready(),
+                "waiting": is_waiting, "attachments": len(attachments), "self_update": dict(self_update_last), "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(), "cast": _cast_ready(),
                 "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
                 "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(), "ask": _ask_snapshot(), "agent": agent_snapshot(),
             })
@@ -3921,7 +3921,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 # ---------- the brain updates itself (authorised by the owner) ----------
-SELF_UPDATE_EVERY = 3 * 3600
+SELF_UPDATE_EVERY = 3600
+self_update_last = {"at": 0.0, "result": "pas encore vérifié"}
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -3948,7 +3949,9 @@ def _self_update_once(run=subprocess.run, root=REPO_ROOT):
 def _self_update_loop():
     time.sleep(120)
     while True:
-        if _self_update_once() == "updated":
+        result = _self_update_once()
+        self_update_last.update(at=time.time(), result=result)
+        if result == "updated":
             print(f"{time.strftime('%H:%M:%S')} Aiwa backend updated itself, restarting", flush=True)
             _save_state()
             os.execv(sys.executable, [sys.executable, *sys.argv])
