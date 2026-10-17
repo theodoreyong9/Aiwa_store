@@ -1,11 +1,11 @@
 // Dumps the constellations engine (docs/videos/aiwa-v28/video-film.html) for the one-scene film (docs/videos/aiwa-v29/scene.py): positions of every point per frame, threads, camera moves. Run from video-kit/: node src/dump-constellations.mjs <out dir> [fps]
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
-const out = process.argv[2], FPS = +(process.argv[3] || 12);
+const out = process.argv[2], FPS = +(process.argv[3] || 12), PAGE = process.argv[4] || 'docs/videos/aiwa-v28/video-film.html';
 mkdirSync(out, { recursive: true });
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
-await p.goto('file:///home/user/aiwa_store/docs/videos/aiwa-v28/video-film.html'); await p.evaluate(() => window.READY);
+await p.goto('file://' + (await import('node:path')).resolve(PAGE)); await p.evaluate(() => window.READY);
 const meta = await p.evaluate((FPS) => {
   const units = [];
   for (let k = 0; k < NS; k++) { const gi = GOF[k]; if (gi >= 0 && k !== GR[gi].a) continue; units.push(k); }
@@ -37,7 +37,7 @@ for (let f = 0; f < frames; f++) {
     for (const kk of units) {
       const gi = GOF[kk], s = SCN[kk].t; const g = gi >= 0 ? GR[gi] : null;
       const lastK = g ? g.b : kk; const nextStart = lastK + 1 < NS ? SCN[lastK + 1].t : 1e9;
-      if (t < s - .9 || t > nextStart + .5) continue;
+      if (t < s - 1.1 || t > nextStart + 1.6) continue;
       let psi, al = 1, ia = 0, mB = 0, pa = -1, pb = -1, pos;
       pos = new Float32Array(N * 3);
       if (g) { psi = .12 * Math.sin(t * .6) + (g.sa || g.world ? t * .3 : 0); al = clamp((t - (s - .9)) / .9);

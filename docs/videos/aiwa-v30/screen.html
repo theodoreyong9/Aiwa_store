@@ -1,0 +1,52 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Aiwa phone screen</title>
+<style>
+@font-face{font-family:SG;src:url(fonts/SpaceGrotesk.ttf);font-weight:300 700}
+@font-face{font-family:JB;src:url(fonts/JetBrainsMono.ttf);font-weight:100 800}
+html,body{margin:0;background:#000}canvas{display:block}
+</style></head><body><canvas id="c" width="540" height="1062"></canvas>
+<script>
+// The screen of the phone of the 3D shot: the Aiwa widget on a home screen (0 – 2.7 s), then the screen OFF with the microphone open (2.7 – 5.4 s).
+const W=540,H=1062,cv=document.getElementById('c'),cx=cv.getContext('2d');
+const VERM='#FF4B1F',GREEN='#2e7d5a',PILL='#2c2c36',FG='#f0f0f5';
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),mix=(a,b,k)=>a+(b-a)*k,eo=x=>1-Math.pow(1-x,3);
+function rr(x,y,w,h,r){cx.beginPath();cx.roundRect(x,y,w,h,r)}
+function pill(x,y,w,h,text,o={}){const a=o.a??1;if(a<=0)return;cx.save();cx.globalAlpha=a;rr(x,y,w,h,o.r??h/2);cx.fillStyle=o.fill||PILL;cx.fill();
+ cx.fillStyle=o.tc||FG;cx.font=`${o.w||500} ${o.sz||20}px SG`;cx.textAlign=o.al||'center';cx.textBaseline='middle';cx.fillText(text,o.al==='left'?x+16:x+w/2,y+h/2+1);cx.restore()}
+function wallpaper(){const g=cx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#10121c');g.addColorStop(.55,'#0b0c13');g.addColorStop(1,'#1a0f12');cx.fillStyle=g;cx.fillRect(0,0,W,H);
+ const r=cx.createRadialGradient(W*.75,H*.2,10,W*.75,H*.2,520);r.addColorStop(0,'rgba(255,75,31,.20)');r.addColorStop(1,'rgba(255,75,31,0)');cx.fillStyle=r;cx.fillRect(0,0,W,H)}
+function status(t){cx.fillStyle=FG;cx.font='600 22px SG';cx.textAlign='left';cx.textBaseline='middle';cx.fillText('09:41',34,40);
+ cx.textAlign='right';cx.font='500 18px JB';cx.fillText('5G  ▮▮▮  82%',W-34,40)}
+function home(t){
+ wallpaper();status(t);
+ // the widget: a dark card
+ const x=28,y=250,w=W-56,h=330,A=k=>eo(clamp((t-.25-k*.14)/.35));
+ cx.save();cx.globalAlpha=clamp(t/.3);rr(x,y,w,h,34);cx.fillStyle='rgba(22,22,30,.94)';cx.fill();cx.strokeStyle='rgba(255,255,255,.10)';cx.lineWidth=2;cx.stroke();cx.restore();
+ // the pills: project, session, repository
+ pill(x+16,y+18,92,46,'Projet',{a:A(0),sz:18});pill(x+116,y+18,150,46,'session ▾',{a:A(1),sz:18,al:'left'});pill(x+274,y+18,w-290,46,'⎇ aiwa ▾',{a:A(2),sz:18,al:'left'});
+ // the five kinds, one turns green after the other
+ ['Docs','Vidéo','Page','App','Aiwa'].forEach((n,q)=>{const on=t>1.1+q*.22;pill(x+16+q*((w-32)/5),y+82,(w-32)/5-6,42,n,{a:A(3+q*.3),sz:17,fill:on?GREEN:PILL,tc:on?'#fff':'#a9a9b6'})});
+ // dictation row
+ const pulse=.5+.5*Math.sin(t*5);
+ cx.save();cx.globalAlpha=A(5.2);rr(x+16,y+146,w-32-132,56,28);cx.fillStyle='#54545e';cx.fill();
+ cx.fillStyle=VERM;cx.globalAlpha=A(5.2)*(.55+.45*pulse);cx.beginPath();cx.arc(x+52,y+174,9,0,7);cx.fill();cx.globalAlpha=A(5.2);
+ cx.fillStyle='#fff';cx.font='700 22px SG';cx.textAlign='left';cx.textBaseline='middle';cx.fillText('Dicter un message',x+74,y+175);cx.restore();
+ [0,1].forEach(q=>{const a=A(5.6+q*.2);cx.save();cx.globalAlpha=a;cx.beginPath();cx.arc(x+w-76+q*60,y+174,26,0,7);cx.fillStyle=q?GREEN:'#cc785c';cx.fill();cx.fillStyle='#fff';cx.font='700 18px SG';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(q?'◉':'C',x+w-76+q*60,y+175);cx.restore()});
+ // the bottom row: loop, Aiwa, comment, settings
+ ['↻','A','✎','⚙'].forEach((s,q)=>{const a=A(6.4+q*.2);cx.save();cx.globalAlpha=a;cx.beginPath();cx.arc(x+46+q*((w-92)/3),y+262,24,0,7);cx.fillStyle=PILL;cx.fill();cx.fillStyle='#e8e8f0';cx.font='600 20px SG';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(s,x+46+q*((w-92)/3),y+263);cx.restore()});
+ // the dock
+ [0,1,2,3].forEach(q=>{cx.fillStyle=['#2a6df4','#25c27e','#ffb020','#9b5cff'][q];rr(60+q*108,H-170,76,76,22);cx.fill()});
+ cx.fillStyle='rgba(255,255,255,.35)';rr(W/2-70,H-34,140,6,3);cx.fill()}
+function lock(t){
+ // « écran éteint »: the glass is dark, nothing is lit but the open microphone: a small red pulse, rings that fade, and one dim line
+ cx.fillStyle='#000';cx.fillRect(0,0,W,H);
+ const a=eo(clamp(t/.6));
+ cx.save();
+ for(let r=0;r<4;r++){const u=((t*.6+r/4)%1);cx.globalAlpha=(1-u)*.38*a;cx.strokeStyle=VERM;cx.lineWidth=3;cx.beginPath();cx.arc(W/2,H/2,40+u*230,0,7);cx.stroke()}
+ cx.globalAlpha=a*(.55+.35*Math.sin(t*5));cx.fillStyle=VERM;cx.beginPath();cx.arc(W/2,H/2,11,0,7);cx.fill();
+ cx.globalAlpha=a*.55;cx.fillStyle='#8a8a98';cx.textAlign='center';cx.textBaseline='middle';cx.font='500 21px JB';cx.fillText('écran éteint · micro ouvert',W/2,H-150);
+ cx.restore()}
+window.render=t=>{cx.clearRect(0,0,W,H);
+ if(t<2.7)home(t);else{lock(t-2.7);const f=1-clamp((t-2.7)/.35);if(f>0){cx.save();cx.globalAlpha=f;home(2.69);cx.restore()}}};
+window.READY=Promise.all(['500 20px SG','700 20px SG','300 20px SG','500 20px JB'].map(f=>document.fonts.load(f))).then(()=>document.fonts.ready);
+window.TOTAL_SECONDS=8.4;
+</script></body></html>
