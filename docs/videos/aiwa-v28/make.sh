@@ -6,13 +6,14 @@ T=50.717
 W=/tmp/v28
 mkdir -p $W
 python3 docs/videos/aiwa-v28/build.py
-rm -rf $W/film $W/caps $W/comp
-node video-kit/src/cli.js render docs/videos/aiwa-v28/video-film.html $W/film --seconds=$T --width=1920 --height=1080 --workers=4
-node video-kit/src/cli.js render docs/videos/aiwa-v28/video-caps.html $W/caps --seconds=$T --width=1920 --height=1080 --workers=4 --transparent
+rm -rf $W/comp
+# the two layers are rendered once (delete $W/film and $W/caps to render them again)
+[ -f $W/film/01521.jpg ] || { rm -rf $W/film; node video-kit/src/cli.js render docs/videos/aiwa-v28/video-film.html $W/film --seconds=$T --width=1920 --height=1080 --workers=4; }
+[ -f $W/caps/01521.png ] || { rm -rf $W/caps; node video-kit/src/cli.js render docs/videos/aiwa-v28/video-caps.html $W/caps --seconds=$T --width=1920 --height=1080 --workers=4 --transparent; }
 # the plate: each shot smoothed from 8 to 30 images a second, to 1080p, graded dark and cool (the constellations are the light), 7.245 s each, cross-faded over 0.5 s
 for k in 0 1 2 3 4 5 6; do
   ffmpeg -loglevel error -y -framerate 8 -i $W/plate/$k/%05d.png \
-    -vf "minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:vsbmc=1,scale=1920:1080:flags=lanczos,eq=brightness=-0.16:gamma=0.78:saturation=0.78:contrast=1.08,colorbalance=bs=0.16:ms=0.07:rs=-0.05,format=yuv420p" \
+    -vf "minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:vsbmc=1,scale=1920:1080:flags=lanczos,eq=brightness=-0.16:gamma=0.78:saturation=0.78:contrast=1.08,colorbalance=bs=0.16:bm=0.07:rs=-0.05,format=yuv420p" \
     -t 7.245 -c:v libx264 -crf 14 -preset fast $W/plate_$k.mp4
 done
 ffmpeg -loglevel error -y $(for k in 0 1 2 3 4 5 6; do printf -- "-i $W/plate_$k.mp4 "; done) -filter_complex \
