@@ -370,6 +370,7 @@ class KeepAliveService : Service() {
         var versionKicked = false
         var lastSiteCheck = 0L
         var lastAppCheck = 0L
+        var lastPull = System.currentTimeMillis()
         var lastVideoWatch = 0L
         while (true) {
             try {
@@ -377,11 +378,18 @@ class KeepAliveService : Service() {
                 // An older server still answers after an app update (nothing opened
                 // the app to replace it): update and restart it, once.
                 val current = AiwaRepository.state.value
+                if (versionKicked && System.currentTimeMillis() - lastLaunch > 15 * 60 * 1000L && current.backend == "up" && current.backendVersion in 1 until EXPECTED_BACKEND_VERSION) versionKicked = false   // the first try failed (a slow pull): again
                 if (!versionKicked && current.backend == "up" && current.backendVersion in 1 until EXPECTED_BACKEND_VERSION) {
                     versionKicked = true
                     lastLaunch = System.currentTimeMillis()
                     startAiwaBackendViaTermux(applicationContext, forceRestart = true)
                     AiwaRepository.markBackendStarting()
+                }
+                // Every half hour the checkout is brought up to date (the start script pulls, and restarts the server only if the code moved): the brain
+                // no longer waits for a manual update of the body, nor for its own hourly look, which a sleeping Termux may miss.
+                if (current.backend == "up" && System.currentTimeMillis() - lastPull > 30 * 60 * 1000L) {
+                    lastPull = System.currentTimeMillis()
+                    startAiwaBackendViaTermux(applicationContext)
                 }
                 // Down: bring it back on its own (at most every 90 s), so it is
                 // usually up already when you tap — a cold start takes a while.

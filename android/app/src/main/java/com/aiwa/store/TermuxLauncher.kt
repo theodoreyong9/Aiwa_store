@@ -52,7 +52,7 @@ private val START_SCRIPT = listOf(
     "old=\$(git rev-parse HEAD 2>/dev/null)",
     // Bounded: a slow network must not hold the start back for long.
     "t0=\$(date +%s)",
-    "timeout 8 git pull --ff-only -q || echo \"git pull failed or timed out (code \$?), keeping the checkout as is\"",
+    "timeout \$([ \"\$1\" = restart ] && echo 45 || echo 20) git pull --ff-only -q || echo \"git pull failed or timed out (code \$?), keeping the checkout as is\"",
     "new=\$(git rev-parse HEAD 2>/dev/null)",
     "echo \"checkout \$old -> \$new (pull took \$(( \$(date +%s) - t0 )) s)\"",
     "if [ \"\$old\" != \"\$new\" ] || [ \"\$1\" = \"restart\" ]; then",
