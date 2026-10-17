@@ -94,7 +94,7 @@ for u in meta['units']:
     pts.color_attributes.new('Col', 'FLOAT_COLOR', 'POINT')
     pts.color_attributes['Col'].data.foreach_set('color', np.concatenate([np.repeat(col, 12, axis=0), np.ones((N * 12, 1))], axis=1).reshape(-1).astype(np.float32))
     po = bpy.data.objects.new(f'pts{k}', pts); bpy.context.collection.objects.link(po)
-    pm, pv = emission_material(f'pm{k}', 'Col', strength=40.0); po.data.materials.append(pm)
+    pm, pv = emission_material(f'pm{k}', 'Col', strength=18.0); po.data.materials.append(pm)
     po.visible_shadow = False
     sets = []
     for si, ed in enumerate(u['sets']):
@@ -105,7 +105,7 @@ for u in meta['units']:
         me.polygons.foreach_set('loop_start', np.arange(0, E * 12, 4, dtype=np.int32)); me.polygons.foreach_set('loop_total', np.full(E * 3, 4, np.int32))
         me.loops.foreach_set('vertex_index', quads.reshape(-1).astype(np.int32)); me.update(calc_edges=True)
         eo = bpy.data.objects.new(f'thr{k}_{si}', me); bpy.context.collection.objects.link(eo)
-        tm, tv = emission_material(f'tm{k}_{si}', color=(0.95, 0.92, 0.86), strength=9.0); eo.data.materials.append(tm); eo.visible_shadow = False
+        tm, tv = emission_material(f'tm{k}_{si}', color=(0.95, 0.92, 0.86), strength=2.2); eo.data.materials.append(tm); eo.visible_shadow = False
         sets.append((eo, tv, e))
     base = np.where(np.arange(N) % 6 == 0, np.where(verm, 6.5, 5.0), np.where(verm, 3.4, 2.1) + np.array(u['sz']) * 1.2)
     nextStart = meta['scn'][u['last'] + 1][0] if u['last'] + 1 < meta['NS'] else 1e9
@@ -148,10 +148,10 @@ def set_frame(f):
         X = P[:, 0] * cs + P[:, 2] * sn; Zl = -P[:, 0] * sn + P[:, 2] * cs; Y = P[:, 1]
         loc = np.stack([X, -Zl, Y], 1) * SC
         loc = np.stack([loc[:, 0] * math.cos(THETA[slot]) - loc[:, 1] * math.sin(THETA[slot]), loc[:, 0] * math.sin(THETA[slot]) + loc[:, 1] * math.cos(THETA[slot]), loc[:, 2]], 1) + np.array(ANCH[slot])
-        r = (U['base'] * 0.55 * SC * min(1.0, al * 1.4))[:, None, None]
+        r = (U['base'] * 0.46 * SC * min(1.0, al * 1.4))[:, None, None]
         verts = (loc[:, None, :] + r * IV[None]).reshape(-1, 3).astype(np.float32)
         po.data.vertices.foreach_set('co', verts.reshape(-1)); po.data.update()
-        U['pm'].outputs[0].default_value = 40.0 * min(1.0, al)
+        U['pm'].outputs[0].default_value = 18.0 * min(1.0, al)
         for si, (eo, tv, ed) in enumerate(U['sets']):
             w = (1 - vv['mB'] if vv['pb'] >= 0 else 1.0) if si == vv['pa'] else (vv['mB'] if si == vv['pb'] else 0.0)
             if w * al < 0.02: continue
@@ -160,11 +160,11 @@ def set_frame(f):
             dvec = B_ - A_; dl = np.linalg.norm(dvec, axis=1, keepdims=True) + 1e-9; dn = dvec / dl
             ref = np.where(np.abs(dn[:, 2:3]) < 0.9, np.array([[0, 0, 1.0]]), np.array([[1.0, 0, 0]]))
             n1 = np.cross(dn, ref); n1 /= np.linalg.norm(n1, axis=1, keepdims=True) + 1e-9; n2 = np.cross(dn, n1)
-            rad = 0.00045
+            rad = 0.00030
             offs = [n1 * rad, (-0.5 * n1 + 0.866 * n2) * rad, (-0.5 * n1 - 0.866 * n2) * rad]
             V = np.stack([A_ + offs[0], A_ + offs[1], A_ + offs[2], B_ + offs[0], B_ + offs[1], B_ + offs[2]], 1).reshape(-1, 3)
             eo.data.vertices.foreach_set('co', V.astype(np.float32).reshape(-1)); eo.data.update()
-            tv.outputs[0].default_value = 9.0 * w * al
+            tv.outputs[0].default_value = 2.2 * w * al
         glow_pos += np.array(ANCH[slot]) * al; glow_w += al
     spill.location = (glow_pos / glow_w) if glow_w > 0 else (0, 0, Z + 0.3)
     spill.data.energy = 22.0 * min(1.5, glow_w)

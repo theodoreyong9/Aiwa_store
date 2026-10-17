@@ -16,7 +16,7 @@ bar="cx.fillStyle=VERM;cx.fillRect(0,H-6,W*clamp(t/TOTAL),6)}\nwindow.READY"
 rep(hdr,"")
 rep(" drawCaption(t,1);\n // bloom, vignette, grain"," // bloom, vignette, grain")
 rep(bar,"}\nwindow.READY")
-rep("function frame(t){\n cx=MAIN;","function frame(t){\n if(LAYER==='caps'){cx=MAIN;cx.globalAlpha=1;cx.globalCompositeOperation='source-over';cx.clearRect(0,0,W,H);const gb=cx.createLinearGradient(0,H-380,0,H);gb.addColorStop(0,'rgba(0,0,0,0)');gb.addColorStop(1,'rgba(0,0,0,.55)');cx.fillStyle=gb;cx.fillRect(0,H-380,W,380);"+hdr+"for(const kk of [0,2,3,4,5,6,7,NS-1]){if(t>=SCN[kk].t&&t<(kk+1<NS?SCN[kk+1].t:1e9))overlay(t,kk,0)}drawCaption(t,1);cx.fillStyle=VERM;cx.fillRect(0,H-6,W*clamp(t/TOTAL),6);return}\n cx=MAIN;")
+rep("function frame(t){\n cx=MAIN;","function frame(t){\n if(LAYER==='caps'){cx=MAIN;cx.globalAlpha=1;cx.globalCompositeOperation='source-over';cx.clearRect(0,0,W,H);const gb=cx.createLinearGradient(0,H-380,0,H);gb.addColorStop(0,'rgba(0,0,0,0)');gb.addColorStop(1,'rgba(0,0,0,.82)');cx.fillStyle=gb;cx.fillRect(0,H-380,W,380);cx.shadowColor='rgba(0,0,0,.75)';cx.shadowBlur=16;"+hdr+"for(const kk of [0,2,3,4,5,6,7,NS-1]){if(t>=SCN[kk].t&&t<(kk+1<NS?SCN[kk+1].t:1e9))overlay(t,kk,0)}drawCaption(t,1);cx.fillStyle=VERM;cx.fillRect(0,H-6,W*clamp(t/TOTAL),6);return}\n cx=MAIN;")
 rep("const W=1920,H=1080","const LAYER='__LAYER__';const W=1920,H=1080")
 # no vignette, no grain in the film: they are put on the whole at the end
 rep(" cx.drawImage(VG,0,0,W,H);\n","")
