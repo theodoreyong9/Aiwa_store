@@ -2061,6 +2061,23 @@ class IndexTests(unittest.TestCase):
             self.assertEqual(srv._index_digest(), "")
 
 
+
+class ChosenRepoTests(unittest.TestCase):
+    """The lists follow the repository pill, not the repository of the session in use (the pills are free)."""
+
+    def test_the_pill_wins_over_the_session(self):
+        with unittest.mock.patch.object(srv, "current_repo", "o/pill"), unittest.mock.patch.object(srv, "current_cloud", "session_x"), \
+                unittest.mock.patch.object(srv, "_session_entry", lambda s: {"repo": "o/old"}):
+            with srv.lock:
+                self.assertEqual(srv._chosen_repo(), "o/pill")
+
+    def test_without_a_pill_the_session_repository_is_taken(self):
+        with unittest.mock.patch.object(srv, "current_repo", None), unittest.mock.patch.object(srv, "current_cloud", "session_x"), \
+                unittest.mock.patch.object(srv, "_session_entry", lambda s: {"repo": "o/old"}):
+            with srv.lock:
+                self.assertEqual(srv._chosen_repo(), "o/old")
+
+
 if __name__ == "__main__":
     unittest.main()
 

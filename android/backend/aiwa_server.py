@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 123
+BACKEND_VERSION = 124
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -2211,13 +2211,21 @@ CAMPAIGN_SLUG_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$")
 PROPOSAL_TYPES = ("whatsapp", "telegram", "mail", "linkedin")
 
 
+def _chosen_repo():
+    """The repository of the pill: the one the lists (videos, documents, campaigns, proposals) are about. The two pills are free, so the repository of the session in
+    use is NOT the one to read (it used to be, and a list then showed the old repository after the pill had changed); with none chosen, the session's own is taken.
+    Called with `lock` held."""
+    if current_repo:
+        return current_repo
+    session = current_cloud or last_cloud
+    return (_session_entry(session) or {}).get("repo") if session else None
+
+
 def _proposals_snapshot(campaign=""):
     """The proposals a session prepared for a campaign of the session's repository (`docs/campagnes/<campagne>/proposals.json`; with no campaign named, the former single place
     `aiwa-proposals/proposals.json`), read from the public repository: no token. Everything that comes back is cleaned: text of bounded size, a valid e-mail address or none, links in https only."""
     with lock:
-        session = current_cloud or last_cloud
-        repo = (_session_entry(session) or {}).get("repo") if session else None
-        repo = repo or current_repo
+        repo = _chosen_repo()
     if not repo or not github.REPO_RE.fullmatch(repo) or (campaign and not CAMPAIGN_SLUG_RE.fullmatch(campaign)):
         return {"repo": None, "proposals": []}
     path = f"docs/campagnes/{campaign}/proposals.json" if campaign else "aiwa-proposals/proposals.json"
@@ -2253,9 +2261,7 @@ def _campaigns_snapshot():
     """The campaigns of the session's repository: one folder each under `docs/campagnes/`, with its `campaign.json` (name, test, what was ticked). The former single list
     (`aiwa-proposals/proposals.json`) shows as one campaign with no slug. Public data, no token."""
     with lock:
-        session = current_cloud or last_cloud
-        repo = (_session_entry(session) or {}).get("repo") if session else None
-        repo = repo or current_repo
+        repo = _chosen_repo()
     if not repo or not github.REPO_RE.fullmatch(repo):
         return {"repo": None, "campaigns": []}
     try:
@@ -2531,9 +2537,7 @@ def _videos_snapshot():
     """The promotional videos of the session's repository: the files of its GitHub release `videos`, newest first. Only a public repository can say
     (nothing is read with a token); for a private one the list is empty and the session sends the link."""
     with lock:
-        session = current_cloud or last_cloud
-        repo = (_session_entry(session) or {}).get("repo") if session else None
-        repo = repo or current_repo
+        repo = _chosen_repo()
     if not repo or not github.REPO_RE.fullmatch(repo):
         return {"repo": None, "videos": []}
     now = time.time()
@@ -2578,9 +2582,7 @@ inputs_cache = {"key": None, "items": [], "at": 0.0}
 
 def _inputs_snapshot():
     with lock:
-        session = current_cloud or last_cloud
-        repo = (_session_entry(session) or {}).get("repo") if session else None
-        repo = repo or current_repo
+        repo = _chosen_repo()
     if not repo or not github.REPO_RE.fullmatch(repo):
         return {"repo": None, "files": []}
     now = time.time()
