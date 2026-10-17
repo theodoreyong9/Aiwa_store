@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Free footage of places and things, for the video kit: found and copied where the network allows it (GitHub's runners), never by the session itself.
 //   footage.mjs search "<query>" [--limit=8]     NASA (public domain) and Wikimedia Commons (only CC0 / public domain / CC BY are kept) -> a line per clip
-//   footage.mjs fetch <name>=<source:id> ... [--seconds=12] [--out=dir]      source = nasa:<nasa_id> | commons:<File name> | url:<https address of a video>
+//   footage.mjs fetch <name>=<source:id>[@start-seconds] ... [--seconds=12] [--out=dir]      source = nasa:<nasa_id> | commons:<File name> | url:<https address of a video>
 //                       -> out/<name>.mp4 (1920x1080, 30 images a second, no sound, the first N seconds) and out/<name>.json (where it comes from, its licence, the credit)
 // Nothing here is a copy of a catalogue: every clip keeps its own address and licence next to it, and the credit to print in the film.
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -66,16 +66,16 @@ try {
   } else if (command === 'fetch') {
     const out = String(flags.out || 'footage'); mkdirSync(out, { recursive: true });
     for (const item of rest) {
-      const [name, spec] = [item.slice(0, item.indexOf('=')), item.slice(item.indexOf('=') + 1)];
+      const [name, specAt] = [item.slice(0, item.indexOf('=')), item.slice(item.indexOf('=') + 1)];
+      const at = specAt.lastIndexOf('@'); const spec = at > 0 && /^[0-9.]+$/.test(specAt.slice(at + 1)) ? specAt.slice(0, at) : specAt; const start = spec === specAt ? 0 : Number(specAt.slice(at + 1));
       try {
         const m = await resolve(spec);
-        const raw = join(out, `${name}.src`);
-        writeFileSync(raw, Buffer.from(await (await get(m.url)).arrayBuffer()));
         const mp4 = join(out, `${name}.mp4`);
-        const ff = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', raw, '-t', String(flags.seconds || 12), '-an', '-vf', 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30', '-c:v', 'libx264', '-crf', '20', '-preset', 'fast', '-pix_fmt', 'yuv420p', mp4], { encoding: 'utf8' });
+        // ffmpeg reads the address itself and only what it needs (a seek in a long film does not download the film)
+        const ff = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-user_agent', UA, '-ss', String(start), '-i', m.url, '-t', String(flags.seconds || 12), '-an', '-vf', 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30', '-c:v', 'libx264', '-crf', '20', '-preset', 'fast', '-pix_fmt', 'yuv420p', mp4], { encoding: 'utf8', timeout: 20 * 60 * 1000 });
         if (ff.status !== 0) throw new Error(`ffmpeg: ${ff.stderr.slice(-300)}`);
-        writeFileSync(join(out, `${name}.json`), JSON.stringify({ name, spec, ...m }, null, 1));
-        console.log(`ok ${name} <- ${spec} (${m.licence})`);
+        writeFileSync(join(out, `${name}.json`), JSON.stringify({ name, spec, start, ...m }, null, 1));
+        console.log(`ok ${name} <- ${spec} @${start}s (${m.licence}) ${m.credit}`);
       } catch (err) { console.log(`! ${name}: ${err.message}`); }
     }
   } else { console.log('footage.mjs search "<query>" | fetch name=source:id ...'); process.exit(2); }

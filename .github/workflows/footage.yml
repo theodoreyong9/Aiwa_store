@@ -13,7 +13,7 @@ on:
         description: 'search: queries separated by ;'
         default: ''
       items:
-        description: 'fetch: name=source:id separated by ; (source: nasa | commons | url)'
+        description: 'fetch: name=source:id[@start] separated by ; (source: nasa | commons | url)'
         default: ''
       seconds:
         description: 'fetch: seconds kept'
@@ -40,11 +40,12 @@ jobs:
           SECONDS_KEPT: ${{ github.event.inputs.seconds }}
         run: |
           set +e
+          sudo apt-get install -y -qq ffmpeg > /dev/null 2>&1
           if [ "$MODE" = "search" ]; then
             echo "$QUERIES" | tr ';' '\n' | while read -r q; do [ -n "$q" ] || continue; echo "=== $q"; node asset-research/src/footage.mjs search "$q" --limit=8; done
           else
             gh release view assets >/dev/null 2>&1 || gh release create assets --title "Assets" --notes "CC0 and free assets, copied on request."
-            args=$(echo "$ITEMS" | tr ';' ' ')
-            node asset-research/src/footage.mjs fetch $args --seconds="$SECONDS_KEPT" --out=/tmp/footage
+            IFS=';' read -ra ARR <<< "$ITEMS"
+            node asset-research/src/footage.mjs fetch "${ARR[@]}" --seconds="$SECONDS_KEPT" --out=/tmp/footage
             for f in /tmp/footage/*.mp4 /tmp/footage/*.json; do [ -e "$f" ] && gh release upload assets "$f" --clobber && echo "uploaded $(basename $f)"; done
           fi
