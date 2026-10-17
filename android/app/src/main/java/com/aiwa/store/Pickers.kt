@@ -946,7 +946,7 @@ class ProjectPickerActivity : ComponentActivity() {
                     finish()
                     CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(app) }
                 })
-                if (state.repo != null && projects.none { it.repo == state.repo && it.session == session }) {
+                if (!all && state.repo != null && projects.none { it.repo == state.repo && it.session == session }) {
                     add(PickerEntry("＋  Nommer la paire actuelle : " + pairLine(state, state.repo, session), false) {
                         startActivity(Intent(this@ProjectPickerActivity, ProjectNameActivity::class.java)); finish()
                     })

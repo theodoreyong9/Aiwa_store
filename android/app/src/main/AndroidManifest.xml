@@ -318,6 +318,16 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
+        <!-- The « + » of the widget: a document, a media, a message to one contact (PlusMenuActivity.kt). -->
+        <activity android:name=".PlusMenuActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
+        <activity android:name=".ContactMessageActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:windowSoftInputMode="adjustResize"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <!-- « Tous »: one kind across every repository (AllActivity.kt). -->
         <activity android:name=".AllActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"

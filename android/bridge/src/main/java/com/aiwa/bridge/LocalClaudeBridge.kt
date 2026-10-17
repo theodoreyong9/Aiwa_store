@@ -187,7 +187,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         AllResult(
             ok = json.optBoolean("ok", false),
             items = (0 until (items?.length() ?: 0)).map { i -> items!!.getJSONObject(i).let { AllItem(it.optString("repo"), it.optString("name"), it.optString("url")) } },
-            repos = json.optInt("repos", 0), unreadable = json.optInt("unreadable", 0), error = json.optString("error", ""),
+            repos = json.optInt("repos", 0), unreadable = json.optInt("unreadable", 0), error = json.optString("error", ""), pending = json.optInt("pending", 0),
         )
     } catch (e: Exception) {
         AllResult(false, emptyList(), 0, 0, e.message ?: "erreur inconnue")

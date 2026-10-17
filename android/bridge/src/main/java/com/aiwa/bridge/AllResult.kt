@@ -4,4 +4,4 @@ package com.aiwa.bridge
 data class AllItem(val repo: String, val name: String, val url: String)
 
 /** The « Tous » view of one kind: the items of every repository, how many repositories were looked at and how many could not be read. */
-data class AllResult(val ok: Boolean, val items: List<AllItem>, val repos: Int, val unreadable: Int, val error: String)
+data class AllResult(val ok: Boolean, val items: List<AllItem>, val repos: Int, val unreadable: Int, val error: String, val pending: Int = 0)

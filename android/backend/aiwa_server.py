@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 122
+BACKEND_VERSION = 123
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -2438,35 +2438,62 @@ def _index_refresh_async():
     if time.time() - index_refresh["at"] < ALL_MAX_AGE:
         return
     index_refresh["at"] = time.time()
-    threading.Thread(target=lambda: _all_snapshot("video"), daemon=True).start()
+    threading.Thread(target=lambda: _all_snapshot("video", wait=True), daemon=True).start()
 
 
-def _all_snapshot(kind):
+all_filling = set()
+all_lock = threading.Lock()
+
+
+def _all_fill(repos):
+    """Reads the trees of these repositories (four at a time) and keeps them in the cache and in the index."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(repo):
+        try:
+            got = _tree_via_git(repo)
+            all_cache[repo] = (time.time(), got)
+            _index_update(repo, got)
+        finally:
+            with all_lock:
+                all_filling.discard(repo)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(one, repos))
+
+
+def _all_snapshot(kind, wait=False):
     """The « Tous » view: one kind of production across every repository the person works on (the list of the repository pill), read by the brain
-    itself with git. A repository that cannot be read (private without a connected `gh`, offline) is counted in `unreadable`, not hidden."""
+    itself with git. It answers at once with what it has read already (the app asks again while `pending` is not 0), instead of holding the request for the
+    minutes that a first reading of forty repositories can take. A repository that cannot be read (private without a connected `gh`, offline) is counted
+    in `unreadable`, not hidden. wait=True reads what is missing first (for the index and the tests)."""
     if kind not in ALL_KINDS:
         return {"ok": False, "error": "genre inconnu"}
-    from concurrent.futures import ThreadPoolExecutor
     repos = [c["name"] for c in _repo_choices()][:40]
     now = time.time()
-
-    def paths_of(repo):
+    stale = [r for r in repos if not (all_cache.get(r) and now - all_cache[r][0] < ALL_MAX_AGE)]
+    if stale:
+        with all_lock:
+            todo = [r for r in stale if r not in all_filling]
+            all_filling.update(todo)
+        if todo:
+            if wait:
+                _all_fill(todo)
+            else:
+                threading.Thread(target=_all_fill, args=(todo,), daemon=True).start()
+    items, unreadable, pending = [], 0, 0
+    with all_lock:
+        filling = set(all_filling)
+    for repo in repos:
         known = all_cache.get(repo)
-        if known and now - known[0] < ALL_MAX_AGE:
-            return known[1]
-        got = _tree_via_git(repo)
-        all_cache[repo] = (time.time(), got)
-        _index_update(repo, got)
-        return got
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        trees = list(pool.map(paths_of, repos))
-    items, unreadable = [], 0
-    for repo, paths in zip(repos, trees):
-        if paths is None:
+        if repo in filling and not known:
+            pending += 1
+        elif known is None:
+            pending += 1
+        elif known[1] is None:
             unreadable += 1
         else:
-            items += _all_items(repo, paths, kind)
-    return {"ok": True, "kind": kind, "repos": len(repos), "unreadable": unreadable, "items": items}
+            items += _all_items(repo, known[1], kind)
+    return {"ok": True, "kind": kind, "repos": len(repos), "unreadable": unreadable, "pending": pending, "items": items}
 
 
 def _videos_via_git(repo):

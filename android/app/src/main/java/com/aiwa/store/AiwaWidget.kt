@@ -451,7 +451,7 @@ private fun LightContent(state: AiwaState) {
     val chipH = (rowH - 4f).coerceAtLeast(24f)
     val loopOn = state.loopPair.isNotEmpty()
     val agent = state.agent
-    val bottomCount = 5
+    val bottomCount = if (Projects.isAll(context)) 4 else 5      // « Tous »: the microphone IS the super agent, its round button is not repeated
     val bottomD = minOf(chipH, avail / bottomCount - 4f).coerceAtLeast(20f)
 
     Column(
@@ -511,7 +511,7 @@ private fun LightContent(state: AiwaState) {
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             val agentOn = state.agent?.enabled == true
-            RoundButton(icon = R.drawable.ic_attach, description = "Joindre un fichier au prochain message", background = pill, action = actionStartActivity<AttachActivity>(), diameter = chipH.dp)
+            RoundButton(icon = R.drawable.ic_plus, description = "Ajouter : un document, un média, ou écrire à un contact", background = pill, action = actionStartActivity<PlusMenuActivity>(), diameter = chipH.dp)
             Spacer(GlanceModifier.width(GAP.dp))
             if (Projects.isAll(context)) {
                 // « Tous »: no session or repository to dictate to; the super agent is the microphone, and it decides where each request goes
@@ -570,7 +570,7 @@ private fun LightContent(state: AiwaState) {
                 )
             }
             Slot { RoundButton(icon = R.drawable.ic_aiwa, description = "L'application Aiwa", background = pill, action = actionStartActivity<StoreActivity>(), diameter = bottomD.dp) }
-            Slot {
+            if (!Projects.isAll(context)) Slot {
                 RoundButton(
                     icon = R.drawable.ic_agent,
                     description = "Super agent : ouvrir ou fermer (l'écoute de réveil attend pendant ce temps)",
@@ -672,7 +672,7 @@ private fun GlassesContent(state: AiwaState) {
                     }
                     // the bottom: dictate, the question when Claude asks one, the update when one is ready
                     Row(modifier = GlanceModifier.fillMaxWidth().height(micH.dp), verticalAlignment = Alignment.CenterVertically) {
-                        RoundButton(icon = R.drawable.ic_attach, description = "Joindre un fichier au prochain message", background = pill, action = actionStartActivity<AttachActivity>(), diameter = (micH - 2f).dp)
+                        RoundButton(icon = R.drawable.ic_plus, description = "Ajouter : un document, un média, ou écrire à un contact", background = pill, action = actionStartActivity<PlusMenuActivity>(), diameter = (micH - 2f).dp)
                         Spacer(GlanceModifier.width(GAP.dp))
                         Box(
                             modifier = GlanceModifier.defaultWeight().height(micH.dp).background(if (locked || agentOn) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
@@ -686,12 +686,14 @@ private fun GlassesContent(state: AiwaState) {
                         }
                         // the super agent, beside the dictation
                         val ag = state.agent
-                        Spacer(GlanceModifier.width(GAP.dp))
-                        RoundButton(
-                            icon = R.drawable.ic_agent, description = "Super agent : ouvrir ou fermer",
-                            background = if (ag != null && (ag.say != null || ag.proposal != null || ag.command != null)) alertRed else if (ag?.enabled == true) green else pill,
-                            action = actionStartActivity<AgentToggleActivity>(), diameter = (micH - 2f).dp,
-                        )
+                        if (!Projects.isAll(context)) {
+                            Spacer(GlanceModifier.width(GAP.dp))
+                            RoundButton(
+                                icon = R.drawable.ic_agent, description = "Super agent : ouvrir ou fermer",
+                                background = if (ag != null && (ag.say != null || ag.proposal != null || ag.command != null)) alertRed else if (ag?.enabled == true) green else pill,
+                                action = actionStartActivity<AgentToggleActivity>(), diameter = (micH - 2f).dp,
+                            )
+                        }
                         if (state.ask != null) {
                             Spacer(GlanceModifier.width(GAP.dp))
                             RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = (micH - 2f).dp)

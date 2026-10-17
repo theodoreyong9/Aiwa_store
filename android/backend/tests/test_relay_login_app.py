@@ -2021,9 +2021,25 @@ class AllViewTests(unittest.TestCase):
         trees = {"o/a": self.PATHS, "o/b": None}
         with unittest.mock.patch.object(srv, "_repo_choices", lambda: [{"name": "o/a"}, {"name": "o/b"}]), \
                 unittest.mock.patch.object(srv, "_tree_via_git", lambda repo: trees[repo]):
-            got = srv._all_snapshot("video")
-        self.assertEqual((got["repos"], got["unreadable"], [i["repo"] for i in got["items"]]), (2, 1, ["o/a"]))
+            got = srv._all_snapshot("video", wait=True)
+        self.assertEqual((got["repos"], got["unreadable"], got["pending"], [i["repo"] for i in got["items"]]), (2, 1, 0, ["o/a"]))
         self.assertFalse(srv._all_snapshot("nope")["ok"])
+        srv.all_cache.clear()
+
+    def test_the_http_answer_does_not_wait_for_the_first_reading(self):
+        srv.all_cache.clear()
+        started = threading.Event(); release = threading.Event()
+        def slow(repo):
+            started.set(); release.wait(5); return ["docs/videos/a.mp4"]
+        with unittest.mock.patch.object(srv, "_repo_choices", lambda: [{"name": "o/a"}]), unittest.mock.patch.object(srv, "_tree_via_git", slow):
+            first = srv._all_snapshot("video")
+            self.assertEqual((first["pending"], first["items"]), (1, []))
+            started.wait(2); release.set()
+            for _ in range(50):
+                again = srv._all_snapshot("video")
+                if not again["pending"]: break
+                time.sleep(0.05)
+        self.assertEqual([i["name"] for i in again["items"]], ["a.mp4"])
         srv.all_cache.clear()
 
 

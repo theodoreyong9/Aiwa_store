@@ -26,7 +26,7 @@ class AttachActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
-        picker.launch(arrayOf("*/*"))
+        picker.launch(intent.getStringArrayExtra("types") ?: arrayOf("*/*"))
     }
 
     private fun attach(uri: Uri) {

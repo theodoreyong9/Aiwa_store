@@ -25,14 +25,25 @@ class AllActivity : ComponentActivity() {
         val kind = intent.getStringExtra("kind") ?: "video"
         setContent {
             var result by remember { mutableStateOf<AllResult?>(null) }
-            LaunchedEffect(kind) { result = withContext(Dispatchers.IO) { LocalClaudeBridge().all(kind) } }
+            // the brain answers at once with what it has read and goes on reading: asked again every two seconds (at most three minutes) while it is
+            LaunchedEffect(kind) {
+                val bridge = LocalClaudeBridge()
+                var tries = 0
+                while (true) {
+                    val got = withContext(Dispatchers.IO) { bridge.all(kind) }
+                    result = got
+                    if (!got.ok || got.pending == 0 || ++tries > 90) break
+                    kotlinx.coroutines.delay(2000)
+                }
+            }
             val r = result
             val entries = buildList {
                 when {
-                    r == null -> add(PickerEntry("Lecture de tous tes dépôts…", false) { })
+                    r == null -> add(PickerEntry("Lecture de tes dépôts…", false) { })
                     !r.ok -> add(PickerEntry("Lecture impossible : " + r.error, false, lines = 3) { })
                     else -> {
-                        if (r.items.isEmpty()) add(PickerEntry("Rien de ce genre dans tes ${r.repos} dépôts.", false) { })
+                        if (r.pending > 0) add(PickerEntry("Lecture en cours : ${r.repos - r.pending - r.unreadable} dépôts lus sur ${r.repos}…", false) { })
+                        else if (r.items.isEmpty()) add(PickerEntry("Rien de ce genre dans tes ${r.repos} dépôts.", false) { })
                         r.items.forEach { item ->
                             add(PickerEntry(item.name + "\n" + item.repo, false) {
                                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); finish()
