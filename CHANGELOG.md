@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **Vidéo v28 : les deux styles vraiment fusionnés sur toutes les pages.** Les constellations sont projetées dans le décor réel : elles éclairent le bureau, s'y reflètent, et la pièce change de caméra à chaque groupe de pages (sept mouvements). Film : `docs/videos/aiwa-v28-16x9.mp4`.
 - **L'app tient le cerveau à jour toute seule**: toutes les demi-heures le service d'arrière-plan demande à Termux de tirer le dépôt (le script ne relance le cerveau que si le code a changé), le `git pull` a 20 s au lieu de 8 (45 s quand l'app demande un redémarrage), et une mise à jour demandée mais ratée est retentée au bout de 15 minutes au lieu de jamais. Avant, seuls le bouton corps ou la vérification horaire du cerveau (qu'un Termux endormi peut manquer) le faisaient. Demande le nouvel APK.
 - Le cerveau se relance quand ses fichiers ont avancé sans lui (mis à jour par le script de Termux) : il compare sa version en mémoire à celle du fichier sur disque, à chaque vérification horaire (brain 122).
 - **L'index du cerveau, pour le super agent** (brain 121): chaque lecture d'un dépôt (pour « Tous » ou en arrière-plan, au plus toutes les dix minutes) alimente `~/.aiwa_index.json` (genres, nombres, quelques noms). Le super agent le reçoit avec son point (une ligne par dépôt, les illisibles signalés) et sait ce qui existe avant d'aller chercher. Jetable : refait s'il manque. `/api/index` le montre.
