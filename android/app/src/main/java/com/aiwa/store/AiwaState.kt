@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 114
+const val EXPECTED_BACKEND_VERSION = 115
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -58,7 +58,7 @@ val DEPLOY_CHOICES = listOf(
 
 // How far a video goes: the time it takes grows with the quality.
 val VIDEO_QUALITY_CHOICES = listOf(
-    ModelChoice("simple", "Vidéo simple — quelques minutes : pages animées, rythme et voix de synthèse"),
+    ModelChoice("simple", "Vidéo simple — quelques minutes : pages animées, rythme, sans voix"),
     ModelChoice("moyen", "Vidéo moyenne — vraie musique, voix, un tour de critique"),
     ModelChoice("extra", "Vidéo extra (cinématographique) — plans 3D et catalogues, critique poussée : TRÈS long, plusieurs heures"),
 )

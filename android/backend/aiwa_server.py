@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 114
+BACKEND_VERSION = 115
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -726,11 +726,11 @@ def _video_line_text(repo, quality="moyen"):
     moyen = the stages with a real track and a voice, one critique round, no catalogue shots; simple = a short sequence of animated pages, quick, one pass."""
     if quality == "simple":
         return (
-            "Vidéo, qualité SIMPLE (rapide, quelques minutes) : si je demande une vidéo de ma création, fais court. Écris `brief.md` (le public, UN message, l'appel à l'action) et `script.md` (6 à 10 plans, texte de la voix off), "
+            "Vidéo, qualité SIMPLE (rapide, quelques minutes) : si je demande une vidéo de ma création, fais court. Écris `brief.md` (le public, UN message, l'appel à l'action) et `script.md` (6 à 10 plans, texte affiché à l'écran), "
             "puis `video.html` depuis " + REFERENCE_RAW + "/video-kit/template/cinematic.html (des pages animées : texte qui entre et sort, captures de ma création en gros plan, un changement toutes les 2 à 3 secondes), "
-            "le rythme généré (`beat.py`, pas de recherche de musique) et une voix de synthèse courte (`voice.py`), assemble avec `video-kit assemble`, contrôle avec `video-kit check` et corrige UNE fois ce qu'il signale. "
+            "le rythme généré (`beat.py`, pas de recherche de musique), SANS voix de synthèse ni voix off (le texte à l'écran porte le message), assemble avec `video-kit assemble`, contrôle avec `video-kit check` et corrige UNE fois ce qu'il signale. "
             "Pas de recherche de campagnes, pas de plans 3D ni de catalogue, pas de critique en plusieurs tours. N'invente rien : tout ce qui est affiché vient de ce que j'ai fourni ou de ma création. "
-            "Dis-moi que c'est la qualité simple, et ce qui est provisoire (voix de synthèse, rythme généré). "
+            "Dis-moi que c'est la qualité simple, et ce qui est provisoire (rythme généré, pas de voix). "
             f"Termine par le lien direct vers le fichier (`https://raw.githubusercontent.com/{repo}/main/docs/videos/nom-9x16.mp4`), dépose-le dans `docs/videos/` du dépôt (directement dans `docs/videos/`, jamais ailleurs)."
         )
     full = _video_full(repo)

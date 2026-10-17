@@ -113,7 +113,7 @@ fun QualityChoice(selected: String, onSelect: (String) -> Unit) {
         }
         Text(
             when (selected) {
-                "simple" -> "Quelques minutes : pages animées, rythme et voix de synthèse."
+                "simple" -> "Quelques minutes : pages animées, rythme, sans voix."
                 "extra" -> "Cinématographique : plans 3D, critique poussée. TRÈS long, plusieurs heures."
                 else -> "Vraie musique, voix, un tour de critique."
             },
