@@ -3929,14 +3929,16 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def _self_update_once(run=subprocess.run, root=REPO_ROOT):
     """Fetches the install's repository; when main moved and the tree is untouched, fast-forwards it. Returns 'updated', 'current' or why nothing happened."""
     def git(*args):
-        return run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=120)
+        # safe.directory: the brain runs in proot, where the folder (bound from Termux) belongs to another user, and git then refuses it
+        return run(["git", "-c", "safe.directory=*", "-C", str(root), *args], capture_output=True, text=True, timeout=120)
     try:
         if not (Path(root) / ".git").exists():
             return "not a git install"
         if git("status", "--porcelain").stdout.strip():
             return "local changes"
-        if git("fetch", "--quiet", "origin", "main").returncode != 0:
-            return "offline"
+        fetched = git("fetch", "--quiet", "origin", "main")
+        if fetched.returncode != 0:
+            return "offline : " + " ".join((fetched.stderr or "").split())[-160:]
         here = git("rev-parse", "HEAD").stdout.strip()
         there = git("rev-parse", "FETCH_HEAD").stdout.strip()
         if not here or not there or here == there:

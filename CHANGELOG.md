@@ -1,7 +1,7 @@
 # Changelog
 
 ## Unreleased
-- Le cerveau cherche sa mise à jour toutes les heures (au lieu de trois) et dit dans `/api/status` (`self_update`) ce qu'il a trouvé : à jour, modifications locales, hors ligne, avance rapide impossible.
+- Le cerveau cherche sa mise à jour toutes les heures (au lieu de trois) et dit dans `/api/status` (`self_update`) ce qu'il a trouvé. Git y est lancé avec `safe.directory=*` : dans proot le dossier lié depuis Termux appartient à un autre utilisateur, git le refusait (« offline » sans fin) et seul le script de mise à jour de Termux mettait le cerveau à jour.
 - Bouton trombone dans le widget, à gauche du micro (Light et Glasses) : choisir un fichier, il part avec le prochain message à la session (un petit fichier texte dans le message, tout autre fichier via le relais, 12 Mo maximum).
 - Nouvelle qualité vidéo « max » (au-dessus d'extra) : décors 3D réels, tirage au sort dans le catalogue avec graine pour que chaque film soit différent, une seule langue visuelle, son conçu, critique par sous-agent. Dite « qualité vidéo max », choisie dans l'app comme les autres.
 - Nouveau guide de style `video-kit/STYLE.md` (une langue visuelle par film, caméra qui évolue, phrases courtes, fin sur le nom), lu par les qualités moyenne et extra.
