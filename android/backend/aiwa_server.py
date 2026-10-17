@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 117
+BACKEND_VERSION = 118
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1219,6 +1219,70 @@ def _cli_repo_verdict(repo):
     return reason.group(1)
 
 
+# Files the person attached with the widget's paperclip: they leave with the NEXT message to the session. A small text file goes inside the
+# message; anything else is put on the relay (ntfy keeps it a few hours) and the session fetches it by its address.
+ATTACH_MAX = 12 * 1024 * 1024
+ATTACH_INLINE = 24000
+attachments = []
+attach_lock = threading.Lock()
+
+
+def attach_add(body):
+    """body = JSON {name, data (base64)}. Returns {"ok", "count"} or {"ok": False, "error"}."""
+    import base64
+    try:
+        req = json.loads(body)
+        name = re.sub(r"[^\w.\- ]", "_", str(req.get("name") or "fichier"))[:80].strip() or "fichier"
+        raw = base64.b64decode(req.get("data") or "", validate=False)
+    except (ValueError, TypeError):
+        return {"ok": False, "error": "fichier illisible"}
+    if not raw:
+        return {"ok": False, "error": "fichier vide"}
+    if len(raw) > ATTACH_MAX:
+        return {"ok": False, "error": f"fichier trop gros ({len(raw) // 1048576} Mo, maximum {ATTACH_MAX // 1048576} Mo)"}
+    entry = {"name": name, "size": len(raw)}
+    text = None
+    if len(raw) <= ATTACH_INLINE and b"\0" not in raw:
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            text = None
+    if text is not None:
+        entry["text"] = text
+    else:
+        topic = "aiwa-att-" + secrets.token_hex(10)
+        put = urllib.request.Request(f"{NTFY_SERVER}/{topic}", data=raw, method="PUT", headers={"Filename": name})
+        try:
+            with urllib.request.urlopen(put, timeout=120) as answer:
+                info = json.loads(answer.read().decode("utf-8", "replace"))
+            entry["url"] = (info.get("attachment") or {}).get("url") or ""
+        except (OSError, ValueError) as err:
+            return {"ok": False, "error": f"envoi du fichier impossible ({err})"}
+        if not entry["url"]:
+            return {"ok": False, "error": "le relais n'a pas gardé le fichier"}
+    with attach_lock:
+        attachments.append(entry)
+        return {"ok": True, "count": len(attachments)}
+
+
+def attach_clear():
+    with attach_lock:
+        attachments.clear()
+    return {"ok": True, "count": 0}
+
+
+def _attachments_block(items):
+    if not items:
+        return ""
+    out = "\n\n[Aiwa] Pièces jointes de ma part :"
+    for it in items:
+        if "text" in it:
+            out += f"\n--- {it['name']} ---\n{it['text']}\n--- fin de {it['name']} ---"
+        else:
+            out += f"\n- {it['name']} ({it['size']} octets) : récupère-le avec `curl -sL -o '{it['name']}' '{it['url']}'` (disponible quelques heures)."
+    return out
+
+
 def cloud_send(text, command=False):
     """Sends one message to the current cloud session — creating a new
     one when none is selected. Synchronous: creating a session can take a
@@ -1240,6 +1304,9 @@ def cloud_send(text, command=False):
         cloud_busy_since = time.time()
         cloud_progress = ""
     title = " ".join(text.split())[:50]
+    with attach_lock:
+        sent_files = [] if command else list(attachments)
+    text += _attachments_block(sent_files)
     if not command:
         _clear_waiting()  # the user answered: whatever Claude was waiting for is over
     try:
@@ -1264,6 +1331,9 @@ def cloud_send(text, command=False):
                 _note_login_problem(result["error"])
                 return {"ok": False, "error": result["error"]}
             _set_login_state("ok")
+            if sent_files:
+                with attach_lock:
+                    del attachments[:len(sent_files)]
             if not command:
                 _note_message_sent()
                 _save_cloud_session(session_id, title, result["url"], instr=fingerprint)
@@ -1316,6 +1386,9 @@ def cloud_send(text, command=False):
             from_url = CLOUD_ID_RE.search(url)
             found = from_url.group(0) if from_url else None
         print(f"[{_ts()}] cloud_send: created={found!r} code={code} {timeline[-1]}", flush=True)
+        if found and sent_files:
+            with attach_lock:
+                del attachments[:len(sent_files)]
         verdict = _cli_repo_verdict(repo)
         if repo and found and verdict == "no_app":
             github_error = (
@@ -3432,7 +3505,7 @@ class Handler(BaseHTTPRequestHandler):
                 "version": BACKEND_VERSION, "updated_at": BACKEND_UPDATED_AT, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "video_quality": vquality, "extra": own, "extra_repos": more, "source_repos": inspiration,
-                "waiting": is_waiting, "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(), "cast": _cast_ready(),
+                "waiting": is_waiting, "attachments": len(attachments), "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(), "cast": _cast_ready(),
                 "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
                 "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(), "ask": _ask_snapshot(), "agent": agent_snapshot(),
             })
@@ -3476,6 +3549,10 @@ class Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(length).decode()
         if self.path == "/api/cloud/message":
             self.reply_json(cloud_send(body))
+        elif self.path == "/api/attach":
+            self.reply_json(attach_add(body))
+        elif self.path == "/api/attach/clear":
+            self.reply_json(attach_clear())
         elif self.path == "/api/cloud/command":
             self.reply_json(cloud_send(body, command=True))
         elif self.path == "/api/cloud/select":

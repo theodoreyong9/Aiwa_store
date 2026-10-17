@@ -499,6 +499,8 @@ private fun LightContent(state: AiwaState) {
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             val agentOn = state.agent?.enabled == true
+            RoundButton(icon = R.drawable.ic_attach, description = "Joindre un fichier au prochain message", background = pill, action = actionStartActivity<AttachActivity>(), diameter = chipH.dp)
+            Spacer(GlanceModifier.width(GAP.dp))
             Box(
                 modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked || agentOn) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
                     .clickable(if (agentOn) actionRunCallback<AgentMicTapCallback>() else lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
@@ -646,6 +648,8 @@ private fun GlassesContent(state: AiwaState) {
                     }
                     // the bottom: dictate, the question when Claude asks one, the update when one is ready
                     Row(modifier = GlanceModifier.fillMaxWidth().height(micH.dp), verticalAlignment = Alignment.CenterVertically) {
+                        RoundButton(icon = R.drawable.ic_attach, description = "Joindre un fichier au prochain message", background = pill, action = actionStartActivity<AttachActivity>(), diameter = (micH - 2f).dp)
+                        Spacer(GlanceModifier.width(GAP.dp))
                         Box(
                             modifier = GlanceModifier.defaultWeight().height(micH.dp).background(if (locked || agentOn) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
                             contentAlignment = Alignment.Center,

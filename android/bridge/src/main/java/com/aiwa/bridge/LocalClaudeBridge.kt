@@ -180,6 +180,14 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         }
     }
 
+    /** Attaches a file (base64) to the next message to the session. Returns (ok, files waiting, error). */
+    fun attach(name: String, base64: String): Triple<Boolean, Int, String> = try {
+        val json = JSONObject(postText("/api/attach", JSONObject().put("name", name).put("data", base64).toString()))
+        Triple(json.optBoolean("ok", false), json.optInt("count", 0), json.optString("error", "erreur inconnue"))
+    } catch (e: Exception) {
+        Triple(false, 0, e.message ?: "erreur inconnue")
+    }
+
     // The list Aiwa keeps of its sessions, emptied. Nothing is touched in Claude.
     override suspend fun clearCloudSessions() = withContext(Dispatchers.IO) {
         requireAccepted(postText("/api/cloud/clear", ""))

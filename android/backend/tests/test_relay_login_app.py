@@ -1958,6 +1958,49 @@ class VideosByGitTests(unittest.TestCase):
             items = srv._video_items("o/r", *got)
             self.assertEqual([v["name"] for v in items], ["aiwa-v10-16x9.mp4", "aiwa-v9-16x9.mp4", "old.mp4"], "numbers count as numbers, docs/videos/ first, the root of docs/ after")
 
+
+class AttachmentTests(unittest.TestCase):
+    """The widget's paperclip: a small text file travels inside the next message, another file goes on the relay and is fetched by its address."""
+
+    def setUp(self):
+        import base64
+        self.b64 = lambda raw: base64.b64encode(raw).decode()
+        srv.attach_clear()
+
+    def tearDown(self):
+        srv.attach_clear()
+
+    def test_a_text_file_goes_inside_the_message(self):
+        got = srv.attach_add(json.dumps({"name": "notes.txt", "data": self.b64("bonjour é".encode())}))
+        self.assertEqual(got, {"ok": True, "count": 1})
+        block = srv._attachments_block(list(srv.attachments))
+        self.assertIn("bonjour é", block)
+        self.assertIn("notes.txt", block)
+
+    def test_another_file_is_put_on_the_relay(self):
+        class Answer:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self): return b'{"attachment": {"url": "https://ntfy.sh/file/abc.png"}}'
+        seen = {}
+        def fake(req, timeout=0):
+            seen["method"], seen["name"] = req.get_method(), req.headers.get("Filename")
+            return Answer()
+        with unittest.mock.patch.object(srv.urllib.request, "urlopen", fake):
+            got = srv.attach_add(json.dumps({"name": "photo.png", "data": self.b64(b"\x89PNG\0\1\2")}))
+        self.assertTrue(got["ok"])
+        self.assertEqual(seen, {"method": "PUT", "name": "photo.png"})
+        self.assertIn("curl -sL -o 'photo.png' 'https://ntfy.sh/file/abc.png'", srv._attachments_block(list(srv.attachments)))
+
+    def test_too_big_or_empty_is_refused_and_clear_empties(self):
+        self.assertFalse(srv.attach_add(json.dumps({"name": "a", "data": ""}))["ok"])
+        big = self.b64(b"x" * (srv.ATTACH_MAX + 1))
+        self.assertFalse(srv.attach_add(json.dumps({"name": "a", "data": big}))["ok"])
+        srv.attach_add(json.dumps({"name": "n.txt", "data": self.b64(b"hi")}))
+        self.assertEqual(srv.attach_clear(), {"ok": True, "count": 0})
+        self.assertEqual(srv._attachments_block(list(srv.attachments)), "")
+
+
 if __name__ == "__main__":
     unittest.main()
 
