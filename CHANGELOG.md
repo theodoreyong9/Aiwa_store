@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Nouveau guide de style `video-kit/STYLE.md` (une langue visuelle par film, caméra qui évolue, phrases courtes, fin sur le nom), lu par les qualités moyenne et extra.
 - La qualité vidéo simple n'a plus de voix de synthèse : pages animées et rythme, texte à l'écran seulement.
 
 - **Video v27 (51 s): a real scenic shot, a captions layer, a synthesised sound design, one grade** (`docs/videos/aiwa-v27-16x9.mp4`, sources and `make.sh` in `docs/videos/aiwa-v27/`). The widget, lock-screen and glasses pages are one continuous shot of a desk in a warm room, in real 3D (Blender, Poly Haven CC0 models and interior light copied by `asset-mirror.yml`: table, notebook, round spectacles, plant, lamp; the phone is the one invented object, its screen a page): a camera that glides across the notebook and pulls focus from the phone to the spectacles, where the widget's glasses display lights up. The page is rendered in two layers so the captions stay above the real shot; the sound design is synthesised (`video-kit/src/sfx.py`: whooshes, plucks, sonar pings, room tone, riser and boom); the whole film gets one cinematic grade. The kit gains `shots/blender/examples/desk.py` (a set, not an object) and `src/sfx.py`. A rendering, not a photograph; 960x540 brought to 1080p; Pexels, Pixabay and ambientCG not used (not reachable). The Papers tab reads it from `docs/videos/latest.json`.

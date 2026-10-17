@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 115
+BACKEND_VERSION = 116
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -624,6 +624,7 @@ def _video_full(repo):
         "Au stade 1, lis aussi " + REFERENCE_RAW + "/docs/DIRECTOR-PLAYBOOK.md (les règles du métier et la fiche de critique) et cherche des idées dans de vraies campagnes : "
         "`node video-research/src/cli.js research \"<ma demande>\"` depuis le dépôt de référence cloné (sinon `VR_CATALOG_URL=" + REFERENCE_RAW + "/video-research/catalog/campaigns.jsonl`) ; "
         "prends-en 2 ou 3 et cite-les dans `brief.md` (titre, lien, ce que tu en retiens), sans rien copier. "
+        "Avant d'écrire le script, lis " + REFERENCE_RAW + "/video-kit/STYLE.md (une seule langue visuelle par film, un mouvement de caméra différent et évolutif à chaque page, phrases courtes, fin sur le nom) ; "
         "Les outils sont dans " + REFERENCE_RAW + "/video-kit/ (Chromium image par image, ffmpeg, `capture`, `beat.py`, `voice.py`, `analyze.py` pour lire un film que tu as le droit de lire, contrôle automatique). "
         "N'invente aucune statistique, aucun témoignage, aucun résultat : tout ce qui est affiché vient de ce que j'ai fourni ou de ce que tu vois dans ma création. "
         "Une vidéo n'est PAS un diaporama : aucune capture ne reste posée au centre avec un titre au-dessus. Chaque plan bouge : texte qui s'anime, captures en gros plan, "
