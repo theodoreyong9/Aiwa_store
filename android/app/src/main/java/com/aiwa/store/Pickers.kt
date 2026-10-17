@@ -95,13 +95,13 @@ internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQu
             Modifier.fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.62f))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onDismiss() },
-            contentAlignment = Alignment.BottomCenter,
+            contentAlignment = Alignment.Center,
         ) {
             Surface(
-                shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+                shape = RoundedCornerShape(22.dp),
                 color = SheetBg,
                 border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp)
+                modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().heightIn(max = 560.dp)
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column {
@@ -982,11 +982,11 @@ class ProjectNameActivity : ComponentActivity() {
                 Box(
                     Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f))
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { finish() },
-                    contentAlignment = Alignment.BottomCenter,
+                    contentAlignment = Alignment.Center,
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp), color = SheetBg, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                        modifier = Modifier.fillMaxWidth().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
+                        shape = RoundedCornerShape(22.dp), color = SheetBg, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
+                        modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
                     ) {
                         Column(Modifier.padding(20.dp)) {
                             Text("Nommer cette paire", style = MaterialTheme.typography.titleMedium)

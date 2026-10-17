@@ -667,20 +667,21 @@ private fun GlassesContent(state: AiwaState) {
                         Spacer(GlanceModifier.width(4.dp))
                         // beside it: only what is going on, when it is not « Prêt » (nothing to tap here)
                         Column(modifier = GlanceModifier.defaultWeight().fillMaxHeight(), verticalAlignment = Alignment.Top) {
-                            // at the side of the mode pills: the « + » and the super agent (in « Tous » the microphone below is the super agent already); the bottom keeps the microphone, the question, the update
-                            val sideD = (itemH * 1.9f).coerceIn(14f, 24f).dp
-                            val ag = state.agent
-                            RoundButton(icon = R.drawable.ic_plus, description = "Ajouter : un document, un média, ou écrire à un contact", background = pill, action = actionStartActivity<PlusMenuActivity>(), diameter = sideD)
-                            if (!Projects.isAll(context)) {
-                                Spacer(GlanceModifier.height(3.dp))
-                                RoundButton(
-                                    icon = R.drawable.ic_agent, description = "Super agent : ouvrir ou fermer",
-                                    background = if (ag != null && (ag.say != null || ag.proposal != null || ag.command != null)) alertRed else if (ag?.enabled == true) green else pill,
-                                    action = actionStartActivity<AgentToggleActivity>(), diameter = sideD,
-                                )
-                            }
-                            Spacer(GlanceModifier.height(3.dp))
                             if (band.statusText != "Prêt") Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 8.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 3)
+                        }
+                    }
+                    // just above the microphone, small: the « + » and the super agent (in « Tous » the microphone below is the super agent already)
+                    Row(modifier = GlanceModifier.fillMaxWidth().padding(bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        val sideD = minOf(itemH + 1f, 12f).dp
+                        val ag = state.agent
+                        RoundButton(icon = R.drawable.ic_plus, description = "Ajouter : un document, un média, ou écrire à un contact", background = pill, action = actionStartActivity<PlusMenuActivity>(), diameter = sideD)
+                        if (!Projects.isAll(context)) {
+                            Spacer(GlanceModifier.width(3.dp))
+                            RoundButton(
+                                icon = R.drawable.ic_agent, description = "Super agent : ouvrir ou fermer",
+                                background = if (ag != null && (ag.say != null || ag.proposal != null || ag.command != null)) alertRed else if (ag?.enabled == true) green else pill,
+                                action = actionStartActivity<AgentToggleActivity>(), diameter = sideD,
+                            )
                         }
                     }
                     // the bottom: dictate, the question when Claude asks one, the update when one is ready

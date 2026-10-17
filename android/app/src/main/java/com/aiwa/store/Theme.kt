@@ -20,5 +20,5 @@ private val LightScheme = lightColorScheme(
 /** The look of every sheet of the app (menus, lists, the video and proposal windows): one accent (the orange of Claude), dark or light as the phone is. */
 @Composable
 fun AiwaTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) DarkScheme else LightScheme, content = content)
+    DarkSheetTheme(content)      // dark and compact whatever the phone's theme, like the menus of the widget (the old light / dark scheme above is not used any more)
 }

@@ -201,11 +201,11 @@ private fun FileCreationWindow(startCampaign: Boolean, videoOnly: Boolean, onClo
         Box(
             Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClose() },
-            contentAlignment = Alignment.BottomCenter,
+            contentAlignment = Alignment.Center,
         ) {
             Surface(
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp,
-                modifier = Modifier.fillMaxWidth().heightIn(max = 680.dp).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
+                shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp,
+                modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().heightIn(max = 640.dp).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text(if (videoOnly) "Une vidéo à partir d'un fichier" else if (startCampaign) "Une campagne à partir d'un fichier" else "Créer à partir d'un fichier", style = MaterialTheme.typography.titleLarge)
