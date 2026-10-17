@@ -2001,6 +2001,32 @@ class AttachmentTests(unittest.TestCase):
         self.assertEqual(srv._attachments_block(list(srv.attachments)), "")
 
 
+
+class AllViewTests(unittest.TestCase):
+    """« Tous »: one kind of production across every repository, read by the brain with git (the layout is the same in each)."""
+
+    PATHS = ["docs/videos/a.mp4", "docs/notes.md", "docs/sub/deep.md", "aiwa-apps/x.aiwa.html", "index.html", "android/app/x.kt", "README.md"]
+
+    def test_the_layout_gives_each_kind(self):
+        names = lambda kind: [i["name"] for i in srv._all_items("o/r", self.PATHS, kind)]
+        self.assertEqual(names("video"), ["a.mp4"])
+        self.assertEqual(names("documents"), ["notes.md"])
+        self.assertEqual(names("aiwa"), ["x.aiwa.html"])
+        self.assertEqual(names("pages"), ["r"])
+        self.assertEqual(names("android"), ["r"])
+        self.assertEqual(srv._all_items("o/r", self.PATHS, "pages")[0]["url"], "https://o.github.io/r/")
+
+    def test_snapshot_joins_the_repositories_and_counts_the_unreadable(self):
+        srv.all_cache.clear()
+        trees = {"o/a": self.PATHS, "o/b": None}
+        with unittest.mock.patch.object(srv, "_repo_choices", lambda: [{"name": "o/a"}, {"name": "o/b"}]), \
+                unittest.mock.patch.object(srv, "_tree_via_git", lambda repo: trees[repo]):
+            got = srv._all_snapshot("video")
+        self.assertEqual((got["repos"], got["unreadable"], [i["repo"] for i in got["items"]]), (2, 1, ["o/a"]))
+        self.assertFalse(srv._all_snapshot("nope")["ok"])
+        srv.all_cache.clear()
+
+
 if __name__ == "__main__":
     unittest.main()
 

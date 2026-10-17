@@ -160,6 +160,7 @@ suspend fun switchRepo(context: Context, bridge: ClaudeBridge, repo: String): St
 
 /** A named pair is taken as it was: the repository, then the session (a new one when the session is gone from the list). */
 suspend fun applyProject(context: Context, bridge: ClaudeBridge, project: Project) {
+    Projects.setAll(context, false)
     switchRepo(context, bridge, project.repo)
     val now = AiwaRepository.state.value
     val wanted = if (project.session == "new" || now.cloudSessions.none { it.id == project.session }) "new" else project.session

@@ -27,6 +27,11 @@ object Projects {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, array.toString()).apply()
     }
 
+    /** « Tous »: the two pills are off and the five kinds read every repository (the brain's job); a named pair puts the pills back. */
+    fun isAll(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("all", false)
+
+    fun setAll(context: Context, on: Boolean) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("all", on).apply()
+
     /** A name already used is replaced: the same name never names two pairs. */
     fun add(context: Context, project: Project) = save(context, all(context).filter { it.name != project.name } + project)
 

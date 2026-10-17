@@ -89,7 +89,7 @@ internal fun DarkSheetTheme(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQuery: (String) -> Unit = {}, onDismiss: () -> Unit) {
+internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQuery: (String) -> Unit = {}, onDismiss: () -> Unit) {
     DarkSheetTheme {
         Box(
             Modifier.fillMaxSize()
@@ -939,6 +939,13 @@ class ProjectPickerActivity : ComponentActivity() {
             var projects by remember { mutableStateOf(Projects.all(applicationContext)) }
             val session = state.cloudSessionId ?: "new"
             val entries = buildList {
+                val all = Projects.isAll(applicationContext)
+                add(PickerEntry("Tous  —  tous mes dépôts, le super agent au micro", all) {
+                    Projects.setAll(applicationContext, !all)
+                    val app = applicationContext
+                    finish()
+                    CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(app) }
+                })
                 if (state.repo != null && projects.none { it.repo == state.repo && it.session == session }) {
                     add(PickerEntry("＋  Nommer la paire actuelle : " + pairLine(state, state.repo, session), false) {
                         startActivity(Intent(this@ProjectPickerActivity, ProjectNameActivity::class.java)); finish()

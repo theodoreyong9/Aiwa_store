@@ -180,6 +180,19 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         }
     }
 
+    /** « Tous »: what every repository holds of one kind (docs, video, pages, android, aiwa), read by the backend. */
+    fun all(kind: String): AllResult = try {
+        val json = JSONObject(getText("/api/all?kind=$kind"))
+        val items = json.optJSONArray("items")
+        AllResult(
+            ok = json.optBoolean("ok", false),
+            items = (0 until (items?.length() ?: 0)).map { i -> items!!.getJSONObject(i).let { AllItem(it.optString("repo"), it.optString("name"), it.optString("url")) } },
+            repos = json.optInt("repos", 0), unreadable = json.optInt("unreadable", 0), error = json.optString("error", ""),
+        )
+    } catch (e: Exception) {
+        AllResult(false, emptyList(), 0, 0, e.message ?: "erreur inconnue")
+    }
+
     /** Attaches a file (base64) to the next message to the session. Returns (ok, files waiting, error). */
     fun attach(name: String, base64: String): Triple<Boolean, Int, String> = try {
         val json = JSONObject(postText("/api/attach", JSONObject().put("name", name).put("data", base64).toString()))

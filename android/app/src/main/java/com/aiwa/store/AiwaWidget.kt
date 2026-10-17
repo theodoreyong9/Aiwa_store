@@ -380,6 +380,10 @@ private fun lightKinds(state: AiwaState, context: Context): List<LightKind> {
     val hasSite = state.repo != null && state.siteUrl != null
     val tab = aiwaTab(state)
     val sub = mediaSub(state)
+    if (Projects.isAll(context)) {
+        // « Tous »: every repository is read when a kind is opened, so all five are ready
+        return listOf("documents" to "Docs", "video" to "Vidéo", "pages" to "Page", "android" to "App", "aiwa" to "Aiwa").map { (mode, word) -> LightKind(mode, word, true, false) }
+    }
     return listOf(
         LightKind("documents", "Docs", Productions.has(context, state.repo, "documents"), tab == "media" && sub == "documents"),
         LightKind("video", "Vidéo", Productions.has(context, state.repo, "video"), tab == "media" && sub == "video"),
@@ -395,6 +399,11 @@ private val KIND_FOUND_KEY = ActionParameters.Key<String>("aiwa-kind-found")
 class PickKindCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val mode = parameters[MODE_KEY] ?: return
+        if (Projects.isAll(context)) {
+            val kind = if (mode == "pages") "pages" else mode
+            context.startActivity(Intent(context, AllActivity::class.java).putExtra("kind", kind).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return
+        }
         openProduction(context.applicationContext, mode, parameters[KIND_FOUND_KEY] == "1")
     }
 }
@@ -460,12 +469,14 @@ private fun LightContent(state: AiwaState) {
             val sessionTitle = bandInfo(state, each).title
             val sessionBad = sessionTitle.endsWith("▸")
             // The « Projet » button: the name of the pair now on the two pills (or the invitation to name it)
+            val allMode = Projects.isAll(context)
             Chip(
-                fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", projW - 12f, fs),
-                if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
+                if (allMode) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", projW - 12f, fs),
+                if (allMode) green else if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
                 lockable(locked, actionStartActivity<ProjectPickerActivity>()),
-                GlanceModifier.width(projW.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp,
+                if (allMode) GlanceModifier.defaultWeight() else GlanceModifier.width(projW.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp,
             )
+            if (!allMode) {
             Spacer(GlanceModifier.width(GAP.dp))
             Chip(
                 if (sessionBad) sessionTitle else fitLabel(state.session, each - textWidth(" ▾", fs), fs) + " ▾",
@@ -484,6 +495,7 @@ private fun LightContent(state: AiwaState) {
                 )
                 if (pending) Box(modifier = GlanceModifier.padding(end = 3.dp)) { WorkflowSpinner((chipH - 6f).dp) }
             }
+            }
         }
         // ---- the five kinds: grey until the repository holds one, coloured once it does ----
         Row(modifier = GlanceModifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -501,7 +513,19 @@ private fun LightContent(state: AiwaState) {
             val agentOn = state.agent?.enabled == true
             RoundButton(icon = R.drawable.ic_attach, description = "Joindre un fichier au prochain message", background = pill, action = actionStartActivity<AttachActivity>(), diameter = chipH.dp)
             Spacer(GlanceModifier.width(GAP.dp))
-            Box(
+            if (Projects.isAll(context)) {
+                // « Tous »: no session or repository to dictate to; the super agent is the microphone, and it decides where each request goes
+                Box(
+                    modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (agentOn) green else pill).cornerRadius(((rowH - 2f) / 2).dp).clickable(actionStartActivity<AgentToggleActivity>()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = "Parler au super agent", modifier = GlanceModifier.size(16.dp))
+                        Spacer(GlanceModifier.width(8.dp))
+                        Text(if (agentOn) "Il écoute" else "Parler au super agent", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                    }
+                }
+            } else Box(
                 modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked || agentOn) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
                     .clickable(if (agentOn) actionRunCallback<AgentMicTapCallback>() else lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
                 contentAlignment = Alignment.Center,
@@ -594,7 +618,7 @@ private fun GlassesContent(state: AiwaState) {
     val colW = 40f
     val band = bandInfo(state, inner - colW - 24f)
     val agentOn = state.agent?.enabled == true
-    val micAct = if (agentOn) actionRunCallback<AgentMicTapCallback>() else lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))
+    val micAct = if (Projects.isAll(context)) actionStartActivity<AgentToggleActivity>() else if (agentOn) actionRunCallback<AgentMicTapCallback>() else lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))
     fun storeTab(tab: String): Action = actionStartIntent(
         Intent(context, StoreActivity::class.java).setData(Uri.parse("aiwa://store/$tab"))
             .putExtra(StoreActivity.EXTRA_URL, storeTabUrl(tab) ?: STORE_APP_URL),
@@ -612,8 +636,8 @@ private fun GlassesContent(state: AiwaState) {
                         Column(modifier = GlanceModifier.width(colW.dp).fillMaxHeight(), verticalAlignment = Alignment.Top) {
                             // the named pair (session + repository) now on the pills, or the invitation to name it
                             Chip(
-                                fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", colW - 4f, fontScale),
-                                if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
+                                if (Projects.isAll(context)) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", colW - 4f, fontScale),
+                                if (Projects.isAll(context)) green else if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
                                 lockable(locked, actionStartActivity<ProjectPickerActivity>()),
                                 GlanceModifier.fillMaxWidth(), height = itemH.dp, textSize = 7.sp, hPad = 1.dp,
                             )

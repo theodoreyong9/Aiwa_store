@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 119
+BACKEND_VERSION = 120
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -2318,6 +2318,89 @@ def _videos_remember(repo, items):
 GIT_CACHE = Path(os.environ.get("AIWA_GIT_CACHE") or Path.home() / ".aiwa_gitcache")
 
 
+def _tree_via_git(repo):
+    """Every file path of the repository's default branch (a bare, shallow, blob-less clone kept in GIT_CACHE: nothing is downloaded but the tree,
+    and no request goes through GitHub's API, so no hourly limit), or None (git missing, a private repository without a connected `gh`, no network)."""
+    if not shutil.which("git") or os.environ.get("AIWA_NO_GIT_LIST"):
+        return None
+    folder = GIT_CACHE / (repo.replace("/", "__") + ".git")
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+
+    def git(*args, timeout=60):
+        return subprocess.run(["git", *args], capture_output=True, timeout=timeout, env=env)
+    try:
+        GIT_CACHE.mkdir(parents=True, exist_ok=True)
+        if not folder.exists():
+            made = git("clone", "--bare", "--depth", "1", "--filter=blob:none", f"{os.environ.get('AIWA_GIT_BASE', 'https://github.com')}/{repo}.git", str(folder), timeout=120)
+            if made.returncode != 0:
+                shutil.rmtree(folder, ignore_errors=True)
+                return None
+        if git("-C", str(folder), "fetch", "-q", "--depth", "1", "origin", "HEAD").returncode != 0:
+            return None
+        listed = git("-C", str(folder), "ls-tree", "-r", "-z", "--name-only", "FETCH_HEAD")
+        if listed.returncode != 0:
+            return None
+        return [n for n in listed.stdout.decode("utf-8", "replace").split("\0") if n]
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+ALL_KINDS = ("video", "documents", "pages", "android", "aiwa")
+DOC_EXT = (".md", ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".csv")
+all_cache = {}    # repo -> (time, paths or None)
+ALL_MAX_AGE = 600
+
+
+def _all_items(repo, paths, kind):
+    """What a repository holds of one kind, by the layout Aiwa gives every repository: the films in docs/videos/ (or docs/), the documents in docs/, the page at the
+    root or in docs/, an Android project in android/, the Aiwa contracts in aiwa-apps/. [{repo, name, url}]"""
+    owner, name = repo.split("/")
+    blob = f"https://github.com/{repo}/blob/HEAD/"
+    raw = f"https://raw.githubusercontent.com/{repo}/HEAD/"
+    out = []
+    for path in paths:
+        low = path.lower()
+        base = path.rsplit("/", 1)[-1]
+        if kind == "video" and path.startswith("docs/") and low.endswith(VIDEO_EXT) and path.count("/") <= 2:
+            out.append({"repo": repo, "name": base, "url": raw + urllib.parse.quote(path)})
+        elif kind == "documents" and path.startswith("docs/") and path.count("/") == 1 and low.endswith(DOC_EXT):
+            out.append({"repo": repo, "name": base, "url": blob + urllib.parse.quote(path)})
+        elif kind == "aiwa" and path.startswith("aiwa-apps/") and low.endswith(".aiwa.html"):
+            out.append({"repo": repo, "name": base, "url": blob + urllib.parse.quote(path)})
+    if kind == "pages" and ("index.html" in paths or "docs/index.html" in paths):
+        out.append({"repo": repo, "name": name, "url": f"https://{owner}.github.io/{name}/"})
+    if kind == "android" and any(p.startswith("android/") or p.lower().endswith(".apk") for p in paths):
+        out.append({"repo": repo, "name": name, "url": f"https://github.com/{repo}/releases"})
+    return out
+
+
+def _all_snapshot(kind):
+    """The « Tous » view: one kind of production across every repository the person works on (the list of the repository pill), read by the brain
+    itself with git. A repository that cannot be read (private without a connected `gh`, offline) is counted in `unreadable`, not hidden."""
+    if kind not in ALL_KINDS:
+        return {"ok": False, "error": "genre inconnu"}
+    from concurrent.futures import ThreadPoolExecutor
+    repos = [c["name"] for c in _repo_choices()][:40]
+    now = time.time()
+
+    def paths_of(repo):
+        known = all_cache.get(repo)
+        if known and now - known[0] < ALL_MAX_AGE:
+            return known[1]
+        got = _tree_via_git(repo)
+        all_cache[repo] = (time.time(), got)
+        return got
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        trees = list(pool.map(paths_of, repos))
+    items, unreadable = [], 0
+    for repo, paths in zip(repos, trees):
+        if paths is None:
+            unreadable += 1
+        else:
+            items += _all_items(repo, paths, kind)
+    return {"ok": True, "kind": kind, "repos": len(repos), "unreadable": unreadable, "items": items}
+
+
 def _videos_via_git(repo):
     """([(name, 0)] of docs/videos/, [(name, 0)] of docs/) read with git (a shallow, blob-less fetch of the repository's default branch: nothing is downloaded but the tree), or None when git cannot
     (not installed, a private repository, no network). Sizes are not known this way (0)."""
@@ -3519,6 +3602,9 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(_login_snapshot())
         elif self.path == "/api/sent-app":
             self.reply_json({"sent_app": _sent_app_snapshot()})
+        elif self.path.startswith("/api/all"):
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            self.reply_json(_all_snapshot((query.get("kind") or [""])[0]))
         elif self.path == "/api/videos":
             self.reply_json(_videos_snapshot())
         elif self.path == "/api/loops":
