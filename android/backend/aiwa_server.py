@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 133
+BACKEND_VERSION = 134
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -868,8 +868,8 @@ def _instruction_lines(repo, work, base, direct, origin=None, quality=None):
             lines.append((
                 "inspiration",
                 "Dépôts d'inspiration (à moi ou à d'autres, en LECTURE SEULE) : " + ", ".join(sources) + ". Quand ma demande s'y prête, inspire-toi de leur structure, de leur code et de leurs idées ; "
-                "ne les modifie jamais, n'y pousse rien, et ne recopie pas leur code tel quel (leur licence). Pour les lire, rattache-les avec l'outil `add_repo` (lecture) ; sans cet outil, lis les fichiers par "
-                "https://raw.githubusercontent.com/<dépôt>/HEAD/<chemin>. Si tu n'y arrives pas, dis-le-moi et n'insiste pas.",
+                "ne les modifie jamais, n'y pousse rien, et ne recopie pas leur code tel quel (leur licence). Pour les lire, ne rattache RIEN : lis les fichiers par "
+                "https://raw.githubusercontent.com/<dépôt>/HEAD/<chemin> (ou `git clone --depth 1` : les dépôts publics se lisent sans accès) et n'appelle pas `add_repo` pour ça. Si tu n'y arrives pas, dis-le-moi et n'insiste pas.",
             ))
         if direct:
             lines.append((
