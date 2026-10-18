@@ -289,8 +289,8 @@ sequenceDiagram
 
 **Les trois couches de l'appli** : `app` (Compose, Glance, services), `bridge` (Kotlin pur, testé en JVM : parseur, mots, pilules, API du cerveau), `backend` (Python).
 
-<!-- diagram: readme-04-a1dfaa83.png -->
-![Diagram: 11. Architecture](docs/img/diagrams/readme-04-a1dfaa83.png)
+<!-- diagram: readme-04-b645f69e.png -->
+![Diagram: 11. Architecture](docs/img/diagrams/readme-04-b645f69e.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
