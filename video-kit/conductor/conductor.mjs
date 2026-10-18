@@ -16,7 +16,7 @@ export function validate(film, { pages = null, plates = null, sprites = null } =
   beats.forEach((b, i) => {
     const id = b.id || `#${i}`;
     if (!b.idea || String(b.idea).trim().length < 4) e(`${id}: no idea (one line: what this moment says)`);
-    if (pages && !pages.includes(b.page)) e(`${id}: the page "${b.page}" is not in the engine`);
+    if (pages && !pages.map(String).includes(String(b.page))) e(`${id}: the page "${b.page}" is not in the engine`);
     if (typeof b.t !== 'number') e(`${id}: no time`);
     if (prev && b.t <= prev.t) e(`${id}: starts before the one before it`);
     const wd = worlds[b.world];

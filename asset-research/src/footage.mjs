@@ -40,7 +40,7 @@ async function resolve(spec) {
   if (src === 'nasa') {
     const j = await (await get(`https://images-api.nasa.gov/asset/${encodeURIComponent(id)}`)).json();
     const files = (j.collection?.items || []).map((x) => x.href).filter((h) => /\.mp4$/i.test(h));
-    const pick = files.find((h) => /~orig\./.test(h)) || files.find((h) => /~large\./.test(h)) || files.find((h) => /~medium\./.test(h)) || files[0];
+    const pick = files.find((h) => /~large\./.test(h)) || files.find((h) => /~medium\./.test(h)) || files.find((h) => /~orig\./.test(h)) || files[0];      // large first: the original of a NASA film can be gigabytes
     if (!pick) throw new Error(`no mp4 for nasa:${id}`);
     return { url: pick.replace(/^http:/, 'https:'), licence: 'NASA media (public domain)', credit: `NASA (${id})`, page: `https://images.nasa.gov/details/${id}` };
   }

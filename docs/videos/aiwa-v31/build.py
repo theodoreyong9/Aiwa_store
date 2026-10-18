@@ -17,9 +17,11 @@ rep("rr(c,960,470,120,90,12);c.fill();c.beginPath();c.arc(960,425,40,Math.PI,0);
 credits = []
 for w in PLAN['worlds'].values():
     j = '/tmp/v31/footage/%s.json' % w['plate']
-    if os.path.exists(j):
+    try:
         c = json.load(open(j)).get('credit', '')
-        if c and c not in credits: credits.append(c)
+    except Exception:
+        c = ''
+    if c and c not in credits: credits.append(c)
 cred = ' · '.join(c.replace(' · Wikimedia Commons', '').replace(' · ', ' ') for c in credits)
 rep("Musique : « Killers » — Kevin MacLeod (incompetech.com), CC BY 4.0  ·  Voix : synthèse Piper  ·  Polices : Space Grotesk, Fraunces, JetBrains Mono (OFL)", "Vidéos : " + cred.replace("'", " ") + " (Wikimedia Commons, NASA) · Musique Killers, Kevin MacLeod CC BY 4.0 · Voix Piper · Polices OFL")
 # --- the worlds (the clips as pictures) and the sprites
