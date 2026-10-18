@@ -16,16 +16,20 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * itself. Each sentence heard is handed to [onHeard]; silence just starts another pass. Whoever uses it stops it before the phone speaks (the voice
  * must not be heard as a sentence) and starts a new one afterwards. Main thread only.
  */
-class AgentListener(context: Context, private val onHeard: (String) -> Unit) : RecognitionListener {
+class AgentListener(context: Context, private val onQuiet: () -> Unit = {}, private val onHeard: (String) -> Unit) : RecognitionListener {
     private val appContext = context.applicationContext
     private val recognizer = SpeechRecognizer.createSpeechRecognizer(appContext)
     private val quiet = QuietSounds(appContext)
     private val main = Handler(Looper.getMainLooper())
     private var stopped = false
+    // Nothing heard for QUIET_MS: the listening gives up (the owner goes back to the wake word); a pass that heard words restarts the count (the owner makes a new listener each time).
+    private val startedAt = android.os.SystemClock.elapsedRealtime()
     // The words understood so far in this pass: when the pass ends in an error or with an empty result (the recognizer gave up after the person had spoken), they are not lost.
     private var lastPartial = ""
 
     init { recognizer.setRecognitionListener(this) }
+
+    companion object { const val QUIET_MS = 10_000L }
 
     fun start() {
         if (stopped) return
@@ -51,7 +55,11 @@ class AgentListener(context: Context, private val onHeard: (String) -> Unit) : R
     }
 
     // A short pause before the next pass: a recognizer restarted at once answers "busy".
-    private fun again() { if (!stopped) main.postDelayed({ start() }, 300) }
+    private fun again() {
+        if (stopped) return
+        if (android.os.SystemClock.elapsedRealtime() - startedAt >= QUIET_MS) { stop(); onQuiet(); return }
+        main.postDelayed({ start() }, 300)
+    }
 
     override fun onResults(results: Bundle) {
         if (stopped) return
@@ -88,4 +96,16 @@ suspend fun askAloud(context: Context, sentence: String, speak: suspend (String)
         cont.invokeOnCancellation { confirm.cancel() }
         confirm.start()
     }
+}
+
+
+/**
+ * The message of the super agent that has not left: heard but not validated, or not confirmed, or cut by the listening going back to sleep. It is kept (also across a restart of the
+ * service) and offered again when the super agent opens; it is dropped only when it is sent or when the person says « annule ».
+ */
+object AgentDraft {
+    private const val PREFS = "aiwa_agent_draft"
+    fun get(context: Context): String? = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("text", null)?.takeIf { it.isNotBlank() }
+    fun set(context: Context, text: String) { if (text.isNotBlank()) context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("text", text.trim()).apply() }
+    fun clear(context: Context) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("text").apply() }
 }

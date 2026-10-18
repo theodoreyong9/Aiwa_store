@@ -201,6 +201,7 @@ class WakeWordService : Service() {
     private var agentWatch: Job? = null
     // The question of Claude that was read aloud and waits for its spoken answer, and the one already read (a question is read once; the next one only comes after this one was answered).
     private var answeringAsk: com.aiwa.bridge.AskInfo? = null
+    private var draftOffered = false
     private var askRead: String? = null
     private var runningCommand: VoiceDictation? = null
 
@@ -273,11 +274,32 @@ class WakeWordService : Service() {
                 if (AiwaRepository.state.value.agent?.voice == "none") try { withContext(Dispatchers.IO) { LocalClaudeBridge().voiceSetup() } } catch (err: Exception) { }
                 say("Super agent : je t'écoute — dis ta commande")
                 Speaker.speakNatural(applicationContext, "J'écoute.")
+                AgentDraft.get(applicationContext)?.let { draft ->
+                    // a message that did not leave: read again in a few words, the validation sends it, anything else goes on from it, « annule » drops it
+                    draftOffered = true
+                    Speaker.speakNatural(applicationContext, "Il reste un message : " + draft.take(160) + ".")
+                }
                 agentBusy = false
                 agentListen()
                 maybeSpeakAgent()
                 CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
             }
+        }
+    }
+
+    /** Nothing heard for ten seconds: the super agent goes back to sleep (the wake word listens again). Its unfinished message is kept (AgentDraft), and offered when it opens again. */
+    private fun standbyAgent() {
+        if (!agentMode || agentBusy || paused) return
+        agentMode = false
+        agentListener?.stop()
+        agentListener = null
+        answeringAsk = null
+        draftOffered = false
+        AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
+        scope.launch {
+            agentCall("set", mapOf("enabled" to false))
+            CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
+            if (!agentMode) listen()
         }
     }
 
@@ -291,6 +313,7 @@ class WakeWordService : Service() {
             runningCommand?.cancel()
             runningCommand = null
             answeringAsk = null
+            draftOffered = false
             AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
             scope.launch {
                 agentCall("set", mapOf("enabled" to false))
@@ -311,7 +334,7 @@ class WakeWordService : Service() {
 
     private fun agentListen() {
         if (!agentMode || paused || agentListener != null) return
-        agentListener = AgentListener(this) { text -> main.post { heardForAgent(text) } }.also { it.start() }
+        agentListener = AgentListener(this, onQuiet = { main.post { standbyAgent() } }) { text -> main.post { heardForAgent(text) } }.also { it.start() }
     }
 
     private fun heardForAgent(text: String) {
@@ -333,6 +356,16 @@ class WakeWordService : Service() {
                     } else say("Stop non confirmé : rien n'est arrêté.")
                 }
                 MANUAL_REGEX.containsMatchIn(plain) -> { agentBusy = false; closeAgent(); return@launch }
+                draftOffered -> {
+                    draftOffered = false
+                    val draft = AgentDraft.get(applicationContext)
+                    when {
+                        draft == null -> {}
+                        containsConfirmation(text) -> runAgentCommand(draft, validated = true)
+                        com.aiwa.bridge.endsWithCancelPhrase(text) || plain.startsWith("annule") || plain.startsWith("efface") -> { AgentDraft.clear(applicationContext); say("Message abandonné") }
+                        else -> runAgentCommand(draft + " " + text.trim())
+                    }
+                }
                 answeringAsk != null -> {
                     // The question of Claude read aloud just before: what is said now is the answer. Nothing else is asked until it is given.
                     val ask = answeringAsk!!
@@ -354,7 +387,7 @@ class WakeWordService : Service() {
     }
 
     // The command leaves through the same path as a dictation: the repository (named in the command, or the pill's) is confirmed with « c'est ça », then the command goes to the session.
-    private suspend fun runAgentCommand(command: String) {
+    private suspend fun runAgentCommand(command: String, validated: Boolean = false) {
         suspendCancellableCoroutine<Unit> { cont ->
             val spoken = VoiceDictation(
                 context = this,
@@ -365,7 +398,7 @@ class WakeWordService : Service() {
             )
             runningCommand = spoken
             cont.invokeOnCancellation { spoken.cancel() }
-            scope.launch { spoken.runCommand(command) }
+            scope.launch { spoken.runCommand(command, validated) }
         }
     }
 

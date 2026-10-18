@@ -60,6 +60,9 @@ class VoiceDictation(
     private var work: Job? = null
     private var repoNames: List<String> = emptyList()
     private var lastPartial = ""
+    // The super agent's command as it was said (kept as the draft when it does not leave), and whether the person already validated it (a draft offered again and confirmed)
+    private var commandText = ""
+    private var alreadyValidated = false
     private var ended = false
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -145,14 +148,17 @@ class VoiceDictation(
      * A command said to the super agent (already cut at « s'il te plaît »). If it names a repository or a session, that is checked against the lists and applied after the
      * confirmation; if it names none, the whole sentence goes as it was said, to the repository of the pill, which is recalled and confirmed first.
      */
-    suspend fun runCommand(text: String) {
+    suspend fun runCommand(text: String, validated: Boolean = false) {
+        commandText = text
+        alreadyValidated = validated
         if (repoNames.isEmpty()) repoNames = withContext(Dispatchers.IO) { try { LocalClaudeBridge().githubRepos().map { it.name } } catch (err: Exception) { emptyList() } }
         val parsed = parseDictation(text, voiceModels(), voiceSessions(), repoNames, true)
         val pills = pillCommandsOnly(parsed.commands)
         if (pills.isEmpty() && parsed.problems.isNotEmpty()) {
             // something was said as a pill (a repository that is not in the list): nothing leaves on a guess
             copyToClipboard(appContext, text)
-            toastOnMain(appContext, "⚠ " + parsed.problems.joinToString(" · ") + " Rien n'est parti : ta commande est copiée.")
+            keepDraft()
+            toastOnMain(appContext, "⚠ " + parsed.problems.joinToString(" · ") + " Rien n'est parti : ta commande est gardée (et copiée).")
             Speaker.speakAndWait(voiceContext, parsed.problems.first())
             end()
             return
@@ -249,19 +255,21 @@ class VoiceDictation(
                 val named = dictation.commands.filterIsInstance<VoiceCommand.Repo>().lastOrNull()?.name
                 val name = named ?: AiwaRepository.state.value.repo
                 if (name == null) {
+                    keepDraft()
                     if (dictation.message.isNotBlank()) copyToClipboard(appContext, dictation.message)
                     toastOnMain(appContext, "Aucun dépôt choisi : rien n'est parti." + if (dictation.message.isNotBlank()) " Ta commande est copiée." else "")
                     Speaker.speakAndWait(voiceContext, "Aucun dépôt choisi. Dis lequel dans ta commande.")
                     end()
                     return
                 }
-                if (confirmRepo(name, dictation.message)) { repoConfirmed = true; break }
+                if (alreadyValidated || confirmRepo(name, dictation.message)) { repoConfirmed = true; break }
                 // Not confirmed: a correction said at once (« non, le dépôt … ») replaces the repository and is asked again; anything else cancels.
                 val said = lastHeard
                 val fix = if (corrections < 2 && said.isNotBlank()) pillCommandsOnly(parseDictation(said, voiceModels(), voiceSessions(), repoNames, true).commands) else emptyList()
                 if (fix.isEmpty()) {
+                    keepDraft()
                     if (dictation.message.isNotBlank()) copyToClipboard(appContext, dictation.message)
-                    toastOnMain(appContext, "Pas confirmé : rien n'est appliqué ni envoyé." + if (dictation.message.isNotBlank()) " Ta commande est copiée." else "")
+                    toastOnMain(appContext, "Pas confirmé : rien n'est appliqué ni envoyé." + if (dictation.message.isNotBlank()) " Ta commande est gardée (et copiée)." else "")
                     end()
                     return
                 }
@@ -369,12 +377,15 @@ class VoiceDictation(
                 }
             } else {
                 sendAndTrack(appContext, bridge, toSend, toastErrors = true)
+                if (confirmRepoAlways) AgentDraft.clear(appContext)
             }
         }
         if (report) readReport(bridge)
         AiwaWidget().updateAll(appContext)
         end()
     }
+
+    private fun keepDraft() { if (confirmRepoAlways && commandText.isNotBlank()) AgentDraft.set(appContext, commandText) }
 
     // "T'es sur quoi ?": the pills as they are now (after what was just applied), read aloud.
     private suspend fun readReport(bridge: LocalClaudeBridge) {
