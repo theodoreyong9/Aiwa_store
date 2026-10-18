@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 125
+BACKEND_VERSION = 126
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -718,8 +718,19 @@ def _video_rules():
     )
 
 
+def _documents_line(level):
+    """What to do when I give only documents and no script. Every quality that has a film graph uses the conductor (video-kit/conductor); simple stays quick and has none."""
+    base = REFERENCE_RAW + "/video-kit/conductor/FROM_DOCUMENTS.md"
+    if level == "moyen":
+        return (" Si je ne te donne que des documents et pas de scénario : lis `" + base + "` jusqu'à l'étape 5 (notes, brief, `story.json`), et lance `node video-kit/conductor/outline.mjs story.json --docs=<dossier> --seconds=<durée>` "
+                "pour vérifier que chaque phrase repose sur un passage de mes documents (copié mot pour mot) et tient dans la durée ; pas de séquences de catalogue à ce niveau, tes pages animées portent les plans.")
+    return (" Si je ne te donne que des documents et pas de scénario : suis `" + base + "` en entier. Tu écris les notes, le brief et `story.json` ; `outline.mjs` refuse toute phrase sans passage source de mes documents, "
+            "choisit les lieux (index de séquences, jamais le même deux fois de suite) et les transitions par ambiance ; puis `sh video-kit/conductor/make-film.sh film.json <dossier de travail> [musique.wav]` fait le plan, le rendu, la voix, le son et l'assemblage. "
+            "Un clip manquant est signalé avec les éléments exacts à donner au workflow `Footage` (mode fetch) : lance-le, dépose le clip, relance ; ne le remplace par rien d'autre. Regarde la planche d'images avant de me dire que c'est fini.")
+
+
 def _video_line(repo, quality="moyen"):
-    return _video_line_text(repo, quality) + _video_rules()
+    return _video_line_text(repo, quality) + (_documents_line(quality) if quality != "simple" else "") + _video_rules()
 
 
 def _video_line_text(repo, quality="moyen"):
@@ -745,7 +756,6 @@ def _video_line_text(repo, quality="moyen"):
             "3 UNE seule langue visuelle du début à la fin (jamais une page dans un style puis la suivante dans un autre) ; deux langues ne se mêlent qu'à l'intérieur d'une même scène quand l'une sert l'autre ; "
             "4 un son conçu : `video-kit/src/sfx.py` (souffles, pizzicati, pings, bruit de pièce, montée, impact), la voix naturelle (`sh video-kit/src/voice-setup.sh`) baissée sous la musique, un seul étalonnage (`--grade=cinematic --bloom --grain --vignette`) ; "
             "5 une critique en plusieurs tours sur une planche d'une image par seconde, confiée à un sous-agent neuf, et un film qui finit sur le nom de ma création, jamais sur une vue d'ensemble. "
-            "6 si je ne donne que des documents et pas de scénario, suis `" + REFERENCE_RAW + "/video-kit/conductor/FROM_DOCUMENTS.md` : tu écris les notes, le brief et `story.json`, `outline.mjs` vérifie que chaque phrase repose sur un passage de mes documents et choisit les lieux et les transitions."
         )
     if quality == "extra":
         return (

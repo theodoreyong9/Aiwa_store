@@ -57,7 +57,7 @@ export function plan(film, total = film.total) {
     const tr = b.transition && next ? { ...b.transition, dur: b.transition.dur || transitionSeconds(b.mood, next.mood) } : null;
     if (tr) { tr.t1 = t1; tr.t0 = Math.max(t0, t1 - tr.dur); }       // the hand-over ends when the next beat begins
     const actors = (b.actors || []).map((a) => ({ ...a, in: a.in ?? t0, dissolve: a.dissolve ?? null, reform: a.reform ?? null }));
-    out.beats.push({ id: b.id, page: b.page, idea: b.idea, t0, t1, world: b.world, mood: m, grade: gradeOf(m), camera: cameraOf(m), sculpture: sculptureOf(m), transition: tr, actors });
+    out.beats.push({ id: b.id, page: b.page, idea: b.idea, say: b.say || null, image: b.image || null, t0, t1, world: b.world, mood: m, grade: gradeOf(m), camera: cameraOf(m), sculpture: sculptureOf(m), transition: tr, actors });
     const s = soundOf(m);
     // sound: the bed of the place, the track's gain, an accent on each beat (its pitch follows the warmth), the whoosh and the arrival of each hand-over, the riser of each dissolve
     out.sound.ambience.push({ t0, t1, bed: (film.worlds[b.world] || {}).ambience || 'room', level: s.ambience, brightness: s.brightness });

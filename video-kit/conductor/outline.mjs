@@ -55,14 +55,14 @@ export function toFilm(story, seconds, { footagePath, assetsPath } = {}) {
   const worlds = {}, beats = [], credits = []; let last = null;
   const n = story.beats.length, step = seconds / n;
   story.beats.forEach((x, i) => {
-    const cand = places({ words: x.place, mood: x.mood, seconds: step + 1, limit: 6, ...opts }).filter((p) => p.id !== last)[0]
-      || places({ words: '', mood: x.mood, seconds: step + 1, limit: 6, ...opts }).filter((p) => p.id !== last)[0];
+    const cand = places({ words: x.place, mood: x.mood, seconds: step + 1, limit: 6, kinds: ['footage'], ...opts }).filter((p) => p.id !== last)[0]
+      || places({ words: '', mood: x.mood, seconds: step + 1, limit: 6, kinds: ['footage'], ...opts }).filter((p) => p.id !== last)[0];
     const key = cand ? cand.id.replace(/[^a-z0-9]+/gi, '-').toLowerCase() : 'none';
-    if (cand && !worlds[key]) { worlds[key] = cand.kind === 'footage' ? { kind: 'plate', plate: key, ambience: 'air', says: cand.title } : { kind: 'panorama', panorama: cand.id, ambience: 'air', says: cand.title }; credits.push({ id: cand.id, credit: cand.credit, licence: cand.licence }); }
+    if (cand && !worlds[key]) { worlds[key] = cand.kind === 'footage' ? { kind: 'plate', plate: key, spec: cand.id, ambience: 'air', says: cand.title } : { kind: 'panorama', panorama: cand.id, ambience: 'air', says: cand.title }; credits.push({ id: cand.id, credit: cand.credit, licence: cand.licence }); }
     last = cand && cand.id;
     const next = story.beats[i + 1];
     const tr = next ? pick('transitions', next.mood, { not: i === 0 ? [] : [], lib }) : null;
-    beats.push({ id: x.id, page: x.id, t: +(i * step).toFixed(3), world: key, idea: x.idea, say: x.say || null, mood: x.mood,
+    beats.push({ id: x.id, page: x.id, t: +(i * step).toFixed(3), world: key, idea: x.idea, say: x.say || null, mood: x.mood, ...(x.image ? { image: x.image } : {}),
       ...(tr ? { transition: { kind: tr.id, ...(tr.needs === 'through' ? { through: 'center' } : {}) } } : {}) });
   });
   return { film: { title: story.title, style: story.style || 'documentary', total: seconds, fps: 30, worlds, beats }, credits };
