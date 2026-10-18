@@ -72,6 +72,7 @@ object BackendSync {
                     extra = status.extra,
                     waiting = status.waiting,
                     silenceMinutes = status.silenceMinutes,
+                    attachments = status.attachments,
                     loopPair = status.loop?.pair ?: "",
                     loopRounds = status.loop?.rounds ?: 0,
                     loopLimit = status.loop?.limit ?: 0,

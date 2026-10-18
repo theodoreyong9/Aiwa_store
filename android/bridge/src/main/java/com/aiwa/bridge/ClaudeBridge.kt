@@ -94,6 +94,8 @@ data class BackendStatus(
     val alertLast: Long? = null,
     // Minutes since a message went with no sign of Claude by any road (0 = nothing to say): the widget then asks to go and look in the conversation.
     val silenceMinutes: Int = 0,
+    // Files joined with « + » that have not gone yet (they leave with the next message).
+    val attachments: Int = 0,
     val loop: LoopRunning? = null,
     val cast: CastWish? = null,
     val site: SiteInfo = SiteInfo(null, "off"),

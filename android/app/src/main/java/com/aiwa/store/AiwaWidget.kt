@@ -511,7 +511,7 @@ private fun LightContent(state: AiwaState) {
         // ---- the microphone, Claude, the question, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             val agentOn = state.agent?.enabled == true
-            RoundButton(icon = R.drawable.ic_plus, description = "Ajouter : un document, un média, ou écrire à un contact", background = pill, action = actionStartActivity<PlusMenuActivity>(), diameter = chipH.dp)
+            RoundButton(icon = R.drawable.ic_plus, description = if (state.attachments > 0) "${state.attachments} pièce(s) jointe(s) en attente : ajouter ou retirer" else "Ajouter : un document, un média, ou écrire à un contact", background = if (state.attachments > 0) green else pill, action = actionStartActivity<PlusMenuActivity>(), diameter = chipH.dp)
             Spacer(GlanceModifier.width(GAP.dp))
             if (Projects.isAll(context)) {
                 // « Tous »: no session or repository to dictate to; the super agent is the microphone, and it decides where each request goes

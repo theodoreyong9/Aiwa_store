@@ -81,6 +81,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             extra = json.str("extra") ?: "",
             waiting = json.optBoolean("waiting", false),
             silenceMinutes = json.optInt("silence_minutes", 0),
+            attachments = json.optInt("attachments", 0),
             cast = json.optJSONObject("cast")?.let { CastWish(it.optString("tv"), it.optString("name"), it.optString("url")) },
             loop = json.optJSONObject("loop")?.let { LoopRunning(it.optString("pair"), it.optInt("rounds", 0), it.optInt("limit", 0), it.optString("turn"), it.optInt("running", 1)) },
             alertLast = if (json.isNull("alert_last")) null else json.optLong("alert_last"),
@@ -199,6 +200,13 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         Triple(json.optBoolean("ok", false), json.optInt("count", 0), json.optString("error", "erreur inconnue"))
     } catch (e: Exception) {
         Triple(false, 0, e.message ?: "erreur inconnue")
+    }
+
+    /** Takes back the files joined and not sent yet. Returns whether the backend answered ok. */
+    fun attachClear(): Boolean = try {
+        JSONObject(postText("/api/attach/clear", "")).optBoolean("ok", false)
+    } catch (e: Exception) {
+        false
     }
 
     // The list Aiwa keeps of its sessions, emptied. Nothing is touched in Claude.

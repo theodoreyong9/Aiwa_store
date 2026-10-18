@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -29,7 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.aiwa.bridge.LocalClaudeBridge
+import androidx.glance.appwidget.updateAll
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** The channels of « + »: what a contact is called there, and what to give. The id travels in the request to the session. */
 private data class Channel(val id: String, val label: String, val handle: String)
@@ -58,7 +62,19 @@ class PlusMenuActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
         setContent {
+            // the files joined and not sent yet: asked once, so that the menu can offer to take them back
+            val waitingFiles by produceState(0) { value = withContext(Dispatchers.IO) { try { LocalClaudeBridge().status().attachments } catch (e: Exception) { 0 } } }
+            val scope = rememberCoroutineScope()
             val entries = buildList {
+                if (waitingFiles > 0) add(PickerEntry("Retirer les $waitingFiles pièce(s) jointe(s)\nelles ne partiront pas avec le prochain message", true) {
+                    val app = applicationContext
+                    scope.launch {
+                        val ok = withContext(Dispatchers.IO) { LocalClaudeBridge().attachClear() }
+                        toastOnMain(app, if (ok) "Pièces jointes retirées" else "Impossible de les retirer")
+                        try { AiwaWidget().updateAll(app) } catch (e: Exception) { }
+                        finish()
+                    }
+                })
                 add(PickerEntry("Document\nun fichier joint au prochain message", false) { attach(arrayOf("*/*")) })
                 add(PickerEntry("Média\nphoto, vidéo ou son, joint au prochain message", false) { attach(arrayOf("image/*", "video/*", "audio/*")) })
                 add(PickerEntry("Écrire à un contact — une campagne d'un seul contact", false, header = true) { })

@@ -118,6 +118,8 @@ data class AiwaState(
     val alertAt: Long? = null,
     // Minutes of silence since the last message (0 = none): nothing came back by any road.
     val silenceMinutes: Int = 0,
+    // Files joined with « + » and not sent yet: the widget says so and « + » offers to take them back.
+    val attachments: Int = 0,
     // The loop between two sessions that is running (the one that began last): "" = none; the round it is at, its limit, whose turn it is.
     val loopPair: String = "",
     val loopRounds: Int = 0,
