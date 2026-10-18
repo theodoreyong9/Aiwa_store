@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 131
+BACKEND_VERSION = 132
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1336,19 +1336,22 @@ def _attachments_block(items):
     return out
 
 
-def cloud_send(text, command=False):
+def cloud_send(text, command=False, session=None):
     """Sends one message to the current cloud session — creating a new
     one when none is selected. Synchronous: creating a session can take a
     while, the cloud machine has to start.
 
     command=True: `text` is a slash command for the CURRENT session (e.g.
     `/model opus`); it never creates a session and leaves the session's
-    name and rank in the list alone."""
+    name and rank in the list alone.
+
+    session: a session to send to INSTEAD of the one in use (the super agent's confirmed proposals): the message then goes the same way as my own —
+    with the files I joined, the instructions of the pills and the quality I said — and the widget's session stays as it is."""
     global current_cloud, cloud_busy, cloud_busy_since, cloud_progress, github_error, last_cloud, repo_access_missing
     with lock:
         if cloud_busy:
             return {"ok": False, "error": "busy"}
-        session_id = current_cloud
+        session_id = session or current_cloud
         model = current_model
         repo, direct_now = current_repo, push_main
         if command and not session_id:
@@ -3085,9 +3088,10 @@ def agent_confirm(proposal_id):
     targets = [(proposal["session"], proposal["message"])] + [(m["session"], m["message"]) for m in proposal.get("more", [])]
     sent = []
     for session_id, message in targets:
-        result = _queue_followup(session_id, message + _loop_block_for(session_id))
+        # as MY message: the files I joined go with it, with the instructions of the pills and the quality I said (a bare follow-up lost all of that)
+        result = cloud_send(message, session=session_id)
         if not result["ok"]:
-            return {"ok": False, "error": result["error"], "sent": sent}
+            return {"ok": False, "error": result.get("error"), "sent": sent}
         sent.append(session_id)
     with agent_lock:
         if agent["proposal"] and agent["proposal"]["id"] == proposal_id:

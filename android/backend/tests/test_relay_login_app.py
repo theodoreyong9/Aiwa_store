@@ -1586,7 +1586,7 @@ class HttpTests(Base):
              unittest.mock.patch.object(srv, "_queue_followup", followup), \
              unittest.mock.patch.object(srv, "_newest_commit_time", lambda repo, branch: time.time() - 600), \
              unittest.mock.patch.object(srv, "_agent_save", lambda: None), \
-             unittest.mock.patch.object(srv, "cloud_send", lambda text, command=False: {"ok": True, "session_id": "session_AGENT"}):
+             unittest.mock.patch.object(srv, "cloud_send", lambda text, command=False, session=None: followup(session, text) if session else {"ok": True, "session_id": "session_AGENT"}):
             self.assertFalse(self.call("/api/agent/set", json.dumps({"enabled": True}))["ok"], "no agent yet")
             self.assertTrue(self.call("/api/agent/create", "{}")["ok"])
             for _ in range(50):
@@ -2045,6 +2045,29 @@ class AttachmentTests(unittest.TestCase):
         self.assertFalse(srv.attach_remove(json.dumps({"index": 5}))["ok"], "a place that is gone is refused")
         self.assertFalse(srv.attach_remove("pas du json")["ok"])
         self.assertNotIn("b.txt", srv._attachments_block(list(srv.attachments)))
+
+    def test_a_message_to_a_given_session_carries_the_files_and_the_quality_like_my_own(self):
+        # what the super agent sends once I have confirmed: the CV I joined goes with it, and the quality I said wins over the widget's button
+        srv.attach_add(json.dumps({"name": "cv.txt", "data": self.b64("Jean Da Cunha, chef des ventes".encode())}))
+        queued = []
+        def queue(sid, text):
+            queued.append((sid, text))
+            return {"ok": True, "url": "https://x/y", "error": None}
+        entry = {"id": "session_W", "repo": "o/r", "work": "aiwa/x", "base": "main", "direct": True}
+        patches = [unittest.mock.patch.object(srv, "_queue_followup", queue), unittest.mock.patch.object(srv, "_session_entry", lambda sid: entry),
+                   unittest.mock.patch.object(srv, "_session_targets", lambda sid, e: ("aiwa/x", "main")),
+                   unittest.mock.patch.object(srv.github, "default_branch_or_none", lambda repo: "main"),
+                   unittest.mock.patch.object(srv, "_save_cloud_session", lambda *a, **k: None), unittest.mock.patch.object(srv, "_mailbox_watch", lambda *a, **k: None),
+                   unittest.mock.patch.object(srv, "_note_message_sent", lambda: None), unittest.mock.patch.object(srv, "_set_login_state", lambda s: None),
+                   unittest.mock.patch.object(srv, "current_cloud", "session_OTHER")]
+        for p in patches: p.start(); self.addCleanup(p.stop)
+        got = srv.cloud_send("fais une campagne de candidature en qualité moyenne", session="session_W")
+        self.assertTrue(got["ok"])
+        self.assertEqual(got["session_id"], "session_W", "the session asked for, not the one in use")
+        self.assertEqual(queued[0][0], "session_W")
+        self.assertIn("Jean Da Cunha, chef des ventes", queued[0][1])
+        self.assertIn("qualité MOYENNE", queued[0][1])
+        self.assertEqual(srv.attach_list(), [], "the files left with the message")
 
     def test_too_big_or_empty_is_refused_and_clear_empties(self):
         self.assertFalse(srv.attach_add(json.dumps({"name": "a", "data": ""}))["ok"])
