@@ -293,8 +293,13 @@ class WakeWordService : Service() {
             scope.launch {
                 agentCall("set", mapOf("enabled" to false))
                 CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
-                Speaker.speakNatural(applicationContext, "Retour en manuel.")
-                if (!agentMode) listen()
+                Speaker.speakNatural(applicationContext, "Agent éteint.")
+                // the microphone of the widget IS the super agent: when it is turned off nothing keeps listening (the small model of the wake word used to start again by itself,
+                // and the settings had to be opened to close it)
+                if (!agentMode) {
+                    ListenSettings.setEnabled(applicationContext, false)
+                    stopSelf()
+                }
             }
         }
     }
