@@ -513,27 +513,16 @@ private fun LightContent(state: AiwaState) {
             val agentOn = state.agent?.enabled == true
             RoundButton(icon = R.drawable.ic_plus, description = if (state.attachments > 0) "${state.attachments} pièce(s) jointe(s) en attente : ajouter ou retirer" else "Ajouter : un document, un média, ou écrire à un contact", background = if (state.attachments > 0) green else pill, action = actionStartActivity<PlusMenuActivity>(), diameter = chipH.dp)
             Spacer(GlanceModifier.width(GAP.dp))
-            if (Projects.isAll(context)) {
-                // « Tous »: no session or repository to dictate to; the super agent is the microphone, and it decides where each request goes
-                Box(
-                    modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (agentOn) green else pill).cornerRadius(((rowH - 2f) / 2).dp).clickable(actionStartActivity<AgentToggleActivity>()),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = "Parler au super agent", modifier = GlanceModifier.size(16.dp))
-                        Spacer(GlanceModifier.width(8.dp))
-                        Text(if (agentOn) "Il écoute" else "Parler au super agent", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-                    }
-                }
-            } else Box(
-                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (locked || agentOn) MIC_DIM else micGrey).cornerRadius(((rowH - 2f) / 2).dp)
-                    .clickable(if (agentOn) actionRunCallback<AgentMicTapCallback>() else lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))),
+            // the microphone IS the super agent: a tap opens it (it listens, knows every pill and routes what is said), a second tap closes it
+            val agentNeeds = state.agent?.let { it.say != null || it.proposal != null || it.command != null } == true
+            Box(
+                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (agentNeeds) alertRed else if (agentOn) green else pill).cornerRadius(((rowH - 2f) / 2).dp).clickable(actionStartActivity<AgentToggleActivity>()),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(16.dp))
+                    Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = "Super agent : ouvrir ou fermer", modifier = GlanceModifier.size(16.dp))
                     Spacer(GlanceModifier.width(8.dp))
-                    Text("Dicter un message", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                    Text(if (agentOn) "Il écoute · fermer" else "Parler au super agent", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 }
             }
             // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
@@ -570,14 +559,6 @@ private fun LightContent(state: AiwaState) {
                 )
             }
             Slot { RoundButton(icon = R.drawable.ic_aiwa, description = "L'application Aiwa", background = pill, action = actionStartActivity<StoreActivity>(), diameter = bottomD.dp) }
-            if (!Projects.isAll(context)) Slot {
-                RoundButton(
-                    icon = R.drawable.ic_agent,
-                    description = "Super agent : ouvrir ou fermer (l'écoute de réveil attend pendant ce temps)",
-                    background = if (agent != null && (agent.say != null || agent.proposal != null || agent.command != null)) alertRed else if (agent?.enabled == true) green else pill,
-                    action = actionStartActivity<AgentToggleActivity>(), diameter = bottomD.dp,
-                )
-            }
             Slot { RoundButton(icon = R.drawable.ic_proposals, description = "Campagne : les propositions à valider", background = pill, action = actionStartActivity<ProposalsActivity>(), diameter = bottomD.dp) }
             Slot {
                 RoundButton(
@@ -618,7 +599,8 @@ private fun GlassesContent(state: AiwaState) {
     val colW = 40f
     val band = bandInfo(state, inner - colW - 24f)
     val agentOn = state.agent?.enabled == true
-    val micAct = if (Projects.isAll(context)) actionStartActivity<AgentToggleActivity>() else if (agentOn) actionRunCallback<AgentMicTapCallback>() else lockable(locked, micAction(state.needsRepo, state.backend == "missing", accessNotice(state, 1) != null))
+    val micAct = actionStartActivity<AgentToggleActivity>()      // the microphone is the super agent: a tap opens it, a second tap closes it
+    val agentNeeds = state.agent?.let { it.say != null || it.proposal != null || it.command != null } == true
     fun storeTab(tab: String): Action = actionStartIntent(
         Intent(context, StoreActivity::class.java).setData(Uri.parse("aiwa://store/$tab"))
             .putExtra(StoreActivity.EXTRA_URL, storeTabUrl(tab) ?: STORE_APP_URL),
@@ -675,25 +657,17 @@ private fun GlassesContent(state: AiwaState) {
                         val sideD = minOf(itemH + 1f, 12f).dp
                         val ag = state.agent
                         RoundButton(icon = R.drawable.ic_plus, description = "Ajouter : un document, un média, ou écrire à un contact", background = pill, action = actionStartActivity<PlusMenuActivity>(), diameter = sideD)
-                        if (!Projects.isAll(context)) {
-                            Spacer(GlanceModifier.width(3.dp))
-                            RoundButton(
-                                icon = R.drawable.ic_agent, description = "Super agent : ouvrir ou fermer",
-                                background = if (ag != null && (ag.say != null || ag.proposal != null || ag.command != null)) alertRed else if (ag?.enabled == true) green else pill,
-                                action = actionStartActivity<AgentToggleActivity>(), diameter = sideD,
-                            )
-                        }
                     }
                     // the bottom: dictate, the question when Claude asks one, the update when one is ready
                     Row(modifier = GlanceModifier.fillMaxWidth().height(micH.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            modifier = GlanceModifier.defaultWeight().height(micH.dp).background(if (locked || agentOn) MIC_DIM else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
+                            modifier = GlanceModifier.defaultWeight().height(micH.dp).background(if (agentNeeds) alertRed else if (agentOn) green else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
                             contentAlignment = Alignment.Center,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Image(provider = ImageProvider(R.drawable.rec_dot), contentDescription = "Dicter un message", modifier = GlanceModifier.size(14.dp))
+                                Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = "Super agent : ouvrir ou fermer", modifier = GlanceModifier.size(14.dp))
                                 Spacer(GlanceModifier.width(5.dp))
-                                Text(if (Projects.isAll(context)) "Agent" else "Dicter", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                                Text(if (agentOn) "Écoute" else "Agent", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                             }
                         }
                         if (state.ask != null) {
