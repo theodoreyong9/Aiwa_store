@@ -79,6 +79,13 @@ try {
           const ff = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-user_agent', UA, '-ss', String(start), '-i', m.url, '-t', String(flags.seconds || 12), '-an', '-vf', 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30', '-c:v', 'libx264', '-crf', '20', '-preset', 'fast', '-pix_fmt', 'yuv420p', mp4], { encoding: 'utf8', timeout: 20 * 60 * 1000 });
           const size = existsSync(mp4) ? statSync(mp4).size : 0;
           if (ff.status === 0 && size > 200000) { last = ''; break; }
+          if (tryN === 1) {       // a source ffmpeg cannot seek over the network (an Ogg file, for example): the file is downloaded whole, and cut here
+            try {
+              const raw = join(out, `${name}.src`); writeFileSync(raw, Buffer.from(await (await get(m.url)).arrayBuffer()));
+              const f2 = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(start), '-i', raw, '-t', String(flags.seconds || 12), '-an', '-vf', 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30', '-c:v', 'libx264', '-crf', '20', '-preset', 'fast', '-pix_fmt', 'yuv420p', mp4], { encoding: 'utf8', timeout: 20 * 60 * 1000 });
+              if (f2.status === 0 && existsSync(mp4) && statSync(mp4).size > 200000) { last = ''; break; }
+            } catch (e2) { last = `download: ${e2.message}`; }
+          }
           last = ff.status === 0 ? `the clip is too small (${size} bytes)` : `ffmpeg: ${ff.stderr.slice(-200)}`;
         }
         if (last) throw new Error(last);
