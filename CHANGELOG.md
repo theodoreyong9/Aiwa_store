@@ -1,7 +1,7 @@
 # Changelog
 
 ## Unreleased
-- **L'application Aiwa est couverte par « En construction »**, avec un bouton « Mettre le widget » tant que le widget n'est pas sur l'écran d'accueil ; rien d'autre n'est utilisable pour l'instant (une constante, `StoreActivity.UNDER_CONSTRUCTION`, l'enlève). « Commentaire pour le critique » reste dans les réglages, marqué « (bientôt) » et inactif.
+- **L'application Aiwa est couverte par « En construction »**, avec un bouton « Mettre le widget » tant que le widget n'est pas sur l'écran d'accueil ; rien d'autre n'est utilisable pour l'instant (une constante, `StoreActivity.UNDER_CONSTRUCTION`, l'enlève). « Commentaire pour le critique » est retiré des réglages (le commentaire se fera autrement).
 - **Une seule copie du widget** : Android laisse ajouter le widget plusieurs fois et une application ne peut pas l'interdire ni retirer une copie. La première posée reste la vraie ; les suivantes affichent « Aiwa est déjà sur ton écran : retire cette copie. » au lieu de doubler le contenu. Demande le nouvel APK.
 - **La forme « glasses » du widget disparaît** : elle ramait trop. Il ne reste que la forme Light ; le choix « Forme du widget » des réglages, le dessin des lunettes et les boutons propres à cette forme (Store, Wallet, recherche, own, fave, inviter : le bouton Aiwa de la forme Light ouvre l'appli, qui les contient) sont retirés. Demande le nouvel APK.
 - **Éteindre le super agent éteint aussi l'écoute permanente du petit modèle** : avant, la fermeture du super agent relançait l'écoute du mot d'éveil et il fallait aller dans les réglages pour la couper. Comme le micro du widget EST le super agent, tout s'arrête avec lui (« Agent éteint ») ; le rouvrir rallume l'écoute. Demande le nouvel APK.

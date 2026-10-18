@@ -802,8 +802,6 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("État d'Aiwa", false, lines = 1) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
                 add(PickerEntry("Version : appli ${AppUpdater.installedVersion(applicationContext) ?: "?"} · cerveau ${AiwaRepository.state.value.backendVersion.takeIf { it > 0 } ?: "?"}${AiwaRepository.state.value.backendUpdatedAt.takeIf { it > 0 }?.let { " (mis à jour le " + java.text.SimpleDateFormat("dd/MM à HH:mm", java.util.Locale.FRANCE).format(java.util.Date(it * 1000)) + ")" } ?: ""}${if (AppUpdater.readyFile(applicationContext) != null) " · mise à jour téléchargée" else ""}", false, lines = 2) { })
-                // The comment for the critic: not available for now
-                add(PickerEntry("Commentaire pour le critique (bientôt)", false, lines = 1) { })
                 // Only when there is no widget yet: nobody asked for a second one
                 if (!WidgetPin.hasWidget(applicationContext)) {
                     add(PickerEntry("Ajouter le widget à l'écran d'accueil", false, lines = 1) {
