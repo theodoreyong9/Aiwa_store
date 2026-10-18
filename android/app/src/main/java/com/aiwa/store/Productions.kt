@@ -125,6 +125,9 @@ object Productions {
             out["aiwa"] = names("$api/contents/aiwa-apps")?.any { it.endsWith(".aiwa.html") }
             out
         }
+        // A question GitHub did not answer (rate limit, no network, a slow answer) is asked again in a minute, not after ten: a button must not stay grey for ten minutes after one failure
+        if (found.values.any { it == null }) prefs.edit().putLong("at:$repo", now - 540_000L).apply()
+        android.util.Log.i("AiwaProductions", "$repo: $found")
         var changed = false
         found.forEach { (kind, value) ->
             if (value != null) { if (has(context, repo, kind) != value) changed = true; set(context, repo, kind, value) }
