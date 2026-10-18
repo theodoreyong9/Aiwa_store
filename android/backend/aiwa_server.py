@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 128
+BACKEND_VERSION = 129
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -646,10 +646,10 @@ def _video_full(repo):
     )
 
 
-def _proposals_line(repo, forced=True):
+def _proposals_line(repo):
     """The campaign mode: a file (and, if I ticked it, my GitHub work) becomes a package: a list of targets that I validate, a site with its tree, a video and a price for each, and the proposals
     I validate one by one in the app. The session prepares, it never sends anything."""
-    text = (
+    return (
         "MODE CAMPAGNE : ce projet est une campagne de propositions, semi-automatisée, qui avance CIBLE PAR CIBLE. Elle part de ce que ma demande désigne : un fichier (dans mon message ou dans `aiwa-campagne/` : un CV, un argumentaire, une brochure…), "
         "ma création dans le dépôt et ses vidéos (dans `docs/videos/`), mes réalisations GitHub publiques si je l'ai coché : un fichier n'est PAS obligatoire. "
         "Si ma demande ne désigne rien de tout cela et que le dépôt est vide, demande-moi UNE fois par la question du widget (menu d'Aiwa → Créer à partir d'un fichier → Une campagne) et arrête-toi là. "
@@ -688,17 +688,19 @@ def _proposals_line(repo, forced=True):
         "pour que le prochain envoi puisse s'en servir. Ne prétends pas avoir comparé ce que tu n'as pas lu. "
         "Pousse sur la branche principale à chaque cible : je relis et j'envoie moi-même, une par une, depuis l'application (le bouton Campagne du widget : un onglet par campagne)."
     )
-    if forced:
-        return text
-    # Not chosen in the widget: the session recognises a campaign by what I ask (a voice or a text), like a video or a document
-    return (
-        "CAMPAGNE (reconnue à ma demande, sans réglage) : si ma demande est une campagne, c'est-à-dire chercher des cibles (entreprises, offres d'emploi, recruteurs, prospects, contacts…) "
-        "et leur préparer à chacune des productions PERSONNALISÉES (documents, vidéo, page), applique la procédure qui suit ; sinon, ignore cette ligne. Les modes se combinent : une campagne peut produire n'importe lesquelles des productions demandées. "
-        + text
-    )
 
 
 VIDEO_QUALITIES = ("simple", "moyen", "extra", "max")
+_SPOKEN_QUALITY = re.compile(r"qualit[ée]\s+(simple|moyenne?|extra|max(?:imale?|imum)?)\b", re.IGNORECASE)
+
+
+def _spoken_quality(text):
+    """The video quality named in what I said or wrote ("en qualité moyenne"), or None: what I say always wins over the buttons of the widget."""
+    found = _SPOKEN_QUALITY.search(text or "")
+    if not found:
+        return None
+    word = found.group(1).lower()
+    return "moyen" if word.startswith("moyen") else "max" if word.startswith("max") else word
 
 
 def _cut(text, start, end):
@@ -827,13 +829,15 @@ def _creative_line():
     )
 
 
-def _instruction_lines(repo, work, base, direct, origin=None):
+def _instruction_lines(repo, work, base, direct, origin=None, quality=None):
     """What the user's switches ask of Claude Code, in words, as (key, text)
     pairs. Claude Code does all of it itself, with its own GitHub access.
     origin: the repository the session was started on, when it now works on another one (the user changed repository in the middle of
     the session: a session's instructions change like its model does, the session stays); "" = it was started on none."""
     with lock:
         deploy, topic, more, sources, video_quality = deploy_mode, waiting_topic, list(extra_repos), list(source_repos), globals()["video_quality"]
+    if quality in VIDEO_QUALITIES:
+        video_quality = quality        # said in the request: it wins over the widget's button, for this message
     lines = []
     moved = repo and origin is not None and origin != repo
     if repo:
@@ -1011,7 +1015,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
     if repo:
         lines.append(("video", _video_line(repo, video_quality)))
         lines.append(("document", _document_line(repo)))
-        lines.append(("proposals", _proposals_line(repo, forced=deploy == "campaign")))
+        lines.append(("proposals", _proposals_line(repo)))
     lines.append(("ask", _ask_line(repo, work, topic)))
     # Mandatory, not a switch: it is how the widget learns that Claude is
     # waiting (the CLI can't read a cloud reply back). A public relay, a
@@ -1034,13 +1038,13 @@ def _instruction_lines(repo, work, base, direct, origin=None):
     return lines
 
 
-def _compose(entry, repo, work, base, direct, origin=None):
+def _compose(entry, repo, work, base, direct, origin=None, quality=None):
     """The instructions added to a message, and what was told (a hash per
     instruction, kept with the session). Everything goes with a session's
     FIRST message; after that only what changed since — a new or altered
     instruction, or a note that one was withdrawn — and nothing at all when
     nothing changed, so the conversation isn't buried in repeats."""
-    lines = _instruction_lines(repo, work, base, direct, origin)
+    lines = _instruction_lines(repo, work, base, direct, origin, quality)
     told = {key: hashlib.sha1(text.encode()).hexdigest()[:8] for key, text in lines}
     previous = (entry or {}).get("instr")
     if not isinstance(previous, dict) or not previous:
@@ -1336,6 +1340,7 @@ def cloud_send(text, command=False):
     title = " ".join(text.split())[:50]
     with attach_lock:
         sent_files = [] if command else list(attachments)
+    spoken_quality = _spoken_quality(text)      # read before the files are added: only what I said counts
     text += _attachments_block(sent_files)
     if not command:
         _clear_waiting()  # the user answered: whatever Claude was waiting for is over
@@ -1354,7 +1359,7 @@ def cloud_send(text, command=False):
                         _update_session(session_id, base=fresh)
                         base = fresh
                     entry = _session_entry(session_id)
-                extra_text, fingerprint = _compose(entry, entry.get("repo"), work, base, entry.get("direct", True), entry.get("origin"))
+                extra_text, fingerprint = _compose(entry, entry.get("repo"), work, base, entry.get("direct", True), entry.get("origin"), spoken_quality)
                 sent += extra_text + _loop_block_for(session_id)
             result = _queue_followup(session_id, sent)
             if not result["ok"]:
@@ -1385,7 +1390,7 @@ def cloud_send(text, command=False):
             github_error = f"dépôt {repo} : {err}"
             return {"ok": False, "error": github_error}
         github_error = None
-        extra_text, fingerprint = _compose({}, repo, work, base, direct_now)
+        extra_text, fingerprint = _compose({}, repo, work, base, direct_now, quality=spoken_quality)
         with lock:
             asked_before = relay_cloud["asked"]
         check_text = _relay_check_text(repo=repo, work=work)

@@ -449,18 +449,29 @@ class ProposalsTests(unittest.TestCase):
         many = [{"id": f"c{i}", "name": "x"} for i in range(srv.PROPOSAL_MAX + 20)]
         self.assertEqual(len(self.snapshot(many)["proposals"]), srv.PROPOSAL_MAX)
 
-    def test_a_campaign_is_recognised_by_the_request_in_every_mode_and_firm_in_its_own(self):
+    def test_the_campaign_is_an_instruction_like_the_others_in_every_mode(self):
         self.assertIn("campaign", srv.DEPLOY_MODES)
-        for mode in ("pages", "android"):
+        for mode in ("pages", "android", "campaign"):
             srv.deploy_mode = mode
-            hint = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
-            self.assertTrue(hint.startswith("CAMPAGNE (reconnue à ma demande"), "the campaign is on every message, conditional on what I ask")
-            self.assertIn("MODE CAMPAGNE", hint)
+            text = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
+            self.assertTrue(text.startswith("MODE CAMPAGNE"), "no introduction, no condition: the same words whatever the mode")
         srv.deploy_mode = "campaign"
         lines = dict(srv._instruction_lines("o/r", "w", "main", True))
         srv.deploy_mode = "pages"
-        self.assertTrue(lines["proposals"].startswith("MODE CAMPAGNE"), "chosen in the widget: no condition")
         self.assertIn("GitHub Pages", lines["deploy"])         # the campaign publishes its site like the pages mode does
+
+    def test_a_quality_said_in_the_request_wins_over_the_widget(self):
+        self.assertEqual(srv._spoken_quality("fais une campagne en qualité moyenne"), "moyen")
+        self.assertEqual(srv._spoken_quality("Vidéo qualité MAX svp"), "max")
+        self.assertEqual(srv._spoken_quality("qualité extra"), "extra")
+        self.assertIsNone(srv._spoken_quality("une vidéo de bonne qualité"))
+        srv.video_quality = "extra"
+        self.addCleanup(setattr, srv, "video_quality", "moyen")
+        widget = dict(srv._instruction_lines("o/r", "w", "main", True))["video"]
+        said = dict(srv._instruction_lines("o/r", "w", "main", True, None, "moyen"))["video"]
+        self.assertIn("qualité EXTRA", widget)
+        self.assertIn("qualité MOYENNE", said)
+        self.assertNotIn("qualité EXTRA", said)
 
     def test_the_campaign_asks_no_validation_of_a_list_and_stops_on_demand(self):
         srv.deploy_mode = "campaign"
