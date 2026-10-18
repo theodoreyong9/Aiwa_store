@@ -23,16 +23,81 @@ object Productions {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("$kind:$repo", present).apply()
     }
 
-    /** (status, body): status 0 when the network did not answer. A 403 (rate limit) or a 5xx is "unknown", not "absent". */
+    // The answers of GitHub's API, kept with their ETag: asked again with it, GitHub answers 304 « nothing changed », which does NOT count in its limit of 60 questions an hour
+    // without a token. Set when a look begins (refresh); without it a question is simply asked in full.
+    @Volatile private var memory: android.content.SharedPreferences? = null
+    private const val MAX_KEPT = 300_000
+
+    /** (status, body): status 0 when the network did not answer. A 403 (rate limit) or a 5xx is "unknown", not "absent". A 304 gives the kept answer as a 200. */
     private fun get(url: String): Pair<Int, String?> = try {
+        val conditional = url.startsWith("https://api.github.com/")
+        val kept = if (conditional) memory else null
         (URL(url).openConnection() as HttpURLConnection).run {
             connectTimeout = 8000; readTimeout = 8000
             setRequestProperty("Accept", "application/vnd.github+json")
             setRequestProperty("User-Agent", "aiwa")
+            val tag = kept?.getString("etag-of:$url", null)
+            val body = kept?.getString("body-of:$url", null)
+            if (tag != null && body != null) setRequestProperty("If-None-Match", tag)
             val code = responseCode
-            code to (if (code == 200) inputStream.bufferedReader().readText() else null)
+            when {
+                code == 304 && body != null -> 200 to body
+                code == 200 -> {
+                    val text = inputStream.bufferedReader().readText()
+                    val newTag = getHeaderField("ETag")
+                    if (kept != null && newTag != null && text.length <= MAX_KEPT) kept.edit().putString("etag-of:$url", newTag).putString("body-of:$url", text).apply()
+                    200 to text
+                }
+                else -> code to null
+            }
         }
     } catch (e: Exception) { 0 to null }
+
+    /**
+     * The names in a folder of a repository, read from github.com's own page of the folder (asked as JSON) and NOT from the API: those pages are not in the API's limit of 60 an hour.
+     * null when it did not answer (the API is then tried); an absent folder (404) is an empty list.
+     */
+    private fun webNames(repo: String, path: String): List<String>? = try {
+        (URL("https://github.com/$repo/tree/HEAD/$path").openConnection() as HttpURLConnection).run {
+            connectTimeout = 8000; readTimeout = 8000
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("User-Agent", "aiwa")
+            when (responseCode) {
+                404 -> emptyList()
+                200 -> {
+                    val items = JSONObject(inputStream.bufferedReader().readText()).getJSONObject("payload").getJSONObject("codeViewTreeRoute").getJSONObject("tree").getJSONArray("items")
+                    (0 until items.length()).map { items.getJSONObject(it).optString("name") }
+                }
+                else -> null
+            }
+        }
+    } catch (e: Exception) { null }
+
+    /** The folder's names: the web page first, then the API (with its kept answer). */
+    private fun folder(repo: String, path: String): List<String>? = webNames(repo, path) ?: names("https://api.github.com/repos/$repo/contents/$path")
+
+    /** Does a recent release of the repository hold an .apk? From the releases feed and the pages of the releases (github.com, not the API); null when they did not answer. */
+    private fun webApk(repo: String): Boolean? = try {
+        val feed = (URL("https://github.com/$repo/releases.atom").openConnection() as HttpURLConnection).run {
+            connectTimeout = 8000; readTimeout = 8000
+            setRequestProperty("User-Agent", "aiwa")
+            if (responseCode == 200) inputStream.bufferedReader().readText() else null
+        }
+        if (feed == null) null else {
+            val tags = Regex("""/releases/tag/([^"<\s]+)""").findAll(feed).map { it.groupValues[1] }.distinct().take(5).toList()
+            var answered = true
+            var found = false
+            for (tag in tags) {
+                val page = (URL("https://github.com/$repo/releases/expanded_assets/$tag").openConnection() as HttpURLConnection).run {
+                    connectTimeout = 8000; readTimeout = 8000
+                    setRequestProperty("User-Agent", "aiwa")
+                    if (responseCode == 200) inputStream.bufferedReader().readText() else null
+                }
+                if (page == null) answered = false else if (Regex("""\.apk["?]""", RegexOption.IGNORE_CASE).containsMatchIn(page)) { found = true; break }
+            }
+            if (found) true else if (answered) false else null
+        }
+    } catch (e: Exception) { null }
 
     private fun count(url: String, pick: (JSONArray) -> Int = { it.length() }): Int? {
         val (code, body) = get(url)
@@ -90,7 +155,7 @@ object Productions {
     /** The document files of the folder `docs` of a repository (the names), for the lists to tick; empty when GitHub does not answer (a private repository). */
     suspend fun documentFiles(repo: String): List<String> = withContext(Dispatchers.IO) {
         val ext = listOf(".md", ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".csv", ".html")
-        (names("https://api.github.com/repos/$repo/contents/docs") ?: emptyList()).filter { n -> n.lowercase().let { l -> ext.any { l.endsWith(it) } } }.sorted()
+        (folder(repo, "docs") ?: emptyList()).filter { n -> n.lowercase().let { l -> ext.any { l.endsWith(it) } } }.sorted()
     }
 
     /**
@@ -104,12 +169,13 @@ object Productions {
         val now = System.currentTimeMillis()
         if (!force && now - prefs.getLong("at:$repo", 0L) < 600_000L) return
         prefs.edit().putLong("at:$repo", now).apply()
+        memory = prefs
         val found = withContext(Dispatchers.IO) {
             val api = "https://api.github.com/repos/$repo"
             val out = HashMap<String, Boolean?>()
             // ONE look at docs/: the videos and the documents of a repository live there, the same for all
-            val docsDir = names("$api/contents/docs")
-            val videosDir = names("$api/contents/docs/videos")
+            val docsDir = folder(repo, "docs")
+            val videosDir = folder(repo, "docs/videos")
             fun has(ext: List<String>) = docsDir?.any { n -> n.lowercase().let { l -> ext.any { l.endsWith(it) } } }
             val videoExt = listOf(".mp4", ".webm", ".mov")
             // the videos of docs/videos/ (and the films a project keeps at the root of docs/)
@@ -118,11 +184,11 @@ object Productions {
             out["documents"] = has(listOf(".md", ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".csv"))
             val owner = repo.substringBefore('/'); val name = repo.substringAfter('/')
             out["page"] = get("https://$owner.github.io/$name/").first.let { if (it == 200) true else if (it == 404) false else null }
-            out["apk"] = get("$api/releases?per_page=10").let { (c, b) ->
+            out["apk"] = webApk(repo) ?: get("$api/releases?per_page=10").let { (c, b) ->
                 if (c == 200 && b != null) runCatching { JSONArray(b).let { rs -> (0 until rs.length()).any { i -> rs.getJSONObject(i).optJSONArray("assets")?.let { a -> (0 until a.length()).any { j -> a.getJSONObject(j).optString("name").lowercase().endsWith(".apk") } } == true } } }.getOrNull()
                 else if (c == 404) false else null
             }
-            out["aiwa"] = names("$api/contents/aiwa-apps")?.any { it.endsWith(".aiwa.html") }
+            out["aiwa"] = folder(repo, "aiwa-apps")?.any { it.endsWith(".aiwa.html") }
             out
         }
         // A question GitHub did not answer (rate limit, no network, a slow answer) is asked again in a minute, not after ten: a button must not stay grey for ten minutes after one failure
