@@ -1,0 +1,31 @@
+{
+ "id": "v32",
+ "language": "liquid-raymarch-hdri",
+ "objects": [
+  "ring",
+  "blob",
+  "slab",
+  "glasses",
+  "grid",
+  "coin",
+  "network",
+  "orbiting beads"
+ ],
+ "places": [
+  "aarfontein_dawn_2",
+  "colorful_studio",
+  "blaubeuren_night",
+  "little_paris_eiffel_tower",
+  "venice_sunset",
+  "tv_studio",
+  "kiara_1_dawn"
+ ],
+ "transitions": [
+  "portal",
+  "tunnel",
+  "spin",
+  "morph"
+ ],
+ "tracking": "feature brackets",
+ "metaphor": "(earlier film, recorded afterwards)"
+}

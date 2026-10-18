@@ -1,0 +1,25 @@
+{
+ "id": "v29-v30",
+ "language": "blender-room",
+ "objects": [
+  "phone",
+  "glasses",
+  "notebook",
+  "lamp",
+  "plant",
+  "desk"
+ ],
+ "places": [
+  "neon_photostudio",
+  "photo_studio_loft_hall",
+  "industrial_workshop_foundry",
+  "lythwood_lounge",
+  "rogland_clear_night",
+  "shanghai_bund"
+ ],
+ "transitions": [
+  "camera flight between rooms"
+ ],
+ "tracking": "none",
+ "metaphor": "(earlier film, recorded afterwards)"
+}

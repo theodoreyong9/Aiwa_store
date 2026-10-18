@@ -1,0 +1,15 @@
+{
+ "id": "v25-v28",
+ "language": "constellation-points",
+ "objects": [
+  "constellation sculptures",
+  "phone page",
+  "glasses page"
+ ],
+ "places": [],
+ "transitions": [
+  "camera move between sculptures"
+ ],
+ "tracking": "none",
+ "metaphor": "(earlier film, recorded afterwards)"
+}

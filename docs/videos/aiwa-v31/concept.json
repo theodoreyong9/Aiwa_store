@@ -1,0 +1,29 @@
+{
+ "id": "v31",
+ "language": "stock-footage-plates",
+ "objects": [
+  "points that leave an object",
+  "phone sprite",
+  "glasses sprite"
+ ],
+ "places": [
+  "f-night",
+  "f-clouds",
+  "f-nightwalk",
+  "f-orbit",
+  "f-datacenter",
+  "f-aurora",
+  "f-earth",
+  "f-mars",
+  "f-sunrise"
+ ],
+ "transitions": [
+  "iris",
+  "zoom",
+  "whip",
+  "dissolve",
+  "cut"
+ ],
+ "tracking": "camera coupling",
+ "metaphor": "(earlier film, recorded afterwards)"
+}
