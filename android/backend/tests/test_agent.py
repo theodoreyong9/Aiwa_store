@@ -15,6 +15,10 @@ class Agent(unittest.TestCase):
 
     def test_digest_signature_ignores_the_passing_minutes_but_not_real_changes(self):
         base = [{"id": "session_A", "title": "Site", "repo": "o/r", "work": "aiwa/x", "commit_age_min": 3, "ci": "success"}]
+        tp, sp = A.digest(base, [], [], pills={"repo": "me/site", "session": None, "direct": True, "deploy": "pages", "quality": "moyen"})
+        self.assertIn("Pastilles du widget : dépôt me/site, session nouvelle session", tp, "the agent reads the pills, and a missing session means a new one")
+        _, sp2 = A.digest(base, [], [], pills={"repo": "me/other", "session": None, "direct": True, "deploy": "pages", "quality": "moyen"})
+        self.assertNotEqual(sp, sp2, "a changed pill makes a new point")
         t1, s1 = A.digest(base, [], [], current_id="session_A")
         t2, s2 = A.digest([{**base[0], "commit_age_min": 5}], [], [])
         self.assertEqual(s1, s2, "two minutes later is not news")

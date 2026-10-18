@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 130
+BACKEND_VERSION = 131
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -2863,7 +2863,10 @@ def _agent_digest():
     with lock:
         pending = list(_asks_pending())
     asks = [{"session": (_session_entry(a.get("session")) or {}).get("title") if a.get("session") else None, "question": a["question"]} for a in pending]
-    text, sig = agent_lib.digest(sessions, loops, asks, current_id=in_use)
+    with lock:
+        pills = {"repo": current_repo, "session": (_session_entry(current_cloud) or {}).get("title") or current_cloud if current_cloud else None,
+                 "direct": push_main, "deploy": deploy_mode, "quality": video_quality}
+    text, sig = agent_lib.digest(sessions, loops, asks, current_id=in_use, pills=pills)
     _index_refresh_async()
     return text + _index_digest(), sig
 
