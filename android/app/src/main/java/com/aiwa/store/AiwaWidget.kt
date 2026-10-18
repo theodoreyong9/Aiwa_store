@@ -17,7 +17,10 @@ import androidx.glance.action.Action
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.action.ActionParameters
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
@@ -66,6 +69,19 @@ class AiwaWidget : GlanceAppWidget() {
         // Placing the widget or the launcher redrawing it wakes the keep-alive
         // service too (and so the backend) — no need to open the app first.
         wakeAiwa(context)
+        // Only one copy is useful: a second one (the person added the widget again) says so instead of showing the same thing twice. The first one placed is the one kept.
+        val extraCopy = try {
+            val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, AiwaWidgetReceiver::class.java))
+            ids.size > 1 && GlanceAppWidgetManager(context).getAppWidgetId(id) != ids.minOrNull()
+        } catch (err: Exception) { false }
+        if (extraCopy) {
+            provideContent {
+                Box(modifier = GlanceModifier.fillMaxSize().background(rgb(android.graphics.Color.rgb(36, 36, 46))).padding(8.dp), contentAlignment = Alignment.Center) {
+                    Text("Aiwa est déjà sur ton écran : retire cette copie.", style = TextStyle(color = rgb(android.graphics.Color.rgb(240, 240, 245)), fontSize = 12.sp), maxLines = 3)
+                }
+            }
+            return
+        }
         val bridge = LocalClaudeBridge()
         provideContent {
             // Observed, NOT captured: Glance keeps this composition alive

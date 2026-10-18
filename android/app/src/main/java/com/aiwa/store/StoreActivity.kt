@@ -114,6 +114,8 @@ class StoreActivity : ComponentActivity() {
         web.setBackgroundColor(Color.parseColor("#F3F2FA"))
         val root = FrameLayout(this)
         root.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        // The application is not usable yet: a cover over the page says so, and offers the widget (the one thing that works) while it is not on the home screen.
+        if (UNDER_CONSTRUCTION) root.addView(constructionCover(), FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(root)
         // The widget: asked for once, at the first opening (the system's window, one tap on « Ajouter »)
         root.post { WidgetPin.offerOnce(this) }
@@ -199,6 +201,44 @@ class StoreActivity : ComponentActivity() {
         loadedAddress = address
         loadedAt = SystemClock.elapsedRealtime()
         web.loadUrl(servedAddress(address, pageIsDownloaded))
+    }
+
+    private var widgetButton: android.widget.Button? = null
+
+    private fun constructionCover(): android.view.View {
+        val dp = resources.displayMetrics.density
+        val column = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            setBackgroundColor(Color.parseColor("#14141A"))
+            setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
+            isClickable = true          // taps do not reach the page underneath
+        }
+        column.addView(android.widget.TextView(this).apply {
+            text = "En construction"
+            setTextColor(Color.parseColor("#E9E7F1"))
+            textSize = 26f
+            gravity = android.view.Gravity.CENTER
+        })
+        column.addView(android.widget.TextView(this).apply {
+            text = "L'application n'est pas encore utilisable. Pour l'instant, Aiwa se commande depuis le widget."
+            setTextColor(Color.parseColor("#9694A6"))
+            textSize = 15f
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, (12 * dp).toInt(), 0, (24 * dp).toInt())
+        })
+        val button = android.widget.Button(this).apply {
+            text = "Mettre le widget"
+            setOnClickListener { WidgetPin.request(this@StoreActivity, explain = true) }
+        }
+        widgetButton = button
+        column.addView(button)
+        return column
+    }
+
+    override fun onResume() {
+        super.onResume()
+        widgetButton?.visibility = if (WidgetPin.hasWidget(this)) android.view.View.GONE else android.view.View.VISIBLE
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -339,6 +379,8 @@ class StoreActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_URL = "url"
+        /** The application itself is not usable yet: a cover says « En construction » over the page. */
+        const val UNDER_CONSTRUCTION = true
         const val EXTRA_APPLY_UPDATE = "apply_update"
         private const val FRESH_START_MS = 10_000L      // a release that arrives this soon after the page opened replaces it at once
     }
