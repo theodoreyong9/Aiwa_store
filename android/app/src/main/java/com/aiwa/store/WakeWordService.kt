@@ -344,8 +344,15 @@ class WakeWordService : Service() {
                 AiwaRepository.state.value.agent?.command != null && APPLY_REGEX.containsMatchIn(plain) -> applyAgentCommand()
                 AiwaRepository.state.value.agent?.proposal != null && SEND_REGEX.containsMatchIn(plain) -> sendAgentProposal()
                 else -> {
-                    say("Toi → l'agent : $text")
-                    val error = agentCall("ask", mapOf("text" to text))
+                    // « c'est bon vas-y » only validates what the phone has just read back: said with a request it is not part of it, said alone with nothing waiting it is not for the agent
+                    val said = if (containsStopPhrase(text)) withoutStopPhrase(text) else text
+                    if (said.isBlank()) {
+                        say("Rien à confirmer : dis ce que tu veux, le téléphone relira avant d'appliquer.")
+                        Speaker.speakNatural(applicationContext, "Rien à confirmer.")
+                        agentBusy = false; agentListen(); return@launch
+                    }
+                    say("Toi → l'agent : $said")
+                    val error = agentCall("ask", mapOf("text" to said))
                     if (error != null) { say("L'agent n'a pas reçu : $error"); toastOnMain(applicationContext, "L'agent n'a pas reçu : $error") }
                 }
             }

@@ -18,6 +18,10 @@ private val SEND_PROPOSAL_REGEX = Regex("""\b(?:vas[\s-]?y,?\s+)?di[st][\s-]?lui
 fun containsStopPhrase(text: String): Boolean =
     STOP_PHRASE_ANYWHERE.containsMatchIn(text) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("validation", com.aiwa.bridge.WakeWords.plain(text))
 
+/** What was said without the validation words, wherever they stand (« mets-toi sur le repo test c'est bon vas-y » -> « mets-toi sur le repo test »). */
+fun withoutStopPhrase(text: String): String =
+    STOP_PHRASE_ANYWHERE.replace(text, " ").replace(Regex("""\s{2,}"""), " ").trim(' ', ',', '.', '!')
+
 private fun stripStopPhrase(text: String): String? {
     val match = STOP_PHRASE_REGEX.find(text) ?: return null
     return text.substring(0, match.range.first).trim()
