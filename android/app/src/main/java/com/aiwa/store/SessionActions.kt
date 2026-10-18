@@ -393,6 +393,9 @@ suspend fun resendInstructions(context: Context): Boolean {
         return false
     }
     val state = AiwaRepository.state.value
+    // no session yet: nothing is sent. A message made only of the pills and a reminder would START a session whose first message is just instructions (Claude names it « Consignes Aiwa, dépôt … »),
+    // when the next real message carries all of them anyway.
+    if (state.cloudSessionId == null) return true
     val sent = sendAndTrack(context, bridge, com.aiwa.bridge.pillInfoMessage(state.repo, if (state.cloudSessionId != null) state.session else null, "Voici de nouveau les instructions générales et celles des pastilles."), toastErrors = true)
     AiwaWidget().updateAll(context)
     return sent
