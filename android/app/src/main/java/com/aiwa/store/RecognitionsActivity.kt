@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.aiwa.bridge.Recognitions
 
 /**
- * « Mes mots »: what the person says — Réveil, Validation (« s'il te plaît », the end of a command), Stop, Éteins — and « Mots d'Aiwa »: Accomplissement (what Aiwa says when the command is gone), Confirmation (« c'est ça »), Question (what Aiwa says before the repository).
+ * « Mes mots »: what the person says — Réveil, Validation (« c'est bien ça »: what the person says to confirm the summary), Stop, Éteins — and « Mots d'Aiwa »: Accomplissement (« c'est prêt »), Rapport (« t'es dispo ? »).
  * Each can be changed by SAYING a word to the phone (what the small listening model will wake on) and/or by WRITING one (what the parser and the agent read in text). Every change is passed on
  * to the small model, to the parser and to the super agent (Vocabulary.changed).
  */
@@ -50,7 +50,7 @@ class RecognitionsActivity : ComponentActivity() {
 
 // What each recognition can be changed by: said to the small model (the wake-level words) and/or written (the words read in text)
 private val BY_VOICE = setOf("agent", "liaison", "instruction", "stop", "eteins", "resend", "where")
-private val BY_WRITING = setOf("instruction", "session", "repo", "validation", "stop", "eteins", "resend", "where", "report", "accomplissement", "confirmation", "question")
+private val BY_WRITING = setOf("instruction", "session", "repo", "validation", "stop", "eteins", "resend", "where", "report", "accomplissement", "dispo")
 
 @Composable
 private fun RecognitionsWindow(onClose: () -> Unit) {

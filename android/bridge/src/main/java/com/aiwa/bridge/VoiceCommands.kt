@@ -504,6 +504,7 @@ fun wakeKind(heard: String, custom: List<String> = emptyList(), liaison: List<St
     val list = words(heard)
     // "stop Claude" / "arrête Claude": said at any moment, it is not a dictation: it stops Claude (see StopClaude)
     for (i in 1 until list.size) if (list[i].plain == "claude" && list[i - 1].plain in STOP_WORDS) return WakeKind.STOP
+    for (i in 2 until list.size) if (list[i].plain == "commande" && list[i - 1].plain == "la" && list[i - 2].plain in STOP_WORDS) return WakeKind.STOP
     if (more.stop.isNotEmpty() && WakeWords.heardCustom(heard, more.stop)) return WakeKind.STOP
     // « éteins »: the permanent listening and the super agent are turned off (said at any moment, even with the screen locked)
     if (list.any { it.plain == "eteins" } || (more.off.isNotEmpty() && WakeWords.heardCustom(heard, more.off))) return WakeKind.OFF
@@ -511,6 +512,8 @@ fun wakeKind(heard: String, custom: List<String> = emptyList(), liaison: List<St
     if ((list.any { it.plain in RESEND_WORDS } && list.any { it.plain == "instructions" || it.plain == "instruction" }) || (more.resend.isNotEmpty() && WakeWords.heardCustom(heard, more.resend))) return WakeKind.RESEND
     // the word chosen for the super agent (WakeWords): it calls the liaison agent
     if (liaison.isNotEmpty() && WakeWords.heardCustom(heard, liaison)) return WakeKind.LIAISON
+    // « heille wa » / « haye wa »: how the engine hears « hé Aiwa », the call of the super agent
+    for (i in 1 until list.size) if (list[i].plain == "wa" && list[i - 1].plain in setOf("heille", "haye")) return WakeKind.LIAISON
     // "mon super agent": the call of the liaison agent (the second listening, see WakeWordService); checked before "mon agent"
     for (i in 1 until list.size) if (list[i].plain == "agent" && list[i - 1].plain == "super") return WakeKind.LIAISON
     for (i in 1 until list.size) if (list[i].plain == "agent" && list[i - 1].plain == "mon") return WakeKind.AGENT

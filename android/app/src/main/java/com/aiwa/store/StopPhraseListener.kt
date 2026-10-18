@@ -6,27 +6,18 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import com.aiwa.bridge.endsWithCancelPhrase
 
-// The VALIDATION ends a command: « s'il te plaît » (or what the person wrote for it, Recognitions « Validation »), at the end of what was said.
+// The old dictation window (DictateActivity) still ends on « s'il te plaît », at the end of what was said.
 private val VALIDATION_AT_END = Regex("""\bs['’\s]?il\s+(?:te|vous)\s+pla[iî]t\b[!.\s]*$""", RegexOption.IGNORE_CASE)
-private val VALIDATION_ANYWHERE = Regex("""\bs['’\s]?il\s+(?:te|vous)\s+pla[iî]t\b""", RegexOption.IGNORE_CASE)
 
-// The CONFIRMATION is the answer to a question of Aiwa (the repository, a stop): « c'est ça » (or what the person wrote for it, Recognitions « Confirmation »).
-private val CONFIRMATION_REGEX = Regex("""\bc['’\s]?est\s+(?:ça|ca|sa)\b""", RegexOption.IGNORE_CASE)
+// The VALIDATION of the super agent is what the person says to confirm what Aiwa just summed up (the repository and the command, a stop): « c'est bien ça » (or what the person wrote for it, Recognitions « Validation »).
+private val CONFIRMATION_REGEX = Regex("""\bc['’\s]?est\s+bien\s+(?:ça|ca|sa)\b""", RegexOption.IGNORE_CASE)
 
 // "Vas-y dis-lui": the proposal of the agent is to be sent (only listened for while one is waiting).
 private val SEND_PROPOSAL_REGEX = Regex("""\b(?:vas[\s-]?y,?\s+)?di[st][\s-]?lui\b[!.\s]*$""", RegexOption.IGNORE_CASE)
 
-/** Was the validation said (« s'il te plaît »)? */
-fun containsValidation(text: String): Boolean =
-    VALIDATION_ANYWHERE.containsMatchIn(text) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("validation", com.aiwa.bridge.WakeWords.plain(text))
-
-/** Was the confirmation said (« c'est ça »)? */
+/** Was the validation said (« c'est bien ça »)? */
 fun containsConfirmation(text: String): Boolean =
-    CONFIRMATION_REGEX.containsMatchIn(text) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("confirmation", com.aiwa.bridge.WakeWords.plain(text))
-
-/** What was said without the validation words, wherever they stand (« mets-toi sur le repo test s'il te plaît » -> « mets-toi sur le repo test »). */
-fun withoutValidation(text: String): String =
-    VALIDATION_ANYWHERE.replace(text, " ").replace(Regex("""\s{2,}"""), " ").trim(' ', ',', '.', '!')
+    CONFIRMATION_REGEX.containsMatchIn(text) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("validation", com.aiwa.bridge.WakeWords.plain(text))
 
 private fun stripStopPhrase(text: String): String? {
     val match = VALIDATION_AT_END.find(text) ?: return null

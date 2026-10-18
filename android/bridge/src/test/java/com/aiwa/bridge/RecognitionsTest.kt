@@ -12,7 +12,11 @@ class RecognitionsTest {
 
     @Test fun thereAreNineRecognitionsInTheOrderOfTheBrief() {
         assertEquals(listOf("Réveil", "Validation", "Stop", "Éteins"), Recognitions.SLOTS.filter { it.group == Recognitions.MINE }.map { it.label })
-        assertEquals(listOf("Accomplissement", "Confirmation", "Question"), Recognitions.SLOTS.filter { it.group == Recognitions.AIWA }.map { it.label })
+        assertEquals(listOf("Accomplissement", "Rapport"), Recognitions.SLOTS.filter { it.group == Recognitions.AIWA }.map { it.label })
+        assertEquals(WakeKind.LIAISON, wakeKind("heille wa"))
+        assertEquals(WakeKind.LIAISON, wakeKind("haye wa"))
+        assertEquals(WakeKind.STOP, wakeKind("stop la commande"))
+        assertEquals(WakeKind.OFF, wakeKind("éteins toi"))
     }
 
     @Test fun resendWinsOverInstructionAndStopAndOffAreKnown() {

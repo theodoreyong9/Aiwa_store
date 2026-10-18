@@ -79,9 +79,9 @@ class AgentListener(context: Context, private val onHeard: (String) -> Unit) : R
     override fun onEvent(eventType: Int, params: Bundle?) {}
 }
 
-/** The phone says the sentence and listens for the confirmation (« c'est ça »): true only if it was heard (anything else, or silence, is a no). Main thread. */
+/** The phone says the sentence and listens for the validation (« c'est bien ça »): true only if it was heard (anything else, or silence, is a no). Main thread. */
 suspend fun askAloud(context: Context, sentence: String, speak: suspend (String) -> Boolean = { Speaker.speakAndWait(context, it) }): Boolean {
-    if (!speak("$sentence Dis : ${Vocabulary.spoken(context, "confirmation")}.")) return false
+    if (!speak(sentence)) return false
     delay(400)   // the end of the voice must not be heard as the answer
     return suspendCancellableCoroutine { cont ->
         val confirm = ConfirmListener(context) { answer -> if (cont.isActive) cont.resume(answer) }

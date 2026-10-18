@@ -16,19 +16,18 @@ object Recognitions {
 
     val SLOTS = listOf(
         Slot("agent", "Réveil (ancien)", listOf("mon agent"), "Réveille aussi le super agent."),
-        Slot("liaison", "Réveil", listOf("mon super agent"), "Ce que tu dis pour réveiller le super agent, écran verrouillé ou non : il répond « J'écoute » et prend une commande.", MINE),
+        Slot("liaison", "Réveil", listOf("heille wa", "haye wa"), "Ce que tu dis pour réveiller le super agent, écran verrouillé ou non : il répond « J'écoute » et prend une commande.", MINE),
         Slot("instruction", "Instruction", listOf("instruction"), "Ce qui suit règle les pastilles session et dépôt."),
         Slot("session", "Pastille session", listOf("session"), "Dans une instruction : « session … » choisit la session."),
         Slot("repo", "Pastille dépôt", listOf("dépôt", "repo"), "Dans une instruction : « dépôt … » choisit le dépôt."),
-        Slot("validation", "Validation", listOf("s'il te plaît", "s'il vous plaît"), "Ce que tu dis à la FIN de ta commande pour qu'elle parte vers la confirmation du dépôt.", MINE),
-        Slot("stop", "Stop", listOf("stop claude", "arrête claude"), "Arrête la production en cours et fait oublier à la dernière session le dernier commentaire.", MINE),
-        Slot("eteins", "Éteins", listOf("éteins"), "Éteint le super agent et l'écoute permanente.", MINE),
+        Slot("validation", "Validation", listOf("c'est bien ça"), "Ce que tu dis pour confirmer : Aiwa te résume ce qu'il va envoyer (le dépôt et ta commande), et rien ne part avant.", MINE),
+        Slot("stop", "Stop", listOf("stop la commande", "stop claude", "arrête claude"), "Arrête la production en cours et fait oublier à la dernière session le dernier commentaire.", MINE),
+        Slot("eteins", "Éteins", listOf("éteins toi", "éteins"), "Éteint le super agent et l'écoute permanente.", MINE),
         Slot("resend", "Renvoi des instructions", listOf("renvoie les instructions"), "Renvoie à la session les instructions générales et celles des pastilles."),
         Slot("where", "T'es où là", listOf("t'es où là"), "Le téléphone lit à voix haute où en sont les pastilles du widget (dépôt, session, modèle, push…)."),
         Slot("report", "Rapport du super agent", listOf("fais ton rapport"), "Dit au super agent ouvert de faire son rapport d'activité et de proposer une idée."),
-        Slot("accomplissement", "Accomplissement", listOf("c'est fait"), "Ce qu'Aiwa dit quand ta commande est partie.", AIWA),
-        Slot("confirmation", "Confirmation", listOf("c'est ça"), "Ce que tu réponds quand Aiwa te demande de confirmer le dépôt (ou un stop).", AIWA),
-        Slot("question", "Question", listOf("je l'envoie sur le dépôt"), "Ce qu'Aiwa dit avant le nom du dépôt pour te le faire confirmer.", AIWA),
+        Slot("accomplissement", "Accomplissement", listOf("c'est prêt"), "Ce qu'Aiwa dit à voix haute quand un travail est prêt.", AIWA),
+        Slot("dispo", "Rapport", listOf("t'es dispo ?"), "Ce qu'Aiwa te demande à voix haute pour te proposer son rapport d'activité.", AIWA),
     )
 
     fun slot(id: String): Slot? = SLOTS.firstOrNull { it.id == id }
@@ -40,7 +39,7 @@ object Recognitions {
         val single = setOf("instruction", "session", "repo", "stop", "eteins")
         val words = plain.split(' ')
         if (slot in single && words.size != 1) return "Un seul mot pour cette reconnaissance."
-        if (slot !in setOf("validation", "stop", "eteins", "resend", "where", "report", "liaison", "accomplissement", "confirmation", "question") && words.size != 1) return "Un seul mot pour cette reconnaissance."
+        if (slot !in setOf("validation", "stop", "eteins", "resend", "where", "report", "liaison", "accomplissement", "dispo") && words.size != 1) return "Un seul mot pour cette reconnaissance."
         if (plain.length < 3) return "« $plain » est trop court : au moins 3 lettres."
         if (words.all { it in COMMON_WORDS }) return "« $plain » est un mot trop courant : il se déclencherait dans toutes les phrases."
         return null

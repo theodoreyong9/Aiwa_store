@@ -131,7 +131,7 @@ class KeepAliveService : Service() {
     private fun announceReady(state: AiwaState) {
         val was = spokenFresh
         spokenFresh = state.ciFresh
-        if (state.ciFresh && !was && ReadySettings.enabled(applicationContext)) CoroutineScope(Dispatchers.Default).launch { Speaker.speakAndWait(applicationContext, "C'est prêt") }
+        if (state.ciFresh && !was && ReadySettings.enabled(applicationContext)) CoroutineScope(Dispatchers.Default).launch { Speaker.speakAndWait(applicationContext, Vocabulary.spoken(applicationContext, "accomplissement")) }
     }
 
     // The super agent is set up but its listening is off: when something worth reporting happens (a new production, a failed workflow, a question), the phone speaks first and asks if the person is available.
@@ -169,7 +169,7 @@ class KeepAliveService : Service() {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .build()
         getSystemService(NotificationManager::class.java).notify(AVAILABLE_NOTIFICATION_ID, notification)
-        CoroutineScope(Dispatchers.Default).launch { Speaker.speakNatural(applicationContext, "Tu es disponible ? Je peux te faire le rapport de ton activité.") }
+        CoroutineScope(Dispatchers.Default).launch { Speaker.speakNatural(applicationContext, Vocabulary.spoken(applicationContext, "dispo") + " Je peux te faire le rapport de ton activité.") }
     }
 
     // The same story as the widget's first band.

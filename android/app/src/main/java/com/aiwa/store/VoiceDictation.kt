@@ -255,7 +255,7 @@ class VoiceDictation(
                     end()
                     return
                 }
-                if (confirmRepo(name)) { repoConfirmed = true; break }
+                if (confirmRepo(name, dictation.message)) { repoConfirmed = true; break }
                 // Not confirmed: a correction said at once (« non, le dépôt … ») replaces the repository and is asked again; anything else cancels.
                 val said = lastHeard
                 val fix = if (corrections < 2 && said.isNotBlank()) pillCommandsOnly(parseDictation(said, voiceModels(), voiceSessions(), repoNames, true).commands) else emptyList()
@@ -369,7 +369,6 @@ class VoiceDictation(
                 }
             } else {
                 sendAndTrack(appContext, bridge, toSend, toastErrors = true)
-                if (confirmRepoAlways) Speaker.speakAndWait(voiceContext, Vocabulary.spoken(appContext, "accomplissement") + ".")
             }
         }
         if (report) readReport(bridge)
@@ -392,9 +391,11 @@ class VoiceDictation(
     }
 
     // The phone says the question, then listens for the confirmation (« c'est ça ») and nothing else: silence or any other words are a no.
-    private suspend fun confirmRepo(name: String): Boolean {
+    private suspend fun confirmRepo(name: String, message: String = ""): Boolean {
         val spoken = name.substringAfter('/').replace('_', ' ').replace('-', ' ')
-        return confirmSentence(if (confirmRepoAlways) "${Vocabulary.spoken(appContext, "question")} $spoken." else "Dépôt $spoken. Tu confirmes ?")
+        // The super agent only SUMS UP (the repository, then the command in a few words): the person confirms with the validation word, nothing is asked back
+        val summary = message.trim().take(180) + if (message.trim().length > 180) "…" else ""
+        return confirmSentence(if (confirmRepoAlways) "Dépôt $spoken." + if (summary.isNotEmpty()) " $summary" else "" else "Dépôt $spoken. Tu confirmes ?")
     }
 
     /** What was heard in answer to the last question when it was not a yes (a correction may be in it). */
@@ -402,9 +403,9 @@ class VoiceDictation(
 
     private suspend fun confirmSentence(sentence: String): Boolean {
         lastHeard = ""
-        val yesWord = Vocabulary.spoken(appContext, "confirmation")
-        onQuestion("$sentence Dis « $yesWord » pour confirmer")
-        val asked = Speaker.speakAndWait(voiceContext, "$sentence Dis : $yesWord.")
+        val yesWord = com.aiwa.bridge.Recognitions.slot("validation")?.defaults?.firstOrNull().orEmpty()
+        onQuestion("$sentence — dis « $yesWord » pour confirmer")
+        val asked = Speaker.speakAndWait(voiceContext, if (confirmRepoAlways) sentence else "$sentence Dis : $yesWord.")
         if (!asked) {
             onQuestion(null)
             toastOnMain(appContext, "Pas de voix sur ce téléphone pour poser la question : rien ne change.")
