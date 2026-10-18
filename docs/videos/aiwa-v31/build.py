@@ -30,7 +30,7 @@ for wid, w in PLAN['worlds'].items():
     d = '/tmp/v31/plates/%s' % w['plate']
     n = len(glob.glob(d + '/*.jpg'))
     first = min((b['t0'] for b in PLAN['beats'] if b['world'] == wid), default=0)
-    WORLDS[wid] = {'dir': 'file://' + d, 'n': n, 'fps': 30, 'from': max(0, first - 1.6)}
+    WORLDS[wid] = {'dir': 'file://' + d, 'n': n, 'fps': 30, 'from': max(0, first - 1.6), 'skip': w.get('skip', 0)}
 SPR = {}
 for name, path in (('phone_on', '/tmp/v31/sprites_final/phone_on/005.png'), ('phone_off', '/tmp/v31/sprites_final/phone_off/005.png'), ('glasses', '/tmp/v31/sprites_final/glasses/000.png')):
     SPR[name] = {'uri': 'data:image/png;base64,' + base64.b64encode(open(path, 'rb').read()).decode()}

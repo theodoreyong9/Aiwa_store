@@ -8,7 +8,7 @@ const BEATS=PLAN.beats;
 const beatAt=t=>{let k=0;for(let i=0;i<BEATS.length;i++)if(t>=BEATS[i].t0)k=i;return k};
 const IMGC=new Map();
 const loadImg=src=>{if(!IMGC.has(src))IMGC.set(src,new Promise(res=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src}));return IMGC.get(src)};
-function plateIndex(wid,t){const w=WORLDS[wid];const n=w.n,loc=Math.max(0,t-w.from)*w.fps;let i=Math.floor(loc);const m=n>1?i%(2*n-2):0;const f=loc-i;i=m>=n?2*n-2-m:m;return Math.max(0,Math.min(n-1,i))}
+function plateIndex(wid,t){const w=WORLDS[wid];const n=w.n,loc=(Math.max(0,t-w.from)+(w.skip||0))*w.fps;let i=Math.floor(loc);const m=n>1?i%(2*n-2):0;const f=loc-i;i=m>=n?2*n-2-m:m;return Math.max(0,Math.min(n-1,i))}
 const plateSrc=(wid,i)=>`${WORLDS[wid].dir}/${String(i+1).padStart(5,'0')}.jpg`;
 const CURPL={};      // the plate images of this frame: world id -> Image
 async function prepare(t){
@@ -40,10 +40,13 @@ function throughPoint(spec,t){
  if(spec.startsWith('point:')){const p=spec.slice(6).split(',').map(Number);return[p[0],p[1]]}
  if(spec.startsWith('actor:')){const a=ACTORS.find(x=>x.id===spec.slice(6));if(a&&a.last)return[a.last.x,a.last.y]}
  return[W/2,CY0]}
-function stagePlaces(t){
+let STAGE_SCRIM=false;
+function scrim(){const g=cx.createRadialGradient(CX0,CY0,60,CX0,CY0,820);g.addColorStop(0,'rgba(3,4,8,.46)');g.addColorStop(1,'rgba(3,4,8,0)');cx.save();cx.globalCompositeOperation='source-over';cx.fillStyle=g;cx.fillRect(0,0,W,H);cx.restore()}
+function stagePlaces(t){const r=stagePlaces0(t);scrim();return r}
+function stagePlaces0(t){
  const bi=beatAt(t),b=BEATS[bi],nb=BEATS[bi+1],tr=b.transition,cam=placeCam(t,b);
  cx.globalCompositeOperation='source-over';cx.globalAlpha=1;cx.fillStyle='#05060A';cx.fillRect(0,0,W,H);
- const A=CURPL[b.world];
+ const A=CURPL[b.world];STAGE_SCRIM=true;
  if(!(tr&&nb&&tr.t0&&t>=tr.t0&&tr.kind!=='continue')){plateDraw(A,cam,b.grade,1);return{place:1}}
  const u=clamp((t-tr.t0)/(tr.t1-tr.t0)),e=sm(u),B=CURPL[nb.world],camB=placeCam(t,nb),[x0,y0]=throughPoint(tr.through,t);
  switch(tr.kind){
@@ -96,7 +99,7 @@ function actorsFrame(t,cm){
    for(let i=0;i<N;i+=5){const lx=A[i*3],ly=A[i*3+1],lz=A[i*3+2];project(cm,i,C[0]+lx*cs+lz*sn,C[1]+ly,C[2]-lx*sn+lz*cs);if(SZ[i]<ZT)continue;bx0=Math.min(bx0,SX[i]);bx1=Math.max(bx1,SX[i]);by0=Math.min(by0,SY[i]);by1=Math.max(by1,SY[i]);cnt++}}
   if(cnt<20)continue;
   const cxm=(bx0+bx1)/2,cym=(by0+by1)/2,bw=Math.max(60,bx1-bx0),bh=Math.max(60,by1-by0);
-  const sc=Math.min(bw/a.w,bh/a.h)*1.0,w=a.w*sc,h=a.h*sc,bob=Math.sin(t*2.1+a.page)*5;
+  const sc=Math.min(bw/a.w,bh/a.h)*.86,w=a.w*sc,h=a.h*sc,bob=Math.sin(t*2.1+a.page)*5;
   const d=actorAmt(a,t),fade=sm(clamp((t-a.in)/.45));
   a.last={x:cxm,y:cym+bob,w,h};
   // the picture, eroded by the amount that has left
@@ -104,7 +107,7 @@ function actorsFrame(t,cm){
    const er=a.er;if(er.width!==a.sc.width){er.width=a.sc.width;er.height=a.sc.height}
    const ex=er.getContext('2d');ex.clearRect(0,0,er.width,er.height);ex.drawImage(a.sc,0,0);
    if(d>0){const id=ex.getImageData(0,0,er.width,er.height),dd=id.data,thr=d*1.15;for(let y=0;y<er.height;y++)for(let x=0;x<er.width;x++){const o=(y*er.width+x)*4+3;if(!dd[o])continue;const n=hs(x*131+y*17,310)*.5+(x/er.width*.5+y/er.height*.5)*.5;if(n<thr-.12)dd[o]=0;else if(n<thr)dd[o]=dd[o]*(n-(thr-.12))/.12}ex.putImageData(id,0,0)}
-   cx.save();cx.globalAlpha=fade;cx.shadowColor='rgba(0,0,0,.5)';cx.shadowBlur=30;cx.drawImage(er,cxm-w/2,cym-h/2+bob,w,h);cx.restore()});
+   cx.save();cx.globalAlpha=fade;cx.shadowColor=a.sprite==='phone_off'?'rgba(255,170,140,.55)':'rgba(0,0,0,.5)';cx.shadowBlur=a.sprite==='phone_off'?46:30;cx.drawImage(er,cxm-w/2,cym-h/2+bob,w,h);cx.restore()});
   // the points of the object: where each one starts (on the picture), and how far it has gone
   const e=new Float32Array(N),px=new Float32Array(N),py=new Float32Array(N);
   for(let i=0;i<N;i++){const p=a.pts[i];e[i]=sm(clamp((d*1.6-p.r*.6)/1));px[i]=cxm+p.nx*w;py[i]=cym+p.ny*h+bob}

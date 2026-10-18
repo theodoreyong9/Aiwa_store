@@ -3,7 +3,7 @@
   "total": 50.717,
   "fps": 30,
   "worlds": {
-    "stars":      { "kind": "plate", "plate": "f-stars",      "ambience": "void",    "says": "the dark, a sky turning: the idea before it has a name" },
+    "night":      { "kind": "plate", "plate": "f-night",      "skip": 6.0, "ambience": "void",    "says": "the Earth at night, seen from orbit: a name in the dark, before the idea has a form" },
     "clouds":     { "kind": "plate", "plate": "f-clouds",     "ambience": "air",     "says": "clouds in the evening: the idea in the air, before it takes a form" },
     "nightwalk":  { "kind": "plate", "plate": "f-nightwalk",  "ambience": "city",    "says": "a walk through a city at night: the phone in the pocket, the voice in the street" },
     "orbit":      { "kind": "plate", "plate": "f-orbit",      "ambience": "void",    "says": "the Earth seen from orbit: a message that reaches everywhere" },
@@ -14,7 +14,7 @@
     "sunrise":    { "kind": "plate", "plate": "f-sunrise",    "ambience": "air",     "says": "a sunrise from orbit: your universe, your will" }
   },
   "beats": [
-    { "id": "name",      "page": "cover",  "t": 0.0,    "world": "stars",     "idea": "A name appears out of the dark",
+    { "id": "name",      "page": "cover",  "t": 0.0,    "world": "night",     "idea": "A name appears out of the dark",
       "mood": { "energy": 0.25, "warmth": 0.35, "scale": 0.9, "tension": 0.3, "awe": 0.8 }, "transition": { "kind": "iris", "through": "sculpture" } },
     { "id": "imagine",   "page": "imag",   "t": 2.292,  "world": "clouds",    "idea": "Imagine: documents, films, games, sites, all start as an idea in the air",
       "mood": { "energy": 0.4, "warmth": 0.6, "scale": 0.6, "tension": 0.3, "awe": 0.7 }, "transition": { "kind": "continue" } },

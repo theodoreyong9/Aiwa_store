@@ -11,9 +11,9 @@ export const norm = (m = {}) => Object.fromEntries(MOODS.map((k) => [k, clamp(Nu
 export function gradeOf(m) {
   m = norm(m);
   return {
-    brightness: +lerp(0.62, 0.95, clamp(0.35 + m.scale * 0.35 + m.warmth * 0.25)).toFixed(3),   // wide and warm places stay lighter; the intimate ones fall into the dark
+    brightness: +lerp(0.42, 0.74, clamp(0.35 + m.scale * 0.35 + m.warmth * 0.25)).toFixed(3),   // wide and warm places stay lighter; the intimate ones fall into the dark (the sculptures are light: the place must stay darker than they are)
     contrast: +lerp(1.0, 1.32, m.tension).toFixed(3),
-    saturate: +lerp(0.7, 1.25, clamp(m.warmth * 0.6 + m.awe * 0.5)).toFixed(3),
+    saturate: +lerp(0.55, 1.05, clamp(m.warmth * 0.6 + m.awe * 0.5)).toFixed(3),
     hue: Math.round(lerp(14, -14, m.warmth)),                                                    // degrees: cool tilts to blue, warm to amber
     tint: [Math.round(lerp(70, 255, m.warmth)), Math.round(lerp(120, 150, m.warmth)), Math.round(lerp(255, 70, m.warmth))],
     tintAlpha: +lerp(0.10, 0.24, m.awe).toFixed(3),
