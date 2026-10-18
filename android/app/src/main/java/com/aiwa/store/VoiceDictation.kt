@@ -46,6 +46,8 @@ class VoiceDictation(
     // and waits for "c'est bon vas-y", every time: nobody looks at a screen to catch a mistake or a false waking.
     private val reportFirst: Boolean = false,
     private val confirmAll: Boolean = false,
+    // The super agent: before anything leaves, the repository is confirmed — the one named in the command (checked, then applied), else the one of the pill, recalled.
+    private val confirmRepoAlways: Boolean = false,
     private val onPartial: (String) -> Unit = {},
     private val onUnderstood: (String) -> Unit = {},
     private val onQuestion: (String?) -> Unit = {},
@@ -139,6 +141,25 @@ class VoiceDictation(
         onFinished()
     }
 
+    /**
+     * A command said to the super agent (already cut at « s'il te plaît »). If it names a repository or a session, that is checked against the lists and applied after the
+     * confirmation; if it names none, the whole sentence goes as it was said, to the repository of the pill, which is recalled and confirmed first.
+     */
+    suspend fun runCommand(text: String) {
+        if (repoNames.isEmpty()) repoNames = withContext(Dispatchers.IO) { try { LocalClaudeBridge().githubRepos().map { it.name } } catch (err: Exception) { emptyList() } }
+        val parsed = parseDictation(text, voiceModels(), voiceSessions(), repoNames, true)
+        val pills = pillCommandsOnly(parsed.commands)
+        if (pills.isEmpty() && parsed.problems.isNotEmpty()) {
+            // something was said as a pill (a repository that is not in the list): nothing leaves on a guess
+            copyToClipboard(appContext, text)
+            toastOnMain(appContext, "⚠ " + parsed.problems.joinToString(" · ") + " Rien n'est parti : ta commande est copiée.")
+            Speaker.speakAndWait(voiceContext, parsed.problems.first())
+            end()
+            return
+        }
+        runInstructions(if (pills.isEmpty()) parsed.copy(commands = emptyList(), message = text, problems = emptyList()) else parsed)
+    }
+
     /** The settings the agent asked for, written as a spoken instruction (« instruction aiwa modèle opus push main »): understood by the same parser, applied by the same code. The read-back was done by the caller. */
     suspend fun applyInstruction(text: String) {
         if (repoNames.isEmpty()) repoNames = withContext(Dispatchers.IO) { try { LocalClaudeBridge().githubRepos().map { it.name } } catch (err: Exception) { emptyList() } }
@@ -222,7 +243,32 @@ class VoiceDictation(
         // The instruction mode knows ONLY the two pills, session and repository; model, effort, push, quality and deployment are set by hand.
         var dictation = heard.copy(commands = pillCommandsOnly(heard.commands))
         var repoConfirmed = false
-        if (confirmAll) {
+        if (confirmRepoAlways) {
+            var corrections = 0
+            while (true) {
+                val named = dictation.commands.filterIsInstance<VoiceCommand.Repo>().lastOrNull()?.name
+                val name = named ?: AiwaRepository.state.value.repo
+                if (name == null) {
+                    if (dictation.message.isNotBlank()) copyToClipboard(appContext, dictation.message)
+                    toastOnMain(appContext, "Aucun dépôt choisi : rien n'est parti." + if (dictation.message.isNotBlank()) " Ta commande est copiée." else "")
+                    Speaker.speakAndWait(voiceContext, "Aucun dépôt choisi. Dis lequel dans ta commande.")
+                    end()
+                    return
+                }
+                if (confirmRepo(name)) { repoConfirmed = true; break }
+                // Not confirmed: a correction said at once (« non, le dépôt … ») replaces the repository and is asked again; anything else cancels.
+                val said = lastHeard
+                val fix = if (corrections < 2 && said.isNotBlank()) pillCommandsOnly(parseDictation(said, voiceModels(), voiceSessions(), repoNames, true).commands) else emptyList()
+                if (fix.isEmpty()) {
+                    if (dictation.message.isNotBlank()) copyToClipboard(appContext, dictation.message)
+                    toastOnMain(appContext, "Pas confirmé : rien n'est appliqué ni envoyé." + if (dictation.message.isNotBlank()) " Ta commande est copiée." else "")
+                    end()
+                    return
+                }
+                dictation = dictation.copy(commands = correctPills(dictation.commands, fix), problems = emptyList())
+                corrections++
+            }
+        } else if (confirmAll) {
             var corrections = 0
             while (true) {
                 val recap = pillsRecapSentence(currentPills(), dictation.commands, dictation.problems)
@@ -323,6 +369,7 @@ class VoiceDictation(
                 }
             } else {
                 sendAndTrack(appContext, bridge, toSend, toastErrors = true)
+                if (confirmRepoAlways) Speaker.speakAndWait(voiceContext, Vocabulary.spoken(appContext, "accomplissement") + ".")
             }
         }
         if (report) readReport(bridge)
@@ -344,10 +391,10 @@ class VoiceDictation(
         onQuestion(null)
     }
 
-    // The phone says the question, then listens for "c'est bon vas-y" and nothing else: silence or any other words are a no.
+    // The phone says the question, then listens for the confirmation (« c'est ça ») and nothing else: silence or any other words are a no.
     private suspend fun confirmRepo(name: String): Boolean {
         val spoken = name.substringAfter('/').replace('_', ' ').replace('-', ' ')
-        return confirmSentence("Dépôt $spoken. Tu confirmes ?")
+        return confirmSentence(if (confirmRepoAlways) "${Vocabulary.spoken(appContext, "question")} $spoken." else "Dépôt $spoken. Tu confirmes ?")
     }
 
     /** What was heard in answer to the last question when it was not a yes (a correction may be in it). */
@@ -355,8 +402,9 @@ class VoiceDictation(
 
     private suspend fun confirmSentence(sentence: String): Boolean {
         lastHeard = ""
-        onQuestion("$sentence Dis « c'est bon vas-y » pour confirmer")
-        val asked = Speaker.speakAndWait(voiceContext, "$sentence Dis : c'est bon, vas-y.")
+        val yesWord = Vocabulary.spoken(appContext, "confirmation")
+        onQuestion("$sentence Dis « $yesWord » pour confirmer")
+        val asked = Speaker.speakAndWait(voiceContext, "$sentence Dis : $yesWord.")
         if (!asked) {
             onQuestion(null)
             toastOnMain(appContext, "Pas de voix sur ce téléphone pour poser la question : rien ne change.")

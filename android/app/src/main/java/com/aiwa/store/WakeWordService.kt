@@ -27,6 +27,8 @@ import kotlinx.coroutines.withContext
 import androidx.glance.appwidget.updateAll
 import com.aiwa.bridge.LocalClaudeBridge
 import com.aiwa.bridge.WakeKind
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import org.vosk.LibVosk
 import org.vosk.LogLevel
 import org.vosk.Model
@@ -197,6 +199,9 @@ class WakeWordService : Service() {
     private var agentListener: AgentListener? = null
     private var lastAgentSaid: String? = null
     private var agentWatch: Job? = null
+    // What was said since the last « s'il te plaît »: a command may come in several sentences, it leaves only when the validation is said.
+    private val pendingCommand = StringBuilder()
+    private var runningCommand: VoiceDictation? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -254,29 +259,21 @@ class WakeWordService : Service() {
     fun openAgent() {
         main.post {
             if (agentMode || model == null) return@post
-            if (AiwaRepository.state.value.agent.let { it?.session == null && it?.llm != "ready" }) {
-                detector?.stop(); detector = null
-                scope.launch {
-                    Speaker.speakNatural(applicationContext, "L'agent n'existe pas encore. Crée-le avec le bouton agent du widget.")
-                    if (!agentMode) listen()
-                }
-                return@post
-            }
             detector?.stop()
             detector = null
             agentMode = true
             agentBusy = true
+            pendingCommand.clear()
             holdCpu(true)
             AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = true)) }
             scope.launch {
                 agentCall("set", mapOf("enabled" to true))
                 // The natural voice is installed once (about 80 MB), in the backend; until it is ready the phone's own voice speaks.
                 if (AiwaRepository.state.value.agent?.voice == "none") try { withContext(Dispatchers.IO) { LocalClaudeBridge().voiceSetup() } } catch (err: Exception) { }
-                say("Agent de liaison : je t'écoute (dis « repasse en manuel » pour revenir)")
-                Speaker.speakNatural(applicationContext, "Agent ouvert. Je t'écoute.")
+                say("Super agent : je t'écoute — dis ta commande, puis « " + Vocabulary.spoken(applicationContext, "validation") + " »")
+                Speaker.speakNatural(applicationContext, "J'écoute.")
                 agentBusy = false
                 agentListen()
-                maybeSpeakAgent()
                 CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
             }
         }
@@ -289,6 +286,9 @@ class WakeWordService : Service() {
             waitToken++
             agentListener?.stop()
             agentListener = null
+            runningCommand?.cancel()
+            runningCommand = null
+            pendingCommand.clear()
             AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
             scope.launch {
                 agentCall("set", mapOf("enabled" to false))
@@ -322,44 +322,45 @@ class WakeWordService : Service() {
         scope.launch {
             when {
                 OFF_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("eteins", plain) -> { agentBusy = false; switchOff(); return@launch }
-                (WHERE_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("where", plain)) -> readPillsReport(applicationContext)
-                (REPORT_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("report", plain)) -> {
-                    val error = agentCall("report")
-                    say(if (error == null) "Je demande son rapport au super agent." else "Le super agent n'a pas reçu : $error")
-                }
-                (RESEND_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("resend", plain)) -> {
-                    val ok = resendInstructions(applicationContext)
-                    say(if (ok) "Instructions renvoyées à la session." else "Instructions non renvoyées.")
-                }
                 (STOP_AGENT_REGEX.matches(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("stop", plain)) -> {
                     // « stop », CONFIRMED first: what waits is dropped, and the sessions the agent last spoke to are asked to forget its last comment
-                    if (!askAloud(applicationContext, "Tu veux que j'arrête ?") { Speaker.speakNatural(applicationContext, it) }) {
-                        say("Stop non confirmé : rien n'est arrêté.")
-                    } else {
+                    pendingCommand.clear()
+                    if (askAloud(applicationContext, "Tu veux que j'arrête ?") { Speaker.speakNatural(applicationContext, it) }) {
                         val told = agentCall("stop")
                         say(if (told == null) "Stop : les sessions touchées en dernier oublient son dernier commentaire." else "Stop (les sessions n'ont pas été prévenues : $told)")
-                    }
+                    } else say("Stop non confirmé : rien n'est arrêté.")
                 }
                 MANUAL_REGEX.containsMatchIn(plain) -> { agentBusy = false; closeAgent(); return@launch }
-                AiwaRepository.state.value.agent?.command != null && APPLY_REGEX.containsMatchIn(plain) -> applyAgentCommand()
-                AiwaRepository.state.value.agent?.proposal != null && SEND_REGEX.containsMatchIn(plain) -> sendAgentProposal()
                 else -> {
-                    // « c'est bon vas-y » only validates what the phone has just read back: said with a request it is not part of it, said alone with nothing waiting it is not for the agent
-                    val said = if (containsStopPhrase(text)) withoutStopPhrase(text) else text
-                    if (said.isBlank()) {
-                        say("Rien à confirmer : dis ce que tu veux, le téléphone relira avant d'appliquer.")
-                        Speaker.speakNatural(applicationContext, "Rien à confirmer.")
-                        agentBusy = false; agentListen(); return@launch
+                    // A command: kept, sentence after sentence, until « s'il te plaît ». Nothing is spoken meanwhile.
+                    if (pendingCommand.isNotEmpty()) pendingCommand.append(' ')
+                    pendingCommand.append(text.trim())
+                    say("Toi : " + pendingCommand)
+                    if (containsValidation(pendingCommand.toString())) {
+                        val command = withoutValidation(pendingCommand.toString())
+                        pendingCommand.clear()
+                        if (command.isNotBlank()) runAgentCommand(command)
                     }
-                    say("Toi → l'agent : $said")
-                    val error = agentCall("ask", mapOf("text" to said))
-                    if (error != null) { say("L'agent n'a pas reçu : $error"); toastOnMain(applicationContext, "L'agent n'a pas reçu : $error") }
                 }
             }
             agentBusy = false
             agentListen()
-            maybeSpeakAgent()
-            if (agentMode && AiwaRepository.state.value.agent?.say?.id.let { it == null || it == lastAgentSaid }) startFiller()
+        }
+    }
+
+    // The command leaves through the same path as a dictation: the repository (named in the command, or the pill's) is confirmed with « c'est ça », then the command goes to the session.
+    private suspend fun runAgentCommand(command: String) {
+        suspendCancellableCoroutine<Unit> { cont ->
+            val spoken = VoiceDictation(
+                context = this,
+                startInInstructions = true,
+                confirmRepoAlways = true,
+                onQuestion = { if (!it.isNullOrBlank()) say(it) },
+                onFinished = { main.post { runningCommand = null; if (cont.isActive) cont.resume(Unit) } },
+            )
+            runningCommand = spoken
+            cont.invokeOnCancellation { spoken.cancel() }
+            scope.launch { spoken.runCommand(command) }
         }
     }
 
@@ -432,29 +433,13 @@ class WakeWordService : Service() {
 
     // What the agent says is said only while its listening is open, and never over the person: the listening lets go, the phone speaks, the backend is told, the listening returns.
     private fun maybeSpeakAgent() {
-        if (!agentMode || agentBusy || paused) return
-        val say = AiwaRepository.state.value.agent?.say ?: return
-        if (say.id == lastAgentSaid) return
-        lastAgentSaid = say.id
-        waitToken++   // the answer is there: no more filler
-        agentBusy = true
-        agentListener?.stop()
-        agentListener = null
-        scope.launch {
-            say("L'agent : " + say.text)
-            Speaker.speakNatural(applicationContext, say.text)
-            agentCall("said", mapOf("id" to say.id))
-            agentBusy = false
-            agentListen()
-            maybeSpeakAgent()
-        }
+        // the agent no longer speaks on its own: the phone says « J'écoute », asks to confirm the repository, and says it is done
     }
 
     private fun listen() {
         val current = model ?: return
         if (paused || dictation != null) return
-        val own = WakeWordSettings.name(this)
-        say("À l'écoute : dis « " + (if (own.isNotEmpty()) own else "mon agent") + " » (t'es sur quoi ?), « instruction » ou « stop Claude »")
+        say("À l'écoute : dis « " + WakeWordSettings.name(this, "liaison").ifBlank { "mon super agent" } + " » pour parler au super agent, ou « stop Claude »")
         holdCpu(true)
         detector = WakeWordDetector(
             model = current,
@@ -488,8 +473,8 @@ class WakeWordService : Service() {
             return
         }
         if (kind == WakeKind.STOP) {
-            // A stop is CONFIRMED (a word heard by mistake must not stop the work): the phone asks, and only « c'est bon vas-y » stops Claude.
-            say("Stop ? Dis « c'est bon vas-y » pour arrêter Claude")
+            // A stop is CONFIRMED (a word heard by mistake must not stop the work): the phone asks, and only the confirmation (« c'est ça ») stops Claude.
+            say("Stop ? Dis « " + Vocabulary.spoken(applicationContext, "confirmation") + " » pour arrêter Claude")
             scope.launch {
                 if (askAloud(applicationContext, "Tu veux que j'arrête Claude ?")) {
                     val sent = stopClaude(applicationContext)
@@ -501,19 +486,8 @@ class WakeWordService : Service() {
             }
             return
         }
-        say("Je t'écoute… dis « c'est bon vas-y » pour finir")
-        // Woken by a phrase, nobody is looking at a screen: before anything is applied or sent, the phone reads back what it will do AND every pill as it
-        // will be, and waits for "c'est bon vas-y" (VoiceDictation, confirmAll). "Non" or silence: nothing is applied, nothing is sent, the message is copied.
-        // Where things stand is read on its own only when asked ("t'en es où", "t'es sur quoi"); "mon agent" alone does not.
-        dictation = VoiceDictation(
-            context = this,
-            startInInstructions = true,
-            reportFirst = false,
-            confirmAll = true,
-            onUnderstood = { if (it.isNotBlank()) say(it) },
-            onQuestion = { if (!it.isNullOrBlank()) say(it) },
-            onFinished = { main.post { dictation = null; listen() } },
-        ).also { it.start() }
+        // « mon agent » and the other wake words open the super agent too: one listening, one way to give a command
+        openAgent()
     }
 
     /** The widget's mic window takes the microphone: this one lets go until it is done. */

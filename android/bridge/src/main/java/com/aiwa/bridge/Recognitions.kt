@@ -1,26 +1,34 @@
 package com.aiwa.bridge
 
 /**
- * The eleven recognitions the person can make their own, for the small listening model, the agent (the dictation parser) and the super agent. Each has what the phone says by default and
+ * The recognitions the person can make their own, for the small listening model, the agent (the dictation parser) and the super agent. Each has what the phone says by default and
  * two ways to be changed: SAID to the phone (the spellings the small model hears: for the wake-level words) or WRITTEN (a single word or phrase, for what the recogniser of the phone writes
  * down in a dictation or in the agent's conversation).
  */
 object Recognitions {
     /** id: what the settings store it under; "agent" and "liaison" are the two first words that were ever customisable (their keys are kept). */
-    class Slot(val id: String, val label: String, val defaults: List<String>, val help: String)
+    class Slot(val id: String, val label: String, val defaults: List<String>, val help: String, val group: String = HIDDEN)
+
+    // Where a recognition is listed in « Mes mots »: what the person says (MINE), what Aiwa says or waits for in its dialogue (AIWA). The others still work with their words of origin but are not offered.
+    const val MINE = "mes"
+    const val AIWA = "aiwa"
+    const val HIDDEN = "hidden"
 
     val SLOTS = listOf(
-        Slot("agent", "Réveil", listOf("mon agent"), "Réveille l'écoute : tu dictes ensuite."),
-        Slot("liaison", "Super agent", listOf("mon super agent"), "Ouvre le super agent (la deuxième écoute, parlée)."),
+        Slot("agent", "Réveil (ancien)", listOf("mon agent"), "Réveille aussi le super agent."),
+        Slot("liaison", "Réveil", listOf("mon super agent"), "Ce que tu dis pour réveiller le super agent, écran verrouillé ou non : il répond « J'écoute » et prend une commande.", MINE),
         Slot("instruction", "Instruction", listOf("instruction"), "Ce qui suit règle les pastilles session et dépôt."),
         Slot("session", "Pastille session", listOf("session"), "Dans une instruction : « session … » choisit la session."),
         Slot("repo", "Pastille dépôt", listOf("dépôt", "repo"), "Dans une instruction : « dépôt … » choisit le dépôt."),
-        Slot("validation", "Validation", listOf("c'est bon vas-y"), "Ce qu'on dit pour valider ce que le téléphone vient de relire."),
-        Slot("stop", "Stop", listOf("stop claude", "arrête claude"), "Arrête la production en cours et fait oublier à la dernière session le dernier commentaire."),
-        Slot("eteins", "Éteins", listOf("éteins"), "Éteint l'écoute permanente et le super agent."),
+        Slot("validation", "Validation", listOf("s'il te plaît", "s'il vous plaît"), "Ce que tu dis à la FIN de ta commande pour qu'elle parte vers la confirmation du dépôt.", MINE),
+        Slot("stop", "Stop", listOf("stop claude", "arrête claude"), "Arrête la production en cours et fait oublier à la dernière session le dernier commentaire.", MINE),
+        Slot("eteins", "Éteins", listOf("éteins"), "Éteint le super agent et l'écoute permanente.", MINE),
         Slot("resend", "Renvoi des instructions", listOf("renvoie les instructions"), "Renvoie à la session les instructions générales et celles des pastilles."),
         Slot("where", "T'es où là", listOf("t'es où là"), "Le téléphone lit à voix haute où en sont les pastilles du widget (dépôt, session, modèle, push…)."),
         Slot("report", "Rapport du super agent", listOf("fais ton rapport"), "Dit au super agent ouvert de faire son rapport d'activité et de proposer une idée."),
+        Slot("accomplissement", "Accomplissement", listOf("c'est fait"), "Ce qu'Aiwa dit quand ta commande est partie.", AIWA),
+        Slot("confirmation", "Confirmation", listOf("c'est ça"), "Ce que tu réponds quand Aiwa te demande de confirmer le dépôt (ou un stop).", AIWA),
+        Slot("question", "Question", listOf("je l'envoie sur le dépôt"), "Ce qu'Aiwa dit avant le nom du dépôt pour te le faire confirmer.", AIWA),
     )
 
     fun slot(id: String): Slot? = SLOTS.firstOrNull { it.id == id }
@@ -32,7 +40,7 @@ object Recognitions {
         val single = setOf("instruction", "session", "repo", "stop", "eteins")
         val words = plain.split(' ')
         if (slot in single && words.size != 1) return "Un seul mot pour cette reconnaissance."
-        if (slot !in setOf("validation", "stop", "eteins", "resend", "where", "report") && words.size != 1) return "Un seul mot pour cette reconnaissance."
+        if (slot !in setOf("validation", "stop", "eteins", "resend", "where", "report", "liaison", "accomplissement", "confirmation", "question") && words.size != 1) return "Un seul mot pour cette reconnaissance."
         if (plain.length < 3) return "« $plain » est trop court : au moins 3 lettres."
         if (words.all { it in COMMON_WORDS }) return "« $plain » est un mot trop courant : il se déclencherait dans toutes les phrases."
         return null

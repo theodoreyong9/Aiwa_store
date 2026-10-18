@@ -6,24 +6,30 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import com.aiwa.bridge.endsWithCancelPhrase
 
-private val STOP_PHRASE_REGEX = Regex("""\bc['\s]?est\s+bon,?\s+vas[\s-]?y\b[!.\s]*$""", RegexOption.IGNORE_CASE)
+// The VALIDATION ends a command: « s'il te plaît » (or what the person wrote for it, Recognitions « Validation »), at the end of what was said.
+private val VALIDATION_AT_END = Regex("""\bs['’\s]?il\s+(?:te|vous)\s+pla[iî]t\b[!.\s]*$""", RegexOption.IGNORE_CASE)
+private val VALIDATION_ANYWHERE = Regex("""\bs['’\s]?il\s+(?:te|vous)\s+pla[iî]t\b""", RegexOption.IGNORE_CASE)
 
-// The same words anywhere in what was heard: the answer to a question ("Dépôt X, tu confirmes ?") is just that phrase.
-private val STOP_PHRASE_ANYWHERE = Regex("""\bc['\s]?est\s+bon,?\s+vas[\s-]?y\b""", RegexOption.IGNORE_CASE)
+// The CONFIRMATION is the answer to a question of Aiwa (the repository, a stop): « c'est ça » (or what the person wrote for it, Recognitions « Confirmation »).
+private val CONFIRMATION_REGEX = Regex("""\bc['’\s]?est\s+(?:ça|ca|sa)\b""", RegexOption.IGNORE_CASE)
 
 // "Vas-y dis-lui": the proposal of the agent is to be sent (only listened for while one is waiting).
 private val SEND_PROPOSAL_REGEX = Regex("""\b(?:vas[\s-]?y,?\s+)?di[st][\s-]?lui\b[!.\s]*$""", RegexOption.IGNORE_CASE)
 
-/** The validation: « c'est bon vas-y », or what the person wrote for it (Recognitions « Validation »). */
-fun containsStopPhrase(text: String): Boolean =
-    STOP_PHRASE_ANYWHERE.containsMatchIn(text) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("validation", com.aiwa.bridge.WakeWords.plain(text))
+/** Was the validation said (« s'il te plaît »)? */
+fun containsValidation(text: String): Boolean =
+    VALIDATION_ANYWHERE.containsMatchIn(text) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("validation", com.aiwa.bridge.WakeWords.plain(text))
 
-/** What was said without the validation words, wherever they stand (« mets-toi sur le repo test c'est bon vas-y » -> « mets-toi sur le repo test »). */
-fun withoutStopPhrase(text: String): String =
-    STOP_PHRASE_ANYWHERE.replace(text, " ").replace(Regex("""\s{2,}"""), " ").trim(' ', ',', '.', '!')
+/** Was the confirmation said (« c'est ça »)? */
+fun containsConfirmation(text: String): Boolean =
+    CONFIRMATION_REGEX.containsMatchIn(text) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("confirmation", com.aiwa.bridge.WakeWords.plain(text))
+
+/** What was said without the validation words, wherever they stand (« mets-toi sur le repo test s'il te plaît » -> « mets-toi sur le repo test »). */
+fun withoutValidation(text: String): String =
+    VALIDATION_ANYWHERE.replace(text, " ").replace(Regex("""\s{2,}"""), " ").trim(' ', ',', '.', '!')
 
 private fun stripStopPhrase(text: String): String? {
-    val match = STOP_PHRASE_REGEX.find(text) ?: return null
+    val match = VALIDATION_AT_END.find(text) ?: return null
     return text.substring(0, match.range.first).trim()
 }
 
@@ -160,7 +166,7 @@ class StopPhraseListener(
 }
 
 /**
- * Listens for one answer to a question the phone just asked aloud: true if "c'est bon vas-y" was said, false for anything else or
+ * Listens for one answer to a question the phone just asked aloud: true if "c'est ça" was said, false for anything else or
  * for silence (a second pass is given once to a silence). The question is never taken as answered by default: nothing changes
  * unless the phrase was heard.
  */
@@ -204,12 +210,12 @@ class ConfirmListener(context: Context, private val onAnswer: (Boolean) -> Unit)
     override fun onResults(results: Bundle) {
         val heard = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
         heardText = heard
-        if (containsStopPhrase(heard)) answer(true) else if (heard.isBlank() && silences++ < 1) start() else answer(false)
+        if (containsConfirmation(heard)) answer(true) else if (heard.isBlank() && silences++ < 1) start() else answer(false)
     }
 
     override fun onPartialResults(partialResults: Bundle) {
         val heard = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
-        if (endsWithCancelPhrase(heard)) answer(false) else if (containsStopPhrase(heard)) answer(true)
+        if (endsWithCancelPhrase(heard)) answer(false) else if (containsConfirmation(heard)) answer(true)
     }
 
     override fun onError(error: Int) {

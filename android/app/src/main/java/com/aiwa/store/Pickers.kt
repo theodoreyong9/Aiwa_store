@@ -664,8 +664,6 @@ class HealthActivity : ComponentActivity() {
                 state.ciDetail?.let { detail ->
                     add(PickerEntry("Dernier résultat GitHub suivi : " + detail, false, lines = 4) { })
                 }
-                add(PickerEntry("Permissions Termux et notifications…", false) { go(SetupActivity::class.java) })
-                add(PickerEntry("Choisir la session…", false) { go(SessionPickerActivity::class.java) })
             }
             PickerSheet(entries) { finish() }
         }
@@ -819,8 +817,6 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Écoute permanente", false, header = true) { })
                 // No switch to turn it on: the super agent button of the widget is its trigger (it asks for the microphone and starts it); what stays is the way to stop it
                 if (wanted) add(PickerEntry("Éteindre l'écoute permanente", false, lines = 1) { toggle() })
-                // ONE button for everything that can be said
-                add(PickerEntry("Commandes vocales", false, lines = 1) { open(VoiceCommandsHelpActivity::class.java) })
             }
             PickerSheet(entries) { finish() }
         }

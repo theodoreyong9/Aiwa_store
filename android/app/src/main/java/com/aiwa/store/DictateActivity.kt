@@ -96,7 +96,7 @@ private fun ListeningOverlay(partialText: String, understood: String, question: 
                     if (question != null) {
                         Text("🎙️ " + question, fontWeight = FontWeight.Bold)
                     } else {
-                        Text("🎙️ Écoute… dis « c'est bon vas-y » pour envoyer")
+                        Text("🎙️ Écoute… dis « s'il te plaît » pour envoyer")
                         if (partialText.isNotBlank()) {
                             Spacer(Modifier.height(8.dp))
                             Text(partialText)

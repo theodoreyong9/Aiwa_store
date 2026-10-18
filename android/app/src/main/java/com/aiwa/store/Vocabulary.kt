@@ -10,6 +10,10 @@ import org.json.JSONObject
 
 /** The nine recognitions as they are now, and what happens when one changes: the small model, the parser and the super agent all get the new words. */
 object Vocabulary {
+    /** The words Aiwa SAYS for a recognition of its own (Accomplissement, Question) or asks for (Confirmation): the one the person wrote, else the one of origin. */
+    fun spoken(context: Context, slot: String): String =
+        WakeWordSettings.written(context, slot).firstOrNull() ?: Recognitions.slot(slot)?.defaults?.firstOrNull().orEmpty()
+
     /** label → the words the phone recognises for it: those chosen by voice (their name) and written, else the words of origin. */
     fun describe(context: Context): Map<String, List<String>> = Recognitions.SLOTS.associate { slot ->
         val spoken = WakeWordSettings.name(context, slot.id).takeIf { it.isNotBlank() }?.let { listOf(it) } ?: emptyList()
