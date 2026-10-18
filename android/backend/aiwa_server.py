@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 127
+BACKEND_VERSION = 126
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -724,11 +724,9 @@ def _documents_line(level):
     if level == "moyen":
         return (" Si je ne te donne que des documents et pas de scénario : lis `" + base + "` jusqu'à l'étape 5 (notes, brief, `story.json`), et lance `node video-kit/conductor/outline.mjs story.json --docs=<dossier> --seconds=<durée>` "
                 "pour vérifier que chaque phrase repose sur un passage de mes documents (copié mot pour mot) et tient dans la durée ; pas de séquences de catalogue à ce niveau, tes pages animées portent les plans.")
-    return (" Si je ne te donne que des documents et pas de scénario : lis `" + base + "` jusqu'à l'étape 5 (notes, brief, `story.json`) et lance `node video-kit/conductor/outline.mjs story.json --docs=<dossier> --seconds=<durée>` : "
-            "il refuse toute phrase qui ne repose pas sur un passage de mes documents (copié mot pour mot) ou qui ne tient pas dans la durée. Rien n'est inventé sur moi ni sur mes documents. "
-            "Puis lis `" + REFERENCE_RAW + "/video-kit/RECIPE-PRO.md` : le concept visuel vient de la structure du sujet, il est nouveau par rapport aux films déjà faits dans `docs/videos/` (`node video-kit/conductor/novelty.mjs concept.json`), "
-            "et AUCUN rendu complet ne commence avant une planche d'images vérifiée par écrit (un plan sur deux d'abord, chaque transition, légendes lisibles, rien de noir). Un clip de stock hors sujet, avec du texte incrusté ou une tête parlante est refusé.")
-
+    return (" Si je ne te donne que des documents et pas de scénario : suis `" + base + "` en entier. Tu écris les notes, le brief et `story.json` ; `outline.mjs` refuse toute phrase sans passage source de mes documents, "
+            "choisit les lieux (index de séquences, jamais le même deux fois de suite) et les transitions par ambiance ; puis `sh video-kit/conductor/make-film.sh film.json <dossier de travail> [musique.wav]` fait le plan, le rendu, la voix, le son et l'assemblage. "
+            "Un clip manquant est signalé avec les éléments exacts à donner au workflow `Footage` (mode fetch) : lance-le, dépose le clip, relance ; ne le remplace par rien d'autre. Regarde la planche d'images avant de me dire que c'est fini.")
 
 
 def _video_line(repo, quality="moyen"):
