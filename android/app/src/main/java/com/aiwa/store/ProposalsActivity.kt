@@ -4,7 +4,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import android.speech.RecognizerIntent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -162,6 +165,13 @@ private fun launch(context: Context, p: Proposal, test: Boolean): Boolean = when
 }
 
 /** The buttons of what was produced for this proposal: each opens it. */
+/** The request to the session for a change to ONE proposal of a campaign: nothing else is touched, nothing is sent to the target, and the change is pushed for me to read again. Pure, so that it can be tested. */
+fun proposalChangeRequest(campaign: String, id: String, name: String, change: String): String =
+    "Modification de UNE proposition de la campagne « $campaign » : « ${name.ifBlank { id }} » (id `$id` dans `docs/campagnes/$campaign/proposals.json`). " +
+        "Ce que je veux changer : ${change.trim()}. " +
+        "Corrige UNIQUEMENT cette proposition (son texte, ses documents ou sa vidéo si c'est ce que je demande), garde son `id`, ne touche à aucune autre cible, n'invente rien, n'envoie rien à la cible. " +
+        "Pousse la correction : je relis la nouvelle version dans l'application avant de l'envoyer moi-même. Ne reprends pas la recherche de nouvelles cibles pour ça."
+
 @Composable
 private fun ModeButtons(context: Context, p: Proposal) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -198,6 +208,14 @@ private fun ProposalsWindow(onClose: () -> Unit) {
     var sending by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
     var confirmStop by remember { mutableStateOf(false) }
+    // a change dictated for ONE proposal: the words of the phone's speech recognition land in a box that can be corrected, then go to the session with the proposal named
+    var editing by remember { mutableStateOf<Proposal?>(null) }
+    var editText by remember { mutableStateOf("") }
+    var editSending by remember { mutableStateOf(false) }
+    val speech = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val said = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!said.isNullOrBlank()) editText = (editText + " " + said).trim()
+    }
 
     LaunchedEffect(Unit) {
         try {
@@ -358,6 +376,13 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                                 ModeButtons(context, p)
                                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                     Text(p.name.ifBlank { p.id }, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f), maxLines = 2)
+                                                    OutlinedButton(onClick = {
+                                                        editing = p; editText = ""
+                                                        try {
+                                                            speech.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                                                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR").putExtra(RecognizerIntent.EXTRA_PROMPT, "Dicte la modification pour " + p.name.ifBlank { p.id }))
+                                                        } catch (err: Exception) { toastOnMain(context, "La reconnaissance vocale n'est pas disponible : écris la modification.") }
+                                                    }) { Text("🎙") }
                                                     if (isTest) OutlinedButton(onClick = {
                                                         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, previewText(p, true))
                                                         try { context.startActivity(Intent.createChooser(send, "Partager").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (err: Exception) { toastOnMain(context, "Partage impossible.") }
@@ -378,6 +403,35 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                     OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
                 }
             }
+        }
+        // the change dictated for one proposal: read it, correct it, send it to the session
+        editing?.let { p ->
+            AlertDialog(
+                onDismissRequest = { if (!editSending) editing = null },
+                title = { Text("Modifier : " + p.name.ifBlank { p.id }) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(value = editText, onValueChange = { editText = it.take(1500) }, label = { Text("Ce qu'il faut changer") }, minLines = 3, maxLines = 8, modifier = Modifier.fillMaxWidth())
+                        OutlinedButton(onClick = {
+                            try {
+                                speech.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR").putExtra(RecognizerIntent.EXTRA_PROMPT, "Dicte la suite"))
+                            } catch (err: Exception) { toastOnMain(context, "La reconnaissance vocale n'est pas disponible.") }
+                        }) { Text("🎙 Ajouter à voix haute") }
+                    }
+                },
+                confirmButton = {
+                    TextButton(enabled = !editSending && editText.isNotBlank(), onClick = {
+                        editSending = true
+                        scope.launch {
+                            val sent = sendAndTrack(context, bridge, proposalChangeRequest(tab, p.id, p.name, editText), toastErrors = true)
+                            editSending = false
+                            if (sent) { toastOnMain(context, "Modification envoyée à Claude"); editing = null }
+                        }
+                    }) { Text(if (editSending) "Envoi…" else "Envoyer à Claude") }
+                },
+                dismissButton = { TextButton(onClick = { editing = null }, enabled = !editSending) { Text("Annuler") } },
+            )
         }
         // the preview of what goes out, BEFORE the confirmation: one proposal at a time
         preview?.let { p ->
