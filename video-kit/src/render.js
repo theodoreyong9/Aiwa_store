@@ -1,6 +1,7 @@
 // Renders a timeline page frame by frame. With `transparent`, PNG files with an alpha channel (the page must have a transparent background: THEME.bg 'transparent', grain 0, vignette 0), to be laid over a real footage. The page defines window.render(t) (t in seconds, a pure function of t: the same t draws the
 // same picture) and a <meta name="duration"> is not needed: the caller says how long. Frames are JPEG files 00000.jpg, 00001.jpg, …
 import { chromium } from 'playwright';
+const GL_ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];   // WebGL pages (shader worlds) render in software where there is no GPU
 import { mkdirSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -10,7 +11,7 @@ export async function renderFrames({ page: pageFile, outDir, width = 1080, heigh
   mkdirSync(outDir, { recursive: true });
   const total = Math.round(seconds * fps);
   const end = to ?? total;
-  const browser = await chromium.launch({ executablePath });
+  const browser = await chromium.launch({ executablePath, args: GL_ARGS });
   try {
     const [file, query] = String(pageFile).split('?');                 // video.html?overlay=1: the page may take a query
     const url = pathToFileURL(resolve(file)).href + (query ? `?${query}` : '');

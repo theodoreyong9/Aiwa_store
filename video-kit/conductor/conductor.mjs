@@ -2,7 +2,7 @@
 // stage and the mixer follow. It decides nothing at random and nothing by taste: every choice is a rule of mood.mjs or a check of validate().
 import { norm, gradeOf, cameraOf, transitionSeconds, soundOf, sculptureOf } from './mood.mjs';
 
-export const TRANSITIONS = ['iris', 'whip', 'dissolve', 'zoom', 'cut', 'continue'];
+export const TRANSITIONS = ['iris', 'whip', 'dissolve', 'zoom', 'cut', 'continue', 'morph'];   // morph: one form becomes the next (the shader worlds)
 const THROUGH = /^(center|point:-?[0-9.]+,-?[0-9.]+|actor:[a-z0-9_-]+|sculpture)$/;
 
 /** Checks a film graph against the rules of the craft. Returns { errors: [], warnings: [] }: errors stop the render, warnings are said. */
@@ -27,7 +27,7 @@ export function validate(film, { pages = null, plates = null, sprites = null } =
       const t = b.transition;
       if (!TRANSITIONS.includes(t.kind)) e(`${id}: the transition "${t.kind}" is not one of ${TRANSITIONS.join(', ')}`);
       if (['iris', 'zoom'].includes(t.kind) && !THROUGH.test(t.through || '')) e(`${id}: a ${t.kind} needs "through" (center, point:x,y, actor:<id> or sculpture): the thing the camera goes through`);
-      if (prev && prev.world === b.world && !['continue', 'cut', 'dissolve'].includes((prev.transition || {}).kind)) w(`${id}: the same place as the beat before it, and a ${(prev.transition || {}).kind} to nowhere`);
+      if (prev && prev.world === b.world && !['continue', 'cut', 'dissolve', 'morph'].includes((prev.transition || {}).kind)) w(`${id}: the same place as the beat before it, and a ${(prev.transition || {}).kind} to nowhere`);
     }
     if (prev) {
       const d = Math.abs(norm(prev.mood).energy - norm(b.mood).energy);
@@ -57,7 +57,7 @@ export function plan(film, total = film.total) {
     const tr = b.transition && next ? { ...b.transition, dur: b.transition.dur || transitionSeconds(b.mood, next.mood) } : null;
     if (tr) { tr.t1 = t1; tr.t0 = Math.max(t0, t1 - tr.dur); }       // the hand-over ends when the next beat begins
     const actors = (b.actors || []).map((a) => ({ ...a, in: a.in ?? t0, dissolve: a.dissolve ?? null, reform: a.reform ?? null }));
-    out.beats.push({ id: b.id, page: b.page, idea: b.idea, say: b.say || null, image: b.image || null, t0, t1, world: b.world, mood: m, grade: gradeOf(m), camera: cameraOf(m), sculpture: sculptureOf(m), transition: tr, actors });
+    out.beats.push({ id: b.id, page: b.page, idea: b.idea, form: b.form || null, place: b.place || null, screen: b.screen || 0, say: b.say || null, image: b.image || null, t0, t1, world: b.world, mood: m, grade: gradeOf(m), camera: cameraOf(m), sculpture: sculptureOf(m), transition: tr, actors });
     const s = soundOf(m);
     // sound: the bed of the place, the track's gain, an accent on each beat (its pitch follows the warmth), the whoosh and the arrival of each hand-over, the riser of each dissolve
     out.sound.ambience.push({ t0, t1, bed: (film.worlds[b.world] || {}).ambience || 'room', level: s.ambience, brightness: s.brightness });

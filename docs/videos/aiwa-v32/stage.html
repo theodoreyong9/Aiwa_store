@@ -1,0 +1,214 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Aiwa v32</title>
+<style>
+@font-face{font-family:SG;src:url(fonts/SpaceGrotesk.ttf);font-weight:300 700}
+@font-face{font-family:FR;src:url(fonts/Fraunces-Italic.ttf);font-style:italic;font-weight:100 900}
+@font-face{font-family:JB;src:url(fonts/JetBrainsMono.ttf);font-weight:100 800}
+html,body{margin:0;background:#04050A}#w{position:relative;width:1920px;height:1080px}canvas{position:absolute;left:0;top:0;width:1920px;height:1080px}</style></head><body>
+<div id="w"><canvas id="gl" width="1280" height="720"></canvas><canvas id="tx" width="1920" height="1080"></canvas></div>
+<script id="fs" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+uniform vec2 uRes;uniform float uT,uU,uEn,uWarm,uTens,uAwe,uPush,uBeat,uScr;uniform int uA,uB;uniform vec3 uCam,uTar;uniform float uAz;
+uniform sampler2D uEnvA,uEnvB,uBgA,uBgB;uniform float uKeyA,uKeyB,uYawA,uYawB,uPU;uniform int uTr;uniform vec2 uFc;uniform float uBright,uSat;uniform vec3 uTint;
+out vec4 o;
+const float PI=3.14159265;
+mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
+float sdBox(vec3 p,vec3 b,float r){vec3 q=abs(p)-b;return length(max(q,0.))+min(max(q.x,max(q.y,q.z)),0.)-r;}
+float sdTor(vec3 p,vec2 t){return length(vec2(length(p.xz)-t.x,p.y))-t.y;}
+float sdCap(vec3 p,vec3 a,vec3 b,float r){vec3 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/dot(ba,ba),0.,1.);return length(pa-ba*h)-r;}
+float smin(float a,float b,float k){float h=max(k-abs(a-b),0.)/k;return min(a,b)-h*h*k*.25;}
+vec3 rp(vec3 p,int i){ // each form turns in its own way; the flat ones keep their face to the camera
+ float t=uT;
+ if(i>=1&&i<=4)p.xz*=rot(uAz);
+ if(i==0){p.xz*=rot(.25*sin(t*.4));p.xy*=rot(t*.12);}
+ else if(i==1){p.xz*=rot(.5*sin(t*.35));p.yz*=rot(.12*sin(t*.5));}
+ else if(i==2){p.xz*=rot(.6*sin(t*.3));}
+ else if(i==3){p.xz*=rot(.5+.3*sin(t*.3));p.yz*=rot(-.35);}
+ else if(i==4){p.xz*=rot(t*.7);p.xy*=rot(.35);}
+ else if(i==5){p.xz*=rot(t*.25);p.yz*=rot(.2*sin(t*.2));}
+ else {p.xz*=rot(t*.2);}
+ return p;}
+float shape(int i,vec3 p0){
+ vec3 p=rp(p0,i);float d=1e3;
+ if(i==0){ // the voice: rings whose edge is shaken by the sound
+  float a=atan(p.y,p.x);float v=sin(a*7.+uT*3.)*.05*uEn+sin(a*13.-uT*5.)*.025*uEn;
+  vec3 q=vec3(p.x,p.z,p.y);
+  d=sdTor(q,vec2(1.05+v,.13));
+  d=smin(d,sdTor(q,vec2(.68+v*1.4,.07)),.25);
+  d=smin(d,sdTor(q,vec2(.38+v*2.,.04)),.2);
+  d=smin(d,length(p)-.14-.05*sin(uT*4.),.2);
+ } else if(i==1){ d=sdBox(p,vec3(.52,1.0,.05),.07);
+  d=max(d,-(sdBox(p-vec3(0.,.93,.1),vec3(.1,.025,.05),.02))); // the speaker slit
+ } else if(i==2){ // glasses
+  vec3 a=vec3(abs(p.x),p.y,p.z);
+  d=sdTor(vec3(a.x-.62,a.z,a.y),vec2(.5,.065));
+  d=smin(d,sdCap(p,vec3(-.12,.12,0.),vec3(.12,.12,0.),.055),.12);
+  d=smin(d,sdCap(a,vec3(1.12,.05,0.),vec3(1.3,0.,-1.1),.05),.1);
+  d=smin(d,length(a-vec3(.62,0.,0.))-.0,.0);
+ } else if(i==3){ // the store: a grid of apps, one of them leaving
+  vec3 q=p;q.xy=p.xy-.5*clamp(floor(p.xy/.5+.5),-1.,1.);vec2 id=clamp(floor(p.xy/.5+.5),-1.,1.);
+  float lift=(id.x==1.&&id.y==1.)?.35+.12*sin(uT*2.):0.;
+  d=sdBox(q-vec3(0.,0.,lift),vec3(.17,.17,.07),.07);
+  d=max(d,length(p)-1.75);
+ } else if(i==4){ // the coin
+  vec3 q=vec3(p.x,p.z,p.y);vec2 w=vec2(length(q.xz)-.72,abs(q.y)-.06);
+  d=min(max(w.x,w.y),0.)+length(max(w,0.))-.07;
+  d=max(d,-(abs(length(q.xz)-.45)-.035-(abs(q.y)>.08?0.:-.3)));
+  d=smin(d,sdBox(q,vec3(.06,.12,.3),.03),.05);
+ } else if(i==5){ // the network
+  d=1e3;vec3 ps[7];
+  for(int k=0;k<7;k++){float fk=float(k);float a=fk*2.399963,h=1.-fk/3.;ps[k]=vec3(cos(a)*sqrt(1.-h*h),h,sin(a)*sqrt(1.-h*h))*(1.0+.06*sin(uT+fk));}
+  for(int k=0;k<7;k++){d=smin(d,length(p-ps[k])-.17,.18);d=smin(d,sdCap(p,ps[k],ps[(k+2)%7],.032),.1);d=smin(d,sdCap(p,ps[k],ps[(k+3)%7],.026),.1);}
+ } else { // the idea: a liquid that has not chosen yet
+  d=1e3;for(int k=0;k<4;k++){float fk=float(k);vec3 c=vec3(sin(uT*.8+fk*1.7),cos(uT*.6+fk*2.3),sin(uT*.5+fk))*.5;d=smin(d,length(p-c)-.42,.5);}
+ }
+ return d;}
+float beads(vec3 p){float d=1e3;for(int k=0;k<7;k++){float fk=float(k);float a=uT*(.22+.05*fk)+fk*2.4,r=1.9+.25*sin(fk*1.7+uT*.3),h=.9*sin(fk*2.1+uT*.2);
+  d=min(d,length(p-vec3(cos(a)*r,h,sin(a)*r))-(.05+.035*uEn+.02*sin(fk+uT)));}return d;}
+float map(vec3 p){
+ float d=mix(shape(uA,p),shape(uB,p),uU);
+ d+=.018*uTens*sin(p.x*11.+uT*2.)*sin(p.y*9.-uT)*sin(p.z*10.);
+ return min(d*.8,beads(p));}
+vec3 nrm(vec3 p){vec2 e=vec2(.0015,0);return normalize(vec3(map(p+e.xyy)-map(p-e.xyy),map(p+e.yxy)-map(p-e.yxy),map(p+e.yyx)-map(p-e.yyx)));}
+
+vec4 fetchE(sampler2D t,ivec2 p,ivec2 sz){p.x=(p.x%sz.x+sz.x)%sz.x;p.y=clamp(p.y,0,sz.y-1);vec4 c=texelFetch(t,p,0);return vec4(c.rgb*(255./256.)*exp2(c.a*255.-128.),1.);}
+vec3 envTex(sampler2D t,vec3 d,float yaw,float key){ // the light of a place: an RGBE panorama read with its own bilinear, so that nothing is clipped
+ ivec2 sz=textureSize(t,0);vec2 uv=vec2(atan(d.z,d.x)/(2.*PI)+.5+yaw,acos(clamp(d.y,-1.,1.))/PI);
+ vec2 st=uv*vec2(sz)-.5;ivec2 i=ivec2(floor(st));vec2 f=fract(st);
+ vec3 c=mix(mix(fetchE(t,i,sz).rgb,fetchE(t,i+ivec2(1,0),sz).rgb,f.x),mix(fetchE(t,i+ivec2(0,1),sz).rgb,fetchE(t,i+ivec2(1,1),sz).rgb,f.x),f.y);
+ return c*(3.4*key);}
+vec3 env(vec3 d,float w){vec3 a=envTex(uEnvA,d,uYawA,uKeyA);if(w<=0.)return a;return mix(a,envTex(uEnvB,d,uYawB,uKeyB),w);}
+vec3 bgTex(sampler2D t,vec3 d,float yaw){vec2 uv=vec2(atan(d.z,d.x)/(2.*PI)+.5+yaw,acos(clamp(d.y,-1.,1.))/PI);return pow(textureLod(t,uv,0.).rgb,vec3(1.));}
+vec3 film(vec3 n,vec3 rd,vec3 p,float w){ // oil on chrome: the colour of a thin film follows the angle, and the chrome shows the real place
+ float nv=clamp(dot(n,-rd),0.,1.);vec3 r=reflect(rd,n);vec3 e=env(r,w);
+ vec3 irid=.5+.5*cos(6.2832*(vec3(0.,.33,.67)+nv*1.35+uWarm*.35+uBeat*.07+p.y*.15));
+ float fr=pow(1.-nv,3.);
+ return e*mix(vec3(1.),irid*1.5,.45)+irid*fr*.5*(.5+.5*length(e))+vec3(.03,.035,.05);}
+vec3 grade(vec3 c){float l=dot(c,vec3(.299,.587,.114));c=mix(vec3(l),c,uSat)*uBright;return mix(c,c*uTint*1.6,.35);}
+void main(){
+ vec2 uv=(gl_FragCoord.xy-.5*uRes)/uRes.y;
+ vec3 ro=uCam,fw=normalize(uTar-ro),ri=normalize(cross(fw,vec3(0,1,0))),up=cross(ri,fw);
+ float F=1.12;
+ vec3 rd=normalize(fw*(F-.15*uPush)+ri*uv.x+up*uv.y);
+ // the place, behind
+ vec3 bg;float wHit=0.;
+ if(uTr==0){bg=bgTex(uBgA,rd,uYawA);}
+ else if(uTr==1){ // PORTAL: the form is the door; a ring of refraction spreads from it and the next place is on the other side
+  vec2 c=uFc;float R=uPU*1.7,dd=length(uv-c);float ring=exp(-pow((dd-R)*9.,2.));
+  vec2 dv=normalize(uv-c+1e-5)*ring*.06;vec3 rdd=normalize(rd+ri*dv.x+up*dv.y);
+  float m=smoothstep(R+.02,R-.02,dd);
+  bg=mix(bgTex(uBgA,rdd,uYawA),bgTex(uBgB,rdd,uYawB),m)+vec3(1.,.55,.3)*ring*.7;wHit=smoothstep(.02,.5,uPU);
+ } else if(uTr==2){ // TUNNEL: the place is pulled along the axis of the view, then the next one opens out of the same axis
+  float k=sin(PI*uPU);bg=vec3(0.);for(int i=0;i<10;i++){float q=float(i)/10.;vec3 d=normalize(mix(rd,fw,.82*k*(.35+.65*q)));
+   bg+=(uPU<.5?bgTex(uBgA,d,uYawA):bgTex(uBgB,d,uYawB))*.1;}
+  bg*=1.+.5*k;wHit=smoothstep(.3,.7,uPU);
+ } else { // SPIN: the camera turns on itself inside the panorama; two places, one sweep
+  float sw=uPU*uPU*(3.-2.*uPU);bg=vec3(0.);for(int i=0;i<10;i++){float q=float(i)/10.;float y=(sw-q*.07*sin(PI*uPU))*.9;
+   vec3 d=vec3(rd.x*cos(y*6.2832)-rd.z*sin(y*6.2832),rd.y,rd.x*sin(y*6.2832)+rd.z*cos(y*6.2832));
+   bg+=mix(bgTex(uBgA,d,uYawA),bgTex(uBgB,d,uYawB),smoothstep(.4,.6,uPU))*.1;}
+  wHit=smoothstep(.35,.65,uPU);
+ }
+ bg=grade(bg);
+ // a soft pool of light under the form
+ bg+=mix(vec3(.2,.35,.95),vec3(1.,.3,.1),uWarm)*exp(-length(uv-vec2(.0,-.1))*3.)*(.03+.07*uEn);
+ vec3 col=bg;
+ float t=0.;vec3 p;bool hit=false;
+ for(int i=0;i<84;i++){p=ro+rd*t;float d=map(p);if(d<.0009){hit=true;break;}t+=d;if(t>9.)break;}
+ if(hit){
+  vec3 n=nrm(p);vec3 c=film(n,rd,p,wHit);
+  float ao=1.;for(int k=1;k<4;k++){float h=.07*float(k);ao-=(h-map(p+n*h))*.5/float(k);}
+  c*=clamp(ao,.35,1.);
+  int dom=uU<.5?uA:uB;vec3 pl=rp(p,dom);
+  if(dom==1&&abs(pl.z)>.05&&abs(pl.x)<.46&&abs(pl.y)<.94){
+   float on=clamp(uScr*(uU<.5?1.:1.-uU*2.),0.,1.);
+   vec2 q=pl.xy;float rows=0.;for(int k=0;k<5;k++){float y=.62-float(k)*.26;rows+=smoothstep(.045,.035,abs(q.y-y))*smoothstep(.4,.38,abs(q.x+.04*sin(float(k))));}
+   float mic=smoothstep(.12,.1,length(q-vec2(0.,-.72)));
+   vec3 ui=vec3(1.,.38,.14)*(.35+.5*smoothstep(.9,-.9,q.y))+vec3(1.,.9,.8)*rows*.7+vec3(1.,.95,.9)*mic*(.9+.3*sin(uT*5.));
+   c=mix(c*.07,ui,on*.92);}
+  c+=vec3(1.,.4,.15)*pow(1.-clamp(dot(n,-rd),0.,1.),4.)*.2*uEn;
+  col=1.-exp(-c*1.0);col=pow(col,vec3(.88));
+  col=mix(col,bg,0.);
+ }
+ float vg=smoothstep(1.15,.3,length(uv*vec2(.8,1.)));col*=mix(.5,1.,vg);
+ o=vec4(col,1.);}
+</script>
+<script>
+const PLAN=__PLAN__,PLACES=__PLACES__;
+const FORMS={ring:0,slab:1,glasses:2,grid:3,coin:4,network:5,blob:6},TRK={none:0,portal:1,tunnel:2,spin:3},BEATS=PLAN.beats,W=1920,H=1080,F=1.12;
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),sm=x=>x*x*(3-2*x),eo=x=>1-Math.pow(1-x,3);
+const gl=document.getElementById('gl').getContext('webgl2',{preserveDrawingBuffer:true,antialias:false});
+function sh(t,s){const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(x));return x}
+const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,`#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.,1.);}`));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,document.getElementById('fs').text.trim()));gl.linkProgram(pr);
+if(!gl.getProgramParameter(pr,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(pr));gl.useProgram(pr);
+const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);const loc=gl.getAttribLocation(pr,'a');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+const U=n=>gl.getUniformLocation(pr,n);
+const TEX={};
+async function bmp(uri,raw){const b=await (await fetch(uri)).blob();return createImageBitmap(b,{premultiplyAlpha:'none',colorSpaceConversion:'none'})}
+async function loadPlaces(){
+ for(const [name,pl] of Object.entries(PLACES)){
+  const mk=(im,lin,rep)=>{const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL,gl.NONE);
+   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,gl.RGBA,gl.UNSIGNED_BYTE,im);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,lin?gl.LINEAR:gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,lin?gl.LINEAR:gl.NEAREST);
+   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);return t};
+  TEX[name]={env:mk(await bmp(pl.env),false),bg:mk(await bmp(pl.bg),true),anchors:pl.anchors,features:pl.features,key:pl.key}}}
+gl.uniform1i(U('uEnvA'),0);gl.uniform1i(U('uEnvB'),1);gl.uniform1i(U('uBgA'),2);gl.uniform1i(U('uBgB'),3);
+function bind(a,b){const T=[TEX[a],TEX[b]];gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,T[0].env);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,T[1].env);gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,T[0].bg);gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,T[1].bg)}
+const beatAt=t=>{let k=0;for(let i=0;i<BEATS.length;i++)if(t>=BEATS[i].t0)k=i;return k};
+const FRAME=[1.3,1.1,1.15,1.05,.95,1.12,.85];
+function state(t){const bi=beatAt(t),b=BEATS[bi],nb=BEATS[bi+1],tr=b.transition;
+ let a=FORMS[b.form],bb=a,u=0,pu=0,kind='none';
+ if(tr&&nb&&t>=tr.t0){bb=FORMS[nb.form];u=sm(clamp((t-tr.t0)/(tr.t1-tr.t0)));if(nb.place!==b.place){kind=tr.place||'portal';pu=clamp((t-tr.t0)/(tr.t1-tr.t0))}}
+ const nbm=nb&&u>0?nb.mood:b.mood,mx=k=>b.mood[k]+(nbm[k]-b.mood[k])*u,
+  scr=(b.screen||0)+(((nb&&u>0?nb.screen:b.screen)||0)-(b.screen||0))*u,fr=FRAME[a]+(FRAME[bb]-FRAME[a])*u,
+  g0=b.grade,g1=(nb&&u>0?nb.grade:b.grade),gm=k=>g0[k]+(g1[k]-g0[k])*u;
+ return{bi,b,nb,a,bb,u,pu,kind,scr,fr,en:mx('energy'),warm:mx('warmth'),tens:mx('tension'),awe:mx('awe'),bright:gm('brightness'),sat:gm('saturate'),tint:[0,1,2].map(i=>g0.tint[i]+(g1.tint[i]-g0.tint[i])*u)}}
+let CAMB=null;
+const angW=a=>{while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a};
+function aim(bi){const b=BEATS[bi],an=(TEX[b.place].anchors||[]);let k=0;for(let i=0;i<bi;i++)if(BEATS[i].place===b.place)k++;const a=an.length?an[k%an.length]:{yaw:0,pitch:0};
+ return{az:Math.atan2(-Math.cos(a.yaw),-Math.sin(a.yaw)),el:Math.max(-.2,Math.min(.35,-a.pitch*.55))}}
+const AIM=[];function aimAt(bi){return AIM[bi]||(AIM[bi]=aim(bi))}
+function camAngles(t,s){const bi=s.bi,cur=aimAt(bi),prev=bi?aimAt(bi-1):cur,k=sm(clamp((t-s.b.t0)/1.3));
+ let az=prev.az+angW(cur.az-prev.az)*k,el=prev.el+(cur.el-prev.el)*k;
+ if(s.u>0&&s.nb){const nx=aimAt(bi+1),kk=s.kind==='none'?0:s.u;az+=angW(nx.az-cur.az)*kk;el+=(nx.el-cur.el)*kk}
+ return{az:az+.28*Math.sin(t*.37)+.05*t*s.en*0,el:el+.1*Math.sin(t*.29)+.05}}
+function frame(t){
+ const s=state(t),b=s.b,since=t-b.t0;
+ const pa=b.place,pb=s.nb&&s.kind!=='none'?s.nb.place:pa;bind(pa,pb);
+ const push=Math.exp(-since*2.2),spin=s.kind==='spin'?s.pu*s.pu*(3-2*s.pu)*3.2:0,dive=s.kind==='portal'?Math.sin(Math.PI*Math.min(1,s.pu*1.15))*1.2:0;
+ const ca=camAngles(t,s),az=ca.az+spin,el=ca.el,dist=(3.9-.5*s.awe)*s.fr-.9*push*s.en+.3*Math.sin(t*.13)-dive;
+ const tar=[0,-.25,0],cam=[Math.sin(az)*Math.cos(el)*dist+tar[0],Math.sin(el)*dist+tar[1],Math.cos(az)*Math.cos(el)*dist+tar[2]];
+ gl.viewport(0,0,1280,720);
+ const set=(n,v)=>gl.uniform1f(U(n),v);
+ gl.uniform2f(U('uRes'),1280,720);set('uT',t);set('uU',s.u);set('uEn',s.en);set('uWarm',s.warm);set('uTens',s.tens);set('uAwe',s.awe);set('uPush',push);set('uBeat',s.bi);set('uScr',s.scr);
+ set('uKeyA',TEX[pa].key);set('uKeyB',TEX[pb].key);set('uYawA',PLACES[pa].yaw||0);set('uYawB',PLACES[pb].yaw||0);set('uPU',s.pu);gl.uniform1i(U('uTr'),TRK[s.kind]);gl.uniform2f(U('uFc'),0,.05);
+ set('uBright',s.bright*1.25);set('uSat',s.sat);gl.uniform3f(U('uTint'),s.tint[0]/255,s.tint[1]/255,s.tint[2]/255);
+ gl.uniform1i(U('uA'),s.a);gl.uniform1i(U('uB'),s.bb);gl.uniform3f(U('uCam'),cam[0],cam[1],cam[2]);gl.uniform3f(U('uTar'),tar[0],tar[1],tar[2]);set('uAz',az);
+ gl.drawArrays(gl.TRIANGLES,0,3);
+ CAMB={cam,tar,az};overlay(t,s,pa,cam,tar)}
+// the camera basis, the same as the shader's, to put the marks of the places where the lights are
+function proj(dir,cam,tar){const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],nm=v=>{const l=Math.hypot(...v);return v.map(x=>x/l)},cr=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dt=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+ const fw=nm(sub(tar,cam)),ri=nm(cr(fw,[0,1,0])),up=cr(ri,fw),z=dt(dir,fw);if(z<=.05)return null;
+ return[W/2+(dt(dir,ri)/z)*F*H*.5*0+W/2*0+(dt(dir,ri)/z)/F*H,H/2-(dt(dir,up)/z)/F*H,z]}
+const tx=document.getElementById('tx').getContext('2d');
+function overlay(t,s,pa,cam,tar){tx.clearRect(0,0,W,H);const b=s.b;
+ // tracking: the points of the place that a tracker holds are found and followed; brackets close on them, thin lines tie them together
+ const ft=(TEX[pa].features||[]);const k=eo(clamp((t-b.t0)/.8))*(s.kind==='none'?1:1-clamp(s.pu*2));
+ const pts=[];
+ for(let i=0;i<ft.length&&pts.length<9;i++){const a=ft[i];const yaw=a.yaw;const d=[Math.cos(a.pitch)*Math.cos(yaw),Math.sin(a.pitch),Math.cos(a.pitch)*Math.sin(yaw)];const p=proj(d,cam,tar);
+  if(p&&p[0]>160&&p[0]<W-160&&p[1]>170&&p[1]<H-300&&Math.hypot(p[0]-W/2,p[1]-(H/2-60))>230&&pts.every(q=>Math.hypot(q.x-p[0],q.y-p[1])>150))pts.push({x:p[0],y:p[1],a,i})}
+ if(k>0.01){tx.save();tx.globalAlpha=k;tx.strokeStyle='rgba(244,240,232,.5)';tx.lineWidth=1.5;
+  tx.beginPath();pts.forEach((p,i)=>i?tx.lineTo(p.x,p.y):tx.moveTo(p.x,p.y));tx.setLineDash([6,8]);tx.stroke();tx.setLineDash([]);
+  pts.forEach((p,i)=>{const lock=eo(clamp((t-b.t0-.12*i)/.55)),r=34+90*(1-lock),c=14;tx.strokeStyle=i%4===0?'#FF5A2B':'rgba(244,240,232,.95)';tx.lineWidth=2.5;
+   for(const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){tx.beginPath();tx.moveTo(p.x+sx*r,p.y+sy*(r-c));tx.lineTo(p.x+sx*r,p.y+sy*r);tx.lineTo(p.x+sx*(r-c),p.y+sy*r);tx.stroke()}
+   tx.fillStyle=tx.strokeStyle;tx.beginPath();tx.arc(p.x,p.y,3.5,0,7);tx.fill();
+   tx.font='500 18px JB';tx.fillStyle='rgba(244,240,232,.9)';tx.fillText(`PT ${String(p.i+1).padStart(2,'0')}`,p.x+r+8,p.y-r+14);tx.fillStyle='rgba(244,240,232,.6)';tx.fillText(`${(p.a.yaw*57.3).toFixed(0)}° ${(p.a.pitch*57.3).toFixed(0)}°`,p.x+r+8,p.y-r+34)});
+  tx.restore()}
+ if(b.say){const a=clamp((t-b.t0)/.5)*(1-clamp((t-(b.t1-.4))/.35));if(a>0){
+  tx.save();tx.globalAlpha=a;tx.textBaseline='alphabetic';const y=H-150;const full=[];let cx=110;
+  for(const w of b.say.split(/(\*.+?\*)/).filter(Boolean)){const it=w.startsWith('*');const tt=it?w.slice(1,-1):w;tx.font=it?'italic 500 92px FR':'600 84px SG';full.push({tt,it,x:cx,wd:tx.measureText(tt+' ').width});cx+=tx.measureText(tt+' ').width}
+  const g=tx.createLinearGradient(0,H-330,0,H);g.addColorStop(0,'rgba(3,4,8,0)');g.addColorStop(1,'rgba(3,4,8,.72)');tx.fillStyle=g;tx.fillRect(0,H-330,W,330);
+  full.forEach((f,i)=>{const kk=eo(clamp((t-b.t0-.12*i)/.55));tx.save();tx.beginPath();tx.rect(f.x-6,y-110,f.wd+12,150);tx.clip();tx.font=f.it?'italic 500 92px FR':'600 84px SG';tx.fillStyle=f.it?'#FF5A2B':'#F4F0E8';tx.shadowColor='rgba(0,0,0,.6)';tx.shadowBlur=26;tx.fillText(f.tt,f.x,y+(1-kk)*120);tx.restore()});
+  tx.restore()}}
+ tx.save();tx.font='500 18px JB';tx.fillStyle='rgba(244,240,232,.6)';tx.fillText('AIWA  ·  '+String(s.bi+1).padStart(2,'0')+' / '+String(BEATS.length).padStart(2,'0')+'  ·  '+PLACES[pa].label,110,84);tx.restore();
+ tx.fillStyle='#FF4B1F';tx.fillRect(0,H-4,W*t/PLAN.total,4)}
+window.READY=(async()=>{await Promise.all(['600 40px SG','italic 500 40px FR','500 40px JB'].map(f=>document.fonts.load(f)));await document.fonts.ready;await loadPlaces()})();
+window.render=async t=>{frame(t);gl.finish()};
+</script></body></html>

@@ -1,0 +1,260 @@
+{
+ "title": "Aiwa — la voix devient matière",
+ "language": "liquid-raymarch",
+ "total": 52,
+ "fps": 30,
+ "worlds": {
+  "aarfontein_dawn_2": {
+   "kind": "place",
+   "ambience": "void"
+  },
+  "colorful_studio": {
+   "kind": "place",
+   "ambience": "machine"
+  },
+  "blaubeuren_night": {
+   "kind": "place",
+   "ambience": "city"
+  },
+  "little_paris_eiffel_tower": {
+   "kind": "place",
+   "ambience": "air"
+  },
+  "venice_sunset": {
+   "kind": "place",
+   "ambience": "air"
+  },
+  "tv_studio": {
+   "kind": "place",
+   "ambience": "shimmer"
+  },
+  "kiara_1_dawn": {
+   "kind": "place",
+   "ambience": "void"
+  }
+ },
+ "beats": [
+  {
+   "id": "voix",
+   "page": "voix",
+   "t": 0,
+   "world": "aarfontein_dawn_2",
+   "form": "ring",
+   "say": "Tu *parles.*",
+   "idea": "a voice becomes a shape",
+   "mood": {
+    "energy": 0.35,
+    "warmth": 0.5,
+    "scale": 0.8,
+    "tension": 0.2,
+    "awe": 0.8
+   },
+   "transition": {
+    "kind": "morph",
+    "place": "portal",
+    "dur": 2.0
+   },
+   "screen": 0,
+   "place": "aarfontein_dawn_2"
+  },
+  {
+   "id": "construit",
+   "page": "construit",
+   "t": 4.6,
+   "world": "colorful_studio",
+   "form": "blob",
+   "say": "Claude Code *construit.*",
+   "idea": "the idea takes form",
+   "mood": {
+    "energy": 0.5,
+    "warmth": 0.6,
+    "scale": 0.5,
+    "tension": 0.45,
+    "awe": 0.6
+   },
+   "transition": {
+    "kind": "morph",
+    "dur": 1.4
+   },
+   "screen": 0,
+   "place": "colorful_studio"
+  },
+  {
+   "id": "app",
+   "page": "app",
+   "t": 9.0,
+   "world": "colorful_studio",
+   "form": "slab",
+   "say": "Une *application,* sur ton téléphone.",
+   "idea": "the phone appears",
+   "mood": {
+    "energy": 0.55,
+    "warmth": 0.6,
+    "scale": 0.5,
+    "tension": 0.3,
+    "awe": 0.5
+   },
+   "transition": {
+    "kind": "morph",
+    "place": "tunnel",
+    "dur": 2.0
+   },
+   "screen": 1,
+   "place": "colorful_studio"
+  },
+  {
+   "id": "eteint",
+   "page": "eteint",
+   "t": 14.0,
+   "world": "blaubeuren_night",
+   "form": "slab",
+   "say": "À l'écran *éteint,* micro ouvert.",
+   "idea": "dark glass, an open microphone",
+   "mood": {
+    "energy": 0.3,
+    "warmth": 0.35,
+    "scale": 0.4,
+    "tension": 0.2,
+    "awe": 0.6
+   },
+   "transition": {
+    "kind": "morph",
+    "dur": 1.4
+   },
+   "screen": 0,
+   "place": "blaubeuren_night"
+  },
+  {
+   "id": "lunette",
+   "page": "lunette",
+   "t": 19.0,
+   "world": "blaubeuren_night",
+   "form": "glasses",
+   "say": "Ou à ta *lunette.*",
+   "idea": "the same thing on glasses",
+   "mood": {
+    "energy": 0.45,
+    "warmth": 0.5,
+    "scale": 0.6,
+    "tension": 0.25,
+    "awe": 0.6
+   },
+   "transition": {
+    "kind": "morph",
+    "place": "spin",
+    "dur": 2.0
+   },
+   "screen": 0,
+   "place": "blaubeuren_night"
+  },
+  {
+   "id": "publie",
+   "page": "publie",
+   "t": 24.2,
+   "world": "little_paris_eiffel_tower",
+   "form": "grid",
+   "say": "Un geste, et elle est *publiée.*",
+   "idea": "one tile leaves the grid",
+   "mood": {
+    "energy": 0.7,
+    "warmth": 0.7,
+    "scale": 0.5,
+    "tension": 0.35,
+    "awe": 0.5
+   },
+   "transition": {
+    "kind": "morph",
+    "dur": 1.4
+   },
+   "screen": 0,
+   "place": "little_paris_eiffel_tower"
+  },
+  {
+   "id": "store",
+   "page": "store",
+   "t": 29.2,
+   "world": "little_paris_eiffel_tower",
+   "form": "grid",
+   "say": "Le Store la classe selon le *travail.*",
+   "idea": "ranked by the work behind it",
+   "mood": {
+    "energy": 0.6,
+    "warmth": 0.5,
+    "scale": 0.7,
+    "tension": 0.3,
+    "awe": 0.6
+   },
+   "transition": {
+    "kind": "morph",
+    "place": "portal",
+    "dur": 2.0
+   },
+   "screen": 0,
+   "place": "little_paris_eiffel_tower"
+  },
+  {
+   "id": "calcule",
+   "page": "calcule",
+   "t": 34.0,
+   "world": "venice_sunset",
+   "form": "coin",
+   "say": "Ton téléphone calcule. Tu gagnes des *AIWA.*",
+   "idea": "a coin turns",
+   "mood": {
+    "energy": 0.65,
+    "warmth": 0.7,
+    "scale": 0.4,
+    "tension": 0.3,
+    "awe": 0.5
+   },
+   "transition": {
+    "kind": "morph",
+    "place": "tunnel",
+    "dur": 2.0
+   },
+   "screen": 0,
+   "place": "venice_sunset"
+  },
+  {
+   "id": "paient",
+   "page": "paient",
+   "t": 39.0,
+   "world": "tv_studio",
+   "form": "network",
+   "say": "Les apps *paient* directement.",
+   "idea": "a network of payments",
+   "mood": {
+    "energy": 0.75,
+    "warmth": 0.6,
+    "scale": 0.7,
+    "tension": 0.5,
+    "awe": 0.7
+   },
+   "transition": {
+    "kind": "morph",
+    "place": "spin",
+    "dur": 2.0
+   },
+   "screen": 0,
+   "place": "tv_studio"
+  },
+  {
+   "id": "fin",
+   "page": "fin",
+   "t": 44.4,
+   "world": "kiara_1_dawn",
+   "form": "ring",
+   "say": "*Aiwa.*",
+   "idea": "the name, calm",
+   "mood": {
+    "energy": 0.2,
+    "warmth": 0.55,
+    "scale": 0.9,
+    "tension": 0.1,
+    "awe": 0.9
+   },
+   "screen": 0,
+   "place": "kiara_1_dawn"
+  }
+ ]
+}
