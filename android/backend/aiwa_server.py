@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 132
+BACKEND_VERSION = 133
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1201,7 +1201,14 @@ def _rename_session(session_id, title):
 
 # The tools Aiwa's own instructions ask a session to use: allowed from the start, so that the session does not stop to ask for them (a permission
 # prompt in the Claude conversation, which the widget cannot see and the person has to find). Attaching a repository is all it covers.
-CLOUD_ALLOWED_TOOLS = ["mcp__Claude_Code_Remote__add_repo", "mcp__Claude_Code_Remote__register_repo_root"]
+# The tools a cloud session may use without asking me. The session names them "mcp__claude-code-remote__…" (hyphens, lower case: seen on the sessions of the account), the
+# local CLI "mcp__Claude_Code_Remote__…": the list carries both, because with one spelling only the permission question « Add Repo » came back every time and stayed in Claude,
+# out of the widget's reach.
+CLOUD_ALLOWED_TOOLS = [
+    f"mcp__{server}__{tool}"
+    for server in ("claude-code-remote", "Claude_Code_Remote")
+    for tool in ("add_repo", "register_repo_root")
+]
 CLOUD_ALLOWED_TOOLS_ARGS = ["--allowedTools", ",".join(CLOUD_ALLOWED_TOOLS)]
 
 CLI_REPO_LOG = Path.home() / "aiwa_cli_repo_last.log"
