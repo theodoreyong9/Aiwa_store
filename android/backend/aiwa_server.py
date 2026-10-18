@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 129
+BACKEND_VERSION = 130
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1294,6 +1294,25 @@ def attach_add(body):
                 return {"ok": False, "error": "le relais n'a pas gardé le fichier"}
     with attach_lock:
         attachments.append(entry)
+        return {"ok": True, "count": len(attachments)}
+
+
+def attach_list():
+    """The files joined and not sent yet, in order: what the widget shows one by one."""
+    with attach_lock:
+        return [{"name": a["name"], "size": a["size"]} for a in attachments]
+
+
+def attach_remove(body):
+    """body = JSON {index}: takes back ONE of the files joined and not sent yet."""
+    try:
+        index = int(json.loads(body).get("index"))
+    except (ValueError, TypeError, AttributeError):
+        return {"ok": False, "error": "numéro de fichier illisible"}
+    with attach_lock:
+        if not 0 <= index < len(attachments):
+            return {"ok": False, "error": "ce fichier n'est plus en attente"}
+        del attachments[index]
         return {"ok": True, "count": len(attachments)}
 
 
@@ -3722,7 +3741,7 @@ class Handler(BaseHTTPRequestHandler):
                 "version": BACKEND_VERSION, "updated_at": BACKEND_UPDATED_AT, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
                 "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "video_quality": vquality, "extra": own, "extra_repos": more, "source_repos": inspiration,
-                "waiting": is_waiting, "attachments": len(attachments), "self_update": dict(self_update_last), "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(), "cast": _cast_ready(),
+                "waiting": is_waiting, "attachments": len(attachments), "attachment_files": attach_list(), "self_update": dict(self_update_last), "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(), "cast": _cast_ready(),
                 "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
                 "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(), "ask": _ask_snapshot(), "agent": agent_snapshot(),
             })
@@ -3777,6 +3796,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(attach_add(body))
         elif self.path == "/api/attach/clear":
             self.reply_json(attach_clear())
+        elif self.path == "/api/attach/remove":
+            self.reply_json(attach_remove(body))
         elif self.path == "/api/cloud/command":
             self.reply_json(cloud_send(body, command=True))
         elif self.path == "/api/cloud/select":

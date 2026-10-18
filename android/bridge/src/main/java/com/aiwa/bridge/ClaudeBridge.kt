@@ -96,6 +96,8 @@ data class BackendStatus(
     val silenceMinutes: Int = 0,
     // Files joined with « + » that have not gone yet (they leave with the next message).
     val attachments: Int = 0,
+    // The names and sizes (bytes) of those files, in order, so that each can be seen and taken back on its own.
+    val attachmentFiles: List<Pair<String, Int>> = emptyList(),
     val loop: LoopRunning? = null,
     val cast: CastWish? = null,
     val site: SiteInfo = SiteInfo(null, "off"),

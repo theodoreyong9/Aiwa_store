@@ -20,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -62,19 +61,28 @@ class PlusMenuActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
         setContent {
-            // the files joined and not sent yet: asked once, so that the menu can offer to take them back
-            val waitingFiles by produceState(0) { value = withContext(Dispatchers.IO) { try { LocalClaudeBridge().status().attachments } catch (e: Exception) { 0 } } }
+            // the files joined and not sent yet, one by one: each can be seen and taken back on its own
+            val files = remember { androidx.compose.runtime.mutableStateListOf<Pair<String, Int>>() }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                val got = withContext(Dispatchers.IO) { try { LocalClaudeBridge().status().attachmentFiles } catch (e: Exception) { emptyList() } }
+                files.clear(); files.addAll(got)
+            }
             val scope = rememberCoroutineScope()
             val entries = buildList {
-                if (waitingFiles > 0) add(PickerEntry("Retirer les $waitingFiles pièce(s) jointe(s)\nelles ne partiront pas avec le prochain message", true) {
-                    val app = applicationContext
-                    scope.launch {
-                        val ok = withContext(Dispatchers.IO) { LocalClaudeBridge().attachClear() }
-                        toastOnMain(app, if (ok) "Pièces jointes retirées" else "Impossible de les retirer")
-                        try { AiwaWidget().updateAll(app) } catch (e: Exception) { }
-                        finish()
-                    }
-                })
+                files.forEachIndexed { i, f ->
+                    val kb = (f.second + 1023) / 1024
+                    add(PickerEntry("✕  ${f.first}\n$kb Ko, part avec le prochain message : toucher pour le retirer", true) {
+                        val app = applicationContext
+                        scope.launch {
+                            val ok = withContext(Dispatchers.IO) { LocalClaudeBridge().attachRemove(i) }
+                            if (ok) {
+                                files.removeAt(i)
+                                toastOnMain(app, "« ${f.first} » retiré")
+                                try { AiwaWidget().updateAll(app) } catch (e: Exception) { }
+                            } else toastOnMain(app, "Impossible de le retirer")
+                        }
+                    })
+                }
                 add(PickerEntry("Document\nun fichier joint au prochain message", false) { attach(arrayOf("*/*")) })
                 add(PickerEntry("Média\nphoto, vidéo ou son, joint au prochain message", false) { attach(arrayOf("image/*", "video/*", "audio/*")) })
                 add(PickerEntry("Écrire à un contact — une campagne d'un seul contact", false, header = true) { })

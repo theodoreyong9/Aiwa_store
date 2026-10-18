@@ -2034,6 +2034,18 @@ class AttachmentTests(unittest.TestCase):
         self.assertTrue(got["ok"])
         self.assertIn("https://ntfy.sh/file/zzz.pdf", srv._attachments_block(list(srv.attachments)))
 
+    def test_the_files_waiting_are_listed_and_each_one_can_be_taken_back(self):
+        srv.attach_add(json.dumps({"name": "a.txt", "data": self.b64(b"un")}))
+        srv.attach_add(json.dumps({"name": "b.txt", "data": self.b64(b"deux")}))
+        srv.attach_add(json.dumps({"name": "c.txt", "data": self.b64(b"trois")}))
+        self.assertEqual([f["name"] for f in srv.attach_list()], ["a.txt", "b.txt", "c.txt"])
+        self.assertEqual(srv.attach_list()[1]["size"], 4)
+        self.assertEqual(srv.attach_remove(json.dumps({"index": 1})), {"ok": True, "count": 2})
+        self.assertEqual([f["name"] for f in srv.attach_list()], ["a.txt", "c.txt"])
+        self.assertFalse(srv.attach_remove(json.dumps({"index": 5}))["ok"], "a place that is gone is refused")
+        self.assertFalse(srv.attach_remove("pas du json")["ok"])
+        self.assertNotIn("b.txt", srv._attachments_block(list(srv.attachments)))
+
     def test_too_big_or_empty_is_refused_and_clear_empties(self):
         self.assertFalse(srv.attach_add(json.dumps({"name": "a", "data": ""}))["ok"])
         big = self.b64(b"x" * (srv.ATTACH_MAX + 1))
