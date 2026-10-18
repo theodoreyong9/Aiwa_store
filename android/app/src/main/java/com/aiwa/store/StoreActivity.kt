@@ -117,8 +117,6 @@ class StoreActivity : ComponentActivity() {
         // The application is not usable yet: a cover over the page says so, and offers the widget (the one thing that works) while it is not on the home screen.
         if (UNDER_CONSTRUCTION) root.addView(constructionCover(), FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(root)
-        // The widget: asked for once, at the first opening (the system's window, one tap on « Ajouter »)
-        root.post { WidgetPin.offerOnce(this) }
         // Edge-to-edge is the default from Android 15: keep the page out of the status and navigation bars.
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
@@ -239,6 +237,9 @@ class StoreActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         widgetButton?.visibility = if (WidgetPin.hasWidget(this)) android.view.View.GONE else android.view.View.VISIBLE
+        // The widget is asked for at every opening while there is none (the system's window, one tap on « Ajouter »). Asked once the screen is really in front and has settled:
+        // a request made while the window was still appearing (right after an installation) was lost without a word.
+        window.decorView.postDelayed({ if (!isFinishing && !isDestroyed) WidgetPin.offerOnce(this) }, 800)
     }
 
     override fun onNewIntent(intent: Intent) {
