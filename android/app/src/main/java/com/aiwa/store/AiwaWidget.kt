@@ -66,7 +66,6 @@ class AiwaWidget : GlanceAppWidget() {
         // Placing the widget or the launcher redrawing it wakes the keep-alive
         // service too (and so the backend) — no need to open the app first.
         wakeAiwa(context)
-        WidgetPin.markSeen(context)
         val bridge = LocalClaudeBridge()
         provideContent {
             // Observed, NOT captured: Glance keeps this composition alive

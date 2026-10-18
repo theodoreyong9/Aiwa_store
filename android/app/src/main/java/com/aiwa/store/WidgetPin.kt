@@ -14,21 +14,16 @@ object WidgetPin {
 
     private fun provider(context: Context) = ComponentName(context, AiwaWidgetReceiver::class.java)
 
-    private fun seenFile(context: Context) = java.io.File(context.noBackupFilesDir, "widget_seen.txt")
-
     /**
-     * Called whenever a widget is really drawn (a launcher shows it). After a reinstall Android may give back the NUMBERS of the old widgets although none is on the home screen:
-     * the list of ids is then not empty and the widget was never asked for. A widget counts only if one was drawn since this installation (the file is not carried by the backup).
+     * Is a widget really on a home screen? The list of ids is not enough: after a reinstall Android may give back the numbers of old widgets that no launcher shows. A launcher that
+     * hosts a widget tells it its size (the options of the id); an id nobody hosts has none. (Having been « drawn » does not prove it: updateAll draws for every id, hosted or not.)
      */
-    fun markSeen(context: Context) {
-        try {
-            val file = seenFile(context)
-            if (!file.exists() || System.currentTimeMillis() - file.lastModified() > 60_000L) file.writeText(System.currentTimeMillis().toString())
-        } catch (err: Exception) { }
-    }
-
     fun hasWidget(context: Context): Boolean = try {
-        AppWidgetManager.getInstance(context).getAppWidgetIds(provider(context)).isNotEmpty() && seenFile(context).exists()
+        val manager = AppWidgetManager.getInstance(context)
+        manager.getAppWidgetIds(provider(context)).any { id ->
+            manager.getAppWidgetInfo(id) != null &&
+                manager.getAppWidgetOptions(id).let { it.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0) > 0 || it.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0) > 0 }
+        }
     } catch (err: Exception) { false }
 
     /** Asks the system to add the widget. Returns false when the launcher cannot be asked (the gesture by hand is then said, if `explain`). */

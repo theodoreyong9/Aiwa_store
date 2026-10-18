@@ -236,7 +236,6 @@ class StoreActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        widgetButton?.visibility = if (WidgetPin.hasWidget(this)) android.view.View.GONE else android.view.View.VISIBLE
         // The widget is asked for at every opening while there is none (the system's window, one tap on « Ajouter »). Asked once the screen is really in front and has settled:
         // a request made while the window was still appearing (right after an installation) was lost without a word.
         window.decorView.postDelayed({ if (!isFinishing && !isDestroyed) WidgetPin.offerOnce(this) }, 800)
