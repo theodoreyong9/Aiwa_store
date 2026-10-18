@@ -747,7 +747,7 @@ class DeployPickerActivity : ComponentActivity() {
 /**
  * The settings button of the widget: ONE list. What used to be four buttons (the model, the push, the state of the workflow) AND the whole menu d'Aiwa (the wake word, the state
  * of Aiwa, the updates, the always-on listening), then ONE button for everything that can be said (the dictation instructions: VoiceCommandsHelpActivity), then the shape of
- * the widget, classic or glasses. The pill on the widget says the state in a few words; this is where it is changed.
+ * the widget. The pill on the widget says the state in a few words; this is where it is changed.
  */
 class SettingsActivity : ComponentActivity() {
     private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -775,13 +775,6 @@ class SettingsActivity : ComponentActivity() {
         startActivity(Intent(this, screen))
     }
 
-    private fun shape(shape: String) {
-        val app = applicationContext
-        WidgetStyle.set(app, shape)
-        finish()
-        WidgetStyle.refresh(app)
-    }
-
     private fun togglePush(direct: Boolean) {
         val app = applicationContext
         finish()
@@ -793,18 +786,11 @@ class SettingsActivity : ComponentActivity() {
         wakeAiwa(applicationContext)
         setContent {
             val state by AiwaRepository.state.collectAsState()
-            val current = WidgetStyle.current(applicationContext)
             val ci = when (state.ciState) { "success" -> "réussi ✓"; "failure" -> "échec ✗"; "running" -> "en cours …"; else -> "état inconnu" }
             // the switch is the person's wish; "listening" is whether the service is running (after a restart of the phone it is not, until the app is opened)
             val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
                 add(PickerEntry("Réglages", false, header = true) { })
-                // The Light widget already holds the session, the repository, Claude, the loops and the campaign; only the glasses need them here
-                if (current == WidgetStyle.GLASSES) {
-                    add(PickerEntry("Session : ${state.session} ▾", false, lines = 2) { open(SessionPickerActivity::class.java) })
-                    add(PickerEntry("Dépôt : ${state.repo ?: "à choisir"}${if (state.extraRepos.isNotEmpty()) " +${state.extraRepos.size}" else ""} ▾", false, lines = 2) { open(RepoPickerActivity::class.java) })
-                    add(PickerEntry("Ouvrir la conversation dans Claude", false, lines = 1) { open(OpenClaudeActivity::class.java) })
-                }
                 add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
                 if (state.repo != null) {
                     add(PickerEntry(if (state.pushMain) "Push : direct sur main" else "Push : sur une branche", false, lines = 1) { togglePush(state.pushMain) })
@@ -837,10 +823,6 @@ class SettingsActivity : ComponentActivity() {
                 if (wanted) add(PickerEntry("Éteindre l'écoute permanente", false, lines = 1) { toggle() })
                 // ONE button for everything that can be said
                 add(PickerEntry("Commandes vocales", false, lines = 1) { open(VoiceCommandsHelpActivity::class.java) })
-
-                add(PickerEntry("Forme du widget", false, header = true) { })
-                add(PickerEntry("Light", current == WidgetStyle.LIGHT, lines = 1) { shape(WidgetStyle.LIGHT) })
-                add(PickerEntry("Glasses", current == WidgetStyle.GLASSES, lines = 1) { shape(WidgetStyle.GLASSES) })
             }
             PickerSheet(entries) { finish() }
         }

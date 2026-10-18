@@ -17,7 +17,7 @@
 
 ▶ Le film : [`docs/videos/aiwa-v30-16x9.mp4`](docs/videos/aiwa-v30-16x9.mp4) (fait avec les outils de ce dépôt).
 
-> **Statut.** Testé en CI ; l'APK compile en CI. **Jamais essayé de bout en bout sur un vrai téléphone, sur le vrai Solana, ni sur de vraies lunettes.**
+> **Statut.** Testé en CI ; l'APK compile en CI. **Jamais essayé de bout en bout sur un vrai téléphone, sur le vrai Solana.**
 > Voir [§12](#12-vérifié-et-non-vérifié).
 
 ## Sommaire
@@ -62,9 +62,6 @@ Si Termux ou le cerveau manque, le widget le dit et un appui copie la ligne. Cla
 2. **Docs · Vidéo · Page · App · Aiwa** : **gris** tant que le dépôt n'a rien de ce type, **coloré** sinon ; un appui l'ouvre.
 3. **Dicter**, **Claude** (rouge si Claude attend ou se tait), **?** (question de Claude), **↻** (APK plus récent prêt, sinon absent).
 4. **Aiwa**, **super agent**, **Réglages**.
-
-**Glasses** : deux verres. Gauche : les cinq productions, une rangée workflow · boucles · campagne, réglages, *Dicter*, super agent. Droit : Store, Wallet,
-recherche, own, fave, inviter. *Jamais essayé sur de vraies lunettes.*
 
 **Réglages** : modèle, push, clé Anthropic, super agent (dont **détruire et recommencer**), *Mes mots*, état, version (appli, cerveau, **date de dernière mise à
 jour du cerveau**), commentaire pour le critique, « c'est prêt », « je suis disponible ? », écoute permanente, forme.
@@ -301,7 +298,7 @@ sequenceDiagram
 ```mermaid
 flowchart TB
   subgraph app["android/app (Kotlin: Compose, Glance, services)"]
-    W1["Widget (Light, Glasses)"]
+    W1["Widget (Light)"]
     Win["Fenêtres: Vidéos, Campagnes, Boucles, Agent, Mes mots, Réglages"]
     Svc["KeepAliveService (boucle 10 s)<br/>WakeWordService (écoute Vosk)"]
     St["AiwaRepository (état) + BackendSync"]
@@ -467,7 +464,7 @@ flowchart LR
 | Protocole, wallet, registre, appli web (Chromium) ; recoupement avec une implémentation Rust | Vrai brûlage sur Solana ; vraie pull request par le registre |
 | Cerveau (relais, sessions, boucles, campagnes, agent, vidéos) contre de faux serveurs ; pont Kotlin | **Vrai téléphone** : keystore, connexion GitHub, widget, mise à jour par le site |
 | Chaîne vidéo (rendu, contrôle, voix, musique) | Voix de bout en bout ; vraies sessions Claude Code pilotées par le cerveau |
-| | Forme glasses sur de vraies lunettes ; cast sur une vraie TV |
+| | Cast sur une vraie TV |
 
 Aucune critique n'est indépendante tant qu'elle est faite par la chaîne qui produit.
 

@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **La forme « glasses » du widget disparaît** : elle ramait trop. Il ne reste que la forme Light ; le choix « Forme du widget » des réglages, le dessin des lunettes et les boutons propres à cette forme (Store, Wallet, recherche, own, fave, inviter : le bouton Aiwa de la forme Light ouvre l'appli, qui les contient) sont retirés. Demande le nouvel APK.
 - **Éteindre le super agent éteint aussi l'écoute permanente du petit modèle** : avant, la fermeture du super agent relançait l'écoute du mot d'éveil et il fallait aller dans les réglages pour la couper. Comme le micro du widget EST le super agent, tout s'arrête avec lui (« Agent éteint ») ; le rouvrir rallume l'écoute. Demande le nouvel APK.
 - **Plus de session « Consignes Aiwa, dépôt … »** : « renvoie les instructions » sans session ouverte envoyait un message fait seulement des pastilles et d'un rappel, ce qui CRÉAIT une session dont le premier message n'était que des consignes (Claude la nomme d'après lui). Sans session, rien n'est envoyé : le prochain vrai message porte déjà toutes les consignes. Demande le nouvel APK.
 - **Lire un dépôt d'inspiration n'appelle plus `add_repo`** (brain 134) : la consigne disait de les rattacher « en lecture » avec cet outil, donc de déclencher la demande de permission de Claude pour une simple lecture. Les dépôts publics se lisent par `raw.githubusercontent.com` ou `git clone --depth 1`, sans rien rattacher. `add_repo` reste pour un dépôt où la session doit pousser.

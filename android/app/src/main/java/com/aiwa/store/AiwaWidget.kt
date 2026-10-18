@@ -216,8 +216,7 @@ private fun WorkflowSpinner(diameter: Dp) {
 
 @Composable
 private fun Content(state: AiwaState) {
-    // Two shapes: Light (the default) and Glasses (the same buttons, in a pair of glasses with the Store on the right lens). Chosen in the settings.
-    if (WidgetStyle.current(LocalContext.current) == WidgetStyle.GLASSES) GlassesContent(state) else LightContent(state)
+    LightContent(state)
 }
 
 // What the top of the widget says (the session and what is going on) and what a tap on it opens: the fix for what is wrong, else the sessions. Shared by both shapes.
@@ -318,13 +317,6 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
     return BandInfo(title, statusText, statusColor, statusBold, bandAction)
 }
 
-
-/**
- * The other shape of the widget: a pair of glasses. A drawn frame (two rounded lenses, the bridge, the start of the temples: glasses_frame) stretched over the card, and the
- * things placed INSIDE the lenses. Left lens: the context (the session and what is going on, the repository, the settings, the mode, Claude). Right lens: the application (the
- * logo, which opens it) and the microphone side by side, then what the work gives (the site or the proposals, ▦ and `</>`, the videos, the GitHub guide). Only what exists is shown.
- * Chosen in the settings list (WidgetStyle).
- */
 
 // ================================================================================================
 // The third shape, « Aiwa »: the modes in a row at the top (Média · Page · App · Store · Aiwa; Média holds Vidéo, Campagne and Documents); what the chosen mode needs; the mic, Claude, the question,
@@ -573,146 +565,6 @@ private fun LightContent(state: AiwaState) {
 
 // The two-row layout (conversation row + project row): a safety net for a
 // launcher whose cells are so small that the widget is under 150 dp high.
-
-@Composable
-private fun GlassesContent(state: AiwaState) {
-    val fg = rgb(android.graphics.Color.rgb(240, 240, 245))
-    val pill = rgb(android.graphics.Color.rgb(52, 52, 64))
-    val micGrey = rgb(android.graphics.Color.rgb(84, 84, 94))
-    val alertRed = rgb(android.graphics.Color.rgb(214, 69, 65))
-    val green = rgb(android.graphics.Color.rgb(46, 125, 90))
-    val locked = state.status == AiwaState.Status.WORKING
-    val size = LocalSize.current
-    val context = LocalContext.current
-    val fontScale = context.resources.configuration.fontScale
-
-    // The frame is drawn on a 200 x 100 grid stretched to the widget: the lenses are 8..96 and 104..192 wide and 10..90 high, the things go inside them.
-    val w = size.width.value
-    val h = size.height.value
-    val outer = w * 0.085f
-    val inner = w * 0.355f
-    val middle = w - 2 * outer - 2 * inner
-    val top = h * 0.17f
-    val micH = (h * 0.20f).coerceIn(20f, 28f)
-    // the left lens: a column of seven small buttons (the project, the five kinds and the settings) and, under them, the dictation row
-    val itemH = ((h * 0.66f - 8f - micH) / 8f).coerceIn(8f, 13f)
-    val colW = 40f
-    val band = bandInfo(state, inner - colW - 24f)
-    val agentOn = state.agent?.enabled == true
-    val micAct = actionStartActivity<AgentToggleActivity>()      // the microphone is the super agent: a tap opens it, a second tap closes it
-    val agentNeeds = state.agent?.let { it.say != null || it.proposal != null || it.command != null } == true
-    fun storeTab(tab: String): Action = actionStartIntent(
-        Intent(context, StoreActivity::class.java).setData(Uri.parse("aiwa://store/$tab"))
-            .putExtra(StoreActivity.EXTRA_URL, storeTabUrl(tab) ?: STORE_APP_URL),
-    )
-
-    // No card behind: the widget IS the glasses, and the home screen shows between and around the lenses. Red rims while Claude waits.
-    Box(modifier = GlanceModifier.fillMaxSize()) {
-        Box(modifier = GlanceModifier.fillMaxSize().background(ImageProvider(if (state.waiting) R.drawable.glasses_frame_alert else R.drawable.glasses_frame))) {
-            Row(modifier = GlanceModifier.fillMaxSize().padding(top = top.dp, bottom = (h * 0.17f).dp)) {
-                Spacer(GlanceModifier.width(outer.dp))
-                // ---- the left lens: the buttons of the Light widget ----
-                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 14.dp, end = 14.dp, bottom = 2.dp), verticalAlignment = Alignment.Top) {
-                    Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
-                        // the column: Docs, Vidéo, Page, App, Aiwa (grey until the repository holds one), then the settings, which hold everything else
-                        Column(modifier = GlanceModifier.width(colW.dp).fillMaxHeight(), verticalAlignment = Alignment.Top) {
-                            // the named pair (session + repository) now on the pills, or the invitation to name it
-                            Chip(
-                                if (Projects.isAll(context)) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", colW - 4f, fontScale),
-                                if (Projects.isAll(context)) green else if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
-                                lockable(locked, actionStartActivity<ProjectPickerActivity>()),
-                                GlanceModifier.fillMaxWidth(), height = itemH.dp, textSize = 7.sp, hPad = 1.dp,
-                            )
-                            lightKinds(state, context).forEach { kind ->
-                                Chip(
-                                    kind.word, if (kind.found) green else PILL_DIM, if (kind.found) fg else TEXT_DIM,
-                                    actionRunCallback<PickKindCallback>(actionParametersOf(MODE_KEY to kind.mode, KIND_FOUND_KEY to (if (kind.found) "1" else "0"))),
-                                    GlanceModifier.fillMaxWidth(), bold = kind.current, height = itemH.dp, textSize = 7.sp, hPad = 1.dp,
-                                )
-                            }
-                            // above the settings, one row: the workflow (a spinner while one is awaited, red when the last run failed), the loops, the campaign
-                            Row(modifier = GlanceModifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                                val d = minOf(itemH + 1f, 12f).dp
-                                if (workflowPending(state)) WorkflowSpinner(d)
-                                else RoundButton(icon = R.drawable.ic_actions, description = "Le workflow du dépôt", background = if (workflowFailed(state)) alertRed else pill, action = actionStartActivity<OpenActionsActivity>(), diameter = d)
-                                Spacer(GlanceModifier.width(2.dp))
-                                RoundButton(icon = R.drawable.ic_loop, description = "Boucles builder / critique", background = if (state.loopPair.isNotEmpty()) green else pill, action = actionStartActivity<LoopsActivity>(), diameter = d)
-                                Spacer(GlanceModifier.width(2.dp))
-                                RoundButton(icon = R.drawable.ic_proposals, description = "Campagne : les propositions à valider", background = pill, action = actionStartActivity<ProposalsActivity>(), diameter = d)
-                            }
-                            RoundButton(
-                                icon = R.drawable.ic_settings,
-                                description = "Réglages",
-                                background = pill, action = actionStartActivity<SettingsActivity>(), diameter = (itemH + 1f).dp,
-                            )
-                        }
-                        Spacer(GlanceModifier.width(4.dp))
-                        // beside it: only what is going on, when it is not « Prêt » (nothing to tap here)
-                        Column(modifier = GlanceModifier.defaultWeight().fillMaxHeight(), verticalAlignment = Alignment.Top) {
-                            if (band.statusText != "Prêt") Text(band.statusText, style = TextStyle(color = band.statusColor, fontSize = 8.sp, fontWeight = if (band.statusBold) FontWeight.Bold else FontWeight.Normal), maxLines = 3)
-                        }
-                    }
-                    // just above the microphone, small: the « + » and the super agent (in « Tous » the microphone below is the super agent already)
-                    Row(modifier = GlanceModifier.fillMaxWidth().padding(bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        val sideD = minOf(itemH + 1f, 12f).dp
-                        val ag = state.agent
-                        RoundButton(icon = R.drawable.ic_plus, description = "Ajouter : un document, un média, ou écrire à un contact", background = pill, action = actionStartActivity<PlusMenuActivity>(), diameter = sideD)
-                    }
-                    // the bottom: dictate, the question when Claude asks one, the update when one is ready
-                    Row(modifier = GlanceModifier.fillMaxWidth().height(micH.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = GlanceModifier.defaultWeight().height(micH.dp).background(if (agentNeeds) alertRed else if (agentOn) green else micGrey).cornerRadius((micH / 2).dp).clickable(micAct),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = "Super agent : ouvrir ou fermer", modifier = GlanceModifier.size(14.dp))
-                                Spacer(GlanceModifier.width(5.dp))
-                                Text(if (agentOn) "Écoute" else "Agent", style = TextStyle(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-                            }
-                        }
-                        if (state.ask != null) {
-                            Spacer(GlanceModifier.width(GAP.dp))
-                            RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = (micH - 2f).dp)
-                        }
-                        if (state.appUpdateReady) {
-                            Spacer(GlanceModifier.width(GAP.dp))
-                            RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = (micH - 2f).dp)
-                        }
-                    }
-                }
-                // ---- the bridge: nothing on it, it is the frame ----
-                Spacer(GlanceModifier.width(middle.dp))
-                // ---- the right lens: Store and Wallet at the top, a silhouette in the middle, own, fave and inviter at the bottom ----
-                Column(modifier = GlanceModifier.width(inner.dp).fillMaxHeight().padding(start = 14.dp, end = 14.dp, bottom = 2.dp), verticalAlignment = Alignment.Top, horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 1f).dp)) {
-                        Chip("Store", pill, fg, actionStartActivity<StoreActivity>(), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
-                        Spacer(GlanceModifier.width(GAP.dp))
-                        Chip("Wallet", pill, fg, storeTab("wallet"), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
-                    }
-                    // the silhouette: a person; a tap looks for an id or an account (a widget cannot hold a text field, the real one opens)
-                    Box(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), contentAlignment = Alignment.Center) {
-                        // a real button (a round one like the others): a tap on a bare picture did nothing
-                        val d = (h * 0.24f).coerceIn(20f, 32f)
-                        Box(
-                            modifier = GlanceModifier.size(d.dp).background(pill).cornerRadius((d / 2).dp).clickable(actionStartActivity<SearchActivity>()),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Image(provider = ImageProvider(R.drawable.ic_silhouette), contentDescription = "Chercher un identifiant ou un compte", modifier = GlanceModifier.size((d * 0.7f).dp))
-                        }
-                    }
-                    Row(modifier = GlanceModifier.fillMaxWidth().height((itemH + 1f).dp)) {
-                        Chip("own", pill, fg, storeTab("mine"), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
-                        Spacer(GlanceModifier.width(3.dp))
-                        Chip("fave", pill, fg, storeTab("favorites"), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
-                        Spacer(GlanceModifier.width(3.dp))
-                        Chip("inviter", pill, fg, actionStartActivity<InviteActivity>(), GlanceModifier.defaultWeight(), height = (itemH + 1f).dp, textSize = 7.sp, hPad = 1.dp)
-                    }
-                }
-                Spacer(GlanceModifier.width(outer.dp))
-            }
-        }
-    }
-}
 
 // The microphone button while the super agent listens: it is grey, and a tap says why.
 class AgentMicTapCallback : ActionCallback {
