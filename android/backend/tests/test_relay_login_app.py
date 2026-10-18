@@ -449,15 +449,17 @@ class ProposalsTests(unittest.TestCase):
         many = [{"id": f"c{i}", "name": "x"} for i in range(srv.PROPOSAL_MAX + 20)]
         self.assertEqual(len(self.snapshot(many)["proposals"]), srv.PROPOSAL_MAX)
 
-    def test_the_campaign_is_a_mode_of_its_own_and_the_other_modes_do_not_carry_it(self):
+    def test_a_campaign_is_recognised_by_the_request_in_every_mode_and_firm_in_its_own(self):
         self.assertIn("campaign", srv.DEPLOY_MODES)
         for mode in ("pages", "android"):
             srv.deploy_mode = mode
-            self.assertNotIn("proposals", dict(srv._instruction_lines("o/r", "w", "main", True)))
+            hint = dict(srv._instruction_lines("o/r", "w", "main", True))["proposals"]
+            self.assertTrue(hint.startswith("CAMPAGNE (reconnue à ma demande"), "the campaign is on every message, conditional on what I ask")
+            self.assertIn("MODE CAMPAGNE", hint)
         srv.deploy_mode = "campaign"
         lines = dict(srv._instruction_lines("o/r", "w", "main", True))
         srv.deploy_mode = "pages"
-        self.assertIn("MODE CAMPAGNE", lines["proposals"])
+        self.assertTrue(lines["proposals"].startswith("MODE CAMPAGNE"), "chosen in the widget: no condition")
         self.assertIn("GitHub Pages", lines["deploy"])         # the campaign publishes its site like the pages mode does
 
     def test_the_campaign_asks_no_validation_of_a_list_and_stops_on_demand(self):

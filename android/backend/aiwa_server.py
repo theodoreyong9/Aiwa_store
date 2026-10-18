@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 127
+BACKEND_VERSION = 128
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -646,10 +646,10 @@ def _video_full(repo):
     )
 
 
-def _proposals_line(repo):
+def _proposals_line(repo, forced=True):
     """The campaign mode: a file (and, if I ticked it, my GitHub work) becomes a package: a list of targets that I validate, a site with its tree, a video and a price for each, and the proposals
     I validate one by one in the app. The session prepares, it never sends anything."""
-    return (
+    text = (
         "MODE CAMPAGNE : ce projet est une campagne de propositions, semi-automatisée, qui avance CIBLE PAR CIBLE. Elle part de ce que ma demande désigne : un fichier (dans mon message ou dans `aiwa-campagne/` : un CV, un argumentaire, une brochure…), "
         "ma création dans le dépôt et ses vidéos (dans `docs/videos/`), mes réalisations GitHub publiques si je l'ai coché : un fichier n'est PAS obligatoire. "
         "Si ma demande ne désigne rien de tout cela et que le dépôt est vide, demande-moi UNE fois par la question du widget (menu d'Aiwa → Créer à partir d'un fichier → Une campagne) et arrête-toi là. "
@@ -687,6 +687,14 @@ def _proposals_line(repo):
         "Consulte les registres du dépôt de référence (design : `design-research/src/cli.js search`, musique, objets) pour trouver ces références, compare avec les traits du dernier style, et note dans `style` de chaque proposition le style retenu et les ids des références, "
         "pour que le prochain envoi puisse s'en servir. Ne prétends pas avoir comparé ce que tu n'as pas lu. "
         "Pousse sur la branche principale à chaque cible : je relis et j'envoie moi-même, une par une, depuis l'application (le bouton Campagne du widget : un onglet par campagne)."
+    )
+    if forced:
+        return text
+    # Not chosen in the widget: the session recognises a campaign by what I ask (a voice or a text), like a video or a document
+    return (
+        "CAMPAGNE (reconnue à ma demande, sans réglage) : si ma demande est une campagne, c'est-à-dire chercher des cibles (entreprises, offres d'emploi, recruteurs, prospects, contacts…) "
+        "et leur préparer à chacune des productions PERSONNALISÉES (documents, vidéo, page), applique la procédure qui suit ; sinon, ignore cette ligne. Les modes se combinent : une campagne peut produire n'importe lesquelles des productions demandées. "
+        + text
     )
 
 
@@ -1003,8 +1011,7 @@ def _instruction_lines(repo, work, base, direct, origin=None):
     if repo:
         lines.append(("video", _video_line(repo, video_quality)))
         lines.append(("document", _document_line(repo)))
-        if deploy == "campaign":
-            lines.append(("proposals", _proposals_line(repo)))
+        lines.append(("proposals", _proposals_line(repo, forced=deploy == "campaign")))
     lines.append(("ask", _ask_line(repo, work, topic)))
     # Mandatory, not a switch: it is how the widget learns that Claude is
     # waiting (the CLI can't read a cloud reply back). A public relay, a
