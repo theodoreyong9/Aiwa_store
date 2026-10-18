@@ -1,0 +1,184 @@
+<!doctype html><html><head><meta charset="utf-8"><title>ARVT</title>
+<style>
+@font-face{font-family:SG;src:url(fonts/SpaceGrotesk.ttf);font-weight:300 700}
+@font-face{font-family:FR;src:url(fonts/Fraunces-Italic.ttf);font-style:italic;font-weight:100 900}
+@font-face{font-family:JB;src:url(fonts/JetBrainsMono.ttf);font-weight:100 800}
+html,body{margin:0;background:#050507}#w{position:relative;width:1920px;height:1080px}canvas{position:absolute;left:0;top:0;width:1920px;height:1080px}</style></head><body>
+<div id="w"><canvas id="gl" width="1280" height="720"></canvas><canvas id="tx" width="1920" height="1080"></canvas></div>
+<script id="fs" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+uniform vec2 uRes;uniform float uT;
+uniform vec3 uCam,uTar;uniform float uFocus,uAper,uFov;
+uniform vec4 uPA,uPB;      // per layer: weights A, B, cross, sigma
+uniform vec2 uSA,uSB;      // per layer: settle, extra modes (0..1)
+uniform int uMode;uniform float uP;       // transition: 0 none, 1 rack, 2 plunge, 3 flow ; progress 0..1
+uniform vec2 uHead;uniform float uZoom;    // the followed grain, and the zoom of the plunge towards it
+uniform vec2 uTrail[40];uniform float uTrailN,uTrailOn;
+uniform vec3 uLight;uniform float uPlaceMix;uniform sampler2D uBgA,uBgB;
+uniform float uWarm,uDark;
+out vec4 o;
+const float PI=3.14159265;
+float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+vec2 hash2(vec2 p){return vec2(hash(p),hash(p+19.19));}
+float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+float field(vec2 p,vec4 w,float extra){
+ float A=cos(3.*PI*p.x)*cos(2.*PI*p.y),B=cos(2.*PI*p.x)*cos(3.*PI*p.y);
+ float F=w.x*A+w.y*B+w.z*A*B*1.35;
+ for(int k=0;k<6;k++){float fk=float(k);float a=smoothstep(fk,fk+1.,extra*6.)*.55;
+  F+=a*cos((fk+2.)*PI*p.x+fk*1.7)*cos((7.-fk)*PI*p.y+fk*2.3);}
+ return F;}
+vec3 bgTex(vec3 d){vec2 uv=vec2(atan(d.z,d.x)/(2.*PI)+.5,acos(clamp(d.y,-1.,1.))/PI);return mix(textureLod(uBgA,uv,0.).rgb,textureLod(uBgB,uv,0.).rgb,uPlaceMix);}
+vec3 reflBlur(vec3 r,float k){vec3 s=bgTex(r)*.4;
+ s+=bgTex(normalize(r+vec3(k,0,0)))*.15+bgTex(normalize(r-vec3(k,0,0)))*.15+bgTex(normalize(r+vec3(0,0,k)))*.15+bgTex(normalize(r-vec3(0,0,k)))*.15;return s;}
+// the plate: brass, scratched, with its sand. returns colour at plate coordinates p; fp = world size of a pixel
+vec3 surf(vec2 p,vec4 w,vec2 st,float fp,vec3 rd,float lay){
+ float sig=w.w,settle=st.x,extra=st.y;
+ vec2 sn=vec2(vnoise(p*90.),vnoise(p*90.+7.3))-.5;
+ vec3 N=normalize(vec3(sn.x*.05,1.,sn.y*.05));
+ vec3 R=reflect(rd,N);
+ vec3 brass=vec3(1.,.66,.36)*.5*mix(vec3(1.),vec3(.8,.9,1.2),1.-uWarm);
+ vec3 col=reflBlur(R,.1)*brass*1.25+vec3(.012,.01,.008);
+ // the plate ends: a dark table
+ if(abs(p.x)>1.||abs(p.y)>1.){return reflBlur(R,.25)*vec3(.12,.1,.09)*.6;}
+ float edge=smoothstep(1.,.985,max(abs(p.x),abs(p.y)));col*=.35+.65*edge;
+ // the sand
+ float cs=.0145;
+ float F=field(p,w,extra);
+ float d=mix(.45,smoothstep(.12,.8,exp(-abs(F)/sig)),settle);
+ vec2 q=p/cs;vec2 id=floor(q),f=fract(q)-.5;
+ float unsettled=step(2.*sig,abs(F))*(1.-settle*.6);
+ float hh=hash(id+floor(uT*9.)*unsettled*3.1);
+ vec2 jit=(hash2(id)-.5)*.4;vec2 g=f-jit;float r0=.34+.12*hash(id+7.);
+ float present=step(hh,d);
+ float lod=smoothstep(cs*.3,cs*.75,fp);
+ vec3 L=normalize(uLight);
+ vec3 sandc=mix(vec3(.95,.86,.7),vec3(1.,.98,.93),hash(id+3.))*1.35;
+ vec3 sandc0=sandc;float rt=abs(w.z)/(abs(w.x)+abs(w.y)+abs(w.z)+.001);sandc=mix(sandc0,vec3(1.,.5,.18)*1.25,smoothstep(.5,.95,rt));
+ if(present>.5&&length(g)<r0){float rr=length(g)/r0;vec3 n=normalize(vec3(g/r0*.9,sqrt(max(1.-rr*rr*.8,.05))));n=normalize(vec3(n.x,n.z,n.y));
+  float dif=clamp(dot(n,L)*.8+.35,0.,1.);float sp=pow(clamp(dot(reflect(-L,n),-rd),0.,1.),20.);
+  col=sandc*(dif*1.1+.25)*(.55+.45*smoothstep(0.,1.,L.y))+vec3(1.,.95,.85)*sp*.5;}
+ else if(present>.5){float ao=smoothstep(r0*1.7,r0,length(g));col*=1.-.45*ao;}
+ vec3 avg=mix(col,sandc*(.55+.45*L.y)*.9,d*.9);
+ col=mix(col,avg,lod);
+ // the trail of the grain: engraved in the brass, it does not go away
+ if(uTrailOn>.5){float md=1e3;for(int i=0;i<39;i++){if(float(i)+1.>=uTrailN)break;vec2 a=uTrail[i],b=uTrail[i+1];vec2 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/max(dot(ba,ba),1e-6),0.,1.);md=min(md,length(pa-ba*h));}
+  float gw=.0035;float groove=smoothstep(gw,gw*.4,md);float rim=smoothstep(gw*2.2,gw,md)-groove;col=mix(col,col*.35,groove*.8);col+=vec3(1.,.55,.25)*rim*.35+vec3(1.,.4,.12)*groove*.18;}
+ // the followed grain itself
+ float hd=length(p-uHead);float hr=.013;
+ if(hd<hr){float rr=hd/hr;vec3 n=normalize(vec3((p-uHead)/hr,sqrt(max(1.-rr*rr,.02))));n=normalize(vec3(n.x,n.z,n.y));
+  col=vec3(1.,.38,.12)*(clamp(dot(n,L),0.,1.)*.7+.5)+vec3(1.,.9,.7)*pow(clamp(dot(reflect(-L,n),-rd),0.,1.),30.);}
+ col+=vec3(1.,.35,.1)*exp(-hd*45.)*.35;
+ return col;}
+vec3 shade(vec3 ro,vec3 rd,float fpx){
+ if(rd.y>=-.0001)return reflBlur(rd,.02)*.8;
+ float t=-ro.y/rd.y;vec2 p=(ro+rd*t).xz;float fp=fpx*t;
+ vec3 col;
+ if(uMode==2){ // the plunge: the layer we leave grows round the grain; the next plate lives inside the grain
+  vec2 pa=uHead+(p-uHead)/uZoom;float gs=.013;vec2 pb=(p-uHead)/(uZoom*gs);
+  float inB=step(length(pb),1.);
+  float k=smoothstep(.0,1.,uP);
+  vec3 ca=surf(pa,uPA,uSA,fp/uZoom,rd,0.);
+  if(inB>.5||length(pb)<1.02){vec3 cb=surf(clamp(pb,vec2(-1.),vec2(1.)),uPB,uSB,fp/(uZoom*gs),rd,1.);float e=smoothstep(1.02,.97,length(pb));col=mix(ca,cb,e);}else col=ca;
+ } else if(uMode==3){ // the sand flows: a front sweeps the plate, piling a ridge where it passes
+  float nz=vnoise(p*6.+uT*.3)*.5+vnoise(p*17.)*.25;float front=mix(-1.6,1.6,uP)+nz*.6*sin(PI*uP);float m=p.x*.8+p.y*.6-front;
+  vec3 ca=surf(p,uPA,uSA,fp,rd,0.),cb=surf(p,uPB,uSB,fp,rd,1.);
+  float k=smoothstep(.04,-.04,m);col=mix(ca,cb,k);float ridge=exp(-m*m*900.)*sin(PI*uP);col+=vec3(1.,.8,.55)*ridge*.5;
+ } else col=surf(p,uPA,uSA,fp,rd,0.);
+ return col;}
+void main(){
+ vec2 uv=(gl_FragCoord.xy-.5*uRes)/uRes.y;
+ vec3 fw=normalize(uTar-uCam),ri=normalize(cross(fw,vec3(0,1,0))),up=cross(ri,fw);
+ float F0=uFov;
+ vec3 rd0=normalize(fw*F0+ri*uv.x+up*uv.y);
+ vec3 pf=uCam+rd0*uFocus;
+ float fpx=1./(uRes.y*F0);
+ vec3 acc=vec3(0.);const int NS=9;
+ float rot=hash(gl_FragCoord.xy)*6.2832;
+ for(int i=0;i<NS;i++){float fi=float(i);float a=fi*2.39996+rot,r=sqrt((fi+.5)/float(NS))*uAper;vec3 ro=uCam+ri*cos(a)*r+up*sin(a)*r;vec3 rd=normalize(pf-ro);acc+=shade(ro,rd,fpx);}
+ vec3 col=acc/float(NS);
+ col*=1.-uDark*.85;
+ float vg=smoothstep(1.2,.3,length(uv*vec2(.85,1.)));col*=mix(.45,1.,vg);
+ col=1.-exp(-col*1.15);col=pow(col,vec3(.92));
+ o=vec4(col,1.);}
+</script>
+<script>
+const PLAN=__PLAN__,PLACES=__PLACES__;
+const BEATS=PLAN.beats,W=1920,H=1080,FOV=1.0;
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),sm=x=>x*x*(3-2*x),eo=x=>1-Math.pow(1-x,3),lerp=(a,b,k)=>a+(b-a)*k;
+const gl=document.getElementById('gl').getContext('webgl2',{preserveDrawingBuffer:true,antialias:false});
+function sh(t,s){const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(x));return x}
+const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,`#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.,1.);}`));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,document.getElementById('fs').text.trim()));gl.linkProgram(pr);
+if(!gl.getProgramParameter(pr,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(pr));gl.useProgram(pr);
+const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);const loc=gl.getAttribLocation(pr,'a');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+const U=n=>gl.getUniformLocation(pr,n);
+const TEX={};
+async function loadPlaces(){for(const [n,pl] of Object.entries(PLACES)){const b=await (await fetch(pl.bg)).blob();const im=await createImageBitmap(b,{premultiplyAlpha:'none',colorSpaceConversion:'none'});
+ const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,gl.RGBA,gl.UNSIGNED_BYTE,im);
+ gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+ TEX[n]={t,anchors:pl.anchors}}}
+gl.uniform1i(U('uBgA'),0);gl.uniform1i(U('uBgB'),1);
+// the same fields as the shader, to find where the sand goes (the followed grain walks down to the nearest line where the plate does not move)
+function Fjs(x,y,w,extra){const A=Math.cos(3*Math.PI*x)*Math.cos(2*Math.PI*y),B=Math.cos(2*Math.PI*x)*Math.cos(3*Math.PI*y);let F=w[0]*A+w[1]*B+w[2]*A*B*1.35;
+ for(let k=0;k<6;k++){const a=sm(clamp(extra*6-k))*.55;F+=a*Math.cos((k+2)*Math.PI*x+k*1.7)*Math.cos((7-k)*Math.PI*y+k*2.3)}return F}
+function walk(p0,w,extra,steps){let x=p0[0],y=p0[1];const path=[[x,y]];for(let i=0;i<steps;i++){const e=1e-3,f=Fjs(x,y,w,extra),gx=(Fjs(x+e,y,w,extra)-Fjs(x-e,y,w,extra))/(2*e),gy=(Fjs(x,y+e,w,extra)-Fjs(x,y-e,w,extra))/(2*e);const n=Math.hypot(gx,gy)+1e-4;
+  const s=Math.min(.012,Math.abs(f)/n*.5);x-=Math.sign(f)*gx/n*s;y-=Math.sign(f)*gy/n*s;x=clamp(x,-.95,.95);y=clamp(y,-.95,.95);path.push([x,y])}return path}
+// the journey of the followed grain, beat by beat, without a jump: each one starts where the one before ended
+const JOURNEY=[];let carry=[-.62,.41];
+for(const b of BEATS){const w=b.F,path=walk(carry,[w.wA,w.wB,w.c],w.extra||0,260);JOURNEY.push(path);carry=path[path.length-1]}
+function headAt(bi,t){const b=BEATS[bi],path=JOURNEY[bi],k=eo(clamp((t-b.t0)/Math.max(.5,(b.t1-b.t0)*.85)));const f=k*(path.length-1),i=Math.floor(f),j=Math.min(path.length-1,i+1);return[lerp(path[i][0],path[j][0],f-i),lerp(path[i][1],path[j][1],f-i),k]}
+const beatAt=t=>{let k=0;for(let i=0;i<BEATS.length;i++)if(t>=BEATS[i].t0)k=i;return k};
+const FW=b=>[b.F.wA,b.F.wB,b.F.c,b.F.sigma];
+function frame(t){
+ const bi=beatAt(t),b=BEATS[bi],nb=BEATS[bi+1],tr=b.transition;
+ let mode=0,p=0;if(tr&&nb&&t>=tr.t0){p=clamp((t-tr.t0)/(tr.t1-tr.t0));mode={rack:1,plunge:2,flow:3}[tr.kind]||0}
+ const hd=headAt(bi,t);
+ // single set (the transition lerps it), or two layers (plunge and flow)
+ const two=mode===2||mode===3;
+ let A=FW(b),B=nb?FW(nb):FW(b);const stA=[hd[2]*b.F.settle+(1-hd[2])*(bi?BEATS[bi-1].F.settle:.2)*.0+0,b.F.extra||0];
+ const settleOf=(bb,tt)=>{const k=eo(clamp((tt-bb.t0)/Math.max(.5,(bb.t1-bb.t0)*.7)));return lerp(.12,bb.F.settle,k)};
+ let sA=[settleOf(b,t),b.F.extra||0],sB=nb?[settleOf(nb,nb.t0+.5+p*.5*(nb.t1-nb.t0)),nb.F.extra||0]:sA;
+ if(!two&&nb&&p>0){const k=sm(p);A=A.map((v,i)=>lerp(v,B[i],k));sA=[lerp(sA[0],sB[0],k),lerp(sA[1],sB[1],k)]}
+ // camera
+ const cb=b.cam,cn=nb?nb.cam:cb,ck=(nb&&p>0)?sm(p):0,cm=k=>lerp(cb[k],cn[k],ck);
+ const r=cm('r')*(1+.08*Math.sin(t*.4)),el=cm('el'),az=lerp(cb.az,cn.az,ck)+.25*Math.sin(t*.23)+t*.02,fol=cm('follow');
+ const tgt=[lerp(0,hd[0],fol),0,lerp(0,hd[1],fol)];
+ let zoom=1;if(mode===2){zoom=Math.exp(Math.log(1/.013)*Math.pow(p,1.6));}
+ const rr=mode===2?r*lerp(1,.55,p):r;
+ const cam=[tgt[0]+Math.cos(az)*Math.cos(el)*rr,Math.sin(el)*rr,tgt[2]+Math.sin(az)*Math.cos(el)*rr];
+ const dist=Math.hypot(cam[0]-tgt[0],cam[1],cam[2]-tgt[2]);
+ let focus=dist*cm('focus');if(mode===1)focus=dist*lerp(cb.focus,cn.focus,sm(p))*(1+.0);
+ const aper=cm('aper');
+ // light and place
+ const pa=b.place,pb=nb&&p>0?nb.place:pa;gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,TEX[pa].t);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,TEX[pb].t);
+ const an=(TEX[pa].anchors||[{yaw:.5,pitch:.8}])[0];const L=[Math.cos(an.pitch)*Math.cos(an.yaw)*.8,Math.max(.3,Math.sin(an.pitch)*.7+.25),Math.cos(an.pitch)*Math.sin(an.yaw)*.8];
+ gl.viewport(0,0,1280,720);const set=(n,v)=>gl.uniform1f(U(n),v);
+ gl.uniform2f(U('uRes'),1280,720);set('uT',t);gl.uniform3f(U('uCam'),cam[0],cam[1],cam[2]);gl.uniform3f(U('uTar'),tgt[0],0,tgt[2]);set('uFocus',focus);set('uAper',aper);set('uFov',FOV);
+ gl.uniform4f(U('uPA'),A[0],A[1],A[2],A[3]);gl.uniform4f(U('uPB'),B[0],B[1],B[2],B[3]);gl.uniform2f(U('uSA'),sA[0],sA[1]);gl.uniform2f(U('uSB'),sB[0],sB[1]);
+ gl.uniform1i(U('uMode'),mode);set('uP',p);gl.uniform2f(U('uHead'),hd[0],hd[1]);set('uZoom',zoom);
+ const path=JOURNEY[bi],n=Math.min(40,Math.max(2,Math.round(2+hd[2]*38)));const tr2=[];for(let i=0;i<40;i++){const f=Math.min(1,i/(n-1))*hd[2]*(path.length-1),a=Math.floor(f),c=Math.min(path.length-1,a+1);tr2.push(lerp(path[a][0],path[c][0],f-a),lerp(path[a][1],path[c][1],f-a))}
+ gl.uniform2fv(U('uTrail'),new Float32Array(tr2));set('uTrailN',n);set('uTrailOn',b.trail?1:0);
+ gl.uniform3f(U('uLight'),L[0],L[1],L[2]);set('uPlaceMix',nb&&p>0&&pa!==pb?sm(p):0);set('uWarm',lerp(b.mood.warmth,nb?nb.mood.warmth:b.mood.warmth,ck));set('uDark',lerp(b.dark||0,nb?(nb.dark||0):(b.dark||0),ck));
+ gl.drawArrays(gl.TRIANGLES,0,3);
+ overlay(t,b,nb,bi,hd,cam,tgt,A,sA,mode,p)}
+function proj(P,cam,tar){const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],nm=v=>{const l=Math.hypot(...v);return v.map(x=>x/l)},cr=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dt=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+ const fw=nm(sub(tar,cam)),ri=nm(cr(fw,[0,1,0])),up=cr(ri,fw),d=sub(P,cam),z=dt(d,fw);if(z<=.01)return null;return[W/2+(dt(d,ri)/z)/FOV*H,H/2-(dt(d,up)/z)/FOV*H]}
+const tx=document.getElementById('tx').getContext('2d');
+function overlay(t,b,nb,bi,hd,cam,tgt,A,sA,mode,p){tx.clearRect(0,0,W,H);
+ // tracking: a bracket holds the followed grain, a thin line follows its path, a label says where it is and what moves it
+ const P=proj([hd[0],.012,hd[1]],cam,tgt);
+ if(P&&P[0]>0&&P[0]<W&&P[1]>0&&P[1]<H&&mode!==2){const k=eo(clamp((t-b.t0)/.6)),r=44+70*(1-k),c=16,x=P[0],y=P[1];tx.save();tx.globalAlpha=.95*k;tx.strokeStyle='#FF5A2B';tx.lineWidth=2.5;
+  for(const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){tx.beginPath();tx.moveTo(x+sx*r,y+sy*(r-c));tx.lineTo(x+sx*r,y+sy*r);tx.lineTo(x+sx*(r-c),y+sy*r);tx.stroke()}
+  tx.font='600 26px JB';tx.fillStyle='rgba(244,240,232,.96)';const F=Fjs(hd[0],hd[1],[A[0],A[1],A[2]],b.F.extra||0);
+  tx.fillText('GRAIN 07',x+r+10,y-r+16);tx.fillStyle='rgba(244,240,232,.8)';tx.fillText(`x ${hd[0].toFixed(3)}  z ${hd[1].toFixed(3)}`,x+r+10,y-r+44);tx.fillText(`|F| ${Math.abs(F).toFixed(3)}`,x+r+10,y-r+72);tx.restore()}
+ // the structure, live: what is on the plate
+ const w=A;tx.save();tx.font='600 28px JB';tx.fillStyle='rgba(244,240,232,.92)';
+ const f=(v)=>v.toFixed(2);tx.fillText(`F = ${f(w[0])}·A + ${f(w[1])}·B + ${f(w[2])}·(A×B)`,110,92);tx.fillStyle='rgba(244,240,232,.6)';tx.font='500 22px JB';tx.fillText(`ARVT  ·  ${String(bi+1).padStart(2,'0')} / ${String(BEATS.length).padStart(2,'0')}`,110,128);tx.restore();
+ if(b.say){const a=clamp((t-b.t0)/.5)*(1-clamp((t-(b.t1-.4))/.35));if(a>0){
+  const g=tx.createLinearGradient(0,H-340,0,H);g.addColorStop(0,'rgba(3,3,6,0)');g.addColorStop(1,'rgba(3,3,6,.72)');tx.fillStyle=g;tx.fillRect(0,H-340,W,340);
+  tx.save();tx.globalAlpha=a;const full=[];let cx=110;const y=H-140;
+  for(const wd of b.sayMark.split(/(\*.+?\*)/).filter(Boolean)){const it=wd.startsWith('*');const tt=it?wd.slice(1,-1).toUpperCase():wd;tx.font=it?'700 66px SG':'italic 400 88px FR';full.push({tt,it,x:cx,wd:tx.measureText(tt+(it?'':'')+' ').width+(it?16:0)});cx+=tx.measureText(tt+' ').width+(it?16:0)}
+  full.forEach((f,i)=>{const kk=eo(clamp((t-b.t0-.1*i)/.55));tx.save();tx.beginPath();tx.rect(f.x-6,y-110,f.wd+12,150);tx.clip();tx.font=f.it?'700 66px SG':'italic 400 88px FR';tx.fillStyle=f.it?'#FF5A2B':'#F4F0E8';tx.shadowColor='rgba(0,0,0,.6)';tx.shadowBlur=24;tx.fillText(f.tt,f.x,y+(1-kk)*110);tx.restore()});tx.restore()}}
+ tx.fillStyle='#FF4B1F';tx.fillRect(0,H-4,W*t/PLAN.total,4)}
+window.READY=(async()=>{await Promise.all(['700 40px SG','italic 400 40px FR','500 40px JB'].map(f=>document.fonts.load(f)));await document.fonts.ready;await loadPlaces()})();
+window.render=async t=>{frame(t);gl.finish()};
+</script></body></html>

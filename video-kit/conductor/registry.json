@@ -1,0 +1,9 @@
+{
+ "_": "What every film has already used. A new film must not reuse its language, and shares no object, place, transition or tracking style with the last three: node video-kit/conductor/novelty.mjs concept.json (--record when the film is published).",
+ "films": [
+  { "id": "v25-v28", "language": "constellation-points", "objects": ["constellation sculptures", "phone page", "glasses page"], "places": [], "transitions": ["camera move between sculptures"], "tracking": "none" },
+  { "id": "v29-v30", "language": "blender-room", "objects": ["phone", "glasses", "notebook", "lamp", "plant", "desk"], "places": ["neon_photostudio", "photo_studio_loft_hall", "industrial_workshop_foundry", "lythwood_lounge", "rogland_clear_night", "shanghai_bund"], "transitions": ["camera flight between rooms"], "tracking": "none" },
+  { "id": "v31", "language": "stock-footage-plates", "objects": ["points that leave an object", "phone sprite", "glasses sprite"], "places": ["f-night", "f-clouds", "f-nightwalk", "f-orbit", "f-datacenter", "f-aurora", "f-earth", "f-mars", "f-sunrise"], "transitions": ["iris", "zoom", "whip", "dissolve", "cut"], "tracking": "camera coupling" },
+  { "id": "v32", "language": "liquid-raymarch-hdri", "objects": ["ring", "blob", "slab", "glasses", "grid", "coin", "network", "orbiting beads"], "places": ["aarfontein_dawn_2", "colorful_studio", "blaubeuren_night", "little_paris_eiffel_tower", "venice_sunset", "tv_studio", "kiara_1_dawn"], "transitions": ["portal", "tunnel", "spin", "morph"], "tracking": "feature brackets" }
+ ]
+}

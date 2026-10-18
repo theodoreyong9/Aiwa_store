@@ -1,0 +1,22 @@
+{
+ "id": "v33-arvt",
+ "language": "cymatic-plate",
+ "metaphor": "ARVT says R, the residue of the meeting of A and B, is neither A, nor B, nor their sum, but a cross term. On a vibrating plate, two waves A and B compose and the sand stays only where the vibrations cancel: the pattern that remains is literally the cross term. The film shows A, B, A+B and A×B, and what stays on the plate.",
+ "objects": [
+  "vibrating brass plate",
+  "sand grains",
+  "nodal lines",
+  "standing wave"
+ ],
+ "places": [
+  "old_depot",
+  "cinema_lobby",
+  "abandoned_greenhouse"
+ ],
+ "transitions": [
+  "rack focus between layers",
+  "self-similar plunge into a grain",
+  "sand flow wipe"
+ ],
+ "tracking": "follow one grain through the scales"
+}
