@@ -20,12 +20,16 @@ for (const [id, w] of Object.entries(plan.worlds)) {
     const r = spawnSync('ffmpeg', ['-v', 'error', '-i', mp4, '-vf', 'scale=-2:900,crop=1600:900', '-q:v', '3', join(dir, '%05d.jpg')]);
     if (r.status) { console.error('ffmpeg failed for', w.plate); process.exit(1); }
   }
+  // the useful window of the clip (seconds): the agent looked at it and cut out the slate, the black, the talking head; and its luminance, one value a second, for the auto-exposure
+  const n = readdirSync(dir).filter((f) => f.endsWith('.jpg')).length, win = w.window || [0, n / 30];
+  const raw = spawnSync('ffmpeg', ['-v', 'error', '-i', mp4, '-vf', 'fps=1,scale=32:18,format=gray', '-f', 'rawvideo', '-'], { maxBuffer: 1 << 26 }).stdout;
+  const luma = []; for (let k = 0; k + 576 <= raw.length; k += 576) luma.push(raw.subarray(k, k + 576).reduce((a, v) => a + v, 0) / 576);
   const first = Math.min(...plan.beats.filter((b) => b.world === id).map((b) => b.t0));
-  worlds[id] = { dir: 'file://' + dir, n: readdirSync(dir).filter((f) => f.endsWith('.jpg')).length, fps: 30, from: Math.max(0, first - 1.6) };
+  worlds[id] = { dir: 'file://' + dir, n, i0: Math.max(0, Math.round(win[0] * 30)), i1: Math.min(n - 1, Math.round(win[1] * 30) - 1), luma: luma.length ? luma : [78], fps: 30, from: Math.max(0, first - 1.6) };
   const j = join(work, 'footage', `${w.plate}.json`);
   if (existsSync(j)) { try { const c = (JSON.parse(readFileSync(j, 'utf8')).credit || '').replace(' · Wikimedia Commons', ''); if (c && !credits.includes(c)) credits.push(c); } catch {} }
 }
-if (missing.length) { console.error('MISSING CLIPS: run the Footage workflow (mode fetch) with items:\n' + missing.join(' ')); process.exit(2); }
+if (missing.length) { console.error('MISSING CLIPS: run the Footage workflow (mode fetch) with items:\n' + missing.map((m) => m + '@10').join(';')); process.exit(2); }
 const cards = {};
 for (const b of plan.beats) if (b.image && existsSync(b.image)) cards[b.image] = 'data:image/' + (b.image.split('.').pop().replace('jpg', 'jpeg')) + ';base64,' + readFileSync(b.image).toString('base64');
 const out = join(work, 'stage'); mkdirSync(join(out, 'fonts'), { recursive: true });

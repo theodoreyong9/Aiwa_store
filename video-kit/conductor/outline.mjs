@@ -9,10 +9,12 @@ import { fileURLToPath } from 'node:url';
 import { pick, places, loadLibrary } from './library.mjs';
 import { validate } from './conductor.mjs';
 
+// the sources, by how often what they hold is a usable place: NASA footage is made to be looked at, Commons is mixed, the Internet Archive is mostly broadcast television
+const SOURCE_BIAS = { nasa: 0, commons: 0.06, archive: 0.3 };
 const WORDS_PER_SECOND = 2.4;   // a calm spoken voice
 /** How many beats and how many spoken words a film of `seconds` can hold: a beat lasts 3 to 6 s, the voice does not run over the picture. */
 export function budget(seconds) {
-  const beats = Math.max(3, Math.min(40, Math.round(seconds / 4.5)));
+  const beats = Math.max(3, Math.min(90, Math.round(seconds / 4.5)));
   return { beats, beatSeconds: +(seconds / beats).toFixed(2), words: Math.floor(seconds * WORDS_PER_SECOND) };
 }
 
@@ -52,11 +54,24 @@ export function checkStory(story, docs, seconds) {
 /** The film graph from a story that passed checkStory: places by mood (never the same twice in a row), transitions by mood, times by an even beat. */
 export function toFilm(story, seconds, { footagePath, assetsPath } = {}) {
   const lib = loadLibrary(); const opts = { ...(footagePath ? { footagePath } : {}), ...(assetsPath ? { assetsPath } : {}) };
-  const worlds = {}, beats = [], credits = []; let last = null;
+  const worlds = {}, beats = [], credits = [], uses = {}; let last = null;
   const n = story.beats.length, step = seconds / n;
   story.beats.forEach((x, i) => {
-    const cand = places({ words: x.place, mood: x.mood, seconds: step + 1, limit: 6, kinds: ['footage'], ...opts }).filter((p) => p.id !== last)[0]
-      || places({ words: '', mood: x.mood, seconds: step + 1, limit: 6, kinds: ['footage'], ...opts }).filter((p) => p.id !== last)[0];
+    // a clip chosen by hand (the agent looked at it): story.pool[name] = { spec, title, credit, licence }, beat.clip = name
+    if (x.clip) {
+      const c = (story.pool || {})[x.clip]; if (!c) throw new Error(`${x.id}: the clip "${x.clip}" is not in story.pool`);
+      if (!worlds[x.clip]) { worlds[x.clip] = { kind: 'plate', plate: x.clip, spec: c.spec, ambience: 'air', says: c.title, ...(c.window ? { window: c.window } : {}) }; credits.push({ id: c.spec, credit: c.credit, licence: c.licence }); }
+      last = x.clip; const nx = story.beats[i + 1]; const t2 = nx ? pick('transitions', nx.mood, { lib }) : null;
+      beats.push({ id: x.id, page: x.id, t: +(i * step).toFixed(3), world: x.clip, idea: x.idea, say: x.say || null, mood: x.mood, ...(x.image ? { image: x.image } : {}), ...(t2 ? { transition: { kind: t2.id, ...(t2.needs === 'through' ? { through: 'center' } : {}) } } : {}) });
+      return;
+    }
+    // the best place that is not the last one, not banned (story.avoid: ids whose clip turned out unusable), and not worn out: a clip already used counts against itself
+    const find = (words, onlyUsed) => places({ words, mood: x.mood, seconds: step + 1, limit: 120, kinds: ['footage'], ...opts }).filter((p) => p.id !== last && !(story.avoid || []).includes(p.id) && (!story.sources || story.sources.includes(p.id.split(':')[0])) && (!onlyUsed || uses[p.id]))
+      .map((p) => ({ p, k: p.d + 0.12 * (uses[p.id] || 0) + (SOURCE_BIAS[p.id.split(':')[0]] ?? 0.1) })).sort((a, b) => a.k - b.k)[0]?.p;
+    // a long film does not need a clip for every beat: once `story.clips` different clips are in, the next beats come back to the best of them
+    const full = Object.keys(uses).length >= (story.clips || Math.max(6, Math.round(n / 2.5)));
+    const cand = (full && (find(x.place, true) || find('', true))) || find(x.place) || find('');
+    if (cand) uses[cand.id] = (uses[cand.id] || 0) + 1;
     const key = cand ? cand.id.replace(/[^a-z0-9]+/gi, '-').toLowerCase() : 'none';
     if (cand && !worlds[key]) { worlds[key] = cand.kind === 'footage' ? { kind: 'plate', plate: key, spec: cand.id, ambience: 'air', says: cand.title } : { kind: 'panorama', panorama: cand.id, ambience: 'air', says: cand.title }; credits.push({ id: cand.id, credit: cand.credit, licence: cand.licence }); }
     last = cand && cand.id;
