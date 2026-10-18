@@ -239,7 +239,6 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
     val alertText = rgb(android.graphics.Color.rgb(255, 138, 133))
     val locked = state.status == AiwaState.Status.WORKING
     val fontScale = LocalContext.current.resources.configuration.fontScale
-    val needsSetup = !hasTermuxPermission(LocalContext.current)
     val needsLogin = state.claudeLogin == "needed"
     val storeMode = deliversApp(state.deploy)
     val storeReady = storeMode && state.sentApp?.seen == false
@@ -248,7 +247,6 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
     var statusBold = false
     var batteryLine = false
     when {
-        needsSetup -> { status = "Touche ici pour autoriser Aiwa (une seule fois)"; statusColor = alertText; statusBold = true }
         accessNotice(state, 1) != null -> { status = "⚠ Accès réservé — touche ici"; statusColor = alertText; statusBold = true }
         // Not "starting": it is not there. The tap copies the one line that installs it (InstallHelpActivity).
         state.backend == "missing" -> {
@@ -296,7 +294,6 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
         else -> { status = "Prêt"; statusColor = subtle }
     }
     val title = when {
-        needsSetup -> "Autoriser Aiwa ▸"
         accessNotice(state, 1) != null -> "Accès réservé ▸"
         state.backend == "missing" -> "Installer le backend ▸"
         needsLogin -> "Connecter Claude ▸"
@@ -306,7 +303,6 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
     // What a tap on the name and the status line opens: the fix for what is wrong, else the sessions.
     val bandAction: Action = when {
         batteryLine -> actionStartActivity<BatteryActivity>()
-        needsSetup -> actionStartActivity<SetupActivity>()
         accessNotice(state, 1) != null -> actionStartActivity<AccessActivity>()
         state.backend == "missing" -> actionStartActivity<InstallHelpActivity>()
         needsLogin -> actionStartActivity<ClaudeLoginActivity>()
@@ -508,14 +504,17 @@ private fun LightContent(state: AiwaState) {
             Spacer(GlanceModifier.width(GAP.dp))
             // the microphone IS the super agent: a tap opens it (it listens, knows every pill and routes what is said), a second tap closes it
             val agentNeeds = state.agent?.let { it.say != null || it.proposal != null || it.command != null } == true
+            // Until Aiwa has been allowed to start its backend (once), this button is the red « Autoriser Aiwa » one
+            val needsSetup = !hasTermuxPermission(LocalContext.current)
             Box(
-                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (agentNeeds) alertRed else if (agentOn) green else pill).cornerRadius(((rowH - 2f) / 2).dp).clickable(actionStartActivity<AgentToggleActivity>()),
+                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (needsSetup || agentNeeds) alertRed else if (agentOn) green else pill).cornerRadius(((rowH - 2f) / 2).dp)
+                    .clickable(if (needsSetup) actionStartActivity<SetupActivity>() else actionStartActivity<AgentToggleActivity>()),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = "Super agent : ouvrir ou fermer", modifier = GlanceModifier.size(16.dp))
-                    Spacer(GlanceModifier.width(8.dp))
-                    Text(if (agentOn) "Il écoute · fermer" else "Parler au super agent", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                    if (!needsSetup) Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = "Super agent : ouvrir ou fermer", modifier = GlanceModifier.size(16.dp))
+                    if (!needsSetup) Spacer(GlanceModifier.width(8.dp))
+                    Text(if (needsSetup) "Autoriser Aiwa" else if (agentOn) "Il écoute · fermer" else "Parler au super agent", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 }
             }
             // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
