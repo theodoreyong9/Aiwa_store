@@ -45,3 +45,21 @@ test('a panorama has a mood from its tags, and the places are ranked by mood', (
   const p = places({ words: 'night', mood: { warmth: 0.1, scale: 0.4 }, kinds: ['panorama'], limit: 3 });
   assert.equal(p.length, 3); assert.ok(p.every((x) => x.kind === 'panorama'));
 });
+
+import { budget, checkStory, toFilm } from './outline.mjs';
+const docs = { 'a.md': 'Aiwa lets you talk to your sessions. It never asks for a token.' };
+const story = () => ({ title: 't', beats: [
+  { id: 'b1', say: 'Talk to your sessions.', idea: 'talking', source: { file: 'a.md', quote: 'talk to your sessions' }, mood: { energy: 0.3 }, place: 'earth' },
+  { id: 'b2', say: 'No token.', idea: 'no token', source: { quote: 'never asks for a token' }, mood: { energy: 0.4 }, place: 'night' },
+  { id: 'b3', idea: 'end', mood: { energy: 0.2 }, place: 'sky' } ] });
+test('the budget follows the duration', () => { assert.ok(budget(60).beats > budget(20).beats); assert.equal(budget(10).words, 24); });
+test('every spoken line must rest on a passage of the documents', () => {
+  assert.deepEqual(checkStory(story(), docs, 15).errors, []);
+  const s = story(); s.beats[0].source.quote = 'fly to the moon'; assert.ok(checkStory(s, docs, 15).errors.some((x) => /not in a\.md/.test(x)));
+  const t = story(); delete t.beats[1].source; assert.ok(checkStory(t, docs, 15).errors.some((x) => /no source quote/.test(x)));
+});
+test('too many words for the duration is an error', () => { const s = story(); s.beats[0].say = 'word '.repeat(60); assert.ok(checkStory(s, docs, 15).errors.some((x) => /spoken words/.test(x))); });
+test('the film graph has a transition between beats and a place for each', () => {
+  const { film } = toFilm(story(), 15, { footagePath: '/nonexistent', assetsPath: '/nonexistent' });
+  assert.equal(film.beats.length, 3); assert.ok(film.beats[0].transition && !film.beats[2].transition); assert.equal(film.beats[1].t, 5);
+});

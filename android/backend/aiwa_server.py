@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 124
+BACKEND_VERSION = 125
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -744,7 +744,8 @@ def _video_line_text(repo, quality="moyen"):
             "2 des films différents pour des gens différents : dans le catalogue, ne prends jamais le premier résultat ; retiens les 8 premiers de chaque recherche et tire-en un au hasard avec une graine (`date +%s` mêlé au nom de ma création), tire aussi la palette, l'association de polices et la famille de mouvements de caméra, et écris la graine et tes tirages dans `brief.md` ; "
             "3 UNE seule langue visuelle du début à la fin (jamais une page dans un style puis la suivante dans un autre) ; deux langues ne se mêlent qu'à l'intérieur d'une même scène quand l'une sert l'autre ; "
             "4 un son conçu : `video-kit/src/sfx.py` (souffles, pizzicati, pings, bruit de pièce, montée, impact), la voix naturelle (`sh video-kit/src/voice-setup.sh`) baissée sous la musique, un seul étalonnage (`--grade=cinematic --bloom --grain --vignette`) ; "
-            "5 une critique en plusieurs tours sur une planche d'une image par seconde, confiée à un sous-agent neuf, et un film qui finit sur le nom de ma création, jamais sur une vue d'ensemble."
+            "5 une critique en plusieurs tours sur une planche d'une image par seconde, confiée à un sous-agent neuf, et un film qui finit sur le nom de ma création, jamais sur une vue d'ensemble. "
+            "6 si je ne donne que des documents et pas de scénario, suis `" + REFERENCE_RAW + "/video-kit/conductor/FROM_DOCUMENTS.md` : tu écris les notes, le brief et `story.json`, `outline.mjs` vérifie que chaque phrase repose sur un passage de mes documents et choisit les lieux et les transitions."
         )
     if quality == "extra":
         return (
