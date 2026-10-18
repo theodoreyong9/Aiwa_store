@@ -14,8 +14,21 @@ object WidgetPin {
 
     private fun provider(context: Context) = ComponentName(context, AiwaWidgetReceiver::class.java)
 
+    private fun seenFile(context: Context) = java.io.File(context.noBackupFilesDir, "widget_seen.txt")
+
+    /**
+     * Called whenever a widget is really drawn (a launcher shows it). After a reinstall Android may give back the NUMBERS of the old widgets although none is on the home screen:
+     * the list of ids is then not empty and the widget was never asked for. A widget counts only if one was drawn since this installation (the file is not carried by the backup).
+     */
+    fun markSeen(context: Context) {
+        try {
+            val file = seenFile(context)
+            if (!file.exists() || System.currentTimeMillis() - file.lastModified() > 60_000L) file.writeText(System.currentTimeMillis().toString())
+        } catch (err: Exception) { }
+    }
+
     fun hasWidget(context: Context): Boolean = try {
-        AppWidgetManager.getInstance(context).getAppWidgetIds(provider(context)).isNotEmpty()
+        AppWidgetManager.getInstance(context).getAppWidgetIds(provider(context)).isNotEmpty() && seenFile(context).exists()
     } catch (err: Exception) { false }
 
     /** Asks the system to add the widget. Returns false when the launcher cannot be asked (the gesture by hand is then said, if `explain`). */
