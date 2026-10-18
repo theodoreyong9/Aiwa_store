@@ -19,6 +19,14 @@ class RecognitionsTest {
         assertEquals(WakeKind.OFF, wakeKind("éteins toi"))
     }
 
+    @Test fun theWakeAndStopWordsAreFoundInsideASentenceAndACommandIsNotAWake() {
+        assertEquals(WakeKind.LIAISON, wakeKind("oh heille wa"))
+        assertEquals(WakeKind.STOP, wakeKind("stop la commande tout de suite"))
+        assertNull(wakeKind("la commande est prête"))
+        assertTrue(endsWithCancelPhrase("annule"))
+        assertTrue(!endsWithCancelPhrase("annule la commande de pizza et envoie la facture"))
+    }
+
     @Test fun resendWinsOverInstructionAndStopAndOffAreKnown() {
         assertEquals(WakeKind.RESEND, wakeKind("renvoie les instructions"))
         assertEquals(WakeKind.INSTRUCTION, wakeKind("instruction"))
