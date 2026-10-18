@@ -52,7 +52,12 @@ private val START_SCRIPT = listOf(
     "old=\$(git rev-parse HEAD 2>/dev/null)",
     // Bounded: a slow network must not hold the start back for long.
     "t0=\$(date +%s)",
-    "timeout \$([ \"\$1\" = restart ] && echo 45 || echo 20) git pull --ff-only -q || echo \"git pull failed or timed out (code \$?), keeping the checkout as is\"",
+    // The checkout is Aiwa's own copy of the repository, not a place to work: it is aligned on origin/main, whatever state it was left in (another branch, no upstream, local changes,
+    // a history that does not fast-forward). A plain `git pull --ff-only` failed silently in those cases and left the brain old for ever (version 124 for days). A failed or slow fetch
+    // changes nothing: only a fetch that worked can move the checkout.
+    "if timeout \$([ \"\$1\" = restart ] && echo 45 || echo 20) git fetch -q origin main; then",
+    "  git merge --ff-only -q FETCH_HEAD || { echo \"cannot fast-forward (local changes, another branch or a history that moved): the checkout is aligned on origin/main\"; git reset --hard -q FETCH_HEAD; }",
+    "else echo \"git fetch failed or timed out (code \$?), keeping the checkout as is\"; fi",
     "new=\$(git rev-parse HEAD 2>/dev/null)",
     "echo \"checkout \$old -> \$new (pull took \$(( \$(date +%s) - t0 )) s)\"",
     "if [ \"\$old\" != \"\$new\" ] || [ \"\$1\" = \"restart\" ]; then",
