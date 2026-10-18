@@ -1992,6 +1992,35 @@ class AttachmentTests(unittest.TestCase):
         self.assertEqual(seen, {"method": "PUT", "name": "photo.png"})
         self.assertIn("curl -sL -o 'photo.png' 'https://ntfy.sh/file/abc.png'", srv._attachments_block(list(srv.attachments)))
 
+    def test_with_a_repository_the_file_goes_there_and_not_on_the_relay(self):
+        # GitHub is always reachable from the session; the relay (ntfy.sh) may be closed to it
+        calls = []
+        def fake_put(repo, path, raw, message):
+            calls.append((repo, path, len(raw)))
+            return path
+        with unittest.mock.patch.object(srv, "current_repo", "me/site"), unittest.mock.patch.object(srv.github, "put_file", fake_put), \
+                unittest.mock.patch.object(srv.urllib.request, "urlopen", side_effect=AssertionError("the relay must not be used")):
+            got = srv.attach_add(json.dumps({"name": "CV Jean.pdf", "data": self.b64(b"%PDF-1.4\0\1\2")}))
+        self.assertTrue(got["ok"])
+        self.assertEqual(calls, [("me/site", "aiwa-campagne/CV Jean.pdf", 11)])
+        block = srv._attachments_block(list(srv.attachments))
+        self.assertIn("`me/site`", block)
+        self.assertIn("aiwa-campagne/CV Jean.pdf", block)
+        self.assertNotIn("ntfy", block)
+
+    def test_when_the_repository_refuses_the_relay_is_the_way_out(self):
+        class Answer:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self): return b'{"attachment": {"url": "https://ntfy.sh/file/zzz.pdf"}}'
+        def refuse(repo, path, raw, message):
+            raise srv.github.GithubError("403")
+        with unittest.mock.patch.object(srv, "current_repo", "me/site"), unittest.mock.patch.object(srv.github, "put_file", refuse), \
+                unittest.mock.patch.object(srv.urllib.request, "urlopen", lambda req, timeout=0: Answer()):
+            got = srv.attach_add(json.dumps({"name": "a.pdf", "data": self.b64(b"%PDF\0\1")}))
+        self.assertTrue(got["ok"])
+        self.assertIn("https://ntfy.sh/file/zzz.pdf", srv._attachments_block(list(srv.attachments)))
+
     def test_too_big_or_empty_is_refused_and_clear_empties(self):
         self.assertFalse(srv.attach_add(json.dumps({"name": "a", "data": ""}))["ok"])
         big = self.b64(b"x" * (srv.ATTACH_MAX + 1))

@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 126
+BACKEND_VERSION = 127
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1261,16 +1261,26 @@ def attach_add(body):
     if text is not None:
         entry["text"] = text
     else:
+        # GitHub first: the file goes into the repository (aiwa-campagne/), which the session always reaches, whereas the relay may be closed to its network
+        with lock:
+            repo_now = current_repo
+        if repo_now:
+            try:
+                entry["path"] = github.put_file(repo_now, f"{INPUTS_DIR}/{name}", raw, f"Aiwa : pièce jointe {name}")
+                entry["repo"] = repo_now
+            except github.GithubError as err:
+                print(f"[{_ts()}] attach: dépôt de {name} dans {repo_now} impossible ({err}); le relais prendra le relais", flush=True)
         topic = "aiwa-att-" + secrets.token_hex(10)
-        put = urllib.request.Request(f"{NTFY_SERVER}/{topic}", data=raw, method="PUT", headers={"Filename": name})
-        try:
-            with urllib.request.urlopen(put, timeout=120) as answer:
-                info = json.loads(answer.read().decode("utf-8", "replace"))
-            entry["url"] = (info.get("attachment") or {}).get("url") or ""
-        except (OSError, ValueError) as err:
-            return {"ok": False, "error": f"envoi du fichier impossible ({err})"}
-        if not entry["url"]:
-            return {"ok": False, "error": "le relais n'a pas gardé le fichier"}
+        if not entry.get("path"):
+            put = urllib.request.Request(f"{NTFY_SERVER}/{topic}", data=raw, method="PUT", headers={"Filename": name})
+            try:
+                with urllib.request.urlopen(put, timeout=120) as answer:
+                    info = json.loads(answer.read().decode("utf-8", "replace"))
+                entry["url"] = (info.get("attachment") or {}).get("url") or ""
+            except (OSError, ValueError) as err:
+                return {"ok": False, "error": f"envoi du fichier impossible ({err})"}
+            if not entry["url"]:
+                return {"ok": False, "error": "le relais n'a pas gardé le fichier"}
     with attach_lock:
         attachments.append(entry)
         return {"ok": True, "count": len(attachments)}
@@ -1289,6 +1299,8 @@ def _attachments_block(items):
     for it in items:
         if "text" in it:
             out += f"\n--- {it['name']} ---\n{it['text']}\n--- fin de {it['name']} ---"
+        elif it.get("path"):
+            out += f"\n- {it['name']} ({it['size']} octets) : déposé dans le dépôt `{it['repo']}` sous `{it['path']}` (branche par défaut) : lis-le là, par exemple avec `git pull` ou `curl -sL https://raw.githubusercontent.com/{it['repo']}/HEAD/{it['path']}` ; un PDF se lit avec `pdftotext`."
         else:
             out += f"\n- {it['name']} ({it['size']} octets) : récupère-le avec `curl -sL -o '{it['name']}' '{it['url']}'` (disponible quelques heures)."
     return out

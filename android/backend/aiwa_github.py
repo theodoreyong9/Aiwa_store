@@ -21,6 +21,7 @@ either, everything still works.
 Nothing here is verified on a real phone.
 """
 import calendar
+import base64
 import json
 import os
 import re
@@ -30,6 +31,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -317,6 +319,26 @@ def checkout_owner():
 
 
 # --- optional: an existing `gh` login -----------------------------------------
+
+def put_file(repo, path, raw, message):
+    """Puts a file in a repository (the default branch) with the connected `gh`: the way a file reaches a cloud session when the relay (ntfy.sh) is blocked from its network, since GitHub is always reachable.
+    Replaces the file if it is already there. Returns the path."""
+    gh = gh_path()
+    if not gh:
+        raise GithubError("gh n'est pas installé")
+    route = f"repos/{repo}/contents/{urllib.parse.quote(path)}"
+    body = {"message": message, "content": base64.b64encode(raw).decode()}
+    try:
+        old = subprocess.run([gh, "api", route, "--jq", ".sha"], capture_output=True, text=True, timeout=30, env=_env())
+        if old.returncode == 0 and old.stdout.strip():
+            body["sha"] = old.stdout.strip()
+        done = subprocess.run([gh, "api", "-X", "PUT", route, "--input", "-"], input=json.dumps(body), capture_output=True, text=True, timeout=120, env=_env())
+    except (OSError, subprocess.TimeoutExpired) as err:
+        raise GithubError(f"dépôt de {path} : {err}")
+    if done.returncode != 0:
+        raise GithubError(f"dépôt de {path} : " + clean(done.stderr or done.stdout).strip()[-300:])
+    return path
+
 
 def gh_path():
     return shutil.which("gh")
