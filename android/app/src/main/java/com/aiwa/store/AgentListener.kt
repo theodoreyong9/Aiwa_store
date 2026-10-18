@@ -22,6 +22,8 @@ class AgentListener(context: Context, private val onHeard: (String) -> Unit) : R
     private val quiet = QuietSounds(appContext)
     private val main = Handler(Looper.getMainLooper())
     private var stopped = false
+    // The words understood so far in this pass: when the pass ends in an error or with an empty result (the recognizer gave up after the person had spoken), they are not lost.
+    private var lastPartial = ""
 
     init { recognizer.setRecognitionListener(this) }
 
@@ -30,8 +32,12 @@ class AgentListener(context: Context, private val onHeard: (String) -> Unit) : R
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR")
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            // A pause to think (« mets-toi sur le repo test … c'est bon vas-y ») must not cut the sentence in two: the recognizer waits longer before it decides the person is done.
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
         }
+        lastPartial = ""
         quiet.on()
         try { recognizer.startListening(intent) } catch (err: Exception) { again() }
     }
@@ -50,12 +56,21 @@ class AgentListener(context: Context, private val onHeard: (String) -> Unit) : R
     override fun onResults(results: Bundle) {
         if (stopped) return
         val heard = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty().trim()
-        if (heard.isNotEmpty()) onHeard(heard) else again()
+        val text = heard.ifEmpty { lastPartial }
+        lastPartial = ""
+        if (text.isNotEmpty()) onHeard(text) else again()
     }
 
-    override fun onError(error: Int) { again() }
+    override fun onError(error: Int) {
+        if (stopped) return
+        val text = lastPartial
+        lastPartial = ""
+        if (text.isNotEmpty()) onHeard(text) else again()
+    }
 
-    override fun onPartialResults(partialResults: Bundle) {}
+    override fun onPartialResults(partialResults: Bundle) {
+        partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }?.let { lastPartial = it }
+    }
     override fun onReadyForSpeech(params: Bundle?) {}
     override fun onBeginningOfSpeech() {}
     override fun onRmsChanged(rmsdB: Float) {}
