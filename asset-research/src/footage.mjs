@@ -4,7 +4,7 @@
 //   footage.mjs fetch <name>=<source:id>[@start-seconds] ... [--seconds=12] [--out=dir]      source = nasa:<nasa_id> | commons:<File name> | url:<https address of a video>
 //                       -> out/<name>.mp4 (1920x1080, 30 images a second, no sound, the first N seconds) and out/<name>.json (where it comes from, its licence, the credit)
 // Nothing here is a copy of a catalogue: every clip keeps its own address and licence next to it, and the credit to print in the film.
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
@@ -71,12 +71,21 @@ try {
       try {
         const m = await resolve(spec);
         const mp4 = join(out, `${name}.mp4`);
-        // ffmpeg reads the address itself and only what it needs (a seek in a long film does not download the film)
-        const ff = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-user_agent', UA, '-ss', String(start), '-i', m.url, '-t', String(flags.seconds || 12), '-an', '-vf', 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30', '-c:v', 'libx264', '-crf', '20', '-preset', 'fast', '-pix_fmt', 'yuv420p', mp4], { encoding: 'utf8', timeout: 20 * 60 * 1000 });
-        if (ff.status !== 0) throw new Error(`ffmpeg: ${ff.stderr.slice(-300)}`);
+        // Wikimedia slows down a client that asks fast: a pause between clips, and three tries with a longer wait each time. A clip that is too small is not kept.
+        let last = '';
+        for (let tryN = 0; tryN < 3; tryN++) {
+          if (tryN) await new Promise((r) => setTimeout(r, 25000 * tryN));
+          // ffmpeg reads the address itself and only what it needs (a seek in a long film does not download the film)
+          const ff = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-user_agent', UA, '-ss', String(start), '-i', m.url, '-t', String(flags.seconds || 12), '-an', '-vf', 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30', '-c:v', 'libx264', '-crf', '20', '-preset', 'fast', '-pix_fmt', 'yuv420p', mp4], { encoding: 'utf8', timeout: 20 * 60 * 1000 });
+          const size = existsSync(mp4) ? statSync(mp4).size : 0;
+          if (ff.status === 0 && size > 200000) { last = ''; break; }
+          last = ff.status === 0 ? `the clip is too small (${size} bytes)` : `ffmpeg: ${ff.stderr.slice(-200)}`;
+        }
+        if (last) throw new Error(last);
         writeFileSync(join(out, `${name}.json`), JSON.stringify({ name, spec, start, ...m }, null, 1));
         console.log(`ok ${name} <- ${spec} @${start}s (${m.licence}) ${m.credit}`);
       } catch (err) { console.log(`! ${name}: ${err.message}`); }
+      await new Promise((r) => setTimeout(r, 8000));
     }
   } else { console.log('footage.mjs search "<query>" | fetch name=source:id ...'); process.exit(2); }
 } catch (err) { console.error(err.message || err); process.exit(1); }
