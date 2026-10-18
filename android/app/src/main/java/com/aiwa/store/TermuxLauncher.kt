@@ -55,9 +55,17 @@ private val START_SCRIPT = listOf(
     // The checkout is Aiwa's own copy of the repository, not a place to work: it is aligned on origin/main, whatever state it was left in (another branch, no upstream, local changes,
     // a history that does not fast-forward). A plain `git pull --ff-only` failed silently in those cases and left the brain old for ever (version 124 for days). A failed or slow fetch
     // changes nothing: only a fetch that worked can move the checkout.
-    "if timeout \$([ \"\$1\" = restart ] && echo 45 || echo 20) git fetch -q origin main; then",
-    "  git merge --ff-only -q FETCH_HEAD || { echo \"cannot fast-forward (local changes, another branch or a history that moved): the checkout is aligned on origin/main\"; git reset --hard -q FETCH_HEAD; }",
-    "else echo \"git fetch failed or timed out (code \$?), keeping the checkout as is\"; fi",
+    // ONE update at a time: the app, the keep-alive service and the pickers can ask for a start together, and two fetches at once fail on "cannot lock ref" (seen in the log).
+    "lock=\"\$HOME/.aiwa_pull.lock\"",
+    "[ -d \"\$lock\" ] && [ -n \"\$(find \"\$lock\" -maxdepth 0 -mmin +2 2>/dev/null)\" ] && rmdir \"\$lock\" 2>/dev/null",
+    "got=0; for i in \$(seq 1 40); do if mkdir \"\$lock\" 2>/dev/null; then got=1; break; fi; sleep 1; done",
+    "if [ \$got = 1 ]; then",
+    "  if timeout \$([ \"\$1\" = restart ] && echo 45 || echo 20) git fetch -q origin main; then",
+    // `reset --hard` also deletes the untracked files that stand in the way of tracked ones, which made `git pull` abort ("Please move or remove them before you merge")
+    "    git merge --ff-only -q FETCH_HEAD 2>/dev/null || { echo \"cannot fast-forward (untracked files in the way, local changes, another branch or a history that moved): the checkout is aligned on origin/main\"; git reset --hard -q FETCH_HEAD; }",
+    "  else echo \"git fetch failed or timed out (code \$?), keeping the checkout as is\"; fi",
+    "  rmdir \"\$lock\" 2>/dev/null",
+    "else echo \"another update is running: not updating twice\"; fi",
     "new=\$(git rev-parse HEAD 2>/dev/null)",
     "echo \"checkout \$old -> \$new (pull took \$(( \$(date +%s) - t0 )) s)\"",
     "if [ \"\$old\" != \"\$new\" ] || [ \"\$1\" = \"restart\" ]; then",
