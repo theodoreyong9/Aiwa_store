@@ -133,3 +133,56 @@ class RegistryTests(unittest.TestCase):
         self.assertIn("CONFIRMÉE", message)
         self.assertIn("ANNULÉE", message)
         self.assertNotIn("Décisions de la personne", A.point_message("x", "http://relay/t"))
+
+
+class AgentReplyByGithubTests(unittest.TestCase):
+    """The agent's reply when the relay is blocked: the same JSON in aiwa-out/agent.json of its own branch, announced by a SIGNAL line, read from GitHub."""
+
+    def setUp(self):
+        import aiwa_server as srv
+        self.srv = srv
+        self.saved = (dict(srv.agent), srv._raw_get, srv._session_entry, srv._agent_said, dict(srv.agent_mail))
+        srv.agent.update(session="session_AGENT", last=1000.0, enabled=True)
+        srv.agent_mail["seen"] = None
+        srv._session_entry = lambda sid: {"repo": "me/site", "work": "claude/agent-1"}
+        self.said = []
+        srv._agent_said = lambda raw: self.said.append(raw) or True
+
+    def tearDown(self):
+        srv = self.srv
+        srv.agent.clear(); srv.agent.update(self.saved[0])
+        srv._raw_get, srv._session_entry, srv._agent_said = self.saved[1:4]
+        srv.agent_mail.clear(); srv.agent_mail.update(self.saved[4])
+
+    def files(self, signal, body=b'{"say":"ok"}'):
+        def raw(url, limit):
+            return signal.encode() if "/SIGNAL" in url else body if "/agent.json" in url else None
+        self.srv._raw_get = raw
+
+    def test_a_signal_after_the_last_point_gives_the_reply_once(self):
+        self.files("agent 1100")
+        self.assertTrue(self.srv._agent_mailbox_once())
+        self.assertEqual(self.said, ['{"say":"ok"}'])
+        self.assertFalse(self.srv._agent_mailbox_once(), "the same signal is not read twice")
+        self.assertEqual(len(self.said), 1)
+
+    def test_an_old_signal_is_not_an_answer_to_the_last_point(self):
+        self.files("agent 500")
+        self.assertFalse(self.srv._agent_mailbox_once())
+        self.assertEqual(self.said, [])
+
+    def test_other_signals_and_a_missing_file_give_nothing(self):
+        self.files("app x.app.html 1100")
+        self.assertFalse(self.srv._agent_mailbox_once())
+        self.files("agent 1100", body=None)
+        self.assertFalse(self.srv._agent_mailbox_once(), "the file is not there yet: looked at again")
+        self.assertEqual(self.said, [])
+
+    def test_the_point_tells_the_agent_the_road_when_the_relay_fails(self):
+        text = self.srv._agent_fallback_text("session_AGENT")
+        self.assertIn("aiwa-out/agent.json", text)
+        self.assertIn("claude/agent-1", text)
+        self.assertIn("jamais sur la branche principale", text)
+        self.assertIn(text, A.point_message("t", "http://relay", fallback=text))
+        self.srv._session_entry = lambda sid: {}
+        self.assertEqual(self.srv._agent_fallback_text("session_AGENT"), "", "no repository, no road")

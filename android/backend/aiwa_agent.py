@@ -113,7 +113,7 @@ def digest(sessions, loops, asks, current_id=None, pills=None):
     return text, hashlib.sha1(json.dumps(sig, sort_keys=True, default=str).encode()).hexdigest()
 
 
-def point_message(text, relay_url, spoken=None, stamp="", decisions=None):
+def point_message(text, relay_url, spoken=None, stamp="", decisions=None, fallback=""):
     """What the agent receives: the point, and when the person spoke to it, their words."""
     head = f"[Point Aiwa {stamp}]".replace(" ]", "]")
     body = head + "\n" + text
@@ -121,7 +121,7 @@ def point_message(text, relay_url, spoken=None, stamp="", decisions=None):
         body += "\n\nDécisions de la personne depuis le dernier point (à noter dans ton registre, s'il y en a un) :\n" + "\n".join("- " + str(d)[:300] for d in decisions[:12])
     if spoken:
         body += "\n\nLa personne te dit (à voix haute) : « " + " ".join(str(spoken).split())[:600] + " »"
-    return body + "\n\n(Réponds par la commande du rôle, ou ne réponds pas si rien ne mérite d'être dit : `" + reply_command(relay_url) + "`)"
+    return body + "\n\n(Réponds par la commande du rôle, ou ne réponds pas si rien ne mérite d'être dit : `" + reply_command(relay_url) + "`)" + (("\n" + fallback) if fallback else "")
 
 
 def parse_message(raw, known_ids, agent_id=None):

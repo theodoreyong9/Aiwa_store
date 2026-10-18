@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 134
+BACKEND_VERSION = 135
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -2919,12 +2919,70 @@ def agent_send(spoken=None, direct=True):
     text, sig = _agent_digest()
     with agent_lock:
         told = list(agent.get("decisions", []))
-    result = _queue_followup(session, agent_lib.point_message(text, _loops_relay_url(), spoken=spoken, stamp=time.strftime("%H:%M"), decisions=told))
+    result = _queue_followup(session, agent_lib.point_message(text, _loops_relay_url(), spoken=spoken, stamp=time.strftime("%H:%M"), decisions=told, fallback=_agent_fallback_text(session)))
     if result["ok"]:
         with agent_lock:
             agent["sig"], agent["last"] = sig, time.time()
             agent["decisions"] = agent.get("decisions", [])[len(told):]
     return result
+
+
+def _agent_fallback_text(session):
+    """What the agent does when its reply command fails (the environment's network blocks ntfy.sh): the same JSON in a file of its own branch, which the phone reads from GitHub."""
+    entry = _session_entry(session)
+    repo, work = entry.get("repo"), entry.get("work")
+    if not repo or not work:
+        return ""
+    return (
+        "Si la commande échoue (réseau bloqué : « proxy refuse ntfy.sh »), ne dis pas que ta réponse n'est pas partie : repli par GitHub. Écris le MÊME JSON (say, send, do) dans `aiwa-out/agent.json`, "
+        f"puis `mkdir -p aiwa-out && echo \"agent $(date +%s)\" > aiwa-out/SIGNAL`, commite les deux sur ta branche {work} et pousse-la (`git push origin {work}`), jamais sur la branche principale. "
+        "Le téléphone le lit de là."
+    )
+
+
+agent_mail = {"seen": None}
+
+
+def _agent_mailbox_once():
+    """One look at `aiwa-out/SIGNAL` of the agent session's branch: `agent <time>` means its reply is in `aiwa-out/agent.json` (it could not use the relay). Read once, and only if it
+    is not older than the last point we sent. Only a public repository can say."""
+    with agent_lock:
+        session, last = agent["session"], agent["last"]
+    if not session:
+        return False
+    entry = _session_entry(session)
+    repo, work = entry.get("repo"), entry.get("work")
+    if not repo or not work or not github.REPO_RE.fullmatch(repo) or not BRANCH_RE.fullmatch(work) or ".." in work:
+        return False
+    stamp = int(time.time() * 1000)
+    base = f"{RAW_BASE}/{repo}/refs/heads/{work}/aiwa-out"
+    raw_signal = _raw_get(f"{base}/SIGNAL?t={stamp}", 300)
+    line = raw_signal.decode("utf-8", "replace").strip() if raw_signal else ""
+    parts = line.split()
+    if len(parts) != 2 or parts[0] != "agent" or not parts[1].isdigit() or agent_mail["seen"] == line:
+        return False
+    if int(parts[1]) < last - 120:
+        agent_mail["seen"] = line               # older than our last point: not an answer to it
+        return False
+    raw = _raw_get(f"{base}/agent.json?t={stamp}", 6000)
+    if not raw:
+        return False                            # not there yet (the CDN is a little behind): looked at again
+    agent_mail["seen"] = line
+    print(f"[{_ts()}] agent: a reply came by GitHub", flush=True)
+    return _agent_said(raw.decode("utf-8", "replace"))
+
+
+def _agent_mailbox_loop():
+    time.sleep(30)
+    while True:
+        try:
+            with agent_lock:
+                watching = agent["enabled"] and agent["session"]
+            if watching:
+                _agent_mailbox_once()
+        except Exception as err:      # a bad answer must never end the watch
+            print(f"[{_ts()}] agent mailbox: {err}", flush=True)
+        time.sleep(15)
 
 
 def _agent_loop():
@@ -4236,6 +4294,7 @@ if __name__ == "__main__":
     _comments_seen_load()
     _agent_load()
     threading.Thread(target=_agent_loop, daemon=True).start()
+    threading.Thread(target=_agent_mailbox_loop, daemon=True).start()
     _login_state()  # looks the login up in the background, so the first status already knows
     threading.Thread(target=_relay_listener, daemon=True).start()
     threading.Thread(target=_self_update_loop, daemon=True).start()
