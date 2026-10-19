@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 135
+BACKEND_VERSION = 136
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -2741,6 +2741,37 @@ def _cast_ready(now=None):
 
 
 # ---- loops between two sessions (aiwa_loops.py): the backend is the courier ----
+# The names of the widget's « Projet » button (session + repository pairs), kept here too: the app keeps them in its own storage, which a reinstallation of the app erases, and this folder does not move.
+PROJECTS_FILE = Path.home() / ".aiwa_projects.json"
+
+
+def projects_get():
+    try:
+        data = json.loads(PROJECTS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = []
+    return {"projects": data if isinstance(data, list) else []}
+
+
+def projects_save(body):
+    """The whole list, as the app has it. Only well-formed entries are kept (a name, a repository, a session), at most 200."""
+    try:
+        data = json.loads(body)
+    except ValueError:
+        return {"ok": False, "error": "liste illisible"}
+    if not isinstance(data, list):
+        return {"ok": False, "error": "une liste est attendue"}
+    kept = []
+    for item in data[:200]:
+        if isinstance(item, dict) and all(isinstance(item.get(k), str) for k in ("name", "repo", "session")):
+            kept.append({k: item[k][:200] for k in ("name", "repo", "session")})
+    try:
+        PROJECTS_FILE.write_text(json.dumps(kept), encoding="utf-8")
+    except OSError as err:
+        return {"ok": False, "error": str(err)}
+    return {"ok": True, "count": len(kept)}
+
+
 LOOPS_FILE = Path.home() / ".aiwa_loops.json"
 loops_lock = threading.RLock()
 loops_store = loops_lib.new_store()
@@ -2985,12 +3016,16 @@ def _agent_mailbox_loop():
         time.sleep(15)
 
 
+# The super agent no longer talks to an agent session of its own (it takes a command, sums it up and sends it): the periodic points to that session are off. A report asked for still goes.
+AGENT_PERIODIC_POINTS = False
+
+
 def _agent_loop():
     time.sleep(90)
     while True:
         try:
             with agent_lock:
-                due = agent["enabled"] and (agent["session"] or llm.state == "ready") and time.time() - agent["last"] >= agent["interval"] * 60
+                due = AGENT_PERIODIC_POINTS and agent["enabled"] and (agent["session"] or llm.state == "ready") and time.time() - agent["last"] >= agent["interval"] * 60
             if due:
                 _text, sig = _agent_digest()
                 with agent_lock:
@@ -3836,6 +3871,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(_all_snapshot((query.get("kind") or [""])[0]))
         elif self.path == "/api/videos":
             self.reply_json(_videos_snapshot())
+        elif self.path == "/api/projects":
+            self.reply_json(projects_get())
         elif self.path == "/api/loops":
             self.reply_json(_loops_snapshot())
         elif self.path.startswith("/api/critiques"):
@@ -3866,6 +3903,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(cloud_send(body))
         elif self.path == "/api/attach":
             self.reply_json(attach_add(body))
+        elif self.path == "/api/projects":
+            self.reply_json(projects_save(body))
         elif self.path == "/api/attach/clear":
             self.reply_json(attach_clear())
         elif self.path == "/api/attach/remove":

@@ -2295,3 +2295,25 @@ class FavoriteReposTests(unittest.TestCase):
     def test_a_name_that_is_not_owner_slash_name_is_refused(self):
         self.assertFalse(srv.set_favorite("pas un depot", True)["ok"])
         self.assertFalse(srv.set_favorite("", True)["ok"])
+
+
+class ProjectsKeptByTheBrainTests(unittest.TestCase):
+    """The names of the widget's « Projet » button are kept here as well, so that a reinstallation of the app does not erase them."""
+
+    def setUp(self):
+        import tempfile
+        self.dir = tempfile.TemporaryDirectory()
+        self.saved = srv.PROJECTS_FILE
+        srv.PROJECTS_FILE = Path(self.dir.name) / "projects.json"
+
+    def tearDown(self):
+        srv.PROJECTS_FILE = self.saved
+        self.dir.cleanup()
+
+    def test_what_is_saved_comes_back_and_only_well_formed_entries_are_kept(self):
+        self.assertEqual(srv.projects_get(), {"projects": []})
+        body = json.dumps([{"name": "Test", "repo": "me/test", "session": "new"}, {"name": 3}, "x"])
+        self.assertEqual(srv.projects_save(body), {"ok": True, "count": 1})
+        self.assertEqual(srv.projects_get()["projects"], [{"name": "Test", "repo": "me/test", "session": "new"}])
+        self.assertFalse(srv.projects_save("pas du json")["ok"])
+        self.assertFalse(srv.projects_save("{}")["ok"])

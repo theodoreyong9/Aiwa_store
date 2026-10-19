@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.launch
 
 /**
  * The dictation module (the widget, the Termux backend, the keep-alive service) is OPTIONAL: the Store and the wallet
@@ -53,5 +54,14 @@ class AiwaApp : Application() {
         AccessGate.load(this)
         WakeWordSettings.applyVocabulary(this)
         wakeAiwa(this)
+        // The names of the « Projet » button: if the app was reinstalled they are gone here, and the brain still has them (it may take a moment to be up)
+        val app = this
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            repeat(6) {
+                Projects.restoreFromBrain(app)
+                if (Projects.restoreDone()) return@launch
+                kotlinx.coroutines.delay(20_000)
+            }
+        }
     }
 }

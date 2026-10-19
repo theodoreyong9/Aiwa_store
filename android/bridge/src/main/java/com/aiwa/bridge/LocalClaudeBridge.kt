@@ -203,6 +203,20 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         Triple(false, 0, e.message ?: "erreur inconnue")
     }
 
+    /** The names of the « Projet » button kept by the brain (JSON list), or null when it did not answer. */
+    fun projectsGet(): String? = try {
+        JSONObject(getText("/api/projects")).optJSONArray("projects")?.toString()
+    } catch (e: Exception) {
+        null
+    }
+
+    /** Hands the whole list of names to the brain, which keeps it through a reinstallation of the app. */
+    fun projectsSave(json: String): Boolean = try {
+        JSONObject(postText("/api/projects", json)).optBoolean("ok", false)
+    } catch (e: Exception) {
+        false
+    }
+
     /** Takes back ONE file joined and not sent yet (its place in the list). Returns whether the backend answered ok. */
     fun attachRemove(index: Int): Boolean = try {
         JSONObject(postText("/api/attach/remove", JSONObject().put("index", index).toString())).optBoolean("ok", false)
