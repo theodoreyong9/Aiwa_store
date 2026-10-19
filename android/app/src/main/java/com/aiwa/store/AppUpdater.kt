@@ -29,6 +29,17 @@ object AppUpdater {
             if (accept != null) setRequestProperty("Accept", accept)
         }
 
+    /**
+     * The latest build read from github.com's own page of the rolling release (its commit and the address of the APK), NOT from the API: that page is not in the API's limit of 60 questions
+     * an hour without a token, which, once used up, kept the update button from ever appearing. Null when the page does not answer (the API is then tried).
+     */
+    private fun latestFromWeb(): Pair<String, String>? = try {
+        val page = get("https://github.com/theodoreyong9/Aiwa_store/releases/tag/android-latest").inputStream.bufferedReader().use { it.readText() }
+        val sha = Regex("/commit/([0-9a-f]{40})").find(page)?.groupValues?.get(1)
+        if (sha == null || !page.contains("/releases/download/android-latest/Aiwa_store.apk")) null
+        else sha to "https://github.com/theodoreyong9/Aiwa_store/releases/download/android-latest/Aiwa_store.apk"
+    } catch (e: Exception) { null }
+
     fun installedVersion(app: Context): String? = try { app.packageManager.getPackageInfo(app.packageName, 0).versionName } catch (e: Exception) { null }
 
     /** The installer for a downloaded build. INSTALL_PACKAGE, not VIEW: see below. */
@@ -53,18 +64,23 @@ object AppUpdater {
     fun prepareQuietly(app: Context): File? = try {
         // A conditional request (the ETag of the last answer): GitHub answers 304 when nothing changed, which does not count in its limit of requests, so this can be asked every few minutes.
         val prefs = app.getSharedPreferences("aiwa_update", Context.MODE_PRIVATE)
-        val connection = get(APP_RELEASE_API, "application/vnd.github+json")
-        prefs.getString("etag", null)?.let { if (prefs.getString("sha", null) != null) connection.setRequestProperty("If-None-Match", it) }
+        val web = latestFromWeb()
         val sha: String
         val apkUrl: String
-        if (connection.responseCode == 304) {
-            sha = prefs.getString("sha", null) ?: error("no kept release")
-            apkUrl = prefs.getString("url", null) ?: error("no kept release")
+        if (web != null) {
+            sha = web.first; apkUrl = web.second
         } else {
-            val release = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            sha = release.getString("target_commitish")
-            apkUrl = release.getJSONArray("assets").getJSONObject(0).getString("browser_download_url")
-            prefs.edit().putString("etag", connection.getHeaderField("ETag")).putString("sha", sha).putString("url", apkUrl).apply()
+            val connection = get(APP_RELEASE_API, "application/vnd.github+json")
+            prefs.getString("etag", null)?.let { if (prefs.getString("sha", null) != null) connection.setRequestProperty("If-None-Match", it) }
+            if (connection.responseCode == 304) {
+                sha = prefs.getString("sha", null) ?: error("no kept release")
+                apkUrl = prefs.getString("url", null) ?: error("no kept release")
+            } else {
+                val release = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                sha = release.getString("target_commitish")
+                apkUrl = release.getJSONArray("assets").getJSONObject(0).getString("browser_download_url")
+                prefs.edit().putString("etag", connection.getHeaderField("ETag")).putString("sha", sha).putString("url", apkUrl).apply()
+            }
         }
         if (isUpToDate(installedVersion(app), sha)) null
         else {
@@ -87,9 +103,11 @@ object AppUpdater {
             try {
                 toastOnMain(app, "Recherche de la dernière version d'Aiwa…")
                 val (sha, apkUrl) = withContext(Dispatchers.IO) {
+                    latestFromWeb() ?: run {
                     val release = JSONObject(get(APP_RELEASE_API, "application/vnd.github+json").inputStream.bufferedReader().use { it.readText() })
                     val asset = release.getJSONArray("assets").getJSONObject(0)
                     release.getString("target_commitish") to asset.getString("browser_download_url")
+                    }
                 }
                 if (isUpToDate(installedVersion(app), sha)) {
                     toastOnMain(app, "Aiwa est déjà à jour (${installedVersion(app)}).")
