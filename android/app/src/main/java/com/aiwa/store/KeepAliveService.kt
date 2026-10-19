@@ -118,7 +118,7 @@ class KeepAliveService : Service() {
                 announceAsk(it)
                 announcePagesHint(it)
                 announceReady(it)
-                announceAvailability(it)
+                // « Je suis disponible ? » (the agent speaking first) is gone: the report is asked for by voice (« t'en es où ? »)
             }
         }
         if (poller?.isActive != true) poller = CoroutineScope(Dispatchers.IO).launch { pollBackend() }

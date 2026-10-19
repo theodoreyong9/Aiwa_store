@@ -782,9 +782,6 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry(if (ReadySettings.enabled(applicationContext)) "✓  « C'est prêt » à voix haute" else "« C'est prêt » à voix haute : coupé", false, lines = 1) {
                     ReadySettings.set(applicationContext, !ReadySettings.enabled(applicationContext)); finish()
                 })
-                add(PickerEntry(if (AvailabilitySettings.enabled(applicationContext)) "✓  « Je suis disponible ? » du super agent" else "« Je suis disponible ? » du super agent : coupé", false, lines = 1) {
-                    AvailabilitySettings.set(applicationContext, !AvailabilitySettings.enabled(applicationContext)); finish()
-                })
             }
             PickerSheet(entries) { finish() }
         }

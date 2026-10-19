@@ -29,7 +29,7 @@ class AgentToggleActivity : ComponentActivity() {
 
     // The button is the trigger of the whole listening: the first tap asks for the microphone if needed, turns the wake listening on and opens the agent; after that everything goes by voice.
     private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) { WakeWordService.openAgentMode(applicationContext); reportAfterOpening() } else toastOnMain(applicationContext, "Sans la permission du micro, l'agent ne peut pas écouter.")
+        if (granted) WakeWordService.openAgentMode(applicationContext) else toastOnMain(applicationContext, "Sans la permission du micro, l'agent ne peut pas écouter.")
         finish()
     }
 
@@ -41,7 +41,7 @@ class AgentToggleActivity : ComponentActivity() {
             // The service knows whether it listens; the brain's flag can be stale (a restart) or missing, and the button then never closed what was open
             WakeWordService.instance?.isAgentOpen() == true -> WakeWordService.closeAgentMode(applicationContext)
             ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED -> { micPermission.launch(Manifest.permission.RECORD_AUDIO); return }
-            else -> { WakeWordService.openAgentMode(applicationContext); reportAfterOpening() }
+            else -> WakeWordService.openAgentMode(applicationContext)
         }
         finish()
     }

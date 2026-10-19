@@ -552,15 +552,8 @@ class WakeWordService : Service() {
             scope.launch { readPillsReport(applicationContext); listen() }
             return
         }
-        if (kind == WakeKind.RESEND) {
-            say("Je renvoie les instructions à la session")
-            scope.launch {
-                val ok = resendInstructions(applicationContext)
-                Speaker.speakAndWait(applicationContext, if (ok) "J'ai renvoyé les instructions à la session." else "Je n'ai pas pu renvoyer les instructions.")
-                listen()
-            }
-            return
-        }
+        // « renvoie les instructions » is gone: the consignes go with the messages, nothing to resend by voice
+        if (kind == WakeKind.RESEND) { listen(); return }
         if (kind == WakeKind.STOP) {
             // A stop is CONFIRMED (a word heard by mistake must not stop the work): the phone asks, and only the confirmation (« c'est ça ») stops Claude.
             say("Stop ? Dis « c'est bien ça » pour arrêter Claude")

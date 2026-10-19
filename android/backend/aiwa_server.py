@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 138
+BACKEND_VERSION = 139
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -3027,7 +3027,7 @@ def _agent_mailbox_loop():
     while True:
         try:
             with agent_lock:
-                watching = agent["enabled"] and agent["session"]
+                watching = AGENT_PERIODIC_POINTS and agent["enabled"] and agent["session"]
             if watching:
                 _agent_mailbox_once()
         except Exception as err:      # a bad answer must never end the watch

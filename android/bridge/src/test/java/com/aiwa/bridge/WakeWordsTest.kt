@@ -28,7 +28,7 @@ class WakeWordsTest {
     }
 
     @Test fun theGrammarHoldsTheOriginPhrasesTheVariantsAndTheUnknownMark() {
-        assertEquals("[\"heille wa\", \"haye wa\", \"mon agent\", \"mon super agent\", \"instruction\", \"stop claude\", \"arrête claude\", \"stop la commande\", \"éteins\", \"éteins toi\", \"renvoie les instructions\", \"t'es où là\", \"tu es où là\", \"[unk]\"]", WakeWords.grammar(emptyList()))
+        assertEquals("[\"heille wa\", \"haye wa\", \"mon agent\", \"mon super agent\", \"instruction\", \"stop claude\", \"arrête claude\", \"stop la commande\", \"éteins\", \"éteins toi\", \"t'es où là\", \"tu es où là\", \"[unk]\"]", WakeWords.grammar(emptyList()))
         val g = WakeWords.grammar(listOf("ail oua", "Ai oua"))
         assertTrue(g, g.contains("\"ail oua\"") && g.contains("\"ai oua\"") && g.endsWith("\"[unk]\"]"))
     }
