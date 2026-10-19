@@ -78,6 +78,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             // An older backend only says yes/no: yes was GitHub Pages.
             deploy = json.str("deploy") ?: if (json.optBoolean("autodeploy", false)) "pages" else "none",
             videoQuality = json.str("video_quality") ?: "moyen",
+            videoFormat = json.str("video_format") ?: "16:9",
             extra = json.str("extra") ?: "",
             waiting = json.optBoolean("waiting", false),
             silenceMinutes = json.optInt("silence_minutes", 0),
@@ -280,12 +281,13 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
     }
 
     // Only the options that are not null are changed.
-    override suspend fun setOptions(pushMain: Boolean?, deploy: String?, extra: String?, videoQuality: String?) = withContext(Dispatchers.IO) {
+    override suspend fun setOptions(pushMain: Boolean?, deploy: String?, extra: String?, videoQuality: String?, videoFormat: String?) = withContext(Dispatchers.IO) {
         val body = JSONObject()
         if (pushMain != null) body.put("push_main", pushMain)
         if (deploy != null) body.put("deploy", deploy)
         if (extra != null) body.put("extra", extra)
         if (videoQuality != null) body.put("video_quality", videoQuality)
+        if (videoFormat != null) body.put("video_format", videoFormat)
         requireAccepted(postText("/api/options", body.toString()))
     }
 
@@ -504,6 +506,14 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                 InputFile(v.optString("name"), v.optLong("size", 0L))
             },
         )
+    }
+
+    /** The documents of the repository in use (the files of docs/), the most recently changed first; `ts` is epoch seconds, 0 when unknown. */
+    fun documents(): List<DocItem> = try {
+        val array = JSONObject(getText("/api/documents")).optJSONArray("documents")
+        if (array == null) emptyList() else (0 until array.length()).map { val d = array.getJSONObject(it); DocItem(d.optString("name"), d.optString("url"), d.optLong("ts", 0L)) }
+    } catch (e: Exception) {
+        emptyList()
     }
 
     override suspend fun videos(): VideoList = withContext(Dispatchers.IO) {

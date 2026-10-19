@@ -215,9 +215,10 @@ suspend fun switchOptions(
     deploy: String? = null,
     extra: String? = null,
     videoQuality: String? = null,
+    videoFormat: String? = null,
 ) {
     try {
-        bridge.setOptions(pushMain, deploy, extra, videoQuality)
+        bridge.setOptions(pushMain, deploy, extra, videoQuality, videoFormat)
     } catch (err: Exception) {
         toastOnMain(context, describeFailure(context, err, "Impossible de changer les consignes"))
     }

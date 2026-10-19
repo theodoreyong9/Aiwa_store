@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Bump together with BACKEND_VERSION in backend/aiwa_server.py whenever
 // the app starts relying on a new backend feature.
-const val EXPECTED_BACKEND_VERSION = 139
+const val EXPECTED_BACKEND_VERSION = 141
 
 /** How long the widget keeps saying that a message was refused because another is on its way. */
 const val BUSY_NOTICE_MS = 20_000L
@@ -111,6 +111,7 @@ data class AiwaState(
     val deploy: String = "pages",
     // simple / moyen / extra: how far a video goes.
     val videoQuality: String = "moyen",
+    val videoFormat: String = "16:9",
     val extra: String = "",
     // Claude pinged the relay: it waits for an answer (the widget shows it).
     // alertAt: epoch seconds of the last ping ever received, null = never.
@@ -258,6 +259,7 @@ object AiwaRepository {
                     pushMain = json.optBoolean("pushMain", true),
                     deploy = text("deploy")?.takeIf { it != "none" } ?: "pages",
                     videoQuality = text("videoQuality") ?: "moyen",
+                    videoFormat = text("videoFormat") ?: "16:9",
                     extra = text("extra") ?: "",
                     siteUrl = text("siteUrl"),
                     siteState = text("siteState") ?: "off",
@@ -277,7 +279,7 @@ object AiwaRepository {
         val json = JSONObject()
             .put("session", s.session).put("cloud", s.cloudSessionId).put("last", s.lastSessionId)
             .put("model", s.model).put("effort", s.effort).put("repo", s.repo).put("extraRepos", JSONArray(s.extraRepos))
-            .put("pushMain", s.pushMain).put("deploy", s.deploy).put("videoQuality", s.videoQuality).put("extra", s.extra)
+            .put("pushMain", s.pushMain).put("deploy", s.deploy).put("videoQuality", s.videoQuality).put("videoFormat", s.videoFormat).put("extra", s.extra)
             .put("siteUrl", s.siteUrl).put("siteState", s.siteState).put("siteKind", s.siteKind).put("ciState", s.ciState).put("ciUrl", s.ciUrl)
         val sessions = JSONArray()
         s.cloudSessions.forEach { c ->

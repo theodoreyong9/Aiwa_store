@@ -23,6 +23,9 @@ data class AgentInfo(val enabled: Boolean, val session: String?, val interval: I
 data class AskInfo(val id: String, val question: String, val options: List<String>, val ts: Long, val session: String? = null, val count: Int = 1)
 
 // A promotional video of the creation: a file of the GitHub release `videos` of its repository (a public repository only: Aiwa asks for no token).
+/** A document of a repository: its name, its page on GitHub, when it was last changed (epoch seconds, 0 when unknown). */
+data class DocItem(val name: String, val url: String, val ts: Long)
+
 data class VideoItem(val name: String, val size: Long, val url: String, val ts: String)
 data class VideoList(val repo: String?, val videos: List<VideoItem>)
 
@@ -87,6 +90,7 @@ data class BackendStatus(
     val deploy: String = "none",
     // simple / moyen / extra / max: how far a video goes (and how long it takes).
     val videoQuality: String = "moyen",
+    val videoFormat: String = "16:9",
     val extra: String = "",
     // Claude pinged the relay: it is waiting for an answer. alertLast: epoch
     // seconds of the last ping ever received (null = never).
@@ -156,7 +160,7 @@ interface ClaudeBridge {
 
     // The instructions integrated into the conversation. Only the ones that
     // are not null are changed.
-    suspend fun setOptions(pushMain: Boolean?, deploy: String?, extra: String?, videoQuality: String? = null)
+    suspend fun setOptions(pushMain: Boolean?, deploy: String?, extra: String?, videoQuality: String? = null, videoFormat: String? = null)
 
     // The user went to look at the latest Actions run: it is no longer news.
     suspend fun ciSeen()

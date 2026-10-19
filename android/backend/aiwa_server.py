@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 139
+BACKEND_VERSION = 141
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -184,6 +184,8 @@ push_main = True
 DEPLOY_MODES = ("none", "pages", "android", "store", "aiwa", "campaign", "documents")
 deploy_mode = "pages"
 video_quality = "moyen"   # simple, moyen, extra: how far a video goes (see _video_line)
+VIDEO_FORMATS = ("9:16", "16:9", "1:1")
+video_format = "16:9"     # the dimension of a video asked for without one (a general setting)
 # Other repositories Claude may ALSO work on (checked in the widget's picker):
 # told to it in the instructions; the platform decides whether it can reach them.
 extra_repos = []
@@ -246,7 +248,7 @@ followup_lock = threading.Lock()
 
 
 def _load_state():
-    global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, video_quality
+    global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, video_quality, video_format
     global current_effort, waiting_topic, last_cloud, sent_app, ask_list, last_message_at, repo_access_missing
     try:
         data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
@@ -269,6 +271,8 @@ def _load_state():
     deploy_mode = mode if mode in DEPLOY_MODES and mode != "none" else "pages"
     quality = data.get("video_quality")
     video_quality = quality if quality in VIDEO_QUALITIES else "moyen"
+    fmt = data.get("video_format")
+    video_format = fmt if fmt in VIDEO_FORMATS else "16:9"
     sources = data.get("source_repos")
     source_repos[:] = [r for r in sources if isinstance(r, str) and github.REPO_RE.fullmatch(r)][:SOURCE_REPOS_MAX] if isinstance(sources, list) else []
     listed = data.get("extra_repos")
@@ -321,7 +325,7 @@ def _save_state():
     try:
         STATE_FILE.write_text(json.dumps({
             "model": current_model, "cloud": current_cloud, "repo": current_repo,
-            "push_main": push_main, "deploy": deploy_mode, "video_quality": video_quality, "extra": extra, "extra_repos": extra_repos, "source_repos": source_repos,
+            "push_main": push_main, "deploy": deploy_mode, "video_quality": video_quality, "video_format": video_format, "extra": extra, "extra_repos": extra_repos, "source_repos": source_repos,
             "effort": current_effort, "topic": waiting_topic, "last_cloud": last_cloud, "ci_seen": ci_seen,
             "relay_cloud": relay_cloud, "sent_app": sent_app, "ask_list": ask_list, "relay_seen": relay_seen, "last_message": last_message_at,
             "repo_access_missing": repo_access_missing,
@@ -835,7 +839,7 @@ def _instruction_lines(repo, work, base, direct, origin=None, quality=None):
     origin: the repository the session was started on, when it now works on another one (the user changed repository in the middle of
     the session: a session's instructions change like its model does, the session stays); "" = it was started on none."""
     with lock:
-        deploy, topic, more, sources, video_quality = deploy_mode, waiting_topic, list(extra_repos), list(source_repos), globals()["video_quality"]
+        deploy, topic, more, sources, video_quality, default_format = deploy_mode, waiting_topic, list(extra_repos), list(source_repos), globals()["video_quality"], video_format
     if quality in VIDEO_QUALITIES:
         video_quality = quality        # said in the request: it wins over the widget's button, for this message
     lines = []
@@ -1013,7 +1017,7 @@ def _instruction_lines(repo, work, base, direct, origin=None, quality=None):
         lines.append(("creative", _creative_line()))
         lines.append(("game", _game_line()))
     if repo:
-        lines.append(("video", _video_line(repo, video_quality)))
+        lines.append(("video", _video_line(repo, video_quality) + f" Dimension par défaut de la vidéo : {default_format} (9:16 vertical, 16:9 horizontal, 1:1 carré), sauf si ma demande en précise une."))
         lines.append(("document", _document_line(repo)))
         lines.append(("proposals", _proposals_line(repo)))
     lines.append(("ask", _ask_line(repo, work, topic)))
@@ -2616,6 +2620,66 @@ def _videos_via_git(repo):
         return None
 
 
+DOC_EXT = (".md", ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".csv", ".html")
+file_dates_cache = {}      # repo -> (at, {path: epoch seconds})
+
+
+def _file_dates(repo, max_age=600):
+    """When each file of docs/ was last changed ({"docs/x.md": epoch seconds}), read from the history of the bare clone in GIT_CACHE: the history is deepened by 300 commits without
+    any file contents (blob-less), then `git log --name-only` says the last commit of each path. Empty when git cannot (a private repository, no network): the lists then show no date."""
+    now = time.time()
+    cached = file_dates_cache.get(repo)
+    if cached and now - cached[0] < max_age:
+        return cached[1]
+    dates = {}
+    if shutil.which("git") and not os.environ.get("AIWA_NO_GIT_LIST"):
+        folder = GIT_CACHE / (repo.replace("/", "__") + ".git")
+        env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+
+        def git(*args, timeout=90):
+            return subprocess.run(["git", *args], capture_output=True, timeout=timeout, env=env)
+        try:
+            if folder.exists():
+                git("-C", str(folder), "fetch", "-q", "--depth", "300", "--filter=blob:none", "origin", "HEAD", timeout=120)
+                log = git("-C", str(folder), "log", "-300", "--format=@%ct", "--name-only", "FETCH_HEAD", "--", "docs")
+                if log.returncode == 0:
+                    stamp = 0
+                    for line in log.stdout.decode("utf-8", "replace").splitlines():
+                        if line.startswith("@") and line[1:].isdigit():
+                            stamp = int(line[1:])
+                        elif line.strip() and line not in dates:
+                            dates[line.strip()] = stamp
+        except (OSError, subprocess.SubprocessError, ValueError):
+            pass
+    file_dates_cache[repo] = (now, dates)
+    return dates
+
+
+def _documents_snapshot():
+    """The documents of the chosen repository (the files of docs/ with a document extension), the most recently changed first: [{name, url, ts}]."""
+    with lock:
+        repo = _chosen_repo()
+    if not repo or not github.REPO_RE.fullmatch(repo):
+        return {"repo": None, "documents": []}
+    names = None
+    by_git = _videos_via_git(repo)
+    if by_git is not None:
+        names = [n for n, _size in by_git[1]]
+    else:
+        try:
+            folder = _github_json(f"https://api.github.com/repos/{repo}/contents/docs")
+            names = [str(e.get("name") or "") for e in (folder if isinstance(folder, list) else []) if isinstance(e, dict) and e.get("type") == "file"]
+        except GithubUnavailable:
+            names = []
+    dates = _file_dates(repo)
+    items = [
+        {"name": n, "url": f"https://github.com/{repo}/blob/HEAD/docs/{urllib.parse.quote(n)}", "ts": dates.get("docs/" + n, 0)}
+        for n in names if n.lower().endswith(DOC_EXT)
+    ]
+    items.sort(key=lambda d: (d["ts"], d["name"].lower()), reverse=True)
+    return {"repo": repo, "documents": items}
+
+
 def _videos_snapshot():
     """The promotional videos of the session's repository: the files of its GitHub release `videos`, newest first. Only a public repository can say
     (nothing is read with a token); for a private one the list is empty and the session sends the link."""
@@ -2631,6 +2695,10 @@ def _videos_snapshot():
     by_git = _videos_via_git(repo)
     if by_git is not None:
         items = _video_items(repo, *by_git)
+        dates = _file_dates(repo)
+        for item in items:
+            path = item["url"].split("/HEAD/", 1)[-1]
+            item["ts"] = str(dates.get(urllib.parse.unquote(path), "") or "")
         with lock:
             video_cache.update(key=repo, items=items, at=now)
         _videos_remember(repo, items)
@@ -3856,7 +3924,7 @@ class Handler(BaseHTTPRequestHandler):
                 model, cloud_session = current_model, current_cloud
                 repo, direct, problem = current_repo, push_main, github_error
                 missing_access = repo_access_missing if repo_access_missing == current_repo else None
-                deploy, own, effort, vquality = deploy_mode, extra, current_effort, video_quality
+                deploy, own, effort, vquality, vformat = deploy_mode, extra, current_effort, video_quality, video_format
                 more = list(extra_repos)
                 inspiration = list(source_repos)
             with waiting_lock:
@@ -3866,7 +3934,7 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json({
                 "version": BACKEND_VERSION, "updated_at": BACKEND_UPDATED_AT, "sending": sending, "sending_since": sending_since, "sending_note": sending_note or None, "model": model, "effort": effort, "cloud_session": cloud_session,
                 "last_session": last_cloud or next((e.get("id") for e in _load_cloud_sessions() if e.get("id")), None),
-                "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "video_quality": vquality, "extra": own, "extra_repos": more, "source_repos": inspiration,
+                "repo": repo, "push_main": direct, "deploy": deploy, "autodeploy": deploy != "none", "video_quality": vquality, "video_format": vformat, "extra": own, "extra_repos": more, "source_repos": inspiration,
                 "waiting": is_waiting, "attachments": len(attachments), "attachment_files": attach_list(), "self_update": dict(self_update_last), "alert_last": last_ping, "silence_minutes": _silence_minutes(), "loop": _loops_running(), "cast": _cast_ready(),
                 "site": _site_snapshot(), "ci": _ci_snapshot(), "github_error": problem, "repo_access_missing": missing_access, "github_app_url": GITHUB_APP_URL,
                 "claude_login": _login_state(), "relay_cloud": _relay_cloud_state(), "sent_app": _sent_app_snapshot(), "ask": _ask_snapshot(), "agent": agent_snapshot(),
@@ -3888,6 +3956,8 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path.startswith("/api/all"):
             query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
             self.reply_json(_all_snapshot((query.get("kind") or [""])[0]))
+        elif self.path == "/api/documents":
+            self.reply_json(_documents_snapshot())
         elif self.path == "/api/videos":
             self.reply_json(_videos_snapshot())
         elif self.path == "/api/projects":
@@ -3911,7 +3981,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
 
     def do_POST(self):
-        global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, video_quality, current_effort, last_cloud, repo_access_missing
+        global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, video_quality, video_format, current_effort, last_cloud, repo_access_missing
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -4290,6 +4360,8 @@ class Handler(BaseHTTPRequestHandler):
                     deploy_mode = "pages" if options["autodeploy"] else "none"
                 if options.get("video_quality") in VIDEO_QUALITIES:
                     video_quality = options["video_quality"]
+                if options.get("video_format") in VIDEO_FORMATS:
+                    video_format = options["video_format"]
                 if isinstance(options.get("extra"), str):
                     extra = options["extra"].strip()[:EXTRA_MAX]
                 _save_state()
