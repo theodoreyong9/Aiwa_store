@@ -107,7 +107,8 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                     a.optJSONObject("say")?.let { AgentSay(it.optString("id"), it.optString("text"), it.optLong("ts", 0L)) },
                     a.optJSONObject("proposal")?.let { AgentProposal(it.optString("id"), it.optString("session"), it.optString("session_title"), it.optString("message"), it.optString("read_back")) },
                     a.optString("voice", "none"),
-                    a.optJSONObject("command")?.let { c -> AgentCommand(c.optString("id"), c.optString("read_back"), c.optString("instruction"), c.optJSONObject("cast")?.let { k -> AgentCast(k.optString("tv"), k.optBoolean("wait", false)) }, c.optString("open").takeIf { it.isNotBlank() && it != "null" }) },
+                    a.optJSONObject("command")?.let { c -> AgentCommand(c.optString("id"), c.optString("read_back"), c.optString("instruction"), c.optJSONObject("cast")?.let { k -> AgentCast(k.optString("tv"), k.optBoolean("wait", false)) }, c.optString("open").takeIf { it.isNotBlank() && it != "null" },
+                        c.optJSONObject("connector")?.let { k -> AgentConnector(k.optString("kind"), k.optString("to"), k.optString("subject"), k.optString("body"), k.optString("start")) }) },
                     a.optString("llm", "none"),
                     a.str("repo"),
                 )

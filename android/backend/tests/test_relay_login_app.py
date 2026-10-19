@@ -2440,3 +2440,15 @@ class ConsignesTests(unittest.TestCase):
         a = srv._pointer_line("design", "un texte", "o/r", "moyen", "16:9")
         b = srv._pointer_line("design", "un autre texte", "o/r", "moyen", "16:9")
         self.assertNotEqual(a, b)
+
+
+class ConnectorTests(unittest.TestCase):
+    def test_parse_connector_keeps_only_clean_data(self):
+        import aiwa_agent as ag
+        mail = ag.parse_command({"connector": {"kind": "email", "to": "a@b.fr", "subject": "Salut", "body": "Texte"}}, set())
+        assert mail["connector"] == {"kind": "mail", "to": "a@b.fr", "subject": "Salut", "body": "Texte"}
+        assert ag.parse_command({"connector": {"kind": "mail", "to": "pas une adresse", "body": "x"}}, set()) is None
+        assert ag.parse_command({"connector": {"kind": "sms", "to": "06 12 34 56 78", "body": "x"}}, set())["connector"]["to"] == "0612345678"
+        assert ag.parse_command({"connector": {"kind": "appel", "to": "abc"}}, set()) is None
+        assert ag.parse_command({"connector": {"kind": "agenda", "subject": "RDV", "start": "2026-11-02 10:30"}}, set())["connector"]["start"] == "2026-11-02 10:30"
+        assert ag.parse_command({"connector": {"kind": "agenda", "subject": "RDV", "start": "demain"}}, set()) is None

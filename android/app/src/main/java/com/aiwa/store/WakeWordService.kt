@@ -470,6 +470,14 @@ class WakeWordService : Service() {
     // « Vas-y, fais-le »: the settings the agent asked for (model, push, repository, session…) are read back and applied by the same code as the spoken instructions, after « c'est bon vas-y ».
     private suspend fun applyAgentCommand() {
         val command = AiwaRepository.state.value.agent?.command ?: return
+        val connector = command.connector
+        if (connector != null && !ConnectorSettings.enabled(applicationContext, connector.kind)) {
+            val message = "Le connecteur ${ConnectorSettings.label(connector.kind)} est coupé dans les réglages : rien n'est fait."
+            toastOnMain(applicationContext, message)
+            Speaker.speakNatural(applicationContext, message)
+            agentCall("cancel", mapOf("id" to command.id))
+            return
+        }
         say(command.readBack)
         if (!askAloud(applicationContext, command.readBack) { Speaker.speakNatural(applicationContext, it) }) {
             toastOnMain(applicationContext, "Pas confirmé : rien n'est appliqué. Les réglages attendent.")
@@ -479,6 +487,7 @@ class WakeWordService : Service() {
         if (command.instruction.isNotBlank()) VoiceDictation(context = this, startInInstructions = true, onFinished = {}).applyInstruction(command.instruction)
         command.cast?.let { applyCast(it) }
         command.open?.let { openProduction(applicationContext, it) }
+        connector?.let { if (!runConnector(applicationContext, it)) toastOnMain(applicationContext, "${ConnectorSettings.label(it.kind)} : aucune application n'a pu s'ouvrir.") }
         agentCall("cancel", mapOf("id" to command.id))   // applied: it must not be applied twice
         Speaker.speakNatural(applicationContext, "C'est fait.")
         try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }

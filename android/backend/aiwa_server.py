@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 144
+BACKEND_VERSION = 145
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -3319,7 +3319,7 @@ def agent_snapshot():
         command = dict(agent["command"]) if agent["command"] else None
     if command:
         spoken, instruction = agent_lib.command_phrases(command["items"], lambda sid: (_session_entry(sid) or {}).get("title") or sid)
-        command = {"id": command["id"], "read_back": spoken, "instruction": instruction, "cast": command["items"].get("cast"), "open": command["items"].get("open")}
+        command = {"id": command["id"], "read_back": spoken, "instruction": instruction, "cast": command["items"].get("cast"), "open": command["items"].get("open"), "connector": command["items"].get("connector")}
     out["command"] = command
     return out
 

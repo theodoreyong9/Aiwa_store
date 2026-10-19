@@ -130,6 +130,11 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
+        <!-- The connectors the super agent may use: mail, agenda, SMS, call (ConnectorsActivity in Pickers.kt). -->
+        <activity android:name=".ConnectorsActivity" android:exported="false"
+            android:theme="@style/Theme.Dictate"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
         <!-- The loops between two sessions, a builder and a critic (LoopsActivity.kt). -->
         <activity android:name=".LoopsActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"

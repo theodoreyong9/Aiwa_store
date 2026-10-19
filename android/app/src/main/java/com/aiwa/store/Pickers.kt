@@ -776,6 +776,7 @@ class SettingsActivity : ComponentActivity() {
                 }
                 add(PickerEntry("Super agent : nouvelle session", false, lines = 1) { pickCloudNew() })
                 add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }}", false, lines = 1) { open(LlmKeyActivity::class.java) })
+                add(PickerEntry("Connecteurs : ${ConnectorSettings.KINDS.filter { ConnectorSettings.enabled(applicationContext, it.first) }.joinToString(", ") { it.second }.ifEmpty { "aucun" }}", false, lines = 1) { open(ConnectorsActivity::class.java) })
                 add(PickerEntry("Mes mots", false, lines = 1) { open(RecognitionsActivity::class.java) })
                 add(PickerEntry("État d'Aiwa", false, lines = 1) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
@@ -791,6 +792,21 @@ class SettingsActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         WakeWordService.instance?.let { AiwaRepository.update { s -> s.copy(listening = true) } }
+    }
+}
+
+/** The connectors (mail, agenda, SMS, call): one line each, off until turned on. The super agent only prepares; the app opens filled in and the person taps send/call/save. */
+class ConnectorsActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        wakeAiwa(applicationContext)
+        setContent {
+            val entries = ConnectorSettings.KINDS.map { (kind, label) ->
+                val on = ConnectorSettings.enabled(applicationContext, kind)
+                PickerEntry(if (on) "✓  $label : actif" else "$label : coupé", false, lines = 1) { ConnectorSettings.set(applicationContext, kind, !on); finish() }
+            }
+            PickerSheet(entries) { finish() }
+        }
     }
 }
 
