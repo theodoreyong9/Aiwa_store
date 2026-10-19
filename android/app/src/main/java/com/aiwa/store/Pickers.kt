@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -57,7 +58,7 @@ import kotlinx.coroutines.withContext
 
 // header: a section title, not something to tap. lines: how many lines the label may take.
 // side: a second, small button at the end of the row (a repository's page on GitHub, for instance) with its own action.
-class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val side2: String? = null, val onSide2: () -> Unit = {}, val onClick: () -> Unit)
+class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val side2: String? = null, val onSide2: () -> Unit = {}, val button: Boolean = false, val onClick: () -> Unit)
 
 // The look of the sheets: dark whatever the phone's theme (it opens over the home screen, like the widget), compact rows, one accent.
 internal val SheetBg = Color(0xFF14141A)
@@ -132,6 +133,17 @@ internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQu
                                     modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 3.dp),
                                 )
                             } else {
+                                if (entry.button) {
+                                    // An ACTION (not an item of the list below it): a bordered button
+                                    Box(
+                                        Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 3.dp)
+                                            .background(Accent.copy(alpha = 0.10f), RoundedCornerShape(12.dp))
+                                            .border(1.dp, Accent.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                                            .clickable { entry.onClick() }.padding(vertical = 10.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) { Text(entry.label, color = Accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) }
+                                    return@items
+                                }
                                 val shape = RoundedCornerShape(12.dp)
                                 val info = !entry.active && entry.side == null && entry.lines >= 3          // a sentence that explains, not a choice
                                 Row(
@@ -190,19 +202,24 @@ class SessionPickerActivity : ComponentActivity() {
             }
             val entries = buildList {
                 // At the top: « + » (a new session) and « Coller » (a session made elsewhere, by the name of its branch or its link, copied)
-                add(PickerEntry("＋", state.cloudSessionId == null, lines = 1) { pickCloud("new") })
+                add(PickerEntry("＋", false, button = true) { pickCloud("new") })
                 if (adding) add(PickerEntry("⏳  Recherche de la session… (quelques secondes)", false, lines = 2) { })
-                else add(PickerEntry("Coller", false, lines = 1) { addFromClipboard() })
+                else add(PickerEntry("Coller", false, button = true) { addFromClipboard() })
                 // Why it did not work, in full: a toast is gone before it can be read.
                 problem?.let { add(PickerEntry("⚠  $it", false, lines = 10) { }) }
                 // The branch was found but no commit names the session (it has not committed yet): the link of the session completes it.
                 branchRead?.let { add(PickerEntry("⎘  Coller maintenant le lien de la session (la branche $it est déjà lue)", false, lines = 3) { addFromClipboard(withBranch = it) }) }
                 state.cloudSessions.forEach { c ->
-                    add(PickerEntry(c.title.take(60), c.id == state.cloudSessionId) { pickCloud(c.id) })
+                    add(PickerEntry(c.title.take(60), c.id == state.cloudSessionId, side = "✎", onSide = { renameSession(c.id, c.title) }) { pickCloud(c.id) })
                 }
             }
             PickerSheet(entries) { finish() }
         }
+    }
+
+    private fun renameSession(id: String, title: String) {
+        startActivity(Intent(this, SessionRenameActivity::class.java).putExtra("id", id).putExtra("title", title))
+        finish()
     }
 
     // finish() first, work in a scope that outlives this activity.
@@ -321,7 +338,7 @@ class RepoPickerActivity : ComponentActivity() {
                 if (state.repo == null) add(PickerEntry("Choisis le dépôt sur lequel Claude travaille :", false) { })
                 // Right under the first line, not after a list that can run to a hundred names. The new repository shows up in
                 // the list when this window is opened again (the backend re-reads the owner's list when it is older than 30 s).
-                add(PickerEntry("＋  Créer un dépôt GitHub ↗", false) { openNewRepoPage() })
+                add(PickerEntry("＋ Créer un dépôt GitHub", false, button = true) { openNewRepoPage() })
                 note?.let { add(PickerEntry("⚠  $it", false, lines = 3) { problem.value = null }) }
                 val list = repos
                 if (list == null) {
@@ -752,22 +769,20 @@ class SettingsActivity : ComponentActivity() {
             // the switch is the person's wish; "listening" is whether the service is running (after a restart of the phone it is not, until the app is opened)
             val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
-                add(PickerEntry("Réglages", false, header = true) { })
-                add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
+                                add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
                 if (state.repo != null) {
                     add(PickerEntry(if (state.pushMain) "Push : direct sur main" else "Push : sur une branche", false, lines = 1) { togglePush(state.pushMain) })
                 }
                 add(PickerEntry("Super agent : nouvelle session", false, lines = 1) { pickCloudNew() })
                 add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }}", false, lines = 1) { open(LlmKeyActivity::class.java) })
-                add(PickerEntry("Aiwa", false, header = true) { })
                 add(PickerEntry("Mes mots", false, lines = 1) { open(RecognitionsActivity::class.java) })
                 add(PickerEntry("État d'Aiwa", false, lines = 1) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
                 add(PickerEntry("Version : appli ${AppUpdater.installedVersion(applicationContext) ?: "?"} · cerveau ${AiwaRepository.state.value.backendVersion.takeIf { it > 0 } ?: "?"}${AiwaRepository.state.value.backendUpdatedAt.takeIf { it > 0 }?.let { " (mis à jour le " + java.text.SimpleDateFormat("dd/MM à HH:mm", java.util.Locale.FRANCE).format(java.util.Date(it * 1000)) + ")" } ?: ""}${if (AppUpdater.readyFile(applicationContext) != null) " · mise à jour téléchargée" else ""}", false, lines = 2) { })
-                add(PickerEntry(if (ReadySettings.enabled(applicationContext)) "✓  « C'est prêt » à voix haute" else "« C'est prêt » à voix haute : coupé", ReadySettings.enabled(applicationContext), lines = 1) {
+                add(PickerEntry(if (ReadySettings.enabled(applicationContext)) "✓  « C'est prêt » à voix haute" else "« C'est prêt » à voix haute : coupé", false, lines = 1) {
                     ReadySettings.set(applicationContext, !ReadySettings.enabled(applicationContext)); finish()
                 })
-                add(PickerEntry(if (AvailabilitySettings.enabled(applicationContext)) "✓  « Je suis disponible ? » du super agent" else "« Je suis disponible ? » du super agent : coupé", AvailabilitySettings.enabled(applicationContext), lines = 1) {
+                add(PickerEntry(if (AvailabilitySettings.enabled(applicationContext)) "✓  « Je suis disponible ? » du super agent" else "« Je suis disponible ? » du super agent : coupé", false, lines = 1) {
                     AvailabilitySettings.set(applicationContext, !AvailabilitySettings.enabled(applicationContext)); finish()
                 })
             }
@@ -869,11 +884,11 @@ class ProjectPickerActivity : ComponentActivity() {
             val session = state.cloudSessionId ?: "new"
             val entries = buildList {
                 val all = Projects.isAll(applicationContext)
-                // At the top: « + » (name the pair now on the pills) and « Tous »
-                if (!all && state.repo != null) add(PickerEntry("＋", false, lines = 1) {
+                // At the top, two buttons: name the pair now on the pills, and « Tous »
+                if (!all && state.repo != null) add(PickerEntry("＋ Nommer la paire", false, button = true) {
                     startActivity(Intent(this@ProjectPickerActivity, ProjectNameActivity::class.java)); finish()
                 })
-                add(PickerEntry("Tous", all, lines = 1) {
+                add(PickerEntry(if (all) "Tous : activé — toucher pour revenir" else "Tous", false, button = true) {
                     Projects.setAll(applicationContext, !all)
                     val app = applicationContext
                     finish()

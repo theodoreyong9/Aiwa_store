@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 137
+BACKEND_VERSION = 138
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1185,6 +1185,25 @@ def _queue_followup(session_id, text):
     if not ok:
         error = error or output.strip()[-600:] or f"code {done.returncode}"
     return {"ok": ok, "url": url, "error": error}
+
+
+def session_rename(session_id, title):
+    """The person renames a session: the name Aiwa shows changes (the store keeps the title it was given at the start, so it is set here), and the session is told with /rename."""
+    title = " ".join(str(title or "").split())[:60]
+    if not CLOUD_ID_RE.fullmatch(str(session_id or "")) or not title:
+        return {"ok": False, "error": "nom ou session invalide"}
+    with store_lock:
+        entries = _load_cloud_sessions()
+        entry = next((e for e in entries if e.get("id") == session_id), None)
+        if entry is None:
+            return {"ok": False, "error": "session inconnue d'Aiwa"}
+        entry["title"] = title
+        try:
+            CLOUD_STORE.write_text(json.dumps(entries[:30]), encoding="utf-8")
+        except OSError as err:
+            return {"ok": False, "error": str(err)}
+    threading.Thread(target=_rename_session, args=(session_id, title), daemon=True).start()
+    return {"ok": True}
 
 
 def _rename_session(session_id, title):
@@ -3905,6 +3924,12 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(attach_add(body))
         elif self.path == "/api/projects":
             self.reply_json(projects_save(body))
+        elif self.path == "/api/cloud/rename":
+            try:
+                data = json.loads(body) if body.strip() else {}
+            except ValueError:
+                data = {}
+            self.reply_json(session_rename(data.get("id") if isinstance(data, dict) else None, data.get("title") if isinstance(data, dict) else None))
         elif self.path == "/api/attach/clear":
             self.reply_json(attach_clear())
         elif self.path == "/api/attach/remove":

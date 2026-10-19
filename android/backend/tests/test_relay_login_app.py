@@ -2347,3 +2347,32 @@ class OwnerReposKeepTheLastGoodListTests(unittest.TestCase):
             self.assertEqual([r["name"] for r in srv.github.owner_repos("me", max_age=0)], ["me/a", "me/b"], "in memory")
             srv.github._owner_cache.clear()      # a restart of the brain
             self.assertEqual([r["name"] for r in srv.github.owner_repos("me", max_age=0)], ["me/a", "me/b"], "from the disk")
+
+
+class SessionRenameTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.dir = tempfile.TemporaryDirectory()
+        self.saved = (srv.CLOUD_STORE, srv._rename_session)
+        srv.CLOUD_STORE = Path(self.dir.name) / "sessions.json"
+        self.renamed = []
+        srv._rename_session = lambda sid, title: self.renamed.append((sid, title))
+
+    def tearDown(self):
+        srv.CLOUD_STORE, srv._rename_session = self.saved
+        self.dir.cleanup()
+
+    def test_a_known_session_takes_the_new_name_and_is_told(self):
+        sid = "session_01ABCDEFGHJKMNPQRSTVWXYZ12"
+        srv.CLOUD_STORE.write_text(json.dumps([{"id": sid, "title": "ancien"}]), encoding="utf-8")
+        self.assertEqual(srv.session_rename(sid, "  Mon   projet "), {"ok": True})
+        self.assertEqual(srv._load_cloud_sessions()[0]["title"], "Mon projet")
+        import time; time.sleep(0.2)
+        self.assertEqual(self.renamed, [(sid, "Mon projet")])
+
+    def test_unknown_or_empty_is_refused(self):
+        sid = "session_01ABCDEFGHJKMNPQRSTVWXYZ12"
+        self.assertFalse(srv.session_rename(sid, "x")["ok"])
+        srv.CLOUD_STORE.write_text(json.dumps([{"id": sid, "title": "a"}]), encoding="utf-8")
+        self.assertFalse(srv.session_rename(sid, "   ")["ok"])
+        self.assertFalse(srv.session_rename("nope", "x")["ok"])

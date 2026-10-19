@@ -123,19 +123,20 @@ class WakeWordService : Service() {
         fun ensureStarted(context: Context) {
             if (!ListenSettings.enabled(context) || instance != null) return
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
-            start(context)
+            start(context, quiet = true)
         }
 
         /** From a visible screen only: Android refuses to start a microphone service from the background. */
-        fun start(context: Context) {
+        fun start(context: Context, quiet: Boolean = false) {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                toastOnMain(context, "Écoute permanente : la permission du micro manque.")
+                if (!quiet) toastOnMain(context, "Écoute permanente : la permission du micro manque.")
                 return
             }
             try {
                 ContextCompat.startForegroundService(context, Intent(context, WakeWordService::class.java))
             } catch (err: Exception) {
-                toastOnMain(context, "Écoute permanente impossible : ${err.message}")
+                // Refused when the app is not on screen (after a restart or an update): said only when the person asked for it (the robot button), not by the automatic starts
+                if (!quiet) toastOnMain(context, "Écoute permanente impossible : ${err.message}")
             }
         }
 

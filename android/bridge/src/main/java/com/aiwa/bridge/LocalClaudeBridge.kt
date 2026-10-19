@@ -203,6 +203,14 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         Triple(false, 0, e.message ?: "erreur inconnue")
     }
 
+    /** Renames a session (the name shown by Aiwa, and told to the session). Returns null when it was done, else why not. */
+    fun renameSession(id: String, title: String): String? = try {
+        val answer = JSONObject(postText("/api/cloud/rename", JSONObject().put("id", id).put("title", title).toString()))
+        if (answer.optBoolean("ok", false)) null else answer.optString("error", "refusé")
+    } catch (e: Exception) {
+        e.message ?: "?"
+    }
+
     /** The names of the « Projet » button kept by the brain (JSON list), or null when it did not answer. */
     fun projectsGet(): String? = try {
         JSONObject(getText("/api/projects")).optJSONArray("projects")?.toString()
