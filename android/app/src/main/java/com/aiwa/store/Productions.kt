@@ -93,7 +93,7 @@ object Productions {
                     setRequestProperty("User-Agent", "aiwa")
                     if (responseCode == 200) inputStream.bufferedReader().readText() else null
                 }
-                if (page == null) answered = false else if (Regex("""\.apk["?]""", RegexOption.IGNORE_CASE).containsMatchIn(page)) { found = true; break }
+                if (page == null) answered = false else if (Regex("""href="[^"]*/releases/download/[^"]+\.apk"""", RegexOption.IGNORE_CASE).containsMatchIn(page)) { found = true; break }
             }
             if (found) true else if (answered) false else null
         }
