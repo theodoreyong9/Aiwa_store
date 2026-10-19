@@ -439,10 +439,28 @@ class WakeWordService : Service() {
             delay(10_000)
             Speaker.speakAndWait(applicationContext, "Un instant.")
         }
+        if (ConversationSettings.fluid(this)) {
+            // The voice follows the text as Claude writes it: the first sentence is heard while the others are still coming
+            val sentences = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+            var heard = false
+            val reader = scope.launch(Dispatchers.IO) {
+                try {
+                    LocalClaudeBridge().answerStream(question) { sentence ->
+                        if (!heard) { heard = true; thinking.cancel() }
+                        say("Réponse : $sentence")
+                        sentences.trySend(sentence)
+                    }
+                } finally { sentences.close() }
+            }
+            Speaker.speakFlow(applicationContext, sentences)
+            reader.join()
+            thinking.cancel()
+            if (heard) return
+        }
         val (ok, text) = try { withContext(Dispatchers.IO) { LocalClaudeBridge().answer(question) } } finally { thinking.cancel() }
         if (ok) {
             say("Réponse : $text")
-            if (ConversationSettings.fluid(this)) Speaker.speakNaturalStreamed(applicationContext, text) else Speaker.speakNatural(applicationContext, text)
+            Speaker.speakNatural(applicationContext, text)
         } else {
             say("Réponse impossible : $text")
             Speaker.speakNatural(applicationContext, "Je n'ai pas pu répondre.")

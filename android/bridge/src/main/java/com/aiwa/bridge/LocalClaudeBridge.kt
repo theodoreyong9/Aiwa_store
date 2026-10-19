@@ -517,6 +517,27 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         false to (e.message ?: "?")
     }
 
+    /** The answer sentence by sentence, as Claude writes it: `onSentence` is called for each one at once. True when at least one sentence came. Blocking (call it off the main thread). */
+    fun answerStream(question: String, onSentence: (String) -> Unit): Boolean = try {
+        val connection = URI("$baseUrl/api/answer_stream").toURL().openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.doOutput = true
+        connection.readTimeout = 120_000
+        connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+        connection.outputStream.use { it.write(JSONObject().put("question", question).toString().toByteArray()) }
+        var got = false
+        connection.inputStream.bufferedReader().useLines { lines ->
+            for (line in lines) {
+                val json = try { JSONObject(line) } catch (e: Exception) { continue }
+                val sentence = json.optString("s")
+                if (sentence.isNotBlank()) { got = true; onSentence(sentence) }
+            }
+        }
+        got
+    } catch (e: Exception) {
+        false
+    }
+
     /** The documents of the repository in use (the files of docs/), the most recently changed first; `ts` is epoch seconds, 0 when unknown. */
     fun documents(): List<DocItem> = try {
         val array = JSONObject(getText("/api/documents")).optJSONArray("documents")

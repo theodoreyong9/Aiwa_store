@@ -2480,3 +2480,11 @@ class ConversationTests(unittest.TestCase):
             srv._conversation_add(f"q{i}", f"a{i}")
         self.assertLessEqual(len(srv.conversation), 16)
         srv.conversation.clear()
+
+
+class SentenceCutTests(unittest.TestCase):
+    def test_the_answer_is_cut_where_a_sentence_ends(self):
+        import aiwa_server as srv
+        self.assertEqual(srv._sentences_from("Oui. C'est un store, du coup. Et la"), (["Oui.", "C'est un store, du coup."], "Et la"))
+        self.assertEqual(srv._sentences_from("Il vaut 3.5 euros"), ([], "Il vaut 3.5 euros"), "a decimal point is not the end of a sentence")
+        self.assertEqual(srv._sentences_from("Et la fin", final=True), (["Et la fin"], ""))

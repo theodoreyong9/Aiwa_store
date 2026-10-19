@@ -7,6 +7,7 @@ import java.util.UUID
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -88,6 +89,27 @@ object Speaker {
                 if (!played && !speakAndWait(context, sentences[i])) all = false
             }
             all
+        }
+    }
+
+    /**
+     * The voice follows the text as it is written: each sentence that arrives on `incoming` starts being made at once (a natural voice) and is played in its turn, so the first
+     * one is heard while Claude is still writing the others. Returns when the channel is closed and everything has been said.
+     */
+    suspend fun speakFlow(context: Context, incoming: kotlinx.coroutines.channels.ReceiveChannel<String>) = kotlinx.coroutines.coroutineScope {
+        val natural = AiwaRepository.state.value.agent?.voice == "ready"
+        val made = kotlinx.coroutines.channels.Channel<Pair<String, kotlinx.coroutines.Deferred<ByteArray?>>>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+        launch {
+            for (sentence in incoming) {
+                made.send(sentence to async(Dispatchers.IO) { if (natural) try { com.aiwa.bridge.LocalClaudeBridge().voiceSay(sentence) } catch (err: Exception) { null } else null })
+            }
+            made.close()
+        }
+        for ((sentence, job) in made) {
+            val wav = job.await()
+            val file = if (wav == null) null else java.io.File.createTempFile("voice", ".wav", context.cacheDir).also { it.writeBytes(wav) }
+            val played = if (file != null) playFile(context, file).also { file.delete() } else false
+            if (!played) speakAndWait(context, sentence)
         }
     }
 
