@@ -510,11 +510,9 @@ private fun LightContent(state: AiwaState) {
                     .clickable(if (needsSetup) actionStartActivity<SetupActivity>() else actionStartActivity<AgentToggleActivity>()),
                 contentAlignment = Alignment.Center,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (!needsSetup) Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = "Super agent : ouvrir ou fermer", modifier = GlanceModifier.size(16.dp))
-                    if (!needsSetup) Spacer(GlanceModifier.width(8.dp))
-                    Text(if (needsSetup) "Autoriser Aiwa" else if (agentOn) "Il écoute · fermer" else "Parler au super agent", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-                }
+                // only the robot head (the colour says the state: grey off, green listening, red something to say); the words stay only for the permission to give
+                if (needsSetup) Text("Autoriser Aiwa", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                else Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = if (agentOn) "Super agent : il écoute, fermer" else "Parler au super agent", modifier = GlanceModifier.size(20.dp))
             }
             // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
             if (state.cloudSessionId != null) {
