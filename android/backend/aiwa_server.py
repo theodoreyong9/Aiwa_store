@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 145
+BACKEND_VERSION = 146
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1237,6 +1237,26 @@ ANSWER_SYSTEM = (
     "Tu es le super agent d'Aiwa, un assistant qui répond À VOIX HAUTE à la personne. Réponds en français, en deux à quatre phrases courtes et naturelles, sans liste, sans symbole, sans mise en forme. "
     "Appuie-toi sur le contexte fourni (le dépôt de la personne, sa dernière demande) ; si tu ne sais pas, dis-le simplement, n'invente rien. Tu ne fais rien, tu réponds seulement."
 )
+conversation = []       # the talk with the super agent, [(time, who, text)]: it forgets after ten quiet minutes, and keeps the last eight turns
+CONVERSATION_QUIET = 600
+
+
+def _conversation_text(now=None):
+    """The talk so far as lines for the prompt, or ''."""
+    now = now or time.time()
+    with lock:
+        if conversation and now - conversation[-1][0] > CONVERSATION_QUIET:
+            conversation.clear()
+        return "\n".join(f"{who} : {text}" for _, who, text in conversation[-8:])
+
+
+def _conversation_add(question, answer):
+    with lock:
+        conversation.append((time.time(), "Personne", question))
+        conversation.append((time.time(), "Toi", answer))
+        del conversation[:-16]
+
+
 last_request = {"text": "", "at": 0}      # the last thing the person asked a session to do (for « t'en es où » and for the answers)
 
 
@@ -1267,10 +1287,15 @@ def answer_question(question):
     if not q:
         return {"ok": False, "error": "question vide"}
     context = _answer_context()
+    talk = _conversation_text()
+    if talk:
+        context = (context + "\n\n" if context else "") + "La conversation jusqu'ici (continue-la naturellement, sans la répéter) :\n" + talk
     if llm.state == "ready":
         text = llm.ask(ANSWER_SYSTEM + ("\n\n" + context if context else ""), [{"role": "user", "content": q}], max_tokens=400)
         if text:
-            return {"ok": True, "text": " ".join(str(text).split())[:900]}
+            answer = " ".join(str(text).split())[:900]
+            _conversation_add(q, answer)
+            return {"ok": True, "text": answer}
     prompt = ANSWER_SYSTEM + ("\n\n" + context if context else "") + "\n\nQuestion : " + q
     last_error = "pas de réponse"
     for extra in (["--model", "haiku"], []):
@@ -1281,7 +1306,9 @@ def answer_question(question):
             continue
         out = _clean(done.stdout or "").strip()
         if done.returncode == 0 and out:
-            return {"ok": True, "text": " ".join(out.split())[:900]}
+            answer = " ".join(out.split())[:900]
+            _conversation_add(q, answer)
+            return {"ok": True, "text": answer}
         last_error = _clean((done.stderr or "") + (done.stdout or "")).strip()[-300:] or f"code {done.returncode}"
     return {"ok": False, "error": last_error}
 

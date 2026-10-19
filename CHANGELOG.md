@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Settings → « Conversation fluide » (on by default): a question is answered at once (no send word), the answer starts after its first sentence, a short « je réfléchis » covers a long wait, the listening stays open 30 s, and the brain keeps the last turns of the talk (forgotten after ten quiet minutes) (brain 146). Work (documents, videos, code, connectors) keeps every confirmation. No API key needed: it runs on the phone's own Claude login.
+
 - After « c'est prêt », a new document is offered (« je le lis, ou je l'ouvre ? ») and a new video too (« je la lance sur la TV ? »): nothing is done without the answer, and only while the listening service holds the microphone.
 
 - No more « Écoute permanente impossible » message when Android refuses to start the microphone in the background (first opening): the listening just starts once Aiwa is on screen.

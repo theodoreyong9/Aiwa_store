@@ -2466,3 +2466,17 @@ class ConnectorTests(unittest.TestCase):
         self.assertEqual(ag.parse_command({"connector": {"kind": "insta", "to": "@paul.x", "body": "Hello"}}, set())["connector"]["to"], "paul.x")
         self.assertEqual(ag.parse_command({"connector": {"kind": "linkedin", "body": "Post"}}, set())["connector"]["kind"], "linkedin")
         self.assertIsNone(ag.parse_command({"connector": {"kind": "tiktok", "to": "a b!", "body": "x"}}, set()))
+
+
+class ConversationTests(unittest.TestCase):
+    def test_the_talk_is_kept_then_forgotten(self):
+        import aiwa_server as srv
+        srv.conversation.clear()
+        srv._conversation_add("C'est quoi ce dépôt ?", "Un store.")
+        self.assertIn("Personne : C'est quoi ce dépôt ?", srv._conversation_text())
+        self.assertIn("Toi : Un store.", srv._conversation_text())
+        self.assertEqual(srv._conversation_text(time.time() + srv.CONVERSATION_QUIET + 5), "")
+        for i in range(20):
+            srv._conversation_add(f"q{i}", f"a{i}")
+        self.assertLessEqual(len(srv.conversation), 16)
+        srv.conversation.clear()

@@ -16,7 +16,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * itself. Each sentence heard is handed to [onHeard]; silence just starts another pass. Whoever uses it stops it before the phone speaks (the voice
  * must not be heard as a sentence) and starts a new one afterwards. Main thread only.
  */
-class AgentListener(context: Context, private val onQuiet: () -> Unit = {}, private val onHeard: (String) -> Unit) : RecognitionListener {
+class AgentListener(context: Context, private val onQuiet: () -> Unit = {}, private val quietMs: Long = QUIET_MS, private val onHeard: (String) -> Unit) : RecognitionListener {
     private val appContext = context.applicationContext
     private val recognizer = SpeechRecognizer.createSpeechRecognizer(appContext)
     private val quiet = QuietSounds(appContext)
@@ -57,7 +57,7 @@ class AgentListener(context: Context, private val onQuiet: () -> Unit = {}, priv
     // A short pause before the next pass: a recognizer restarted at once answers "busy".
     private fun again() {
         if (stopped) return
-        if (android.os.SystemClock.elapsedRealtime() - startedAt >= QUIET_MS) { stop(); onQuiet(); return }
+        if (android.os.SystemClock.elapsedRealtime() - startedAt >= quietMs) { stop(); onQuiet(); return }
         main.postDelayed({ start() }, 300)
     }
 

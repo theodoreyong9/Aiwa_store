@@ -6,6 +6,7 @@ import java.util.Locale
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -66,6 +67,28 @@ object Speaker {
             }
         }
         return speakAndWait(context, text)
+    }
+
+    /**
+     * The same voice, sentence by sentence: every sentence is made at once (in the background) and played in order, so the first one is heard while the others are still being made.
+     * The conversation uses it: the answer starts after the first sentence, not after the whole text.
+     */
+    suspend fun speakNaturalStreamed(context: Context, text: String): Boolean {
+        val sentences = text.trim().split(Regex("(?<=[.!?…])\\s+")).filter { it.isNotBlank() }.take(6)
+        if (sentences.size < 2 || AiwaRepository.state.value.agent?.voice != "ready") return speakNatural(context, text)
+        return kotlinx.coroutines.coroutineScope {
+            val made = sentences.map { sentence ->
+                async(Dispatchers.IO) { try { com.aiwa.bridge.LocalClaudeBridge().voiceSay(sentence) } catch (err: Exception) { null } }
+            }
+            var all = true
+            for ((i, job) in made.withIndex()) {
+                val wav = job.await()
+                val file = if (wav == null) null else java.io.File.createTempFile("voice", ".wav", context.cacheDir).also { it.writeBytes(wav) }
+                val played = if (file != null) playFile(context, file).also { file.delete() } else false
+                if (!played && !speakAndWait(context, sentences[i])) all = false
+            }
+            all
+        }
     }
 
     private suspend fun playFile(context: Context, file: java.io.File): Boolean = withContext(Dispatchers.Main) {

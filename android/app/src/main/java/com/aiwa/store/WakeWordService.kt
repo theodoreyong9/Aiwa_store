@@ -41,6 +41,14 @@ object ListenSettings {
     fun setEnabled(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("on_v2", on).apply() }
 }
 
+/** « Conversation fluide »: a question is answered at once (no send word), the answer starts after its first sentence, the listening stays open longer and the history of the talk is kept. On by default. */
+object ConversationSettings {
+    private const val PREFS = "aiwa_listen"
+    fun fluid(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("fluid", true)
+    fun setFluid(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("fluid", on).apply() }
+    const val QUIET_MS = 30_000L
+}
+
 /** The wake word the person chose (WakeWordEnrollActivity): a name for the screen, and the spellings the engine heard (com.aiwa.bridge.WakeWords). Empty = only the words of origin. */
 object WakeWordSettings {
     private const val PREFS = "aiwa_listen"
@@ -346,7 +354,7 @@ class WakeWordService : Service() {
 
     private fun agentListen() {
         if (!agentMode || paused || agentListener != null) return
-        agentListener = AgentListener(this, onQuiet = { main.post { standbyAgent() } }) { text -> main.post { heardForAgent(text) } }.also { it.start() }
+        agentListener = AgentListener(this, onQuiet = { main.post { standbyAgent() } }, quietMs = if (ConversationSettings.fluid(this)) ConversationSettings.QUIET_MS else AgentListener.QUIET_MS) { text -> main.post { heardForAgent(text) } }.also { it.start() }
     }
 
     private fun heardForAgent(text: String) {
@@ -406,6 +414,11 @@ class WakeWordService : Service() {
 
     // A command is kept, sentence after sentence, until the send word. Nothing is spoken meanwhile; the summary comes with the repository.
     private suspend fun addToCommand(text: String) {
+        // Conversation fluide: a question said on its own (nothing waiting) is answered at once, without the send word
+        if (pendingCommand.isEmpty() && ConversationSettings.fluid(this) && com.aiwa.bridge.isQuestion(withoutSend(text)) ) {
+            answerQuestion(withoutSend(text).trim())
+            return
+        }
         if (pendingCommand.isNotEmpty()) pendingCommand.append(' ')
         pendingCommand.append(text.trim())
         say("Toi : " + pendingCommand)
@@ -419,10 +432,17 @@ class WakeWordService : Service() {
     // A QUESTION is answered by the super agent itself, aloud (Claude, through the brain); it goes to no session. A COMMAND goes through the summary and the validation.
     private suspend fun answerQuestion(question: String) {
         say("Question : $question")
-        val (ok, text) = withContext(Dispatchers.IO) { LocalClaudeBridge().answer(question) }
+        // While it thinks: nothing for two and a half seconds, then a short word, so that the person knows it did not fail
+        val thinking = scope.launch {
+            delay(2_500)
+            Speaker.speakAndWait(applicationContext, "Je réfléchis.")
+            delay(10_000)
+            Speaker.speakAndWait(applicationContext, "Un instant.")
+        }
+        val (ok, text) = try { withContext(Dispatchers.IO) { LocalClaudeBridge().answer(question) } } finally { thinking.cancel() }
         if (ok) {
             say("Réponse : $text")
-            Speaker.speakNatural(applicationContext, text)
+            if (ConversationSettings.fluid(this)) Speaker.speakNaturalStreamed(applicationContext, text) else Speaker.speakNatural(applicationContext, text)
         } else {
             say("Réponse impossible : $text")
             Speaker.speakNatural(applicationContext, "Je n'ai pas pu répondre.")
