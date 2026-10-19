@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The « + » of the widget: « Écrire à un contact » is gone (a document or a media only); writing to someone is now a connector.
+
 - Settings → Connectors: mail, agenda, SMS, call, WhatsApp, Telegram and X (off until turned on); the super agent prepares one, the phone reads it back, and after the confirmation the app opens filled in (the person taps send/call/save) (brain 145).
 
 - Wake word: only a finished sentence heard with confidence wakes the phone (no more guesses on a partial sound).
