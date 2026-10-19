@@ -36,8 +36,9 @@ import org.vosk.Model
 /** Whether the person turned the always-on listening on (off until they do, in the app's screen). */
 object ListenSettings {
     private const val PREFS = "aiwa_listen"
-    fun enabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("on", false)
-    fun setEnabled(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("on", on).apply() }
+    // On by default (the wake word must work without a button, the screen locked): only « Arrêter » in the notification turns it off. "on_v2": the old flag, which closing the agent used to switch off, is ignored.
+    fun enabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("on_v2", true)
+    fun setEnabled(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("on_v2", on).apply() }
 }
 
 /** The wake word the person chose (WakeWordEnrollActivity): a name for the screen, and the spellings the engine heard (com.aiwa.bridge.WakeWords). Empty = only the words of origin. */
@@ -116,6 +117,13 @@ class WakeWordService : Service() {
 
         /** The running service, for the code of this same process that needs the microphone for itself (the widget's mic window). */
         @Volatile var instance: WakeWordService? = null
+
+        /** Called whenever Aiwa is on screen: the wake word listens again if it is wanted and is not running (after a restart of the phone or of the app, which Android does not allow to do from the background). */
+        fun ensureStarted(context: Context) {
+            if (!ListenSettings.enabled(context) || instance != null) return
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
+            start(context)
+        }
 
         /** From a visible screen only: Android refuses to start a microphone service from the background. */
         fun start(context: Context) {
@@ -325,9 +333,9 @@ class WakeWordService : Service() {
         }
     }
 
-    /** The button of the widget (or « repasse en manuel »): the super agent is turned OFF, and with it the whole listening (the microphone dot goes). « éteins toi » and ten seconds of silence only put it to sleep: the wake word keeps listening. */
+    /** The button of the widget (or « repasse en manuel » / « éteins toi »): the super agent goes back to sleep, the wake word keeps listening (only « Arrêter » in the notification stops it). */
     fun closeAgent() {
-        main.post { if (agentMode) switchOff() }
+        main.post { if (agentMode) standbyAgent(force = true) }
     }
 
     private suspend fun agentCall(action: String, fields: Map<String, Any> = emptyMap()): String? =

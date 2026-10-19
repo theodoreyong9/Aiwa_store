@@ -20,5 +20,7 @@ class BootReceiver : BroadcastReceiver() {
             // Background start refused by the OS: the next app open or
             // widget mic tap starts it instead.
         }
+        // The wake word too, when the phone allows a microphone service to start from here (older Androids); otherwise it starts the next time Aiwa is opened
+        try { WakeWordService.ensureStarted(context) } catch (err: Exception) { }
     }
 }

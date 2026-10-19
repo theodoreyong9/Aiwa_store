@@ -234,8 +234,19 @@ class StoreActivity : ComponentActivity() {
         return column
     }
 
+    // The wake word listens whenever Aiwa is opened and the microphone is allowed; it asks for the microphone once, at the first opening
+    private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) WakeWordService.ensureStarted(applicationContext) }
+
+    private fun startWakeWord() {
+        if (!ListenSettings.enabled(this)) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) { WakeWordService.ensureStarted(applicationContext); return }
+        val prefs = getSharedPreferences("aiwa_hints", MODE_PRIVATE)
+        if (!prefs.getBoolean("mic_asked", false)) { prefs.edit().putBoolean("mic_asked", true).apply(); micPermission.launch(Manifest.permission.RECORD_AUDIO) }
+    }
+
     override fun onResume() {
         super.onResume()
+        startWakeWord()
         // The widget is asked for at every opening while there is none (the system's window, one tap on « Ajouter »). Asked once the screen is really in front and has settled:
         // a request made while the window was still appearing (right after an installation) was lost without a word.
         window.decorView.postDelayed({ if (!isFinishing && !isDestroyed) WidgetPin.offerOnce(this) }, 800)
