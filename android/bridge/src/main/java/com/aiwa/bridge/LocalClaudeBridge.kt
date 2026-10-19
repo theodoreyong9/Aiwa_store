@@ -184,8 +184,8 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
     }
 
     /** « Tous »: what every repository holds of one kind (docs, video, pages, android, aiwa), read by the backend. */
-    fun all(kind: String): AllResult = try {
-        val json = JSONObject(getText("/api/all?kind=$kind"))
+    fun all(kind: String, refresh: Boolean = false): AllResult = try {
+        val json = JSONObject(getText("/api/all?kind=$kind" + if (refresh) "&refresh=1" else ""))
         val items = json.optJSONArray("items")
         AllResult(
             ok = json.optBoolean("ok", false),

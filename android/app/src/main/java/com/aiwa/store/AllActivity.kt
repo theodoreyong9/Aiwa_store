@@ -29,11 +29,15 @@ class AllActivity : ComponentActivity() {
             LaunchedEffect(kind) {
                 val bridge = LocalClaudeBridge()
                 var tries = 0
+                // what the brain already read is shown at once; asked with refresh, it reads again in the background what is older than a minute, and the view is asked again to pick up what is new
+                var first = true
                 while (true) {
-                    val got = withContext(Dispatchers.IO) { bridge.all(kind) }
+                    val got = withContext(Dispatchers.IO) { bridge.all(kind, refresh = first) }
+                    first = false
                     result = got
-                    if (!got.ok || got.pending == 0 || ++tries > 90) break
-                    kotlinx.coroutines.delay(2000)
+                    if (!got.ok || ++tries > 90) break
+                    if (got.pending == 0) { if (tries >= 3) break }
+                    kotlinx.coroutines.delay(if (got.pending == 0) 4000 else 2000)
                 }
             }
             val r = result

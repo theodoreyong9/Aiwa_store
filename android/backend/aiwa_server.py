@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 142
+BACKEND_VERSION = 143
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1570,6 +1570,7 @@ def cloud_send(text, command=False, session=None):
         _set_login_state("ok")
         _note_message_sent()
         last_request.update(text=" ".join(str(text).split())[:300], at=int(time.time()))
+        _all_stale(repo)
         with lock:
             current_cloud = last_cloud = found
             _save_state()
@@ -2496,6 +2497,8 @@ ALL_KINDS = ("video", "documents", "pages", "android", "aiwa")
 DOC_EXT = (".md", ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".csv")
 all_cache = {}    # repo -> (time, paths or None)
 ALL_MAX_AGE = 600
+ALL_VIEW_REFRESH = 60        # what is older than that is read again when the « Tous » view is opened
+ALL_PREWARM_EVERY = 300      # the brain reads every repository by itself, at start and then every five minutes: the view is already there when it is opened
 
 
 def _all_items(repo, paths, kind):
@@ -2608,7 +2611,7 @@ def _all_fill(repos):
         list(pool.map(one, repos))
 
 
-def _all_snapshot(kind, wait=False):
+def _all_snapshot(kind, wait=False, refresh=False):
     """The « Tous » view: one kind of production across every repository the person works on (the list of the repository pill), read by the brain
     itself with git. It answers at once with what it has read already (the app asks again while `pending` is not 0), instead of holding the request for the
     minutes that a first reading of forty repositories can take. A repository that cannot be read (private without a connected `gh`, offline) is counted
@@ -2617,7 +2620,9 @@ def _all_snapshot(kind, wait=False):
         return {"ok": False, "error": "genre inconnu"}
     repos = [c["name"] for c in _repo_choices()][:40]
     now = time.time()
-    stale = [r for r in repos if not (all_cache.get(r) and now - all_cache[r][0] < ALL_MAX_AGE)]
+    # refresh=True (the person is looking): what is older than a minute is read again in the background, and what was read stays on the screen meanwhile
+    limit = ALL_VIEW_REFRESH if refresh else ALL_MAX_AGE
+    stale = [r for r in repos if not (all_cache.get(r) and now - all_cache[r][0] < limit)]
     if stale:
         with all_lock:
             todo = [r for r in stale if r not in all_filling]
@@ -3159,6 +3164,38 @@ def _agent_mailbox_loop():
 
 # The super agent no longer talks to an agent session of its own (it takes a command, sums it up and sends it): the periodic points to that session are off. A report asked for still goes.
 AGENT_PERIODIC_POINTS = False
+
+
+def _all_prewarm_loop():
+    """The index of « Tous » is built in the background (at start, then every five minutes), so that opening the view shows it at once."""
+    time.sleep(20)
+    while True:
+        try:
+            _all_snapshot("video")        # starts the reading of every repository whose tree is old or missing
+        except Exception as err:          # a bad round must never end the watch
+            print(f"[{_ts()}] all prewarm: {err}", flush=True)
+        time.sleep(ALL_PREWARM_EVERY)
+
+
+def _all_stale(repo):
+    """Something may have been created in this repository (a message was just sent to a session working on it): its tree counts as old (what was read stays shown) and is read again
+    a little later, then at each opening of the view."""
+    if repo:
+        known = all_cache.get(repo)
+        if known:
+            all_cache[repo] = (0, known[1])
+        file_dates_cache.pop(repo, None)
+        timer = threading.Timer(120, lambda: _all_fill_once(repo))
+        timer.daemon = True
+        timer.start()
+
+
+def _all_fill_once(repo):
+    with all_lock:
+        if repo in all_filling:
+            return
+        all_filling.add(repo)
+    _all_fill([repo])
 
 
 def _agent_loop():
@@ -4009,7 +4046,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_json({"ok": True, "repos": dict(index_store)})
         elif self.path.startswith("/api/all"):
             query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
-            self.reply_json(_all_snapshot((query.get("kind") or [""])[0]))
+            self.reply_json(_all_snapshot((query.get("kind") or [""])[0], refresh=(query.get("refresh") or [""])[0] == "1"))
         elif self.path == "/api/documents":
             self.reply_json(_documents_snapshot())
         elif self.path == "/api/videos":
@@ -4491,6 +4528,7 @@ if __name__ == "__main__":
     _agent_load()
     threading.Thread(target=_agent_loop, daemon=True).start()
     threading.Thread(target=_agent_mailbox_loop, daemon=True).start()
+    threading.Thread(target=_all_prewarm_loop, daemon=True).start()
     _login_state()  # looks the login up in the background, so the first status already knows
     threading.Thread(target=_relay_listener, daemon=True).start()
     threading.Thread(target=_self_update_loop, daemon=True).start()
