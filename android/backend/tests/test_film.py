@@ -56,7 +56,7 @@ class FilmTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.fal = FakeFal(self.tmp.name)
-        planner = lambda direction, says, seconds: {"scenes": [
+        planner = lambda direction, says, seconds, kind="me": {"scenes": [
             {"situation": "il marche sur une plage", "seconds": 5, "says": ""},
             {"situation": "il regarde la caméra et sourit", "seconds": 5, "says": "Bonjour à tous"},
             {"situation": "il dit un mot que personne n'a écrit", "seconds": 5, "says": "Une phrase inventée"},
@@ -142,6 +142,29 @@ class FilmTests(unittest.TestCase):
         self.assertEqual(view["state"], "error")
         self.assertIn("422", view["error"])
         self.assertIn("field required", view["error"])
+
+    @unittest.skipUnless(HAVE_FFMPEG, "ffmpeg needed")
+    def test_a_product_film_has_a_voice_over_and_no_mouth_and_no_clone(self):
+        wav = Path(self.tmp.name) / "vo.wav"
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=300:duration=1", str(wav)], check=True)
+        self.film.voiceover = lambda text: wav.read_bytes()
+        for old in self.film.home.glob("voice_sample.*"):
+            old.unlink()        # no voice sample is needed for a product film
+        refused = self.film.prepare("la gourde en randonnée", "Bonjour à tous", photos=[b"jpg"], consent=False, kind="product")
+        self.assertIn("produit", refused["error"])
+        quote = self.film.prepare("la gourde en randonnée", "Bonjour à tous", photos=[b"jpg"], consent=True, kind="product")
+        self.assertTrue(quote["ok"], quote)
+        self.assertEqual(quote["kind"], "product")
+        said = [s for s in quote["scenes"] if s["says"]]
+        self.assertTrue(said and all(abs(s["price"] - 0.112 * s["seconds"]) < 0.001 for s in quote["scenes"]), "no mouth, no clone to pay: only the picture")
+        self.film.start(quote["id"], confirmed=True)
+        view = self.wait(quote["id"])
+        self.assertEqual(view["state"], "done", view["error"])
+        posts = [c[1] for c in self.fal.calls if c[0] == "POST"]
+        self.assertTrue(all("kling" in u for u in posts), "nothing but the picture was asked of fal")
+        prompts = [json.dumps(c[2]) for c in self.fal.calls if c[0] == "POST"]
+        self.assertTrue(all("strictement identique" in p for p in prompts))
+        self.assertEqual(film_lib.Film.films(self.film)[0]["kind"], "product")
 
     def test_the_key_is_never_given_back(self):
         status = self.film.status()

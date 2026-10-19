@@ -45,13 +45,14 @@ def _safe(text, limit=300):
 
 
 class Film:
-    def __init__(self, home=None, transport=None, planner=None, sleep=time.sleep):
+    def __init__(self, home=None, transport=None, planner=None, sleep=time.sleep, voiceover=None):
         self.home = Path(home) if home else Path.home() / ".aiwa_film"
         self.key_file = self.home / "fal_key"
         self.voice_file = self.home / "voice_sample"
         self.transport = transport or self._http
-        self.planner = planner            # (direction, says, seconds) -> {"scenes": [...]} or None; None = the fallback plan
+        self.planner = planner            # (direction, says, seconds, kind) -> {"scenes": [...]} or None; None = the fallback plan
         self.sleep = sleep
+        self.voiceover = voiceover        # text -> WAV bytes (the phone's natural voice, free) or None: the voice-over of a product film
         self.lock = threading.Lock()
         self.jobs = {}
         self._schemas = {}
@@ -189,9 +190,11 @@ class Film:
             return None
         return default
 
-    def _video_inputs(self, scene, photos, aspect):
+    def _video_inputs(self, scene, photos, aspect, kind="me"):
         props = self._inputs("video")
         prompt = scene["situation"]
+        if kind == "product":
+            prompt += ". Le produit des images de référence reste strictement identique : forme, couleurs, matière, logo et texte inchangés."
         out = {}
         pname = self._pick(props, ["prompt"], "prompt")
         many = self._pick(props, ["image_urls", "reference_image_urls", "images", "input_image_urls"], "image_urls")
@@ -253,12 +256,12 @@ class Film:
             raise FilmError(f"téléchargement impossible : {err}")
 
     # ---------------- plan and quote ----------------
-    def _plan(self, direction, says, seconds):
+    def _plan(self, direction, says, seconds, kind="me"):
         """Scenes from the person's direction. Her own words (`says`) are kept as they are."""
         plan = None
         if self.planner:
             try:
-                plan = self.planner(direction, says, seconds)
+                plan = self.planner(direction, says, seconds, kind)
             except Exception:
                 plan = None
         scenes = []
@@ -277,13 +280,13 @@ class Film:
         return scenes
 
     @staticmethod
-    def scene_key(scene, aspect):
-        return hashlib.sha1(json.dumps([scene["situation"], scene["seconds"], scene["says"], aspect], ensure_ascii=False).encode()).hexdigest()[:12]
+    def scene_key(scene, aspect, kind="me"):
+        return hashlib.sha1(json.dumps([scene["situation"], scene["seconds"], scene["says"], aspect, kind], ensure_ascii=False).encode()).hexdigest()[:12]
 
-    def _price(self, scene):
+    def _price(self, scene, kind="me"):
         video = MODELS["video"]["usd_per_second"] * scene["seconds"]
         mouth = voice = 0.0
-        if scene["says"]:
+        if scene["says"] and kind == "me":
             mouth = MODELS["lipsync"]["usd_per_second"] * scene["seconds"]
             voice = MODELS["voice"]["usd_per_1000_chars"] * max(1, len(scene["says"])) / 1000
         return round(video + mouth + voice, 3)
@@ -291,25 +294,26 @@ class Film:
     def quote(self, job):
         total = 0.0
         for index, scene in enumerate(job["scenes"]):
-            done = (job["dir"] / f"scene_{self.scene_key(scene, job['aspect'])}.mp4").exists()
-            scene["price"] = 0.0 if done else self._price(scene)
+            done = (job["dir"] / f"scene_{self.scene_key(scene, job['aspect'], job['kind'])}.mp4").exists()
+            scene["price"] = 0.0 if done else self._price(scene, job["kind"])
             scene["done"] = done
             total += scene["price"]
         job["total"] = round(total, 2)
         job["over_cap"] = job["total"] > self.cap()
         return job
 
-    def prepare(self, direction, says="", seconds=None, aspect="9:16", photos=None, consent=False):
+    def prepare(self, direction, says="", seconds=None, aspect="9:16", photos=None, consent=False, kind="me"):
         """photos: [bytes]. Returns the quote ({"ok", "id", "scenes", "total", ...}); nothing is sent to fal yet."""
         if not self._key():
             return {"ok": False, "error": "pas de clé fal : colle-la dans les réglages"}
+        kind = "product" if kind == "product" else "me"
         if not consent:
-            return {"ok": False, "error": "il faut dire que c'est toi sur les photos (et ta voix), ou que la personne est d'accord"}
+            return {"ok": False, "error": "il faut dire que c'est ton produit, ou que tu as le droit de l'utiliser" if kind == "product" else "il faut dire que c'est toi sur les photos (et ta voix), ou que la personne est d'accord"}
         if not photos:
             return {"ok": False, "error": "il faut au moins une photo"}
         if not str(direction or "").strip():
             return {"ok": False, "error": "dis ce que tu veux dans le film"}
-        if says and not self._voice_path():
+        if says and kind == "me" and not self._voice_path():
             return {"ok": False, "error": "pour parler dans le film, enregistre d'abord ta voix dans les réglages"}
         job_id = uuid.uuid4().hex[:10]
         folder = self.home / job_id
@@ -323,8 +327,9 @@ class Film:
             paths.append(path.name)
         if not paths:
             return {"ok": False, "error": "photos vides ou trop grosses"}
+        (folder / "kind.txt").write_text(kind)
         job = {"id": job_id, "dir": folder, "direction": _safe(direction, 1500), "says": _safe(says, 1500), "aspect": aspect if aspect in ("9:16", "16:9", "1:1") else "9:16",
-               "photos": paths, "scenes": self._plan(direction, says, seconds), "state": "quoted", "step": "", "error": None, "film": None, "confirmed": False}
+               "photos": paths, "kind": kind, "scenes": self._plan(direction, says, seconds, kind), "state": "quoted", "step": "", "error": None, "film": None, "confirmed": False}
         self.quote(job)
         with self.lock:
             self.jobs[job_id] = job
@@ -355,7 +360,7 @@ class Film:
     @staticmethod
     def view(job):
         return {"id": job["id"], "state": job["state"], "step": job["step"], "error": job["error"], "total": job.get("total", 0), "over_cap": job.get("over_cap", False),
-                "aspect": job["aspect"], "film": job["film"], "label": AI_LABEL,
+                "aspect": job["aspect"], "film": job["film"], "label": AI_LABEL, "kind": job["kind"],
                 "scenes": [{"situation": s["situation"], "seconds": s["seconds"], "says": s["says"], "price": s.get("price", 0), "done": s.get("done", False)} for s in job["scenes"]]}
 
     def get(self, job_id):
@@ -391,10 +396,10 @@ class Film:
             clips = []
             total = len(job["scenes"])
             for i, scene in enumerate(job["scenes"], 1):
-                clip = folder / f"scene_{self.scene_key(scene, job['aspect'])}.mp4"
+                clip = folder / f"scene_{self.scene_key(scene, job['aspect'], job['kind'])}.mp4"
                 if not clip.exists():
                     audio_url = None
-                    if scene["says"]:
+                    if scene["says"] and job["kind"] == "me":
                         if sample is None:
                             sample = self._data_uri(self._voice_path())
                         job["step"] = f"scène {i}/{total} : ta voix"
@@ -403,16 +408,22 @@ class Film:
                         if not audio_url:
                             raise FilmError("la voix n'a rien rendu : " + _safe(json.dumps(voice)))
                     job["step"] = f"scène {i}/{total} : l'image"
-                    video = self.run("video", self._video_inputs(scene, photos, job["aspect"]))
+                    video = self.run("video", self._video_inputs(scene, photos, job["aspect"], job["kind"]))
                     video_url = self._find_url(video, (".mp4", ".mov", ".webm"))
                     if not video_url:
                         raise FilmError("l'image n'a rien rendu : " + _safe(json.dumps(video)))
-                    if audio_url:
+                    if audio_url and job["kind"] == "me":
                         job["step"] = f"scène {i}/{total} : la bouche"
                         mouth = self.run("lipsync", self._lipsync_inputs(video_url, audio_url))
                         video_url = self._find_url(mouth, (".mp4", ".mov", ".webm")) or video_url
                     job["step"] = f"scène {i}/{total} : téléchargement"
-                    self._download(video_url, clip)
+                    if job["kind"] == "product" and scene["says"] and self.voiceover:
+                        raw = folder / f"raw_{clip.name}"
+                        self._download(video_url, raw)
+                        job["step"] = f"scène {i}/{total} : voix off"
+                        self._add_voiceover(raw, scene["says"], clip)
+                    else:
+                        self._download(video_url, clip)
                 clips.append(clip)
             job["step"] = "assemblage"
             job["film"] = self._assemble(job, clips)
@@ -421,6 +432,23 @@ class Film:
             job.update(state="error", error=str(err))
         except Exception as err:      # never silent: the person sees why
             job.update(state="error", error=f"erreur inattendue : {_safe(err)}")
+
+    def _add_voiceover(self, raw, text, out):
+        """The voice-over (the phone's natural voice) laid on the generated clip; the clip's length wins (a text longer than the scene is cut)."""
+        wav = None
+        try:
+            wav = self.voiceover(text)
+        except Exception:
+            wav = None
+        if not wav:
+            shutil.copy(raw, out)        # no voice available: the scene stays silent, the film goes on
+            return
+        audio = raw.with_suffix(".vo.wav")
+        audio.write_bytes(wav)
+        done = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(raw), "-i", str(audio), "-filter_complex", "[1:a]apad[a]", "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-shortest", str(out)],
+                              capture_output=True, text=True, timeout=300)
+        if done.returncode != 0:
+            raise FilmError("la voix off n'a pas pu être posée : " + _safe(done.stderr, 200))
 
     def _assemble(self, job, clips):
         """The scenes joined (same size and sound for all), marked as made by an AI in the picture when ffmpeg can write text, always in the file's metadata."""
@@ -459,5 +487,9 @@ class Film:
         """The finished films for the Média list: [{name, path, ts}], newest first."""
         out = []
         for folder in self.home.glob("*/film.mp4"):
-            out.append({"id": folder.parent.name, "path": folder, "ts": int(folder.stat().st_mtime)})
+            try:
+                kind = (folder.parent / "kind.txt").read_text().strip()
+            except OSError:
+                kind = "me"
+            out.append({"id": folder.parent.name, "path": folder, "ts": int(folder.stat().st_mtime), "kind": kind})
         return sorted(out, key=lambda f: f["ts"], reverse=True)

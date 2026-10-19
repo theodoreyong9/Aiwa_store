@@ -28,6 +28,7 @@ class MediaActivity : ComponentActivity() {
                 PickerEntry("Vidéos", false, lines = 1, button = true) { startActivity(Intent(this, VideosActivity::class.java)); finish() },
                 PickerEntry("Images", false, lines = 1, button = true) { startActivity(Intent(this, ImagesActivity::class.java)); finish() },
                 PickerEntry("Film de moi", false, lines = 1, button = true) { startActivity(Intent(this, FilmActivity::class.java)); finish() },
+                PickerEntry("Film de produit", false, lines = 1, button = true) { startActivity(Intent(this, FilmActivity::class.java).putExtra("kind", "product")); finish() },
             )
             PickerSheet(entries) { finish() }
         }

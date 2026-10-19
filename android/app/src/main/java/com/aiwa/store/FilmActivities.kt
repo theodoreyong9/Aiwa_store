@@ -225,6 +225,7 @@ class VoiceSampleActivity : ComponentActivity() {
 
 private const val EXTRA_DIRECTION = "direction"
 private const val EXTRA_JOB = "job"
+private const val EXTRA_KIND = "kind"
 
 /** « Film de moi »: the photos, what I want, the words I say (mine, as I write them), the format; the quote comes next. */
 class FilmActivity : ComponentActivity() {
@@ -241,11 +242,12 @@ class FilmActivity : ComponentActivity() {
             var consent by remember { mutableStateOf(false) }
             var busy by remember { mutableStateOf(false) }
             var note by remember { mutableStateOf<String?>(null) }
+            val product = intent.getStringExtra(EXTRA_KIND) == "product"
             LaunchedEffect(Unit) { status = withContext(Dispatchers.IO) { LocalClaudeBridge().filmStatus() } }
             val pick = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris -> if (uris.isNotEmpty()) photos = uris.take(7) }
             val st = status
             FilmSheet({ if (!busy) finish() }) {
-                Text("Film de moi", style = MaterialTheme.typography.titleMedium)
+                Text(if (product) "Film de produit" else "Film de moi", style = MaterialTheme.typography.titleMedium)
                 when {
                     st == null -> Text("Le cerveau ne répond pas (ou il est trop ancien : il faut la version 150).", style = MaterialTheme.typography.bodySmall)
                     !st.key -> {
@@ -253,15 +255,15 @@ class FilmActivity : ComponentActivity() {
                         Button(onClick = { startActivity(Intent(this@FilmActivity, FalKeyActivity::class.java)); finish() }, modifier = Modifier.fillMaxWidth()) { Text("Mettre ma clé") }
                     }
                     else -> {
-                        Text("Des photos de toi (1 à 7, de face, nettes), ce que tu veux voir, et les paroles que tu veux dire. Le devis vient avant toute dépense.", style = MaterialTheme.typography.bodySmall)
-                        OutlinedButton(onClick = { pick.launch("image/*") }, modifier = Modifier.fillMaxWidth()) { Text(if (photos.isEmpty()) "Choisir mes photos" else "${photos.size} photo(s) — changer") }
-                        OutlinedTextField(value = direction, onValueChange = { direction = it.take(1500) }, label = { Text("Ce que je veux dans le film") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
-                        OutlinedTextField(value = says, onValueChange = { says = it.take(1500) }, label = { Text("Mes paroles (facultatif, telles que je les dis)") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-                        if (says.isNotBlank() && !st.voice) Text("Pour parler, enregistre d'abord ta voix (Réglages → Film de moi).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        Text(if (product) "Des photos de ton produit (1 à 7, sous plusieurs angles, nettes), ce que tu veux montrer, et la voix off si tu en veux une. Le devis vient avant toute dépense." else "Des photos de toi (1 à 7, de face, nettes), ce que tu veux voir, et les paroles que tu veux dire. Le devis vient avant toute dépense.", style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = { pick.launch("image/*") }, modifier = Modifier.fillMaxWidth()) { Text(if (photos.isEmpty()) (if (product) "Choisir les photos du produit" else "Choisir mes photos") else "${photos.size} photo(s) — changer") }
+                        OutlinedTextField(value = direction, onValueChange = { direction = it.take(1500) }, label = { Text(if (product) "Ce que je veux montrer du produit" else "Ce que je veux dans le film") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+                        OutlinedTextField(value = says, onValueChange = { says = it.take(1500) }, label = { Text(if (product) "Voix off (facultatif, telle que je l'écris)" else "Mes paroles (facultatif, telles que je les dis)") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+                        if (!product && says.isNotBlank() && !st.voice) Text("Pour parler, enregistre d'abord ta voix (Réglages → Film de moi).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                         OutlinedButton(onClick = { aspect = when (aspect) { "9:16" -> "16:9"; "16:9" -> "1:1"; else -> "9:16" } }, modifier = Modifier.fillMaxWidth()) { Text("Format : $aspect") }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(checked = consent, onCheckedChange = { consent = it })
-                            Text("C'est moi sur les photos, et c'est ma voix (ou celle de quelqu'un qui est d'accord). Le film sera marqué « généré par IA ».", style = MaterialTheme.typography.bodySmall)
+                            Text(if (product) "C'est mon produit, ou j'ai le droit de l'utiliser. Le film sera marqué « généré par IA » : relis chaque plan, un logo ou un texte peut être déformé." else "C'est moi sur les photos, et c'est ma voix (ou celle de quelqu'un qui est d'accord). Le film sera marqué « généré par IA ».", style = MaterialTheme.typography.bodySmall)
                         }
                         note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                         Button(onClick = {
@@ -269,7 +271,7 @@ class FilmActivity : ComponentActivity() {
                             val app = applicationContext
                             scope.launch {
                                 val blobs = withContext(Dispatchers.IO) { photos.mapNotNull { shrinkJpeg(app, it) }.map { Base64.encodeToString(it, Base64.NO_WRAP) } }
-                                val job = withContext(Dispatchers.IO) { LocalClaudeBridge().filmPrepare(direction.trim(), says.trim(), aspect, blobs, consent) }
+                                val job = withContext(Dispatchers.IO) { LocalClaudeBridge().filmPrepare(direction.trim(), says.trim(), aspect, blobs, consent, if (product) "product" else "me") }
                                 busy = false
                                 if (job.ok) { startActivity(Intent(this@FilmActivity, FilmQuoteActivity::class.java).putExtra(EXTRA_JOB, job.id)); finish() } else note = job.error
                             }
@@ -285,8 +287,8 @@ class FilmActivity : ComponentActivity() {
 
     companion object {
         /** From the voice: the screen opens with what was said as the direction. */
-        fun open(context: Context, direction: String) {
-            context.startActivity(Intent(context, FilmActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra(EXTRA_DIRECTION, direction))
+        fun open(context: Context, direction: String, kind: String = "me") {
+            context.startActivity(Intent(context, FilmActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra(EXTRA_DIRECTION, direction).putExtra(EXTRA_KIND, kind))
         }
     }
 }

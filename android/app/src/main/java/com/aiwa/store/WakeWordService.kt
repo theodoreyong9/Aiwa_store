@@ -111,6 +111,7 @@ private val MANUAL_REGEX = Regex("""\b(?:repasse|reviens|retourne|passe)\s+(?:en
 private val FILLERS = listOf("Je regarde.", "Je réfléchis.", "Un instant.", "Toujours là, je vérifie.")
 
 private val FILM_REGEX = Regex("""\bfilm de moi\b|\bfilm avec moi\b|\bfilm ou je (?:suis|dis|parle)\b""")
+private val PRODUCT_FILM_REGEX = Regex("""\b(?:film|video) (?:de|du|pour (?:mon|le|un)) produit\b|\bfilm de mon produit\b""")
 
 private val APPLY_REGEX = Regex("""\bfais[\s-]?le\b|\bapplique\b""")
 private val SEND_REGEX = Regex("""\bdis?t?[\s-]?lui\b""")
@@ -421,9 +422,10 @@ class WakeWordService : Service() {
     // A command is kept, sentence after sentence, until the send word. Nothing is spoken meanwhile; the summary comes with the repository.
     private suspend fun addToCommand(text: String) {
         // « fais-moi un film de moi … »: the film circuit (its own key, photos and quote), after a yes
-        if (pendingCommand.isEmpty() && FILM_REGEX.containsMatchIn(plainWords(text).joinToString(" "))) {
-            filmByVoice(withoutSend(text).trim())
-            return
+        if (pendingCommand.isEmpty()) {
+            val said = plainWords(text).joinToString(" ")
+            if (PRODUCT_FILM_REGEX.containsMatchIn(said)) { filmByVoice(withoutSend(text).trim(), "product"); return }
+            if (FILM_REGEX.containsMatchIn(said)) { filmByVoice(withoutSend(text).trim()); return }
         }
         // Conversation fluide: a question said on its own (nothing waiting) is answered at once, without the send word
         if (pendingCommand.isEmpty() && ConversationSettings.fluid(this) && com.aiwa.bridge.isQuestion(withoutSend(text)) ) {
@@ -440,8 +442,8 @@ class WakeWordService : Service() {
         }
     }
 
-    private suspend fun filmByVoice(direction: String) {
-        say("Film de moi : $direction")
+    private suspend fun filmByVoice(direction: String, kind: String = "me") {
+        say((if (kind == "product") "Film de produit : " else "Film de moi : ") + direction)
         val status = withContext(Dispatchers.IO) { LocalClaudeBridge().filmStatus() }
         if (status == null) { Speaker.speakNatural(applicationContext, "Le cerveau ne répond pas, ou il est trop ancien pour les films."); return }
         if (!status.key) {
@@ -450,9 +452,9 @@ class WakeWordService : Service() {
             return
         }
         val yes = Vocabulary.spoken(applicationContext, "validation")
-        val agreed = askAloud(applicationContext, "Pour un film de toi, j'utilise ta clé fal et tes photos. C'est facturé par fal, et je te montre le prix avant. Dis « $yes » pour continuer.") { Speaker.speakNatural(applicationContext, it) }
+        val agreed = askAloud(applicationContext, (if (kind == "product") "Pour un film de ton produit" else "Pour un film de toi") + ", j'utilise ta clé fal et tes photos. C'est facturé par fal, et je te montre le prix avant. Dis « $yes » pour continuer.") { Speaker.speakNatural(applicationContext, it) }
         if (!agreed) { Speaker.speakNatural(applicationContext, "D'accord, je laisse."); return }
-        FilmActivity.open(applicationContext, direction)
+        FilmActivity.open(applicationContext, direction, kind)
     }
 
     // A QUESTION is answered by the super agent itself, aloud (Claude, through the brain); it goes to no session. A COMMAND goes through the summary and the validation.
