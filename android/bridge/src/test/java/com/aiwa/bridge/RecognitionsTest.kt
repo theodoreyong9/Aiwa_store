@@ -11,8 +11,8 @@ class RecognitionsTest {
     @After fun clean() { VoiceVocabulary.written = emptyMap() }
 
     @Test fun thereAreNineRecognitionsInTheOrderOfTheBrief() {
-        assertEquals(listOf("Réveil", "Validation", "Stop", "Éteins"), Recognitions.SLOTS.filter { it.group == Recognitions.MINE }.map { it.label })
-        assertEquals(listOf("Accomplissement", "Rapport"), Recognitions.SLOTS.filter { it.group == Recognitions.AIWA }.map { it.label })
+        assertEquals(listOf("Réveil", "Envoi", "Validation", "Stop", "Éteins"), Recognitions.SLOTS.filter { it.group == Recognitions.MINE }.map { it.label })
+        assertEquals(listOf("Accomplissement", "Rapport", "Veille", "Écoute"), Recognitions.SLOTS.filter { it.group == Recognitions.AIWA }.map { it.label })
         assertEquals(WakeKind.LIAISON, wakeKind("heille wa"))
         assertEquals(WakeKind.LIAISON, wakeKind("haye wa"))
         assertEquals(WakeKind.STOP, wakeKind("stop la commande"))

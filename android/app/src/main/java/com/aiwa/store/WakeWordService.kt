@@ -171,6 +171,7 @@ class WakeWordService : Service() {
 
     /** « éteins »: no more permanent listening, and the super agent closes with it. */
     private fun switchOff() {
+        keepPending()
         scope.launch {
             waitToken++
             agentListener?.stop(); agentListener = null
@@ -202,6 +203,8 @@ class WakeWordService : Service() {
     // The question of Claude that was read aloud and waits for its spoken answer, and the one already read (a question is read once; the next one only comes after this one was answered).
     private var answeringAsk: com.aiwa.bridge.AskInfo? = null
     private var draftOffered = false
+    // What was said since the last send word (« s'il te plaît »): a command may come in several sentences; it is taken only when the send word is said.
+    private val pendingCommand = StringBuilder()
     private var askRead: String? = null
     private var runningCommand: VoiceDictation? = null
 
@@ -266,14 +269,15 @@ class WakeWordService : Service() {
             agentMode = true
             agentBusy = true
             answeringAsk = null
+            pendingCommand.clear()
             holdCpu(true)
             AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = true)) }
             scope.launch {
                 agentCall("set", mapOf("enabled" to true))
                 // The natural voice is installed once (about 80 MB), in the backend; until it is ready the phone's own voice speaks.
                 if (AiwaRepository.state.value.agent?.voice == "none") try { withContext(Dispatchers.IO) { LocalClaudeBridge().voiceSetup() } } catch (err: Exception) { }
-                say("Super agent : je t'écoute — dis ta commande")
-                Speaker.speakNatural(applicationContext, "J'écoute.")
+                say("Super agent : dis ta commande, puis « " + Vocabulary.spoken(applicationContext, "envoi") + " »")
+                Speaker.speakNatural(applicationContext, Vocabulary.spoken(applicationContext, "ecoute").replaceFirstChar { it.uppercase() } + ".")
                 AgentDraft.get(applicationContext)?.let { draft ->
                     // a message that did not leave: read again in a few words, the validation sends it, anything else goes on from it, « annule » drops it
                     draftOffered = true
@@ -287,6 +291,12 @@ class WakeWordService : Service() {
         }
     }
 
+    /** A command begun and not finished (no send word yet) is not lost: it becomes the draft. */
+    private fun keepPending() {
+        if (pendingCommand.isNotBlank()) AgentDraft.set(applicationContext, pendingCommand.toString())
+        pendingCommand.clear()
+    }
+
     /** Nothing heard for ten seconds: the super agent goes back to sleep (the wake word listens again). Its unfinished message is kept (AgentDraft), and offered when it opens again. */
     private fun standbyAgent() {
         if (!agentMode || agentBusy || paused) return
@@ -295,10 +305,12 @@ class WakeWordService : Service() {
         agentListener = null
         answeringAsk = null
         draftOffered = false
+        keepPending()
         AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
         scope.launch {
             agentCall("set", mapOf("enabled" to false))
             CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
+            Speaker.speakNatural(applicationContext, Vocabulary.spoken(applicationContext, "veille").replaceFirstChar { it.uppercase() } + ".")
             if (!agentMode) listen()
         }
     }
@@ -314,6 +326,7 @@ class WakeWordService : Service() {
             runningCommand = null
             answeringAsk = null
             draftOffered = false
+            keepPending()
             AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
             scope.launch {
                 agentCall("set", mapOf("enabled" to false))
@@ -350,6 +363,7 @@ class WakeWordService : Service() {
                 (STOP_AGENT_REGEX.matches(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("stop", plain)) -> {
                     // « stop », CONFIRMED first: what waits is dropped, and the sessions the agent last spoke to are asked to forget its last comment
                     answeringAsk = null
+                    keepPending()
                     if (askAloud(applicationContext, "Tu veux que j'arrête ?") { Speaker.speakNatural(applicationContext, it) }) {
                         val told = agentCall("stop")
                         say(if (told == null) "Stop : les sessions touchées en dernier oublient son dernier commentaire." else "Stop (les sessions n'ont pas été prévenues : $told)")
@@ -363,7 +377,7 @@ class WakeWordService : Service() {
                         draft == null -> {}
                         containsConfirmation(text) -> runAgentCommand(draft, validated = true)
                         com.aiwa.bridge.endsWithCancelPhrase(text) || plain.startsWith("annule") || plain.startsWith("efface") -> { AgentDraft.clear(applicationContext); say("Message abandonné") }
-                        else -> runAgentCommand(draft + " " + text.trim())
+                        else -> { AgentDraft.clear(applicationContext); pendingCommand.append(draft); addToCommand(text) }
                     }
                 }
                 answeringAsk != null -> {
@@ -376,13 +390,23 @@ class WakeWordService : Service() {
                     try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }
                 }
                 else -> {
-                    // A command: what was just said, whole. Nothing is spoken meanwhile; the summary comes with the repository.
-                    say("Toi : " + text.trim())
-                    runAgentCommand(text.trim())
+                    addToCommand(text)
                 }
             }
             agentBusy = false
             agentListen()
+        }
+    }
+
+    // A command is kept, sentence after sentence, until the send word. Nothing is spoken meanwhile; the summary comes with the repository.
+    private suspend fun addToCommand(text: String) {
+        if (pendingCommand.isNotEmpty()) pendingCommand.append(' ')
+        pendingCommand.append(text.trim())
+        say("Toi : " + pendingCommand)
+        if (containsSend(pendingCommand.toString())) {
+            val command = withoutSend(pendingCommand.toString())
+            pendingCommand.clear()
+            if (command.isNotBlank()) runAgentCommand(command)
         }
     }
 

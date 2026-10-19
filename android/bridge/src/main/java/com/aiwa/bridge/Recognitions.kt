@@ -20,6 +20,7 @@ object Recognitions {
         Slot("instruction", "Instruction", listOf("instruction"), "Ce qui suit règle les pastilles session et dépôt."),
         Slot("session", "Pastille session", listOf("session"), "Dans une instruction : « session … » choisit la session."),
         Slot("repo", "Pastille dépôt", listOf("dépôt", "repo"), "Dans une instruction : « dépôt … » choisit le dépôt."),
+        Slot("envoi", "Envoi", listOf("s'il te plaît", "s'il vous plaît"), "Ce que tu dis à la FIN de ta commande pour qu'Aiwa la prenne : sans lui, il continue d'écouter et ajoute ce que tu dis.", MINE),
         Slot("validation", "Validation", listOf("c'est bien ça"), "Ce que tu dis pour confirmer : Aiwa te résume ce qu'il va envoyer (le dépôt et ta commande), et rien ne part avant.", MINE),
         Slot("stop", "Stop", listOf("stop la commande", "stop claude", "arrête claude"), "Arrête la production en cours et fait oublier à la dernière session le dernier commentaire.", MINE),
         Slot("eteins", "Éteins", listOf("éteins toi", "éteins"), "Éteint le super agent et l'écoute permanente.", MINE),
@@ -28,6 +29,8 @@ object Recognitions {
         Slot("report", "Rapport du super agent", listOf("fais ton rapport"), "Dit au super agent ouvert de faire son rapport d'activité et de proposer une idée."),
         Slot("accomplissement", "Accomplissement", listOf("c'est prêt"), "Ce qu'Aiwa dit à voix haute quand un travail est prêt.", AIWA),
         Slot("dispo", "Rapport", listOf("t'es dispo ?"), "Ce qu'Aiwa te demande à voix haute pour te proposer son rapport d'activité.", AIWA),
+        Slot("veille", "Veille", listOf("à toute"), "Ce qu'Aiwa dit quand il se remet en veille (dix secondes sans rien entendre).", AIWA),
+        Slot("ecoute", "Écoute", listOf("j'écoute"), "Ce qu'Aiwa dit quand le super agent s'ouvre.", AIWA),
     )
 
     fun slot(id: String): Slot? = SLOTS.firstOrNull { it.id == id }
@@ -39,7 +42,7 @@ object Recognitions {
         val single = setOf("instruction", "session", "repo", "stop", "eteins")
         val words = plain.split(' ')
         if (slot in single && words.size != 1) return "Un seul mot pour cette reconnaissance."
-        if (slot !in setOf("validation", "stop", "eteins", "resend", "where", "report", "liaison", "accomplissement", "dispo") && words.size != 1) return "Un seul mot pour cette reconnaissance."
+        if (slot !in setOf("validation", "stop", "eteins", "resend", "where", "report", "liaison", "envoi", "accomplissement", "dispo", "veille", "ecoute") && words.size != 1) return "Un seul mot pour cette reconnaissance."
         if (plain.length < 3) return "« $plain » est trop court : au moins 3 lettres."
         if (words.all { it in COMMON_WORDS }) return "« $plain » est un mot trop courant : il se déclencherait dans toutes les phrases."
         return null

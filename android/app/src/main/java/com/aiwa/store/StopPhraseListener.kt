@@ -15,6 +15,16 @@ private val CONFIRMATION_REGEX = Regex("""\bc['’\s]?est\s+bien\s+(?:ça|ca|sa)
 // "Vas-y dis-lui": the proposal of the agent is to be sent (only listened for while one is waiting).
 private val SEND_PROPOSAL_REGEX = Regex("""\b(?:vas[\s-]?y,?\s+)?di[st][\s-]?lui\b[!.\s]*$""", RegexOption.IGNORE_CASE)
 
+private val SEND_ANYWHERE = Regex("""\bs['’\s]?il\s+(?:te|vous)\s+pla[iî]t\b""", RegexOption.IGNORE_CASE)
+
+/** Was the SEND word said (« s'il te plaît », or what the person wrote for it): the command is finished. */
+fun containsSend(text: String): Boolean =
+    SEND_ANYWHERE.containsMatchIn(text) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("envoi", com.aiwa.bridge.WakeWords.plain(text))
+
+/** What was said without the send word, wherever it stands. */
+fun withoutSend(text: String): String =
+    SEND_ANYWHERE.replace(text, " ").replace(Regex("""\s{2,}"""), " ").trim(' ', ',', '.', '!')
+
 /** Was the validation said (« c'est bien ça »)? */
 fun containsConfirmation(text: String): Boolean =
     CONFIRMATION_REGEX.containsMatchIn(text) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("validation", com.aiwa.bridge.WakeWords.plain(text))
