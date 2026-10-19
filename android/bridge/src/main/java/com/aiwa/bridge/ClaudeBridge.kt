@@ -30,6 +30,9 @@ data class DocItem(val name: String, val url: String, val ts: Long)
 
 data class VideoItem(val name: String, val size: Long, val url: String, val ts: String)
 data class VideoList(val repo: String?, val videos: List<VideoItem>)
+data class ImageItem(val name: String, val url: String, val ts: Long)
+/** The answer to a deletion: done, or why not (and `needs` = "session" when a session must be asked instead). */
+data class MediaDeleteResult(val ok: Boolean, val error: String = "", val needsSession: Boolean = false)
 
 /** A source file of a creation or a campaign, in the folder aiwa-campagne/ of the repository. */
 data class InputFile(val name: String, val size: Long)

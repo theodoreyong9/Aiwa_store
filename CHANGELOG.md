@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: « Vidéo » is now « Média » and opens two folders, Vidéos and Images (the pictures a session makes go to `docs/images/`, which has a list of its own); every line of the video and image lists has a 🗑 that asks first, then deletes the file with the person's own `gh` (or asks the session when `gh` is not connected) (brain 148).
+
 - Natural talk: the answer is written for the ear (spoken French, short first sentence, no symbols) and streams: each sentence is read as Claude writes it, the first one is heard while the others are still coming (brain 147).
 
 - Settings → « Conversation fluide » (on by default): a question is answered at once (no send word), the answer starts after its first sentence, a short « je réfléchis » covers a long wait, the listening stays open 30 s, and the brain keeps the last turns of the talk (forgotten after ten quiet minutes) (brain 146). Work (documents, videos, code, connectors) keeps every confirmation. No API key needed: it runs on the phone's own Claude login.

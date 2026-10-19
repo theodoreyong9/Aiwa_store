@@ -101,6 +101,7 @@ private fun VideosWindow(onClose: () -> Unit) {
     val state by AiwaRepository.state.collectAsState()
     var list by remember { mutableStateOf<VideoList?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var asking by remember { mutableStateOf<com.aiwa.bridge.VideoItem?>(null) }
 
     LaunchedEffect(Unit) {
         try {
@@ -120,7 +121,20 @@ private fun VideosWindow(onClose: () -> Unit) {
         android.content.Intent(context, CastActivity::class.java).putExtra(CastActivity.EXTRA_URL, video.url).putExtra(CastActivity.EXTRA_TITLE, video.name),
     )
 
-    val entries = buildList {
+    val sure = asking
+    // Nothing is deleted without the confirming tap
+    val confirm = if (sure == null) null else listOf(
+        PickerEntry("Supprimer « ${sure.name} » du dépôt ?", false, header = true, lines = 2) { },
+        PickerEntry("Oui, supprimer", false, lines = 1, button = true) {
+            asking = null
+            scope.launch {
+                val atRoot = !sure.url.contains("/docs/videos/")
+                if (deleteMedia(context, "video", sure.name, if (atRoot) "docs" else null)) { list = null; list = try { bridge.videos() } catch (err: Exception) { null } }
+            }
+        },
+        PickerEntry("Non, garder", false, lines = 1, button = true) { asking = null },
+    )
+    val entries = confirm ?: buildList {
         // The two general settings: a tap goes to the next value
         add(PickerEntry("Qualité : ${state.videoQuality}", false, lines = 1, button = true) {
             val next = QUALITY_CYCLE[(QUALITY_CYCLE.indexOf(state.videoQuality) + 1).mod(QUALITY_CYCLE.size)]
@@ -138,7 +152,7 @@ private fun VideosWindow(onClose: () -> Unit) {
             current.videos.isEmpty() -> add(PickerEntry("Aucune vidéo pour l'instant dans ${current.repo}.", false, lines = 2) { })
             else -> current.videos.forEach { v ->
                 val when_ = dateTimeLabel(v.ts.toLongOrNull() ?: 0L)
-                add(PickerEntry(v.name + if (when_.isNotEmpty()) "\n$when_" else "", false, lines = 2, side = "📺", onSide = { cast(v) }, side2 = "↗", onSide2 = { share(context, v.url, v.name) }) { play(v) })
+                add(PickerEntry(v.name + if (when_.isNotEmpty()) "\n$when_" else "", false, lines = 2, side = "📺", onSide = { cast(v) }, side2 = "↗", onSide2 = { share(context, v.url, v.name) }, side3 = "🗑", onSide3 = { asking = v }) { play(v) })
             }
         }
     }

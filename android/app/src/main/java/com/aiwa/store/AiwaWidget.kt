@@ -374,7 +374,7 @@ private fun lightKinds(state: AiwaState, context: Context): List<LightKind> {
     }
     return listOf(
         LightKind("documents", "Docs", Productions.has(context, state.repo, "documents"), tab == "media" && sub == "documents"),
-        LightKind("video", "Vidéo", Productions.has(context, state.repo, "video"), tab == "media" && sub == "video"),
+        LightKind("video", "Média", Productions.has(context, state.repo, "video"), tab == "media" && sub == "video"),
         LightKind("pages", "Page", Productions.has(context, state.repo, "page") || hasSite && state.siteKind != "apk" && state.siteState == "live", tab == "pages"),
         LightKind("android", "App", Productions.has(context, state.repo, "apk") || hasSite && state.siteKind == "apk" && state.siteState == "live", tab == "android"),
         LightKind("aiwa", "Aiwa", Productions.has(context, state.repo, "aiwa"), tab == "aiwa"),
@@ -413,7 +413,7 @@ suspend fun openProduction(app: Context, mode: String, found: Boolean? = null) {
     // The window opens first: choosing the mode (which redraws the widget) and the check of the repository come after, off the way
     when (mode) {
         "documents" -> app.startActivity(Intent(app, DocumentsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        "video" -> app.startActivity(Intent(app, VideosActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        "video" -> app.startActivity(Intent(app, MediaActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         "aiwa" -> app.startActivity(Intent(app, OpenStoreActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         "pages" -> if (repo != null) view("https://${repo.substringBefore('/')}.github.io/${repo.substringAfter('/')}/")
         else -> if (repo != null) view("https://github.com/$repo/releases")

@@ -538,6 +538,24 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         false
     }
 
+    /** The pictures of the repository in use (the files of docs/images/), the most recently changed first. */
+    fun images(): Pair<String?, List<ImageItem>> = try {
+        val json = JSONObject(getText("/api/images"))
+        val array = json.optJSONArray("images")
+        json.str("repo") to (if (array == null) emptyList() else (0 until array.length()).map { val d = array.getJSONObject(it); ImageItem(d.optString("name"), d.optString("url"), d.optLong("ts", 0L)) })
+    } catch (e: Exception) {
+        null to emptyList()
+    }
+
+    /** Deletes one file of the media folders (kind: "video" | "image"); `path` is "docs" for a video that lies at the root of docs/. */
+    fun mediaDelete(kind: String, name: String, path: String? = null): MediaDeleteResult = try {
+        val body = JSONObject().put("kind", kind).put("name", name).apply { if (path != null) put("path", path) }
+        val json = JSONObject(postText("/api/media_delete", body.toString()))
+        MediaDeleteResult(json.optBoolean("ok", false), json.optString("error"), json.optString("needs") == "session")
+    } catch (e: Exception) {
+        MediaDeleteResult(false, e.message ?: "?", false)
+    }
+
     /** The documents of the repository in use (the files of docs/), the most recently changed first; `ts` is epoch seconds, 0 when unknown. */
     fun documents(): List<DocItem> = try {
         val array = JSONObject(getText("/api/documents")).optJSONArray("documents")

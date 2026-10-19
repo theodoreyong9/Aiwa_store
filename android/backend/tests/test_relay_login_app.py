@@ -2488,3 +2488,12 @@ class SentenceCutTests(unittest.TestCase):
         self.assertEqual(srv._sentences_from("Oui. C'est un store, du coup. Et la"), (["Oui.", "C'est un store, du coup."], "Et la"))
         self.assertEqual(srv._sentences_from("Il vaut 3.5 euros"), ([], "Il vaut 3.5 euros"), "a decimal point is not the end of a sentence")
         self.assertEqual(srv._sentences_from("Et la fin", final=True), (["Et la fin"], ""))
+
+
+class MediaTests(unittest.TestCase):
+    def test_the_images_line_is_in_the_first_message_and_deleting_needs_a_valid_file(self):
+        import aiwa_server as srv
+        text, _ = srv._compose({}, "me/site", "aiwa/20261019-100000", "main", True)
+        self.assertIn("docs/images/", text)
+        self.assertFalse(srv.media_delete("video", "../x.mp4")["ok"])
+        self.assertFalse(srv.media_delete("other", "x.png")["ok"])

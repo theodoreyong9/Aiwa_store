@@ -135,6 +135,9 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
+        <!-- « Média »: the videos and the images of the repository (MediaActivity.kt). -->
+        <activity android:name=".MediaActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:taskAffinity="" android:excludeFromRecents="true" />
+        <activity android:name=".ImagesActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:taskAffinity="" android:excludeFromRecents="true" />
         <!-- The loops between two sessions, a builder and a critic (LoopsActivity.kt). -->
         <activity android:name=".LoopsActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"

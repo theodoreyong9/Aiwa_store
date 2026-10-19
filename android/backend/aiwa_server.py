@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 147
+BACKEND_VERSION = 148
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -536,7 +536,7 @@ def _known_repos():
     return [r for r in known if isinstance(r, str) and github.REPO_RE.fullmatch(r)]
 
 
-_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "creative": "direction créative", "game": "jeu", "ask": "questions", "video": "vidéo", "document": "fichier", "proposals": "propositions"}
+_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "creative": "direction créative", "game": "jeu", "ask": "questions", "video": "vidéo", "document": "fichier", "proposals": "propositions", "images": "images"}
 
 
 def _design_line():
@@ -608,6 +608,12 @@ def _document_line(repo):
         "un tableur .xlsx avec Python (openpyxl ou pandas), un PDF avec `pdftotext`, une image ou une vidéo en les citant ou en les intégrant telles quelles sans rien dire de leur contenu que tu n'as pas pu lire. "
         "Quand ma demande contient un document collé et te dit de le ranger, écris-en une copie dans `aiwa-campagne/` (même nom) et pousse-la avec la consigne Push."
     )
+
+
+def _image_line():
+    """Where a picture goes: the folder the widget's Média list shows."""
+    return ("Images : quand je te demande une image (illustration, logo, visuel, photo retouchée), fabrique-la en PNG, JPG ou WebP et pose-la dans `docs/images/` du dépôt en cours, avec un nom qui dit ce qu'elle montre, "
+            "puis pousse-la avec la consigne Push : l'appli montre la liste de toutes les images de ce dépôt. Dis-moi en une phrase ce qu'elle montre et d'où viennent ses éléments (rien d'inventé présenté comme une photo).")
 
 
 def _video_full(repo):
@@ -1019,6 +1025,7 @@ def _instruction_lines(repo, work, base, direct, origin=None, quality=None):
     if repo:
         lines.append(("video", _video_line(repo, video_quality) + f" Dimension par défaut de la vidéo : {default_format} (9:16 vertical, 16:9 horizontal, 1:1 carré), sauf si ma demande en précise une."))
         lines.append(("document", _document_line(repo)))
+        lines.append(("images", _image_line()))
         lines.append(("proposals", _proposals_line(repo)))
     lines.append(("ask", _ask_line(repo, work, topic)))
     # Mandatory, not a switch: it is how the widget learns that Claude is
@@ -2893,6 +2900,71 @@ def _documents_snapshot():
     return {"repo": repo, "documents": items}
 
 
+IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg")
+MEDIA_FOLDERS = {"video": "docs/videos", "image": "docs/images"}
+
+
+def _images_snapshot():
+    """The pictures of the chosen repository (the files of docs/images/), the most recently changed first: [{name, url, ts}]."""
+    with lock:
+        repo = _chosen_repo()
+    if not repo or not github.REPO_RE.fullmatch(repo):
+        return {"repo": None, "images": []}
+    names = None
+    if _videos_via_git(repo) is not None:       # makes sure the bare clone is up to date
+        folder = GIT_CACHE / (repo.replace("/", "__") + ".git")
+        try:
+            listed = subprocess.run(["git", "-C", str(folder), "ls-tree", "-z", "--name-only", "FETCH_HEAD", "docs/images/"], capture_output=True, timeout=60)
+            if listed.returncode == 0:
+                names = [n.rsplit("/", 1)[-1] for n in listed.stdout.decode("utf-8", "replace").split("\0") if n and not n.endswith("/")]
+        except (OSError, subprocess.SubprocessError):
+            names = None
+    if names is None:
+        try:
+            folder_json = _github_json(f"https://api.github.com/repos/{repo}/contents/docs/images")
+            names = [str(e.get("name") or "") for e in (folder_json if isinstance(folder_json, list) else []) if isinstance(e, dict) and e.get("type") == "file"]
+        except GithubUnavailable:
+            names = []
+    dates = _file_dates(repo)
+    items = [
+        {"name": n, "url": f"https://raw.githubusercontent.com/{repo}/HEAD/docs/images/{urllib.parse.quote(n)}", "ts": dates.get("docs/images/" + n, 0)}
+        for n in names if n.lower().endswith(IMAGE_EXT)
+    ]
+    items.sort(key=lambda d: (d["ts"], d["name"].lower()), reverse=True)
+    return {"repo": repo, "images": items}
+
+
+def media_delete(kind, name, path=None):
+    """Deletes ONE file of the chosen repository's media folders (docs/videos, docs/images, or a video at the root of docs/) with the person's own `gh` (a commit on the default branch).
+    Without a connected `gh` nothing is done and the app asks a session instead. {"ok"} | {"ok": False, "error", "needs": "session"}."""
+    with lock:
+        repo = _chosen_repo()
+    name = str(name or "")
+    if kind not in MEDIA_FOLDERS or not repo or not github.REPO_RE.fullmatch(repo) or not re.fullmatch(r"[^/\\\0]{1,160}", name) or name in (".", ".."):
+        return {"ok": False, "error": "fichier ou dépôt invalide"}
+    folder = MEDIA_FOLDERS[kind]
+    if kind == "video" and path == "docs":
+        folder = "docs"
+    gh = github.gh_path()
+    if not gh or not github._gh_login():
+        return {"ok": False, "error": "gh n'est pas connecté dans Termux", "needs": "session", "path": f"{folder}/{name}"}
+    target = f"repos/{repo}/contents/{urllib.parse.quote(folder + '/' + name)}"
+    try:
+        found = subprocess.run([gh, "api", target, "--jq", ".sha"], capture_output=True, text=True, timeout=60)
+        sha = (found.stdout or "").strip()
+        if found.returncode != 0 or not sha:
+            return {"ok": False, "error": "fichier introuvable dans le dépôt", "needs": "session", "path": f"{folder}/{name}"}
+        done = subprocess.run([gh, "api", "-X", "DELETE", target, "-f", f"message=Aiwa: delete {folder}/{name}", "-f", f"sha={sha}"], capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError) as err:
+        return {"ok": False, "error": str(err), "needs": "session", "path": f"{folder}/{name}"}
+    if done.returncode != 0:
+        return {"ok": False, "error": _clean((done.stderr or "") + (done.stdout or "")).strip()[-200:] or "suppression refusée", "needs": "session", "path": f"{folder}/{name}"}
+    with lock:
+        video_cache.update(key=None, items=[], at=0)
+    file_dates_cache.pop(repo, None)
+    return {"ok": True}
+
+
 def _videos_snapshot():
     """The promotional videos of the session's repository: the files of its GitHub release `videos`, newest first. Only a public repository can say
     (nothing is read with a token); for a private one the list is empty and the session sends the link."""
@@ -4205,6 +4277,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(_documents_snapshot())
         elif self.path == "/api/videos":
             self.reply_json(_videos_snapshot())
+        elif self.path == "/api/images":
+            self.reply_json(_images_snapshot())
         elif self.path == "/api/projects":
             self.reply_json(projects_get())
         elif self.path == "/api/loops":
@@ -4239,6 +4313,13 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(attach_add(body))
         elif self.path == "/api/projects":
             self.reply_json(projects_save(body))
+        elif self.path == "/api/media_delete":
+            try:
+                data = json.loads(body) if body.strip() else {}
+            except ValueError:
+                data = {}
+            data = data if isinstance(data, dict) else {}
+            self.reply_json(media_delete(data.get("kind"), data.get("name"), data.get("path")))
         elif self.path == "/api/answer_stream":
             try:
                 data = json.loads(body) if body.strip() else {}

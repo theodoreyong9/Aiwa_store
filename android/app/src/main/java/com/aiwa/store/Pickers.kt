@@ -58,7 +58,7 @@ import kotlinx.coroutines.withContext
 
 // header: a section title, not something to tap. lines: how many lines the label may take.
 // side: a second, small button at the end of the row (a repository's page on GitHub, for instance) with its own action.
-class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val side2: String? = null, val onSide2: () -> Unit = {}, val button: Boolean = false, val onClick: () -> Unit)
+class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val side2: String? = null, val onSide2: () -> Unit = {}, val side3: String? = null, val onSide3: () -> Unit = {}, val button: Boolean = false, val onClick: () -> Unit)
 
 // The look of the sheets: dark whatever the phone's theme (it opens over the home screen, like the widget), compact rows, one accent.
 internal val SheetBg = Color(0xFF14141A)
@@ -162,6 +162,12 @@ internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQu
                                         maxLines = entry.lines,
                                         modifier = Modifier.weight(1f).padding(start = if (entry.active) 8.dp else 14.dp, end = 8.dp, top = 9.dp, bottom = 9.dp),
                                     )
+                                    if (entry.side3 != null) {
+                                        Text(
+                                            text = entry.side3, color = SheetText, fontSize = 12.sp,
+                                            modifier = Modifier.padding(end = 4.dp).background(SheetChip, RoundedCornerShape(10.dp)).clickable { entry.onSide3() }.padding(horizontal = 10.dp, vertical = 5.dp),
+                                        )
+                                    }
                                     if (entry.side2 != null) {
                                         Text(
                                             text = entry.side2, color = SheetText, fontSize = 12.sp,
