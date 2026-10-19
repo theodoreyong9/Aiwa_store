@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Widget: the session and repository pills are now inside « Projet »; to its right, « Wallet » and « Store » each open their own page of the web app alone (no tabs, no browser bar). The Wallet page: connect (12 words) and disconnect, SOL devnet balance, faucet, burn with the patience rate, AIWA balance, claimable, claim (soon), publication and ranking scores, and Push (the repository's web page goes to the Store in aiwa mode, signed with its hash). The Store page: the list and its search by name or id.
+- Connectors: Instagram, LinkedIn and TikTok (the profile opens, the text is on the clipboard).
+
 - The « + » of the widget: « Écrire à un contact » is gone (a document or a media only); writing to someone is now a connector.
 
 - Settings → Connectors: mail, agenda, SMS, call, WhatsApp, Telegram and X (off until turned on); the super agent prepares one, the phone reads it back, and after the confirmation the app opens filled in (the person taps send/call/save) (brain 145).

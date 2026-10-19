@@ -317,3 +317,17 @@ details.plain > * + * { margin-top: 8px; }
 .app .star { flex: none; align-self: flex-start; color: var(--accent); }
 .app .star { flex: none; align-self: flex-start; background: none; border: 0; font-size: 18px; cursor: pointer; color: var(--accent); }
 .app .meta .by { color: inherit; text-decoration: underline dotted; }
+
+
+/* ---------- a page alone (?page=wallet | ?page=store): the Android widget's Wallet and Store buttons; no bar, no tabs ---------- */
+body[data-page] .bar { display: none; }
+body[data-page="store"] #store-tabs { display: none; }
+body[data-page="wallet"] .grid2,
+body[data-page="wallet"] #network-section,
+body[data-page="wallet"] #link-section,
+body[data-page="wallet"] #standing-section,
+body[data-page="wallet"] #history-section,
+body[data-page="wallet"] #my-apps-section,
+body[data-page="wallet"] #phrase-notice,
+body[data-page="wallet"] .ids { display: none; }
+body[data-page="wallet"] #lite-actions:not([hidden]) { display: block; }

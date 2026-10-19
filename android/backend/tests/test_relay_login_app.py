@@ -2460,3 +2460,9 @@ class ConnectorTests(unittest.TestCase):
         self.assertEqual(ag.parse_command({"connector": {"kind": "telegram", "to": "@paul_x1", "body": "Hi"}}, set())["connector"]["to"], "paul_x1")
         self.assertIsNone(ag.parse_command({"connector": {"kind": "x", "body": "a" * 281}}, set()))
         self.assertEqual(ag.parse_command({"connector": {"kind": "tweet", "body": "ok"}}, set())["connector"]["kind"], "twitter")
+
+    def test_profile_connectors(self):
+        import aiwa_agent as ag
+        self.assertEqual(ag.parse_command({"connector": {"kind": "insta", "to": "@paul.x", "body": "Hello"}}, set())["connector"]["to"], "paul.x")
+        self.assertEqual(ag.parse_command({"connector": {"kind": "linkedin", "body": "Post"}}, set())["connector"]["kind"], "linkedin")
+        self.assertIsNone(ag.parse_command({"connector": {"kind": "tiktok", "to": "a b!", "body": "x"}}, set()))

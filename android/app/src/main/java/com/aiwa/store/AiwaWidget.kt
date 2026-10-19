@@ -456,10 +456,7 @@ private fun LightContent(state: AiwaState) {
     ) {
         // ---- row 1 ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            val projW = 62f
             val rounds = 1 + (if (state.appUpdateReady) 1 else 0)
-            // the room each of the two pills really has: the row, less the round buttons and the gaps, shared by two
-            val each = (avail - rounds * (chipH + GAP) - GAP * 2 - projW) / 2f - 12f
             // only while a newer build is downloaded (a tap opens the installer)
             if (state.appUpdateReady) {
                 RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
@@ -471,30 +468,19 @@ private fun LightContent(state: AiwaState) {
                 background = if (loopOn) green else blue, action = actionStartActivity<LoopsActivity>(), diameter = chipH.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
-            val sessionTitle = bandInfo(state, each).title
-            val sessionBad = sessionTitle.endsWith("▸")
-            // The « Projet » button: the name of the pair now on the two pills (or the invitation to name it)
+            // « Projet »: the session and the repository are chosen inside it (red when one of them is missing or needs something)
+            val projectBad = !allMode && (state.repo == null || bandInfo(state, 200f).title.endsWith("▸"))
             Chip(
-                if (allMode) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", projW - 12f, fs),
-                if (allMode) green else if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
+                if (allMode) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", avail - rounds * (chipH + GAP) - GAP * 3 - 2 * 54f - 24f, fs) + " ▾",
+                if (allMode) green else if (locked) PILL_DIM else if (projectBad) alertRed else pill, if (locked) TEXT_DIM else fg,
                 lockable(locked, actionStartActivity<ProjectPickerActivity>()),
-                if (allMode) GlanceModifier.defaultWeight() else GlanceModifier.width(projW.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp,
+                GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
             )
-            if (!allMode) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                Chip(
-                    if (sessionBad) sessionTitle else fitLabel(state.session, each - textWidth(" ▾", fs), fs) + " ▾",
-                    if (locked) PILL_DIM else if (sessionBad) alertRed else pill, if (locked) TEXT_DIM else fg,
-                    if (sessionBad) bandInfo(state, each).action else lockable(locked, actionStartActivity<SessionPickerActivity>()),
-                    GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
-                )
-                Spacer(GlanceModifier.width(GAP.dp))
-                Chip(
-                    "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", each - textWidth("⎇  ▾", fs), fs) + " ▾",
-                    if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
-                    lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
-                )
-            }
+            // Wallet and Store: each opens its own page of the web app, alone (no tabs, no browser bar)
+            Spacer(GlanceModifier.width(GAP.dp))
+            Chip("Wallet", pill, fg, actionStartActivity(storePageIntent(context, "wallet", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+            Spacer(GlanceModifier.width(GAP.dp))
+            Chip("Store", pill, fg, actionStartActivity(storePageIntent(context, "store", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
         }
         // ---- row 2: the campaign, then the kinds (grey until the repository holds one, coloured once it does) ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
@@ -564,3 +550,9 @@ class BusyTapCallback : ActionCallback {
 }
 
 
+
+
+/** A page of the web app alone (page=wallet or page=store): the Store's activity, with no tabs and no browser bar. The repository goes with it (the Wallet's Push publishes its page). */
+fun storePageIntent(context: Context, page: String, repo: String?): Intent =
+    Intent(context, StoreActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        .putExtra(StoreActivity.EXTRA_URL, "$STORE_APP_URL?page=$page" + (if (repo != null) "&repo=" + android.net.Uri.encode(repo) else ""))

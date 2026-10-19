@@ -898,6 +898,11 @@ class ProjectPickerActivity : ComponentActivity() {
             val session = state.cloudSessionId ?: "new"
             val entries = buildList {
                 val all = Projects.isAll(applicationContext)
+                // The session and the repository are chosen here (the two pills left the widget)
+                if (!all) {
+                    add(PickerEntry("Session : ${state.session} ▾", false, lines = 1, button = true) { startActivity(Intent(this@ProjectPickerActivity, SessionPickerActivity::class.java)); finish() })
+                    add(PickerEntry("⎇ Dépôt : ${state.repo?.substringAfter('/') ?: "aucun"} ▾", false, lines = 1, button = true) { startActivity(Intent(this@ProjectPickerActivity, RepoPickerActivity::class.java)); finish() })
+                }
                 // At the top, two buttons: name the pair now on the pills, and « Tous »
                 if (!all && state.repo != null) add(PickerEntry("＋ Nommer la paire", false, button = true) {
                     startActivity(Intent(this@ProjectPickerActivity, ProjectNameActivity::class.java)); finish()

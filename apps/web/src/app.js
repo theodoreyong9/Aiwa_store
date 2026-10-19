@@ -1,7 +1,7 @@
 import { config } from './config.js';
 import { $, switchView } from './ui.js';
-import { initStore, initLibrary, initComments } from './store-ui.js';
-import { initWallet } from './wallet-ui.js';
+import { initStore, initLibrary, initComments, showStoreTab } from './store-ui.js';
+import { initWallet, initWalletPage } from './wallet-ui.js';
 import { initCommentsTab } from './comments-ui.js';
 import { initPublish, sheetIsOpen, closeSheet } from './publish-ui.js';
 import { closeViewer } from './viewer.js';
@@ -36,11 +36,22 @@ initComments();
 initCommentsTab();
 initWallet();
 
+// A page alone, opened by the widget's Wallet or Store button (?page=wallet | ?page=store&repo=owner/name): no bar, no tabs inside, one thing on screen.
+const pageParams = new URLSearchParams(location.search);
+const pageAlone = ['wallet', 'store'].includes(pageParams.get('page')) ? pageParams.get('page') : null;
+if (pageAlone) {
+  document.body.dataset.page = pageAlone;
+  switchView(pageAlone);
+  if (pageAlone === 'store') showStoreTab('aiwa');
+  else initWalletPage(pageParams.get('repo'));
+}
+
 // Inside the Android app: a back button that closes what is open first, then leaves the tab.
 setBackHandler(() => {
   if (!$('viewer').hidden) { closeViewer(); return true; }
   if (sheetIsOpen()) { closeSheet(); return true; }
   if (!$('codesheet').hidden) { $('codesheet').hidden = true; return true; }
+  if (pageAlone) return false;       // a page alone: back leaves it
   const view = document.querySelector('#app-nav button.active')?.dataset.view;
   if (view && view !== 'store') { switchView('store'); return true; }
   return false;

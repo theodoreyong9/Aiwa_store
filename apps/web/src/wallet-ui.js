@@ -9,6 +9,7 @@ import { keptPhrase, startWallet, restoreHistory, keepRunning, solanaConnection 
 import { secretsAreSafe } from './keys.js';
 import { $, short, setId, showError, flash } from './ui.js';
 import { openRefresh } from './publish-ui.js';
+import { deleteSecret } from './keys.js';
 import { drawQr, scanQr } from './qr.js';
 import { startLink, joinLink } from './link.js';
 import { watchNetwork, setNetwork, wantsNetwork } from './network.js';
@@ -508,4 +509,69 @@ export async function initWallet() {
   starting = false;
   session.starting = false;
   updateGates();
+}
+
+
+// ---------- the wallet page alone (?page=wallet): connect / disconnect, SOL (faucet, burn), AIWA, scores, Push ----------
+
+const DEVNET = /devnet/i.test(config.rpc ?? '');
+
+/** The page of a repository on GitHub Pages: owner.github.io/name (or the user site itself). */
+const pagesUrl = (repo) => {
+  const [owner, name] = repo.split('/');
+  return name.toLowerCase() === `${owner.toLowerCase()}.github.io` ? `https://${owner}.github.io/` : `https://${owner}.github.io/${name}/`;
+};
+
+export function initWalletPage(repo) {
+  $('welcome').querySelector('details')?.setAttribute('open', '');
+  $('lite-actions').hidden = false;
+  $('btn-claim').disabled = true;
+  $('btn-claim').textContent = 'Claim (soon)';
+  $('btn-faucet').hidden = !DEVNET;
+  if (connected()) $('btn-refresh-sol').click();
+  onSession(() => { if (connected()) $('btn-refresh-sol').click(); });
+
+  $('btn-faucet').addEventListener('click', async () => {
+    const out = $('lite-result');
+    if (!connected()) { out.textContent = 'Connect the wallet first.'; return; }
+    out.textContent = 'Asking the devnet faucet for 1 SOL…';
+    try {
+      const connection = await solanaConnection();
+      const { PublicKey } = window.solanaWeb3;
+      const signature = await connection.requestAirdrop(new PublicKey(session.aiwa.address), 1_000_000_000);
+      await connection.confirmTransaction(signature, 'confirmed');
+      out.textContent = '1 SOL devnet received.';
+      $('btn-refresh-sol').click();
+    } catch (err) {
+      out.textContent = `The faucet said no (${err.message}). It limits how often and how much; try again later.`;
+    }
+  });
+
+  // Push: the repository's web page (GitHub Pages) goes to the Store in aiwa mode; GitHub keeps a pointer that cannot change (the content's hash is signed).
+  $('btn-push').addEventListener('click', async () => {
+    const out = $('lite-result');
+    if (!repo || !repo.includes('/')) { out.textContent = 'No project chosen: pick a repository in Project first.'; return; }
+    out.textContent = 'Reading the web page…';
+    try {
+      const response = await fetch(pagesUrl(repo), { cache: 'no-store' });
+      if (!response.ok) throw new Error(`no page published for ${repo} (${response.status})`);
+      const html = await response.text();
+      out.textContent = '';
+      document.dispatchEvent(new CustomEvent('aiwa-publish-library', { detail: { name: repo.split('/')[1], html } }));
+    } catch (err) {
+      out.textContent = `Not pushed: ${err.message}.`;
+    }
+  });
+
+  // Disconnect: the phrase is forgotten by this phone (asked twice: the words are the wallet).
+  $('btn-disconnect').addEventListener('click', async () => {
+    if (!connected()) { $('lite-result').textContent = 'No wallet connected. Type the 12 words above to connect.'; return; }
+    if ($('disconnect-confirm').hidden) { $('disconnect-confirm').hidden = false; return; }
+    await stop();
+    try { await deleteSecret('phrase'); } catch { /* the phone keeps nothing to forget */ }
+    $('disconnect-confirm').hidden = true;
+    starting = false;
+    updateGates();
+    $('lite-result').textContent = 'Disconnected.';
+  });
 }

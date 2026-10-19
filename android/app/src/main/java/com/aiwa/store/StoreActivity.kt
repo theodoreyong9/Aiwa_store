@@ -115,7 +115,10 @@ class StoreActivity : ComponentActivity() {
         val root = FrameLayout(this)
         root.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         // The application is not usable yet: a cover over the page says so, and offers the widget (the one thing that works) while it is not on the home screen.
-        if (UNDER_CONSTRUCTION) root.addView(constructionCover(), FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        if (UNDER_CONSTRUCTION && !isPage(intent.getStringExtra(EXTRA_URL))) {
+            cover = constructionCover()
+            root.addView(cover, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        }
         setContentView(root)
         // Edge-to-edge is the default from Android 15: keep the page out of the status and navigation bars.
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
@@ -201,6 +204,9 @@ class StoreActivity : ComponentActivity() {
         web.loadUrl(servedAddress(address, pageIsDownloaded))
     }
 
+    private var cover: android.view.View? = null
+    private fun isPage(address: String?) = address != null && address.contains("page=")
+
     private var widgetButton: android.widget.Button? = null
 
     private fun constructionCover(): android.view.View {
@@ -254,7 +260,10 @@ class StoreActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent.getStringExtra(EXTRA_URL)?.let { openPage(it) }
+        intent.getStringExtra(EXTRA_URL)?.let {
+            if (isPage(it)) cover?.let { c -> (c.parent as? ViewGroup)?.removeView(c); cover = null }
+            openPage(it)
+        }
         // Asked for by the widget's update button: the downloaded release becomes the page now.
         if (intent.getBooleanExtra(EXTRA_APPLY_UPDATE, false) && !applyUpdateNow()) openPage(loadedAddress)
     }

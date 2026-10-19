@@ -14,7 +14,7 @@ import java.util.Locale
  */
 object ConnectorSettings {
     private const val PREFS = "aiwa_connectors"
-    val KINDS = listOf("mail" to "Mail", "agenda" to "Agenda", "sms" to "SMS", "appel" to "Appel", "whatsapp" to "WhatsApp", "telegram" to "Telegram", "twitter" to "X (Twitter)")
+    val KINDS = listOf("mail" to "Mail", "agenda" to "Agenda", "sms" to "SMS", "appel" to "Appel", "whatsapp" to "WhatsApp", "telegram" to "Telegram", "twitter" to "X (Twitter)", "instagram" to "Instagram", "linkedin" to "LinkedIn", "tiktok" to "TikTok")
     fun enabled(context: Context, kind: String): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(kind, false)
     fun set(context: Context, kind: String, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(kind, on).apply() }
     fun label(kind: String): String = KINDS.firstOrNull { it.first == kind }?.second ?: kind
@@ -31,6 +31,11 @@ fun runConnector(context: Context, c: AgentConnector): Boolean {
         // Telegram has no link that fills a message for a given person: its share sheet opens, the person picks (or the chat of the name given is opened by t.me)
         "telegram" -> if (c.to.isNotBlank()) Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/" + c.to)).also { copyText(context, c.body) }
                       else Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/share/url?url=%20&text=" + Uri.encode(c.body)))
+        // No app lets another one fill a private message: the profile opens and the text is on the clipboard, to paste. LinkedIn without a profile opens its post box with the text.
+        "instagram" -> Intent(Intent.ACTION_VIEW, Uri.parse("https://www.instagram.com/" + c.to)).also { copyText(context, c.body) }
+        "tiktok" -> Intent(Intent.ACTION_VIEW, Uri.parse("https://www.tiktok.com/@" + c.to)).also { copyText(context, c.body) }
+        "linkedin" -> if (c.to.isNotBlank()) Intent(Intent.ACTION_VIEW, Uri.parse(if (c.to.startsWith("http")) c.to else "https://www.linkedin.com/in/" + c.to)).also { copyText(context, c.body) }
+                      else Intent(Intent.ACTION_VIEW, Uri.parse("https://www.linkedin.com/feed/?shareActive=true&text=" + Uri.encode(c.body)))
         "twitter" -> Intent(Intent.ACTION_VIEW, Uri.parse("https://twitter.com/intent/tweet?text=" + Uri.encode(c.body)))
         "agenda" -> {
             val begin = try { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT).parse(c.start)?.time } catch (err: Exception) { null } ?: return false
