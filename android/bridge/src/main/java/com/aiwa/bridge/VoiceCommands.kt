@@ -606,7 +606,7 @@ private val QUESTION_STARTS = listOf(
 
 /** A question for the super agent to answer by voice, not a command for a session: it opens with a question word (« explique-moi le projet », « c'est quoi ce dépôt », « pourquoi… »). */
 fun isQuestion(text: String): Boolean {
-    val plain = WakeWords.plain(text)
+    val plain = WakeWords.plain(text).replace('-', ' ').replace('\'', ' ').replace('’', ' ').replace(Regex("\\s+"), " ").trim()
     if (plain.isEmpty()) return false
     return QUESTION_STARTS.any { plain == it.trim() || plain.startsWith(if (it.endsWith(" ")) it else "$it ") }
 }
