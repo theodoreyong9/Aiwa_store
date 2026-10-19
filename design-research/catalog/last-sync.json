@@ -1,15 +1,13 @@
 {
-  "at": "2026-10-12T11:57:37.624Z",
-  "NEW": 1,
+  "at": "2026-10-19T10:02:17.635Z",
+  "NEW": 15,
   "UPDATED": 0,
-  "UNCHANGED": 17,
-  "crawled": 1,
-  "errors": [
-    "awwwards: fetch failed"
-  ],
+  "UNCHANGED": 33,
+  "crawled": 15,
+  "errors": [],
   "registries": {
     "awwwards": {
-      "found": 0
+      "found": 30
     },
     "csswinner": {
       "found": 18
