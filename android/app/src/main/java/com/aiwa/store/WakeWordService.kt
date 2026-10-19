@@ -325,7 +325,7 @@ class WakeWordService : Service() {
         }
     }
 
-    /** The button (or « repasse en manuel »): the super agent is turned OFF, and with it the whole listening (the microphone dot goes). Ten seconds of silence is the way to sleep and stay woken by the wake word. */
+    /** The button of the widget (or « repasse en manuel »): the super agent is turned OFF, and with it the whole listening (the microphone dot goes). « éteins toi » and ten seconds of silence only put it to sleep: the wake word keeps listening. */
     fun closeAgent() {
         main.post { if (agentMode) switchOff() }
     }
@@ -347,7 +347,7 @@ class WakeWordService : Service() {
         waitToken++   // what was waited for is over: the person spoke
         scope.launch {
             when {
-                OFF_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("eteins", plain) -> { agentBusy = false; switchOff(); return@launch }
+                OFF_REGEX.containsMatchIn(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("eteins", plain) -> { agentBusy = false; standbyAgent(force = true); return@launch }
                 (STOP_AGENT_REGEX.matches(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("stop", plain)) -> {
                     // « stop », CONFIRMED first: what waits is dropped, and the sessions the agent last spoke to are asked to forget its last comment
                     answeringAsk = null
@@ -528,7 +528,8 @@ class WakeWordService : Service() {
         detector = null
         if (paused) return
         if (kind == WakeKind.LIAISON) { openAgent(); return }
-        if (kind == WakeKind.OFF) { switchOff(); return }
+        // « éteins toi » while only the wake word listens: nothing is open, nothing to turn off — the wake word stays (the button of the widget stops everything)
+        if (kind == WakeKind.OFF) { listen(); return }
         if (kind == WakeKind.WHERE) {
             say("Je lis les pastilles")
             scope.launch { readPillsReport(applicationContext); listen() }
