@@ -508,6 +508,14 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         )
     }
 
+    /** The super agent answers a QUESTION by itself (it is not sent to a session). (true, the words to say) or (false, why not). */
+    fun answer(question: String): Pair<Boolean, String> = try {
+        val json = JSONObject(postText("/api/answer", JSONObject().put("question", question).toString()))
+        if (json.optBoolean("ok", false)) true to json.optString("text") else false to json.optString("error", "pas de réponse")
+    } catch (e: Exception) {
+        false to (e.message ?: "?")
+    }
+
     /** The documents of the repository in use (the files of docs/), the most recently changed first; `ts` is epoch seconds, 0 when unknown. */
     fun documents(): List<DocItem> = try {
         val array = JSONObject(getText("/api/documents")).optJSONArray("documents")

@@ -2376,3 +2376,44 @@ class SessionRenameTests(unittest.TestCase):
         srv.CLOUD_STORE.write_text(json.dumps([{"id": sid, "title": "a"}]), encoding="utf-8")
         self.assertFalse(srv.session_rename(sid, "   ")["ok"])
         self.assertFalse(srv.session_rename("nope", "x")["ok"])
+
+
+class AnswerQuestionTests(unittest.TestCase):
+    """The super agent answers a question by itself (never sent to a session)."""
+
+    def test_the_answer_comes_from_the_claude_of_the_phone_when_no_key(self):
+        class Done:
+            returncode = 0
+            stdout = "Le projet est une appli.  Elle pilote Claude.\n"
+            stderr = ""
+        import types
+        saved = (srv.llm, srv._answer_context)
+        srv.llm = types.SimpleNamespace(state="none")
+        srv._answer_context = lambda: "contexte"
+        try:
+            with unittest.mock.patch("subprocess.run", return_value=Done()) as run:
+                answer = srv.answer_question("explique moi le projet")
+            self.assertEqual(answer, {"ok": True, "text": "Le projet est une appli. Elle pilote Claude."})
+            self.assertEqual(run.call_args.args[0][:3], ["claude", "-p", "--output-format"])
+            self.assertIn("explique moi le projet", run.call_args.kwargs["input"])
+            self.assertIn("contexte", run.call_args.kwargs["input"])
+        finally:
+            srv.llm, srv._answer_context = saved
+
+    def test_an_empty_question_or_a_failing_cli_says_so(self):
+        self.assertFalse(srv.answer_question("  ")["ok"])
+        class Failed:
+            returncode = 1
+            stdout = ""
+            stderr = "not logged in"
+        import types
+        saved = (srv.llm, srv._answer_context)
+        srv.llm = types.SimpleNamespace(state="none")
+        srv._answer_context = lambda: ""
+        try:
+            with unittest.mock.patch("subprocess.run", return_value=Failed()):
+                answer = srv.answer_question("pourquoi ?")
+            self.assertFalse(answer["ok"])
+            self.assertIn("not logged in", answer["error"])
+        finally:
+            srv.llm, srv._answer_context = saved

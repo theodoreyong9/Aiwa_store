@@ -411,7 +411,20 @@ class WakeWordService : Service() {
         if (containsSend(pendingCommand.toString())) {
             val command = withoutSend(pendingCommand.toString())
             pendingCommand.clear()
-            if (command.isNotBlank()) runAgentCommand(command)
+            if (command.isNotBlank()) { if (com.aiwa.bridge.isQuestion(command)) answerQuestion(command) else runAgentCommand(command) }
+        }
+    }
+
+    // A QUESTION is answered by the super agent itself, aloud (Claude, through the brain); it goes to no session. A COMMAND goes through the summary and the validation.
+    private suspend fun answerQuestion(question: String) {
+        say("Question : $question")
+        val (ok, text) = withContext(Dispatchers.IO) { LocalClaudeBridge().answer(question) }
+        if (ok) {
+            say("Réponse : $text")
+            Speaker.speakNatural(applicationContext, text)
+        } else {
+            say("Réponse impossible : $text")
+            Speaker.speakNatural(applicationContext, "Je n'ai pas pu répondre.")
         }
     }
 

@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 141
+BACKEND_VERSION = 142
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1191,6 +1191,59 @@ def _queue_followup(session_id, text):
     return {"ok": ok, "url": url, "error": error}
 
 
+ANSWER_SYSTEM = (
+    "Tu es le super agent d'Aiwa, un assistant qui répond À VOIX HAUTE à la personne. Réponds en français, en deux à quatre phrases courtes et naturelles, sans liste, sans symbole, sans mise en forme. "
+    "Appuie-toi sur le contexte fourni (le dépôt de la personne, sa dernière demande) ; si tu ne sais pas, dis-le simplement, n'invente rien. Tu ne fais rien, tu réponds seulement."
+)
+last_request = {"text": "", "at": 0}      # the last thing the person asked a session to do (for « t'en es où » and for the answers)
+
+
+def _answer_context():
+    """What the answer may lean on: the README of the repository in use (public only), the names of its documents, and the last request made to a session."""
+    with lock:
+        repo = _chosen_repo()
+    parts = []
+    if repo and github.REPO_RE.fullmatch(repo):
+        raw = _raw_get(f"{RAW_BASE}/{repo}/HEAD/README.md?t={int(time.time())}", 30000)
+        if raw:
+            parts.append(f"README du dépôt {repo} :\n" + raw.decode("utf-8", "replace")[:6000])
+        try:
+            names = [d["name"] for d in _documents_snapshot().get("documents", [])][:20]
+        except Exception:
+            names = []
+        if names:
+            parts.append("Documents du dossier docs/ : " + ", ".join(names))
+    if last_request["text"]:
+        parts.append("Dernière demande de la personne à une session : " + last_request["text"])
+    return "\n\n".join(parts)
+
+
+def answer_question(question):
+    """The super agent answers a QUESTION by itself, in words to be spoken: with the person's own key when there is one, else with the Claude of the phone (`claude -p`, print mode,
+    the person's own login, nothing sent to a session). {"ok", "text" | "error"}."""
+    q = " ".join(str(question or "").split())[:600]
+    if not q:
+        return {"ok": False, "error": "question vide"}
+    context = _answer_context()
+    if llm.state == "ready":
+        text = llm.ask(ANSWER_SYSTEM + ("\n\n" + context if context else ""), [{"role": "user", "content": q}], max_tokens=400)
+        if text:
+            return {"ok": True, "text": " ".join(str(text).split())[:900]}
+    prompt = ANSWER_SYSTEM + ("\n\n" + context if context else "") + "\n\nQuestion : " + q
+    last_error = "pas de réponse"
+    for extra in (["--model", "haiku"], []):
+        try:
+            done = subprocess.run(["claude", "-p", "--output-format", "text", *extra], input=prompt, capture_output=True, text=True, timeout=90)
+        except (OSError, subprocess.SubprocessError) as err:
+            last_error = str(err)
+            continue
+        out = _clean(done.stdout or "").strip()
+        if done.returncode == 0 and out:
+            return {"ok": True, "text": " ".join(out.split())[:900]}
+        last_error = _clean((done.stderr or "") + (done.stdout or "")).strip()[-300:] or f"code {done.returncode}"
+    return {"ok": False, "error": last_error}
+
+
 def session_rename(session_id, title):
     """The person renames a session: the name Aiwa shows changes (the store keeps the title it was given at the start, so it is set here), and the session is told with /rename."""
     title = " ".join(str(title or "").split())[:60]
@@ -1516,6 +1569,7 @@ def cloud_send(text, command=False, session=None):
             return {"ok": False, "error": reason if prompted else reason + " — sortie : " + output.strip()[-600:]}
         _set_login_state("ok")
         _note_message_sent()
+        last_request.update(text=" ".join(str(text).split())[:300], at=int(time.time()))
         with lock:
             current_cloud = last_cloud = found
             _save_state()
@@ -3994,6 +4048,12 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(attach_add(body))
         elif self.path == "/api/projects":
             self.reply_json(projects_save(body))
+        elif self.path == "/api/answer":
+            try:
+                data = json.loads(body) if body.strip() else {}
+            except ValueError:
+                data = {}
+            self.reply_json(answer_question(data.get("question") if isinstance(data, dict) else ""))
         elif self.path == "/api/cloud/rename":
             try:
                 data = json.loads(body) if body.strip() else {}

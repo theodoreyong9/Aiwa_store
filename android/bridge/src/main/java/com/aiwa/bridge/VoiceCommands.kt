@@ -595,3 +595,18 @@ fun pillsRecapSentence(pills: Pills, commands: List<VoiceCommand>, problems: Lis
 /** The message the session receives when the pills were changed: where it is now (the repository, the session), then, if there was one, the rest of what was said. */
 fun pillInfoMessage(repo: String?, session: String?, message: String = ""): String =
     "[Aiwa — pastilles] Dépôt : ${repo ?: "aucun"}. Session : ${session ?: "nouvelle session"}." + (if (message.isNotBlank()) "\n\n$message" else "")
+
+
+// What opens a QUESTION (to be answered aloud by the super agent) as opposed to a COMMAND (sent to a session). Plain words: lowercase, no accent.
+private val QUESTION_STARTS = listOf(
+    "est ce que", "qu est ce", "quest ce", "c est quoi", "ca veut dire", "ca sert a quoi", "explique", "expliquez", "dis moi", "dit moi", "raconte", "resume", "resumer", "decris", "decrire",
+    "pourquoi", "comment", "combien", "quand", "ou est", "ou sont", "ou en", "qui ", "quel ", "quelle ", "quels ", "quelles ", "quoi", "peux tu m expliquer", "tu peux m expliquer", "t en es ou",
+    "a quoi", "de quoi", "en quoi", "il y a quoi", "y a t il", "qu est", "que fait", "que font", "que veut",
+)
+
+/** A question for the super agent to answer by voice, not a command for a session: it opens with a question word (« explique-moi le projet », « c'est quoi ce dépôt », « pourquoi… »). */
+fun isQuestion(text: String): Boolean {
+    val plain = WakeWords.plain(text)
+    if (plain.isEmpty()) return false
+    return QUESTION_STARTS.any { plain == it.trim() || plain.startsWith(if (it.endsWith(" ")) it else "$it ") }
+}

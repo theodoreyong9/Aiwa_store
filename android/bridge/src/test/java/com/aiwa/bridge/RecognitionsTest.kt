@@ -64,4 +64,16 @@ class RecognitionsTest {
         assertTrue(VoiceVocabulary.phraseHeard("validation", "ok c est parti merci"))
         assertTrue(!VoiceVocabulary.phraseHeard("validation", "c est partit"))
     }
+
+    @Test fun aQuestionIsToBeAnsweredAloudAndACommandIsSentToASession() {
+        assertTrue(isQuestion("explique moi le projet"))
+        assertTrue(isQuestion("Explique-moi le projet"))
+        assertTrue(isQuestion("c'est quoi ce dépôt"))
+        assertTrue(isQuestion("pourquoi la vidéo est floue"))
+        assertTrue(isQuestion("t'en es où"))
+        assertTrue(!isQuestion("fais une vidéo du projet"))
+        assertTrue(!isQuestion("ajoute une page contact"))
+        assertTrue(!isQuestion("mets-toi sur le repo test"))
+        assertTrue(!isQuestion(""))
+    }
 }
