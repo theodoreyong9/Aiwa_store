@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **Le bouton d'état du workflow (la pastille qui tourne sur le dépôt) est retiré du widget.** Demande le nouvel APK.
 - **« Éteins toi » éteint le super agent mais garde le réveil** : dit au super agent, il dit « à toute » et se met en veille (le mot de réveil continue d'écouter, le point du micro reste) ; dit pendant la veille, il ne fait rien. Seul le bouton du widget (ou « Arrêter » dans la notification) arrête tout, point du micro compris. Demande le nouvel APK.
 - **Le bouton du super agent se fie au service, pas au drapeau du cerveau** : le bouton fermait le super agent seulement si le cerveau disait « ouvert » ; quand ce drapeau manquait ou était périmé (redémarrage, cerveau pas à jour), un appui rouvrait au lieu de fermer — le widget restait gris, le point du micro restait allumé, et « mon agent » était pris pour une commande au lieu de réveiller. Le bouton demande maintenant au service s'il écoute vraiment, et le widget sait que le super agent est ouvert même sans description venue du cerveau.
 - **« État d'Aiwa » montre ce que lisent les boutons** : pour le dépôt en cours, Docs · Vidéo · Page · App · Aiwa ✓/✗ et l'état du site (sorte / état), pour trouver d'où vient un « App » vert à tort. Demande le nouvel APK.

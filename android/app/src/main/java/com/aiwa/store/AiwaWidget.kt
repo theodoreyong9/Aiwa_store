@@ -473,15 +473,12 @@ private fun LightContent(state: AiwaState) {
                 GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
-            // the spinner sits on the repository pill while a workflow is awaited; a tap on it goes to the workflow, a tap on the pill opens the list
-            val pending = workflowPending(state)
             Box(modifier = GlanceModifier.defaultWeight().height(chipH.dp), contentAlignment = Alignment.CenterEnd) {
                 Chip(
-                    "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", each - textWidth("⎇  ▾", fs) - (if (pending) chipH - 8f else 0f), fs) + " ▾",
+                    "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", each - textWidth("⎇  ▾", fs), fs) + " ▾",
                     if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
                     lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxSize(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
                 )
-                if (pending) Box(modifier = GlanceModifier.padding(end = 3.dp)) { WorkflowSpinner((chipH - 6f).dp) }
             }
             }
         }
