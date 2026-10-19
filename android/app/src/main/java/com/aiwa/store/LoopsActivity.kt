@@ -93,26 +93,18 @@ private fun linkLabel(l: LoopLink): String = when (l.state) {
 
 @Composable
 private fun LoopsWindow(onClose: () -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext
     val bridge = remember { LocalClaudeBridge() }
-    val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
     val state by AiwaRepository.state.collectAsState()
     var info by remember { mutableStateOf<LoopsInfo?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
-    var pickingBuilder by remember { mutableStateOf(false) }
-    var builderId by remember { mutableStateOf<String?>(null) }
-    var rollbackOf by remember { mutableStateOf<LoopPair?>(null) }
-    var showGraph by remember { mutableStateOf(false) }
-    var linkSender by remember { mutableStateOf<String?>(null) }
-    var linkReceiver by remember { mutableStateOf<String?>(null) }
-    var linkPicking by remember { mutableStateOf(false) }
-    var linkText by remember { mutableStateOf("Salut, qu'est-ce que tu fais ? J'ai envie de t'aider.") }
+    var picking by remember { mutableStateOf(false) }
 
     fun refresh() {
         scope.launch {
-            try { info = bridge.loops(); message = null } catch (err: Exception) { message = "Boucles indisponibles : ${err.message ?: "?"}" }
+            try { info = bridge.loops() } catch (err: Exception) { message = "Boucles indisponibles : ${err.message ?: "?"}" }
         }
     }
     fun act(action: String, fields: Map<String, String> = emptyMap(), done: String? = null) {
@@ -126,7 +118,31 @@ private fun LoopsWindow(onClose: () -> Unit) {
             } catch (err: Exception) { message = "Impossible : ${err.message ?: "?"}" }
             busy = false
             refresh()
-            AiwaWidget().updateAll(appContext)
+            AiwaWidget().updateAll(app)
+        }
+    }
+    // The session in use is the PRODUCTION; its critic is a new session, made here, that loops with it
+    fun createCritic() {
+        val builder = state.cloudSessionId ?: return
+        val title = state.session
+        if (busy) return
+        busy = true
+        message = "Création du critique… (une minute)"
+        scope.launch {
+            try {
+                switchCloud(app, bridge, "new")
+                val sent = sendAndTrack(app, bridge, "[Aiwa] Tu seras le critique de la session « $title » : Aiwa te transmettra son travail, tu le relis et tu proposes des corrections. Pour l'instant, attends.", toastErrors = true)
+                BackendSync.refresh(bridge)
+                val critic = AiwaRepository.state.value.cloudSessionId
+                if (!sent || critic == null || critic == builder) message = "Le critique n'a pas pu être créé."
+                else {
+                    switchCloud(app, bridge, builder)
+                    message = bridge.loopsAction("create", mapOf("builder" to builder, "critic" to critic)) ?: "Critique créé."
+                }
+            } catch (err: Exception) { message = "Impossible : ${err.message ?: "?"}" }
+            busy = false
+            refresh()
+            AiwaWidget().updateAll(app)
         }
     }
     LaunchedEffect(Unit) { refresh() }
@@ -142,158 +158,52 @@ private fun LoopsWindow(onClose: () -> Unit) {
                 modifier = Modifier.padding(16.dp).fillMaxWidth()
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
-                Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Boucles builder / critique", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Un builder travaille, un critique relit, Aiwa porte les messages entre les deux sessions. Chaque paire a un sens (jamais deux rôles avec le même partenaire) ; une session peut avoir autant de paires que tu veux.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val current = info
-                    // The limit of round trips, in the settings of the loops
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Limite : ${current?.limit ?: "…"} allers-retours", modifier = Modifier.weight(1f))
-                        OutlinedButton(onClick = { current?.let { act("limit", mapOf("limit" to (maxOf(1, it.limit - 1)).toString())) } }, enabled = current != null && !busy) { Text("−") }
-                        OutlinedButton(onClick = { current?.let { act("limit", mapOf("limit" to (minOf(50, it.limit + 1)).toString())) } }, enabled = current != null && !busy) { Text("+") }
-                    }
-                    message?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    if (current != null && (current.pairs.isNotEmpty() || current.links.isNotEmpty())) {
-                        OutlinedButton(onClick = { showGraph = !showGraph }, modifier = Modifier.fillMaxWidth()) { Text(if (showGraph) "Masquer le graphe" else "Voir le graphe des boucles") }
-                        if (showGraph) LoopsGraph(current.pairs, current.links)
-                    }
-
-                    val rollback = rollbackOf
-                    if (rollback != null && current != null) {
-                        // The chain, with the date each pair began, to choose from: what comes after the chosen date is undone
-                        val chain = current.chains.firstOrNull { c -> c.any { it.id == rollback.id } } ?: emptyList()
-                        val chosenStart = rollback.started ?: 0L
-                        Surface(shape = RoundedCornerShape(14.dp), tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Revenir au départ de la paire ${rollback.id} (${dateLabel(rollback.started)})", style = MaterialTheme.typography.titleSmall)
-                                Text("Le dépôt retrouve l'état de ce moment, dans un nouveau commit : l'historique reste. Toute la chaîne revient au même endroit :", style = MaterialTheme.typography.bodySmall)
-                                chain.forEach { entry ->
-                                    val pair = current.pairs.firstOrNull { it.id == entry.id }
-                                    val later = (entry.started ?: 0L) > chosenStart
-                                    Text(
-                                        (if (entry.id == rollback.id) "▶ " else "· ") + entry.id + " " + (pair?.let { it.builderTitle + " ▸ " + it.criticTitle } ?: "") +
-                                            " — départ " + dateLabel(entry.started) + if (later) " (démarrée après : son travail est défait)" else "",
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                }
-                                Text("Choisir une autre paire de la chaîne change la date de retour :", style = MaterialTheme.typography.bodySmall)
-                                chain.filter { it.id != rollback.id && it.started != null }.forEach { entry ->
-                                    OutlinedButton(onClick = { rollbackOf = current.pairs.firstOrNull { it.id == entry.id } }, modifier = Modifier.fillMaxWidth()) {
-                                        Text("Plutôt au départ de ${entry.id} (${dateLabel(entry.started)})")
-                                    }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(onClick = { act("rollback", mapOf("id" to rollback.id), "Retour demandé : le builder de ${rollback.id} remet le dépôt au départ."); rollbackOf = null }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Confirmer le retour") }
-                                    OutlinedButton(onClick = { rollbackOf = null }, modifier = Modifier.weight(1f)) { Text("Annuler") }
-                                }
-                            }
-                        }
+                    val builder = state.cloudSessionId
+                    val pair = current?.pairs?.firstOrNull { it.builder == builder }
+                    val link = pair?.let { p -> current.links.firstOrNull { it.sender == p.critic || it.receiver == p.critic } }
+                    Text("Boucle · ${state.session}", style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                    message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    if (builder == null) {
+                        Text("Choisis d'abord une session.", style = MaterialTheme.typography.bodyMedium)
                     } else if (current == null) {
                         Text("Chargement…")
-                    } else if (current.pairs.isEmpty()) {
-                        Text("Aucune paire pour l'instant.")
+                    } else if (pair == null) {
+                        // Number of round trips, then the critic
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Allers-retours : ${current.limit}", modifier = Modifier.weight(1f))
+                            OutlinedButton(onClick = { act("limit", mapOf("limit" to (maxOf(1, current.limit - 1)).toString())) }, enabled = !busy) { Text("−") }
+                            OutlinedButton(onClick = { act("limit", mapOf("limit" to (minOf(50, current.limit + 1)).toString())) }, enabled = !busy) { Text("+") }
+                        }
+                        Button(onClick = { createCritic() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Créer le critique") }
                     } else {
-                        current.pairs.forEach { p ->
-                            Surface(shape = RoundedCornerShape(14.dp), tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
-                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text("${p.id} · ${p.builderTitle} ▸ ${p.criticTitle}", style = MaterialTheme.typography.titleSmall)
-                                    Text("builder ▸ critique · " + stateLabel(p) + " · départ " + dateLabel(p.started) + (p.rolledBack?.let { " · retour le " + dateLabel(it) } ?: ""), style = MaterialTheme.typography.bodySmall)
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        if (p.state == "running") {
-                                            Button(onClick = { act("stop", mapOf("id" to p.id), "Boucle ${p.id} arrêtée.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Arrêter") }
-                                        } else if (p.state == "idle") {
-                                            Button(onClick = { act("start", mapOf("id" to p.id), "Boucle ${p.id} démarrée : parle maintenant au builder.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Démarrer") }
-                                        } else {
-                                            Button(onClick = { act("relaunch", mapOf("id" to p.id), "Boucle ${p.id} relancée, compteur à zéro.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Relancer") }
-                                            OutlinedButton(onClick = { act("start", mapOf("id" to p.id), "Nouvelle boucle ${p.id} : nouveau départ.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Nouvelle boucle") }
-                                        }
-                                    }
-                                    OutlinedButton(
-                                        onClick = { context.startActivity(android.content.Intent(context, CritiquesActivity::class.java).putExtra("pair", p.id)) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) { Text("Historique des critiques") }
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        if (p.started != null) OutlinedButton(onClick = { rollbackOf = p }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Revenir en arrière") }
-                                        if (p.state != "running") OutlinedButton(onClick = { act("delete", mapOf("id" to p.id)) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Supprimer") }
-                                    }
-                                }
+                        Text("Critique : ${pair.criticTitle}", style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                        Text(stateLabel(pair), style = MaterialTheme.typography.bodySmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (pair.state == "running") {
+                                Button(onClick = { act("stop", mapOf("id" to pair.id), "Boucle arrêtée.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Arrêter") }
+                            } else if (pair.state == "idle") {
+                                Button(onClick = { act("start", mapOf("id" to pair.id), "Boucle démarrée : parle maintenant à la production.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Démarrer") }
+                            } else {
+                                Button(onClick = { act("relaunch", mapOf("id" to pair.id), "Boucle relancée.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Relancer") }
                             }
+                            if (pair.state != "running") OutlinedButton(onClick = { act("delete", mapOf("id" to pair.id)) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Supprimer") }
                         }
-                    }
-
-                    // The other style of loop: exchanges between CRITICS (no producer). The sender opens, the receiver accepts or refuses in its own session.
-                    if (rollbackOf == null && current != null) {
-                        Text("Échanges entre critiques", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                        Text(
-                            "Seuls des critiques (une session qui est le critique d'une paire) peuvent s'écrire : pour discuter, ou pour qu'un critique aide en parallèle celui qui travaille déjà pour un producteur. " +
-                                "L'émetteur dit d'abord bonjour et propose son aide ; le récepteur accepte (ou non) cette conversation dans sa session. Ce que l'un écrit à l'autre est une contribution, jamais un ordre.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        if (current.links.isEmpty()) Text("Aucun échange pour l'instant.", style = MaterialTheme.typography.bodySmall)
-                        current.links.forEach { l ->
-                            Surface(shape = RoundedCornerShape(14.dp), tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
-                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text("${l.id} · ${l.senderTitle} ▸ ${l.receiverTitle}", style = MaterialTheme.typography.titleSmall)
-                                    Text(linkLabel(l), style = MaterialTheme.typography.bodySmall)
-                                    Text("« ${l.opening} »", style = MaterialTheme.typography.bodySmall)
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        if (l.state == "proposed") {
-                                            Button(onClick = { act("link_answer", mapOf("id" to l.id, "accept" to "true"), "Accepté à la place de ${l.receiverTitle}.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Accepter à sa place") }
-                                            OutlinedButton(onClick = { act("link_answer", mapOf("id" to l.id, "accept" to "false"), "Refusé.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Refuser") }
-                                        } else if (l.state == "accepted") {
-                                            Button(onClick = { act("link_stop", mapOf("id" to l.id), "Échange ${l.id} arrêté.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Arrêter") }
-                                        }
-                                        if (l.state != "accepted") OutlinedButton(onClick = { act("link_delete", mapOf("id" to l.id)) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Supprimer") }
-                                        if (l.state == "proposed") OutlinedButton(onClick = { act("link_stop", mapOf("id" to l.id), "Invitation retirée.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Retirer") }
-                                    }
-                                }
+                        // ONE companion for the critic, among the sessions that are critics too
+                        if (link != null) {
+                            Text("Compagnon : " + (if (link.sender == pair.critic) link.receiverTitle else link.senderTitle) + " · " + linkLabel(link), style = MaterialTheme.typography.bodySmall)
+                            OutlinedButton(onClick = { act(if (link.state == "accepted" || link.state == "proposed") "link_stop" else "link_delete", mapOf("id" to link.id)) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                                Text(if (link.state == "accepted" || link.state == "proposed") "Retirer le compagnon" else "Supprimer")
                             }
-                        }
-                        if (!linkPicking) {
-                            OutlinedButton(onClick = { linkPicking = true; linkSender = null; linkReceiver = null }, enabled = current.critics.size >= 2, modifier = Modifier.fillMaxWidth()) { Text("Nouvel échange entre critiques") }
-                            if (current.critics.size < 2) Text("Il faut au moins deux critiques (deux sessions qui sont le critique d'une paire).", style = MaterialTheme.typography.bodySmall)
-                        } else if (linkSender == null || linkReceiver == null) {
-                            Text(if (linkSender == null) "Quel critique écrit en premier ? (l'émetteur)" else "À quel critique ? (le récepteur)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                            current.critics.filter { it.id != linkSender }.forEach { c ->
-                                OutlinedButton(onClick = { if (linkSender == null) linkSender = c.id else linkReceiver = c.id }, modifier = Modifier.fillMaxWidth()) { Text(c.title, maxLines = 1) }
-                            }
-                            OutlinedButton(onClick = { linkPicking = false }, modifier = Modifier.fillMaxWidth()) { Text("Annuler") }
+                        } else if (!picking) {
+                            OutlinedButton(onClick = { picking = true }, enabled = !busy && current.critics.any { it.id != pair.critic }, modifier = Modifier.fillMaxWidth()) { Text("Compagnon du critique") }
+                            if (current.critics.none { it.id != pair.critic }) Text("Aucune autre session n'est critique : il n'y a personne à choisir.", style = MaterialTheme.typography.bodySmall)
                         } else {
-                            OutlinedTextField(value = linkText, onValueChange = { linkText = it }, label = { Text("Ce que l'émetteur dit en premier") }, minLines = 2, modifier = Modifier.fillMaxWidth())
-                            Button(
-                                onClick = {
-                                    act("link_create", mapOf("sender" to (linkSender ?: ""), "receiver" to (linkReceiver ?: ""), "opening" to linkText), "Invitation envoyée : le récepteur peut accepter dans sa session.")
-                                    linkPicking = false; linkSender = null; linkReceiver = null
-                                },
-                                enabled = !busy && linkText.isNotBlank(), modifier = Modifier.fillMaxWidth(),
-                            ) { Text("Envoyer l'invitation") }
-                            OutlinedButton(onClick = { linkPicking = false; linkSender = null; linkReceiver = null }, modifier = Modifier.fillMaxWidth()) { Text("Annuler") }
-                        }
-                    }
-
-                    // A new pair: the builder, then the critic, among the sessions Aiwa knows
-                    if (rollbackOf == null) {
-                        if (!pickingBuilder) {
-                            OutlinedButton(onClick = { pickingBuilder = true; builderId = null }, modifier = Modifier.fillMaxWidth()) { Text("Nouvelle paire") }
-                        } else {
-                            Text(if (builderId == null) "Quelle session construit ? (le builder)" else "Quelle session critique ? (le critique)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                            val taken = current?.pairs?.filter { it.builder == builderId || it.critic == builderId }?.flatMap { listOf(it.builder, it.critic) }?.toSet() ?: emptySet()
-                            val sessions = state.cloudSessions.filter { builderId == null || (it.id != builderId && it.id !in taken) }
-                            if (sessions.isEmpty()) Text("Aucune session disponible : crée-en une depuis le widget (sélecteur de session).", style = MaterialTheme.typography.bodySmall)
-                            sessions.forEach { s ->
-                                OutlinedButton(
-                                    onClick = {
-                                        val b = builderId
-                                        if (b == null) builderId = s.id
-                                        else { act("create", mapOf("builder" to b, "critic" to s.id), "Paire créée."); pickingBuilder = false; builderId = null }
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) { Text(s.title, maxLines = 1) }
+                            current.critics.filter { it.id != pair.critic }.forEach { c ->
+                                OutlinedButton(onClick = { picking = false; act("link_create", mapOf("sender" to pair.critic, "receiver" to c.id, "opening" to "Salut, qu'est-ce que tu fais ? J'ai envie de t'aider."), "Invitation envoyée.") }, modifier = Modifier.fillMaxWidth()) { Text(c.title, maxLines = 1) }
                             }
-                            OutlinedButton(onClick = { pickingBuilder = false; builderId = null }, modifier = Modifier.fillMaxWidth()) { Text("Annuler") }
+                            OutlinedButton(onClick = { picking = false }, modifier = Modifier.fillMaxWidth()) { Text("Annuler") }
                         }
                     }
                     OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
@@ -302,8 +212,6 @@ private fun LoopsWindow(onClose: () -> Unit) {
         }
     }
 }
-
-
 
 /**
  * The graph of the loops: the sessions are the nodes, each pair an arrow from the builder to the critic (green running, orange stopped, blue finished, grey not started), with its name and its

@@ -190,7 +190,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
     var campaigns by remember { mutableStateOf<List<Campaign>?>(null) }
     var repo by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var tab by remember { mutableStateOf("new") }
+    var tab by remember { mutableStateOf("") }
     var proposals by remember { mutableStateOf<List<Proposal>?>(null) }
     val stamp = remember { mutableStateOf(0) }
     var preview by remember { mutableStateOf<Proposal?>(null) }
@@ -232,7 +232,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
     }
     LaunchedEffect(tab, campaigns) {
         proposals = null
-        if (tab != "new") proposals = try { bridge.campaignProposals(tab).proposals } catch (err: Exception) { emptyList() }
+        proposals = if (tab.isNotBlank()) (try { bridge.campaignProposals(tab).proposals } catch (err: Exception) { emptyList() }) else emptyList()
     }
 
     fun fillFrom(c: Campaign) {
@@ -273,11 +273,11 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column(Modifier.padding(14.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Campagnes", style = MaterialTheme.typography.titleMedium)
+                    Text("Propositions", style = MaterialTheme.typography.titleMedium)
                     // the tabs: one per campaign, then the new one
                     val list = campaigns ?: emptyList()
                     val pending = (repo ?: state.repo)?.let { r -> PendingCampaigns.list(context, r).filter { p -> list.none { it.slug == p.first } } } ?: emptyList()
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (list.size + pending.size > 1) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         list.forEach { c ->
                             if (tab == c.slug) Button(onClick = { tab = c.slug }) { Text(c.name.ifBlank { c.slug }, maxLines = 1) }
                             else OutlinedButton(onClick = { tab = c.slug }) { Text(c.name.ifBlank { c.slug }, maxLines = 1) }
@@ -286,7 +286,6 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                             if (tab == slug) Button(onClick = { tab = slug }) { Text("$label …", maxLines = 1) }
                             else OutlinedButton(onClick = { tab = slug }) { Text("$label …", maxLines = 1) }
                         }
-                        if (tab == "new") Button(onClick = { tab = "new" }) { Text("＋ Nouvelle") } else OutlinedButton(onClick = { tab = "new" }) { Text("＋ Nouvelle") }
                     }
                     stamp.value
                     if (error != null) Text(error ?: "", color = MaterialTheme.colorScheme.error)
@@ -294,72 +293,12 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                         Text("Chargement…")
                     }
-                    else if (tab == "new") {
-                        // ---- the form ----
-                        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom de la campagne") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                        Text("Session : ${state.session}", style = MaterialTheme.typography.bodyMedium)
-                        Text("Dépôt : ${state.repo ?: "à choisir"}", style = MaterialTheme.typography.bodyMedium)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { context.startActivity(Intent(context, SessionPickerActivity::class.java)) }, modifier = Modifier.weight(1f)) { Text("Session ▾") }
-                            OutlinedButton(onClick = { context.startActivity(Intent(context, RepoPickerActivity::class.java)) }, modifier = Modifier.weight(1f)) { Text("Dépôt ▾") }
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { test = !test }) {
-                            Checkbox(checked = test, onCheckedChange = { test = it })
-                            Text("Test : une seule proposition, pour moi-même")
-                        }
-                        Text("Documents du dossier docs/", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        if (docFiles.isEmpty()) Text("Aucun trouvé (ou dépôt privé).", style = MaterialTheme.typography.bodySmall)
-                        docFiles.forEach { f ->
-                            Row(Modifier.fillMaxWidth().clickable { tickedDocs = if (f in tickedDocs) tickedDocs - f else tickedDocs + f }, verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = f in tickedDocs, onCheckedChange = { tickedDocs = if (it) tickedDocs + f else tickedDocs - f }); Text(f, maxLines = 1)
-                            }
-                        }
-                        Text("Mes dépôts GitHub à utiliser", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        repoNames.take(30).forEach { r ->
-                            Row(Modifier.fillMaxWidth().clickable { tickedRepos = if (r in tickedRepos) tickedRepos - r else tickedRepos + r }, verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = r in tickedRepos, onCheckedChange = { tickedRepos = if (it) tickedRepos + r else tickedRepos - r }); Text(r, maxLines = 1)
-                            }
-                        }
-                        Text("Créations à produire pour chaque cible", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            listOf("video" to "Vidéo", "docs" to "Documents", "page" to "Page").forEach { (k, label) ->
-                                Row(Modifier.clickable { makes = if (k in makes) makes - k else makes + k }, verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = k in makes, onCheckedChange = { makes = if (it) makes + k else makes - k }); Text(label) }
-                            }
-                        }
-                        Text("Utiliser tel quel (non personnalisable)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            listOf("app" to "App", "aiwa" to "Aiwa").forEach { (k, label) ->
-                                Row(Modifier.clickable { uses = if (k in uses) uses - k else uses + k }, verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = k in uses, onCheckedChange = { uses = if (it) uses + k else uses - k }); Text(label) }
-                            }
-                        }
-                        OutlinedTextField(value = prompt, onValueChange = { prompt = it }, label = { Text("Ta demande") }, minLines = 3, modifier = Modifier.fillMaxWidth())
-                        note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-                        Button(onClick = { submit() }, enabled = !sending, modifier = Modifier.fillMaxWidth()) { Text("Valider et envoyer") }
-                    } else {
-                        // ---- a campaign ----
+                    else {
+                        // ---- the proposals of the campaign (everything else is said by voice) ----
                         val campaign = list.firstOrNull { it.slug == tab }
-                        val inPreparation = campaign == null
+                        val inPreparation = campaign == null && tab.isNotBlank()
                         val isTest = campaign?.test == true
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val folder = if (tab.isBlank()) "aiwa-proposals" else "docs/campagnes/$tab"
-                            OutlinedButton(onClick = { repo?.let { openUrl(context, "https://github.com/$it/tree/HEAD/$folder") } }, modifier = Modifier.weight(1f)) { Text("📁 Voir le dossier") }
-                            if (campaign != null) OutlinedButton(onClick = { fillFrom(campaign) }, modifier = Modifier.weight(1f)) { Text("↻ Relancer") }
-                        }
-                        // The work goes on target by target until it is stopped: the session is told to stop, and reads it at the end of its current step
-                        if (!isTest) {
-                            if (!confirmStop) OutlinedButton(onClick = { confirmStop = true }, modifier = Modifier.fillMaxWidth()) { Text("■ Arrêter les travaux de la campagne") }
-                            else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = {
-                                    confirmStop = false
-                                    scope.launch {
-                                        val problem = try { bridge.campaignStop() } catch (err: Exception) { err.message ?: "?" }
-                                        note = problem ?: "Arrêt envoyé : la session s'arrête à la fin de son étape en cours (un arrêt immédiat se fait dans l'appli Claude)."
-                                    }
-                                }, modifier = Modifier.weight(1f)) { Text("Oui, arrêter") }
-                                OutlinedButton(onClick = { confirmStop = false }, modifier = Modifier.weight(1f)) { Text("Non") }
-                            }
-                        }
-                        if (tab != "new") note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                        note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                         val items = proposals
                         when {
                             items == null -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {

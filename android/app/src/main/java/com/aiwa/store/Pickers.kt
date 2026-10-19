@@ -178,7 +178,6 @@ class SessionPickerActivity : ComponentActivity() {
         wakeAiwa(applicationContext)
         setContent {
             val state by AiwaRepository.state.collectAsState()
-            var confirmClear by remember { mutableStateOf(false) }
             val adding by addingSession
             val problem by addProblem
             val branchRead by pendingBranch
@@ -190,23 +189,16 @@ class SessionPickerActivity : ComponentActivity() {
                 BackendSync.refresh(bridge)
             }
             val entries = buildList {
-                add(PickerEntry("+  Nouvelle session", state.cloudSessionId == null) { pickCloud("new") })
-                state.cloudSessions.forEach { c ->
-                    add(PickerEntry(c.title.take(60), c.id == state.cloudSessionId) { pickCloud(c.id) })
-                }
-                // The CLI has no command to list the account's cloud
-                // sessions, so one made elsewhere is added by pasting the
-                // name of its branch (the rarely used entries come last).
-                if (adding) add(PickerEntry("⏳  Recherche de la session à partir de la branche… (quelques secondes)", false, lines = 2) { })
-                else add(PickerEntry("⎘  Ajouter une session existante (nom de branche copié)", false) { addFromClipboard() })
+                // At the top: « + » (a new session) and « Coller » (a session made elsewhere, by the name of its branch or its link, copied)
+                add(PickerEntry("＋", state.cloudSessionId == null, lines = 1) { pickCloud("new") })
+                if (adding) add(PickerEntry("⏳  Recherche de la session… (quelques secondes)", false, lines = 2) { })
+                else add(PickerEntry("Coller", false, lines = 1) { addFromClipboard() })
                 // Why it did not work, in full: a toast is gone before it can be read.
                 problem?.let { add(PickerEntry("⚠  $it", false, lines = 10) { }) }
                 // The branch was found but no commit names the session (it has not committed yet): the link of the session completes it.
                 branchRead?.let { add(PickerEntry("⎘  Coller maintenant le lien de la session (la branche $it est déjà lue)", false, lines = 3) { addFromClipboard(withBranch = it) }) }
-                // Emptied in two taps: the list is only Aiwa's, nothing is deleted in Claude.
-                if (state.cloudSessions.isNotEmpty()) {
-                    if (!confirmClear) add(PickerEntry("🗑  Vider cette liste…", false) { confirmClear = true })
-                    else add(PickerEntry("⚠  Confirmer : vider la liste (les sessions restent dans Claude)", false, lines = 2) { clearList() })
+                state.cloudSessions.forEach { c ->
+                    add(PickerEntry(c.title.take(60), c.id == state.cloudSessionId) { pickCloud(c.id) })
                 }
             }
             PickerSheet(entries) { finish() }
@@ -301,18 +293,6 @@ class ModelPickerActivity : ComponentActivity() {
 class RepoPickerActivity : ComponentActivity() {
     private val problem = mutableStateOf<String?>(null)
 
-    // Read here, on the main thread of the focused activity: the only place Android hands the clipboard over.
-    private fun forkFromClipboard() {
-        val ref = parseRepoRef(clipboardText(this))
-        if (ref == null) {
-            problem.value = "Copie d'abord le lien du dépôt à copier (sur GitHub : l'adresse de sa page), puis reviens ici."
-            return
-        }
-        toastOnMain(applicationContext, "Sur GitHub, touche « Create fork ». Ta copie apparaîtra dans cette liste.")
-        if (!openUrl(applicationContext, "https://github.com/$ref/fork")) toastOnMain(applicationContext, "Impossible d'ouvrir le navigateur.")
-        finish()
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
@@ -320,7 +300,6 @@ class RepoPickerActivity : ComponentActivity() {
             val state by AiwaRepository.state.collectAsState()
             var repos by remember { mutableStateOf<List<RepoInfo>?>(null) }
             var starting by remember { mutableStateOf(false) }
-            var query by remember { mutableStateOf("") }
             var reload by remember { mutableStateOf(0) }
             val scope = rememberCoroutineScope()
             val note by problem
@@ -343,47 +322,25 @@ class RepoPickerActivity : ComponentActivity() {
                 // Right under the first line, not after a list that can run to a hundred names. The new repository shows up in
                 // the list when this window is opened again (the backend re-reads the owner's list when it is older than 30 s).
                 add(PickerEntry("＋  Créer un dépôt GitHub ↗", false) { openNewRepoPage() })
-                // A copy of someone's repository in the person's account: GitHub's own fork page, for the address copied. Right there under
-                // the line above, and whether or not a repository is chosen (it used to sit two screens deep, and only once one was).
-                add(PickerEntry("⑂  Copier un dépôt dans mon compte (fork) ↗ — copie d'abord son lien", false) { forkFromClipboard() })
                 note?.let { add(PickerEntry("⚠  $it", false, lines = 3) { problem.value = null }) }
                 val list = repos
                 if (list == null) {
                     add(PickerEntry(if (starting) "Démarrage du backend (Termux)… quelques secondes" else "Chargement des dépôts…", false) { })
                 } else {
-                    val q = query.trim()
-                    val shown = list.filter { q.isBlank() || it.name.contains(q, ignoreCase = true) }
-                    // A name that is not in the list (a private repository, one of another owner): added to the favourites by its exact name
-                    val typed = parseRepoRef(q)
-                    if (typed != null && list.none { it.name.equals(typed, ignoreCase = true) }) {
-                        add(PickerEntry("＋  Ajouter « $typed » aux favoris (nom exact)", false) {
-                            scope.launch { val bridge = LocalClaudeBridge(); val error = withContext(Dispatchers.IO) { bridge.favoriteRepo(typed, true) }; if (error != null) problem.value = error else { query = ""; reload++ } }
-                        })
-                    }
-                    var section = ""
+                    val shown = list
                     shown.forEach { r ->
-                        val head = if (r.favorite) "★ Favoris" else if (list.any { it.favorite }) "Les autres dépôts" else ""
-                        if (head != section) { section = head; if (head.isNotEmpty()) add(PickerEntry(head, false, header = true) { }) }
-                        add(PickerEntry(r.name + if (r.isPrivate) "  (privé)" else "", r.name == state.repo,
-                            side = if (r.favorite) "★" else "☆", onSide = { scope.launch { withContext(Dispatchers.IO) { LocalClaudeBridge().favoriteRepo(r.name, !r.favorite) }; reload++ } },
+                        add(PickerEntry(r.name + if (r.isPrivate) "  (privé)" else "", r.name == state.repo, lines = 1,
                             side2 = "↗", onSide2 = { openRepoOnGithub(r.name) }) { pickRepo(r.name) })
                     }
-                    if (shown.isEmpty()) add(PickerEntry(if (q.isBlank()) "Aucun dépôt trouvé" else "Aucun dépôt ne correspond. Colle son nom exact (propriétaire/nom) pour l'ajouter.", false, lines = 3) { })
+                    if (shown.isEmpty()) add(PickerEntry("Aucun dépôt trouvé", false, lines = 1) { })
                 }
-                // Repositories Claude may ALSO work on, told to it with the next message.
-                if (state.repo != null) {
-                    val n = state.extraRepos.size
-                    add(PickerEntry("＋  Autres dépôts où Claude peut intervenir" + (if (n > 0) " ($n)" else "") + "…", n > 0) { openExtraRepos() })
-                }
-                val sources = state.sourceRepos.size
-                add(PickerEntry("＋  Dépôts d'inspiration, en lecture seule" + (if (sources > 0) " ($sources)" else "") + "…", sources > 0) { openSourceRepos() })
                 // Claude Code reaches GitHub with ITS OWN connection, made in Claude's
                 // settings: Aiwa never logs in to GitHub and cannot tell whether it is
                 // connected. So ONE entry, which opens the page of Claude's connectors —
                 // it shows the real state and offers Connect or Disconnect accordingly.
                 add(PickerEntry("🔗  Connexion GitHub de Claude : connecter, changer, déconnecter ↗", false) { openPage(CLAUDE_CONNECTORS_URL) })
             }
-            PickerSheet(entries, query = query, onQuery = { query = it }) { finish() }
+            PickerSheet(entries) { finish() }
         }
     }
 
@@ -773,6 +730,13 @@ class SettingsActivity : ComponentActivity() {
         startActivity(Intent(this, screen))
     }
 
+    // The super agent has nothing to set up: its one setting is to start from a new session (the next message makes it)
+    private fun pickCloudNew() {
+        val appContext = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch { switchCloud(appContext, LocalClaudeBridge(), "new") }
+    }
+
     private fun togglePush(direct: Boolean) {
         val app = applicationContext
         finish()
@@ -793,7 +757,7 @@ class SettingsActivity : ComponentActivity() {
                 if (state.repo != null) {
                     add(PickerEntry(if (state.pushMain) "Push : direct sur main" else "Push : sur une branche", false, lines = 1) { togglePush(state.pushMain) })
                 }
-                add(PickerEntry("Super agent : réglages, détruire et recommencer", false, lines = 1) { open(AgentActivity::class.java) })
+                add(PickerEntry("Super agent : nouvelle session", false, lines = 1) { pickCloudNew() })
                 add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }}", false, lines = 1) { open(LlmKeyActivity::class.java) })
                 add(PickerEntry("Aiwa", false, header = true) { })
                 add(PickerEntry("Mes mots", false, lines = 1) { open(RecognitionsActivity::class.java) })
@@ -905,20 +869,18 @@ class ProjectPickerActivity : ComponentActivity() {
             val session = state.cloudSessionId ?: "new"
             val entries = buildList {
                 val all = Projects.isAll(applicationContext)
-                add(PickerEntry("Tous  —  tous mes dépôts, le super agent au micro", all) {
+                // At the top: « + » (name the pair now on the pills) and « Tous »
+                if (!all && state.repo != null) add(PickerEntry("＋", false, lines = 1) {
+                    startActivity(Intent(this@ProjectPickerActivity, ProjectNameActivity::class.java)); finish()
+                })
+                add(PickerEntry("Tous", all, lines = 1) {
                     Projects.setAll(applicationContext, !all)
                     val app = applicationContext
                     finish()
                     CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(app) }
                 })
-                if (!all && state.repo != null && projects.none { it.repo == state.repo && it.session == session }) {
-                    add(PickerEntry("＋  Nommer la paire actuelle : " + pairLine(state, state.repo, session), false) {
-                        startActivity(Intent(this@ProjectPickerActivity, ProjectNameActivity::class.java)); finish()
-                    })
-                }
-                if (projects.isEmpty()) add(PickerEntry("Aucun projet nommé. Un projet est un nom pour une session et un dépôt pris ensemble : le toucher remet les deux pastilles.", false, lines = 3) { })
                 projects.forEach { p ->
-                    add(PickerEntry(p.name + "\n" + pairLine(state, p.repo, p.session), p.repo == state.repo && p.session == session, side = "🗑",
+                    add(PickerEntry(p.name, p.repo == state.repo && p.session == session, lines = 1, side = "🗑",
                         onSide = { Projects.remove(applicationContext, p.name); projects = Projects.all(applicationContext) }) { pick(p) })
                 }
             }
