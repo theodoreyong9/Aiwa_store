@@ -148,15 +148,14 @@ private fun Chip(
     badge: Boolean = false,
     textSize: TextUnit = 12.sp,
     hPad: Dp = 10.dp,
-    skin: Int? = null,
 ) {
     if (!badge) {
-        ChipFace(text, background, color, action, modifier.height(height), bold, alignStart, height, textSize, hPad, skin)
+        ChipFace(text, background, color, action, modifier.height(height), bold, alignStart, height, textSize, hPad)
         return
     }
     // Only a chip whose width is given (a weighted one) can carry the dot: the face then fills the box the dot sits on.
     Box(modifier = modifier.height(height), contentAlignment = Alignment.TopEnd) {
-        ChipFace(text, background, color, action, GlanceModifier.fillMaxSize(), bold, alignStart, height, textSize, hPad, skin)
+        ChipFace(text, background, color, action, GlanceModifier.fillMaxSize(), bold, alignStart, height, textSize, hPad)
         Box(modifier = GlanceModifier.padding(top = 1.dp, end = 6.dp)) {
             Box(modifier = GlanceModifier.size(11.dp).background(rgb(android.graphics.Color.rgb(255, 59, 48))).cornerRadius(6.dp).clickable(action)) { }
         }
@@ -175,10 +174,9 @@ private fun ChipFace(
     height: Dp,
     textSize: TextUnit,
     hPad: Dp,
-    skin: Int? = null,
 ) {
     Box(
-        modifier = (if (skin != null) modifier.background(ImageProvider(skin)) else modifier.background(background).cornerRadius(height / 2)).padding(horizontal = hPad).clickable(action),
+        modifier = modifier.background(background).cornerRadius(height / 2).padding(horizontal = hPad).clickable(action),
         contentAlignment = if (alignStart) Alignment.CenterStart else Alignment.Center,
     ) {
         Text(
@@ -191,10 +189,10 @@ private fun ChipFace(
 
 // badge: a small red dot on the corner: something new happened that this button leads to (a deployment, a build).
 @Composable
-private fun RoundButton(icon: Int, description: String, background: ColorProvider, action: Action, diameter: Dp = 34.dp, badge: Boolean = false, skin: Int? = null) {
+private fun RoundButton(icon: Int, description: String, background: ColorProvider, action: Action, diameter: Dp = 34.dp, badge: Boolean = false) {
     Box(modifier = GlanceModifier.size(diameter), contentAlignment = Alignment.TopEnd) {
         Box(
-            modifier = (if (skin != null) GlanceModifier.size(diameter).background(ImageProvider(skin)) else GlanceModifier.size(diameter).background(background).cornerRadius(diameter / 2)).clickable(action),
+            modifier = GlanceModifier.size(diameter).background(background).cornerRadius(diameter / 2).clickable(action),
             contentAlignment = Alignment.Center,
         ) {
             Image(provider = ImageProvider(icon), contentDescription = description, modifier = GlanceModifier.size(18.dp))
@@ -464,13 +462,13 @@ private fun LightContent(state: AiwaState) {
             val each = (avail - rounds * (chipH + GAP) - GAP * 2 - projW) / 2f - 12f
             // only while a newer build is downloaded (a tap opens the installer)
             if (state.appUpdateReady) {
-                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp, skin = R.drawable.circle_green)
+                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
                 Spacer(GlanceModifier.width(GAP.dp))
             }
             RoundButton(
                 icon = R.drawable.ic_loop,
                 description = if (loopOn) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
-                background = if (loopOn) green else blue, action = actionStartActivity<LoopsActivity>(), diameter = chipH.dp, skin = if (loopOn) R.drawable.circle_green else R.drawable.circle_blue,
+                background = if (loopOn) green else blue, action = actionStartActivity<LoopsActivity>(), diameter = chipH.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
             val sessionTitle = bandInfo(state, each).title
@@ -481,7 +479,6 @@ private fun LightContent(state: AiwaState) {
                 if (allMode) green else if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
                 lockable(locked, actionStartActivity<ProjectPickerActivity>()),
                 if (allMode) GlanceModifier.defaultWeight() else GlanceModifier.width(projW.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp,
-                skin = if (locked) R.drawable.chip_dim else if (allMode) R.drawable.chip_teal else R.drawable.chip_blue,
             )
             if (!allMode) {
                 Spacer(GlanceModifier.width(GAP.dp))
@@ -490,27 +487,24 @@ private fun LightContent(state: AiwaState) {
                     if (locked) PILL_DIM else if (sessionBad) alertRed else pill, if (locked) TEXT_DIM else fg,
                     if (sessionBad) bandInfo(state, each).action else lockable(locked, actionStartActivity<SessionPickerActivity>()),
                     GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
-                    skin = if (locked) R.drawable.chip_dim else if (sessionBad) R.drawable.chip_red else R.drawable.chip_purple,
                 )
                 Spacer(GlanceModifier.width(GAP.dp))
                 Chip(
                     "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", each - textWidth("⎇  ▾", fs), fs) + " ▾",
                     if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
                     lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
-                    skin = if (locked) R.drawable.chip_dim else if (state.repo == null) R.drawable.chip_red else R.drawable.chip_purple,
                 )
             }
         }
         // ---- row 2: the campaign, then the kinds (grey until the repository holds one, coloured once it does) ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            RoundButton(icon = R.drawable.ic_proposals, description = "Campagne : les propositions à valider", background = blue, action = actionStartActivity<ProposalsActivity>(), diameter = modeH.dp, skin = R.drawable.circle_blue)
+            RoundButton(icon = R.drawable.ic_proposals, description = "Campagne : les propositions à valider", background = blue, action = actionStartActivity<ProposalsActivity>(), diameter = modeH.dp)
             lightKinds(state, context).filter { it.mode != "aiwa" }.forEach { kind ->
                 Spacer(GlanceModifier.width(4.dp))
                 Chip(
                     kind.word, if (kind.found) green else PILL_DIM, if (kind.found) fg else TEXT_DIM,
                     actionRunCallback<PickKindCallback>(actionParametersOf(MODE_KEY to kind.mode, KIND_FOUND_KEY to (if (kind.found) "1" else "0"))),
                     GlanceModifier.defaultWeight(), bold = kind.current, height = modeH.dp, textSize = 10.sp, hPad = 2.dp,
-                    skin = if (kind.found) R.drawable.chip_teal else R.drawable.chip_dim,
                 )
             }
         }
@@ -524,20 +518,19 @@ private fun LightContent(state: AiwaState) {
                     background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
                     action = actionStartActivity<OpenClaudeActivity>(),
                     diameter = chipH.dp,
-                    skin = if (state.waiting || state.silenceMinutes > 0) R.drawable.circle_red else R.drawable.circle_orange,
                 )
                 Spacer(GlanceModifier.width(GAP.dp))
             }
             RoundButton(
                 icon = R.drawable.ic_settings,
                 description = "Réglages : modèle, push, voix, mots, mises à jour…",
-                background = pill, action = actionStartActivity<SettingsActivity>(), diameter = chipH.dp, skin = R.drawable.circle_dark,
+                background = pill, action = actionStartActivity<SettingsActivity>(), diameter = chipH.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
-            RoundButton(icon = R.drawable.ic_plus, description = if (state.attachments > 0) "${state.attachments} pièce(s) jointe(s) en attente : ajouter ou retirer" else "Ajouter : un document, un média, ou écrire à un contact", background = if (state.attachments > 0) green else pill, action = actionStartActivity<PlusMenuActivity>(), diameter = chipH.dp, skin = if (state.attachments > 0) R.drawable.circle_green else R.drawable.circle_dark)
+            RoundButton(icon = R.drawable.ic_plus, description = if (state.attachments > 0) "${state.attachments} pièce(s) jointe(s) en attente : ajouter ou retirer" else "Ajouter : un document, un média, ou écrire à un contact", background = if (state.attachments > 0) green else pill, action = actionStartActivity<PlusMenuActivity>(), diameter = chipH.dp)
             Spacer(GlanceModifier.width(GAP.dp))
             Box(
-                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(ImageProvider(if (needsSetup || agentNeeds) R.drawable.chip_red else if (agentOn) R.drawable.chip_teal else R.drawable.chip_dark))
+                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (needsSetup || agentNeeds) alertRed else if (agentOn) green else pill).cornerRadius(((rowH - 2f) / 2).dp)
                     .clickable(if (needsSetup) actionStartActivity<SetupActivity>() else actionStartActivity<AgentToggleActivity>()),
                 contentAlignment = Alignment.Center,
             ) {
@@ -547,7 +540,7 @@ private fun LightContent(state: AiwaState) {
             }
             if (state.ask != null) {
                 Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp, skin = R.drawable.circle_red)
+                RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
             }
         }
     }

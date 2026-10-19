@@ -1,16 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The same card with a red edge and a warm tint: Claude is waiting for an answer. -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="rectangle">
-            <gradient android:angle="0" android:startColor="#FF5A5F" android:endColor="#C23A52" />
-            <corners android:radius="20dp" />
-        </shape>
-    </item>
-    <item android:top="2dp" android:bottom="2dp" android:left="2dp" android:right="2dp">
-        <shape android:shape="rectangle">
-            <gradient android:angle="270" android:startColor="#1E0E14" android:endColor="#0C0508" />
-            <corners android:radius="18dp" />
-        </shape>
-    </item>
-</layer-list>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient android:angle="270" android:startColor="#33222A" android:endColor="#1B1216" />
+    <corners android:radius="26dp" />
+    <stroke android:width="2dp" android:color="#D64541" />
+</shape>
