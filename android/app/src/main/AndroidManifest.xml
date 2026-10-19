@@ -138,6 +138,12 @@
         <!-- « Média »: the videos and the images of the repository (MediaActivity.kt). -->
         <activity android:name=".MediaActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:taskAffinity="" android:excludeFromRecents="true" />
         <activity android:name=".ImagesActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:taskAffinity="" android:excludeFromRecents="true" />
+        <!-- « Film de moi »: settings, key, voice, form, quote (FilmActivities.kt). -->
+        <activity android:name=".FilmSettingsActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
+        <activity android:name=".FalKeyActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
+        <activity android:name=".VoiceSampleActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
+        <activity android:name=".FilmActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
+        <activity android:name=".FilmQuoteActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
         <!-- The loops between two sessions, a builder and a critic (LoopsActivity.kt). -->
         <activity android:name=".LoopsActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"

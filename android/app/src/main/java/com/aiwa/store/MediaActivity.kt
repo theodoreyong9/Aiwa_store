@@ -27,6 +27,7 @@ class MediaActivity : ComponentActivity() {
             val entries = listOf(
                 PickerEntry("Vidéos", false, lines = 1, button = true) { startActivity(Intent(this, VideosActivity::class.java)); finish() },
                 PickerEntry("Images", false, lines = 1, button = true) { startActivity(Intent(this, ImagesActivity::class.java)); finish() },
+                PickerEntry("Film de moi", false, lines = 1, button = true) { startActivity(Intent(this, FilmActivity::class.java)); finish() },
             )
             PickerSheet(entries) { finish() }
         }

@@ -786,6 +786,7 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Super agent : nouvelle session", false, lines = 1) { pickCloudNew() })
                 add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }}", false, lines = 1) { open(LlmKeyActivity::class.java) })
                 add(PickerEntry("Connecteurs : ${ConnectorSettings.KINDS.filter { ConnectorSettings.enabled(applicationContext, it.first) }.joinToString(", ") { it.second }.ifEmpty { "aucun" }}", false, lines = 1) { open(ConnectorsActivity::class.java) })
+                add(PickerEntry("Film de moi : clé fal, ma voix, plafond", false, lines = 1) { open(FilmSettingsActivity::class.java) })
                 add(PickerEntry("Mes mots", false, lines = 1) { open(RecognitionsActivity::class.java) })
                 add(PickerEntry("État d'Aiwa", false, lines = 1) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)

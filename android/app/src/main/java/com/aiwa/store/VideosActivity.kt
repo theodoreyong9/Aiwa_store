@@ -128,6 +128,11 @@ private fun VideosWindow(onClose: () -> Unit) {
         PickerEntry("Oui, supprimer", false, lines = 1, button = true) {
             asking = null
             scope.launch {
+                if (sure.url.contains("/api/film/file/")) {
+                    // a film made on this phone: deleted from the brain
+                    if (deleteMedia(context, "film", sure.url)) { list = null; list = try { bridge.videos() } catch (err: Exception) { null } }
+                    return@launch
+                }
                 val where = if (sure.url.contains("/releases/download/")) "release" else if (!sure.url.contains("/docs/videos/")) "docs" else null
                 if (deleteMedia(context, "video", sure.name, where)) { list = null; list = try { bridge.videos() } catch (err: Exception) { null } }
             }

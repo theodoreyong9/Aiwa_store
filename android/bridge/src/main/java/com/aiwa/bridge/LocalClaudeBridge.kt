@@ -538,6 +538,37 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         false
     }
 
+    private fun filmJob(json: JSONObject): FilmJob {
+        val array = json.optJSONArray("scenes")
+        val scenes = if (array == null) emptyList() else (0 until array.length()).map {
+            val x = array.getJSONObject(it)
+            FilmScene(x.optString("situation"), x.optInt("seconds", 5), x.optString("says"), x.optDouble("price", 0.0), x.optBoolean("done", false))
+        }
+        return FilmJob(json.optBoolean("ok", false), json.optString("error"), json.optString("id"), json.optString("state"), json.optString("step"), json.optDouble("total", 0.0),
+            json.optBoolean("over_cap", false), json.optString("aspect", "9:16"), scenes)
+    }
+
+    private fun filmPost(path: String, body: JSONObject): JSONObject = try { JSONObject(postText(path, body.toString())) } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: "?") }
+
+    fun filmStatus(): FilmStatus? = try {
+        val j = JSONObject(getText("/api/film/status"))
+        FilmStatus(j.optBoolean("key"), j.optBoolean("voice"), j.optDouble("cap", 20.0), j.optString("sample_text"), j.optDouble("per_minute", 8.0))
+    } catch (e: Exception) { null }
+
+    /** null when done, else why not. */
+    fun filmKey(key: String?): String? {
+        val j = if (key == null) filmPost("/api/film/key_clear", JSONObject()) else filmPost("/api/film/key", JSONObject().put("key", key))
+        return if (j.optBoolean("ok", false)) null else j.optString("error", "?")
+    }
+    fun filmCap(usd: Double): String? { val j = filmPost("/api/film/cap", JSONObject().put("cap", usd)); return if (j.optBoolean("ok", false)) null else j.optString("error", "?") }
+    fun filmVoice(base64: String, ext: String): String? { val j = filmPost("/api/film/voice", JSONObject().put("data", base64).put("ext", ext)); return if (j.optBoolean("ok", false)) null else j.optString("error", "?") }
+    fun filmPrepare(direction: String, says: String, aspect: String, photosBase64: List<String>, consent: Boolean): FilmJob =
+        filmJob(filmPost("/api/film/prepare", JSONObject().put("direction", direction).put("says", says).put("aspect", aspect).put("consent", consent).put("photos", org.json.JSONArray(photosBase64))))
+    fun filmEdit(id: String, index: Int, situation: String?, says: String?, remove: Boolean = false): FilmJob =
+        filmJob(filmPost("/api/film/edit", JSONObject().put("id", id).put("index", index).apply { if (situation != null) put("situation", situation); if (says != null) put("says", says); put("remove", remove) }))
+    fun filmStart(id: String): FilmJob = filmJob(filmPost("/api/film/start", JSONObject().put("id", id).put("confirmed", true)))
+    fun filmGet(id: String): FilmJob = filmJob(try { JSONObject(getText("/api/film/get?id=$id")) } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: "?") })
+
     /** The pictures of the repository in use (the files of docs/images/), the most recently changed first. */
     fun images(): Pair<String?, List<ImageItem>> = try {
         val json = JSONObject(getText("/api/images"))

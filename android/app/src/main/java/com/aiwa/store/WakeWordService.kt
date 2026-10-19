@@ -110,6 +110,8 @@ private val MANUAL_REGEX = Regex("""\b(?:repasse|reviens|retourne|passe)\s+(?:en
 // What the phone says (its own light voice, at once) while the agent session thinks; it stops as soon as the real answer is there.
 private val FILLERS = listOf("Je regarde.", "Je réfléchis.", "Un instant.", "Toujours là, je vérifie.")
 
+private val FILM_REGEX = Regex("""\bfilm de moi\b|\bfilm avec moi\b|\bfilm ou je (?:suis|dis|parle)\b""")
+
 private val APPLY_REGEX = Regex("""\bfais[\s-]?le\b|\bapplique\b""")
 private val SEND_REGEX = Regex("""\bdis?t?[\s-]?lui\b""")
 
@@ -414,6 +416,11 @@ class WakeWordService : Service() {
 
     // A command is kept, sentence after sentence, until the send word. Nothing is spoken meanwhile; the summary comes with the repository.
     private suspend fun addToCommand(text: String) {
+        // « fais-moi un film de moi … »: the film circuit (its own key, photos and quote), after a yes
+        if (pendingCommand.isEmpty() && FILM_REGEX.containsMatchIn(plainWords(text).joinToString(" "))) {
+            filmByVoice(withoutSend(text).trim())
+            return
+        }
         // Conversation fluide: a question said on its own (nothing waiting) is answered at once, without the send word
         if (pendingCommand.isEmpty() && ConversationSettings.fluid(this) && com.aiwa.bridge.isQuestion(withoutSend(text)) ) {
             answerQuestion(withoutSend(text).trim())
@@ -427,6 +434,21 @@ class WakeWordService : Service() {
             pendingCommand.clear()
             if (command.isNotBlank()) { if (com.aiwa.bridge.isQuestion(command)) answerQuestion(command) else runAgentCommand(command) }
         }
+    }
+
+    private suspend fun filmByVoice(direction: String) {
+        say("Film de moi : $direction")
+        val status = withContext(Dispatchers.IO) { LocalClaudeBridge().filmStatus() }
+        if (status == null) { Speaker.speakNatural(applicationContext, "Le cerveau ne répond pas, ou il est trop ancien pour les films."); return }
+        if (!status.key) {
+            Speaker.speakNatural(applicationContext, "Il me faut d'abord ta clé fal. Je t'ouvre les réglages du film.")
+            applicationContext.startActivity(Intent(applicationContext, FilmSettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return
+        }
+        val yes = Vocabulary.spoken(applicationContext, "validation")
+        val agreed = askAloud(applicationContext, "Pour un film de toi, j'utilise ta clé fal et tes photos. C'est facturé par fal, et je te montre le prix avant. Dis « $yes » pour continuer.") { Speaker.speakNatural(applicationContext, it) }
+        if (!agreed) { Speaker.speakNatural(applicationContext, "D'accord, je laisse."); return }
+        FilmActivity.open(applicationContext, direction)
     }
 
     // A QUESTION is answered by the super agent itself, aloud (Claude, through the brain); it goes to no session. A COMMAND goes through the summary and the validation.

@@ -66,21 +66,31 @@ object ProductionOffer {
     /** « lis » → "read", « ouvre » → "open", anything else (or silence) → null: nothing is done. */
     private suspend fun listenChoice(context: Context): String? = withContext(Dispatchers.Main) {
         suspendCancellableCoroutine { cont ->
-            val listener = ChoiceListener(context) { choice -> if (cont.isActive) cont.resumeWith(Result.success(choice)) }
+            val listener = ChoiceListener(context, onChoice = { choice -> if (cont.isActive) cont.resumeWith(Result.success(choice)) })
             cont.invokeOnCancellation { listener.cancel() }
             listener.start()
         }
     }
 }
 
+/** « lis » → read, « ouvre » → open. */
+private fun offerChoiceOf(heard: String): String? {
+    val words = plainWords(heard)
+    return when {
+        words.any { it in READ_WORDS } -> "read"
+        words.any { it in OPEN_WORDS } -> "open"
+        else -> null
+    }
+}
+
 private val READ_WORDS = setOf("lis", "lire", "lit", "lecture", "lisez")
 private val OPEN_WORDS = setOf("ouvre", "ouvrir", "ouvrez", "affiche", "montre", "voir")
 
-private fun plainWords(text: String): List<String> =
+internal fun plainWords(text: String): List<String> =
     Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").split(Regex("[^a-z]+")).filter { it.isNotEmpty() }
 
 /** One short listening for « lis » or « ouvre » (one more try after a silence). */
-class ChoiceListener(context: Context, private val onChoice: (String?) -> Unit) : RecognitionListener {
+class ChoiceListener(context: Context, private val classify: (String) -> String? = ::offerChoiceOf, private val onChoice: (String?) -> Unit) : RecognitionListener {
     private val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
     private val quiet = QuietSounds(context)
     private var done = false
@@ -110,14 +120,7 @@ class ChoiceListener(context: Context, private val onChoice: (String?) -> Unit) 
         onChoice(choice)
     }
 
-    private fun choiceOf(heard: String): String? {
-        val words = plainWords(heard)
-        return when {
-            words.any { it in READ_WORDS } -> "read"
-            words.any { it in OPEN_WORDS } -> "open"
-            else -> null
-        }
-    }
+    private fun choiceOf(heard: String): String? = classify(heard)
 
     override fun onResults(results: Bundle) {
         val heard = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
