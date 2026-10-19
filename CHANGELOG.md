@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Conversation fluide, for real: you can speak over the voice (the microphone listens as a call's, with the phone's echo canceller when it has one; the voice stops and the listening opens), the end of what you say is waited for less long (0.9 s instead of 2 s), and a question whose words stopped changing for 0.7 s is taken as said without waiting for the recognizer.
+
 - « Film de moi » (brain 150): a film of the person, in situations and with words that were never filmed, from her photos, a twelve-second sample of her voice and her own direction and words, made through fal.ai with HER key (Settings → Film de moi: key, voice, cap per film; Média → Film de moi, or by voice « fais-moi un film de moi… »). The brain plans the scenes (her words are kept as she gave them, none is invented), the app shows a quote (a price per scene, the total, read aloud; a tap on « Lancer » or the word « OK » starts it; nothing is paid before; a cap per film), then the picture (Kling O1 reference-to-video), the voice (F5-TTS clone) and the mouth (VEED Lipsync v2) are made scene by scene and joined by ffmpeg, the film marked « Généré par IA ». A new prompt redoes only the changed scene. Real calls only: no simulation. The models' field names are read from fal's own description of each, and fal's refusals are shown as they are.
 
 - Videos and images go to GitHub releases (`videos`, `images`): a release takes files up to 2 GB and does not grow the repository's history; the sessions are told to upload with `gh` (and to fall back to `docs/videos/`, `docs/images/` when `gh` does not work), the lists show both (the release first), and 🗑 deletes a release file with `gh release delete-asset` (brain 149).

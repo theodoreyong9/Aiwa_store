@@ -17,15 +17,30 @@ import kotlinx.coroutines.withTimeoutOrNull
  * a repository, and says "C'est prêt". One engine per sentence, shut down right after: these are a few words a day.
  */
 object Speaker {
+    // Cutting the voice off (the person speaks over it, see BargeIn): whatever is playing ends at once and the sentences that follow are not said.
+    @Volatile private var interrupted = false
+    @Volatile private var cancelCurrent: (() -> Unit)? = null
+
+    /** The voice stops now; the sentences still to come are dropped until resetInterrupt(). Any thread. */
+    fun interrupt() {
+        interrupted = true
+        val cancel = cancelCurrent
+        if (cancel != null) android.os.Handler(android.os.Looper.getMainLooper()).post { try { cancel() } catch (err: Exception) { /* already gone */ } }
+    }
+    fun resetInterrupt() { interrupted = false }
+
     /** Says the text and returns when it has been said: true if it was, false when the phone has no French voice, no engine, or it took too long. */
     suspend fun speakAndWait(context: Context, text: String): Boolean = withContext(Dispatchers.Main) {
         withTimeoutOrNull(20_000L) {
             suspendCancellableCoroutine<Boolean> { cont ->
                 var engine: TextToSpeech? = null
                 fun end(ok: Boolean) {
+                    cancelCurrent = null
                     try { engine?.shutdown() } catch (err: Exception) { /* already gone */ }
                     if (cont.isActive) cont.resume(ok)
                 }
+                if (interrupted) { end(true); return@suspendCancellableCoroutine }
+                cancelCurrent = { try { engine?.stop() } catch (err: Exception) { /* not started */ }; end(true) }
                 engine = TextToSpeech(context.applicationContext) { status ->
                     val tts = engine
                     if (status != TextToSpeech.SUCCESS || tts == null) {
@@ -83,6 +98,7 @@ object Speaker {
             }
             var all = true
             for ((i, job) in made.withIndex()) {
+                if (interrupted) { job.cancel(); continue }
                 val wav = job.await()
                 val file = if (wav == null) null else java.io.File.createTempFile("voice", ".wav", context.cacheDir).also { it.writeBytes(wav) }
                 val played = if (file != null) playFile(context, file).also { file.delete() } else false
@@ -106,6 +122,7 @@ object Speaker {
             made.close()
         }
         for ((sentence, job) in made) {
+            if (interrupted) { job.cancel(); continue }
             val wav = job.await()
             val file = if (wav == null) null else java.io.File.createTempFile("voice", ".wav", context.cacheDir).also { it.writeBytes(wav) }
             val played = if (file != null) playFile(context, file).also { file.delete() } else false
@@ -118,10 +135,15 @@ object Speaker {
             suspendCancellableCoroutine<Boolean> { cont ->
                 val player = android.media.MediaPlayer()
                 fun end(ok: Boolean) {
+                    cancelCurrent = null
                     try { player.release() } catch (err: Exception) { /* already gone */ }
                     if (cont.isActive) cont.resume(ok)
                 }
+                if (interrupted) { end(true); return@suspendCancellableCoroutine }
+                cancelCurrent = { end(true) }
                 try {
+                    // As a call's voice, so that the microphone can cancel the echo of it (BargeIn)
+                    if (BargeIn.active) player.setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build())
                     player.setDataSource(file.absolutePath)
                     player.setOnCompletionListener { end(true) }
                     player.setOnErrorListener { _, _, _ -> end(false); true }

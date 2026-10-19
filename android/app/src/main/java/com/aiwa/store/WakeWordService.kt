@@ -356,7 +356,11 @@ class WakeWordService : Service() {
 
     private fun agentListen() {
         if (!agentMode || paused || agentListener != null) return
-        agentListener = AgentListener(this, onQuiet = { main.post { standbyAgent() } }, quietMs = if (ConversationSettings.fluid(this)) ConversationSettings.QUIET_MS else AgentListener.QUIET_MS) { text -> main.post { heardForAgent(text) } }.also { it.start() }
+        val fluid = ConversationSettings.fluid(this)
+        agentListener = AgentListener(
+            this, onQuiet = { main.post { standbyAgent() } }, quietMs = if (fluid) ConversationSettings.QUIET_MS else AgentListener.QUIET_MS,
+            completeSilenceMs = if (fluid) 900L else 2000L, possiblySilenceMs = if (fluid) 600L else 1500L, earlyQuestion = fluid,
+        ) { text -> main.post { heardForAgent(text) } }.also { it.start() }
     }
 
     private fun heardForAgent(text: String) {
@@ -474,8 +478,14 @@ class WakeWordService : Service() {
                     }
                 } finally { sentences.close() }
             }
-            Speaker.speakFlow(applicationContext, sentences)
-            reader.join()
+            // The person may speak over the voice: it stops, the rest of the answer is dropped, and the listening opens at once
+            var bargedIn = false
+            Speaker.resetInterrupt()
+            val barge = BargeIn(this) { bargedIn = true; Speaker.interrupt(); sentences.close() }
+            barge.start()
+            try { Speaker.speakFlow(applicationContext, sentences) } finally { barge.stop() }
+            Speaker.resetInterrupt()
+            if (bargedIn) { reader.cancel(); say("Coupé : je t'écoute") } else reader.join()
             thinking.cancel()
             if (heard) return
         }

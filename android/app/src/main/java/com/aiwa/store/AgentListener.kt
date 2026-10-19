@@ -16,7 +16,12 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * itself. Each sentence heard is handed to [onHeard]; silence just starts another pass. Whoever uses it stops it before the phone speaks (the voice
  * must not be heard as a sentence) and starts a new one afterwards. Main thread only.
  */
-class AgentListener(context: Context, private val onQuiet: () -> Unit = {}, private val quietMs: Long = QUIET_MS, private val onHeard: (String) -> Unit) : RecognitionListener {
+class AgentListener(
+    context: Context, private val onQuiet: () -> Unit = {}, private val quietMs: Long = QUIET_MS,
+    /** How long a silence the recognizer waits before it decides the person is done (the conversation asks for less), and whether a QUESTION that stopped changing is taken as done at once. */
+    private val completeSilenceMs: Long = 2000L, private val possiblySilenceMs: Long = 1500L, private val earlyQuestion: Boolean = false,
+    private val onHeard: (String) -> Unit,
+) : RecognitionListener {
     private val appContext = context.applicationContext
     private val recognizer = SpeechRecognizer.createSpeechRecognizer(appContext)
     private val quiet = QuietSounds(appContext)
@@ -29,7 +34,7 @@ class AgentListener(context: Context, private val onQuiet: () -> Unit = {}, priv
 
     init { recognizer.setRecognitionListener(this) }
 
-    companion object { const val QUIET_MS = 10_000L }
+    companion object { const val QUIET_MS = 10_000L; private const val EARLY_MS = 700L }
 
     fun start() {
         if (stopped) return
@@ -38,8 +43,8 @@ class AgentListener(context: Context, private val onQuiet: () -> Unit = {}, priv
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             // A pause to think (« mets-toi sur le repo test … c'est bon vas-y ») must not cut the sentence in two: the recognizer waits longer before it decides the person is done.
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, completeSilenceMs)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, possiblySilenceMs)
         }
         lastPartial = ""
         quiet.on()
@@ -77,7 +82,20 @@ class AgentListener(context: Context, private val onQuiet: () -> Unit = {}, priv
     }
 
     override fun onPartialResults(partialResults: Bundle) {
-        partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }?.let { lastPartial = it }
+        val partial = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        lastPartial = partial
+        // A question whose words stopped changing for a moment is taken as said, without waiting for the recognizer's own end of speech
+        if (earlyQuestion) {
+            main.removeCallbacks(early)
+            if (com.aiwa.bridge.isQuestion(partial)) main.postDelayed(early, EARLY_MS)
+        }
+    }
+
+    private val early = Runnable {
+        if (stopped) return@Runnable
+        val text = lastPartial
+        lastPartial = ""
+        if (text.isNotEmpty()) { stop(); onHeard(text) }
     }
     override fun onReadyForSpeech(params: Bundle?) {}
     override fun onBeginningOfSpeech() {}
