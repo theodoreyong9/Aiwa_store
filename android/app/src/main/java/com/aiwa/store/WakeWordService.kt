@@ -180,7 +180,7 @@ class WakeWordService : Service() {
             AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false), listening = false) }
             ListenSettings.setEnabled(applicationContext, false)
             AiwaWidget().updateAll(applicationContext)
-            Speaker.speakNatural(applicationContext, "J'éteins l'écoute permanente.")
+            Speaker.speakNatural(applicationContext, Vocabulary.spoken(applicationContext, "veille").replaceFirstChar { it.uppercase() } + ".")
             stopSelf()
         }
     }
@@ -318,9 +318,9 @@ class WakeWordService : Service() {
         }
     }
 
-    /** The button (or « repasse en manuel »): the super agent goes back to sleep, the wake word keeps listening. Only « éteins toi » turns the whole listening off. */
+    /** The button (or « repasse en manuel »): the super agent is turned OFF, and with it the whole listening (the microphone dot goes). Ten seconds of silence is the way to sleep and stay woken by the wake word. */
     fun closeAgent() {
-        main.post { if (agentMode) standbyAgent(force = true) }
+        main.post { if (agentMode) switchOff() }
     }
 
     private suspend fun agentCall(action: String, fields: Map<String, Any> = emptyMap()): String? =
