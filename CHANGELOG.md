@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- **Le widget passe à trois lignes** : (1) mise à jour (seulement quand elle est prête) · boucle · projet · session · dépôt ; (2) campagne · docs · vidéo · page · app ; (3) réglages · + · robot · Claude · question. Le bouton « Aiwa » (l'appli, en construction) et la rangée du bas disparaissent. L'image d'aperçu du menu d'ajout de widgets (Android 12+ et plus ancien) est refaite sur ces trois lignes.
+- **Réglages et « État d'Aiwa »** : « Ajouter le widget à l'écran d'accueil » (réglages) et la ligne des boutons (« État d'Aiwa », ajoutée pour chercher le bug du bouton App, réglé) sont retirés. Demande le nouvel APK.
 - **Le bouton de mise à jour est en bas à droite du widget** (cinquième emplacement de la rangée du bas, vide tant qu'il n'y a pas de mise à jour, pour que les autres boutons ne bougent pas quand elle arrive). Il était à la fin de la rangée du micro. Demande le nouvel APK.
 - **Le bouton d'état du workflow (la pastille qui tourne sur le dépôt) est retiré du widget.** Demande le nouvel APK.
 - **« Éteins toi » éteint le super agent mais garde le réveil** : dit au super agent, il dit « à toute » et se met en veille (le mot de réveil continue d'écouter, le point du micro reste) ; dit pendant la veille, il ne fait rien. Seul le bouton du widget (ou « Arrêter » dans la notification) arrête tout, point du micro compris. Demande le nouvel APK.

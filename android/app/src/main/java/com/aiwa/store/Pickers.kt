@@ -628,10 +628,6 @@ class HealthActivity : ComponentActivity() {
             }
             val entries = buildList {
                 add(PickerEntry("État d'Aiwa", false, header = true) { })
-                // What the buttons Docs · Vidéo · Page · App · Aiwa read for the repository in use, and where a colour could come from
-                val kinds = listOf("documents" to "Docs", "video" to "Vidéo", "page" to "Page", "apk" to "App", "aiwa" to "Aiwa")
-                    .joinToString(" · ") { (k, label) -> label + " " + if (Productions.has(applicationContext, state.repo, k)) "✓" else "✗" }
-                add(PickerEntry("Boutons de ${state.repo?.substringAfter('/') ?: "?"} : $kinds — site : ${state.siteKind} / ${state.siteState}", false, lines = 4) { })
                 add(
                     PickerEntry(
                         if (state.backend == "up") "✓  Backend (Termux) : en marche"
@@ -804,14 +800,6 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("État d'Aiwa", false, lines = 1) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
                 add(PickerEntry("Version : appli ${AppUpdater.installedVersion(applicationContext) ?: "?"} · cerveau ${AiwaRepository.state.value.backendVersion.takeIf { it > 0 } ?: "?"}${AiwaRepository.state.value.backendUpdatedAt.takeIf { it > 0 }?.let { " (mis à jour le " + java.text.SimpleDateFormat("dd/MM à HH:mm", java.util.Locale.FRANCE).format(java.util.Date(it * 1000)) + ")" } ?: ""}${if (AppUpdater.readyFile(applicationContext) != null) " · mise à jour téléchargée" else ""}", false, lines = 2) { })
-                // Always there: a second copy does no harm, and Android's own list of widgets can lie about the first
-                run {
-                    add(PickerEntry("Ajouter le widget à l'écran d'accueil", false, lines = 1) {
-                        WidgetPin.request(applicationContext, explain = true)
-                        finish()
-                    })
-                }
-
                 add(PickerEntry(if (ReadySettings.enabled(applicationContext)) "✓  « C'est prêt » à voix haute" else "« C'est prêt » à voix haute : coupé", ReadySettings.enabled(applicationContext), lines = 1) {
                     ReadySettings.set(applicationContext, !ReadySettings.enabled(applicationContext)); finish()
                 })

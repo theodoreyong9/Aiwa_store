@@ -435,29 +435,42 @@ private fun LightContent(state: AiwaState) {
     val size = LocalSize.current
     val avail = size.width.value - 20f
     val tab = aiwaTab(state)
-    val rowH = ((size.height.value - 16f - 24f) / 3f).coerceIn(26f, 46f)
+    val rowH = ((size.height.value - 16f) / 3f).coerceIn(26f, 46f)
     val chipH = (rowH - 4f).coerceAtLeast(24f)
     val loopOn = state.loopPair.isNotEmpty()
-    val agent = state.agent
-    val bottomCount = if (Projects.isAll(context)) 4 else 5      // « Tous »: the microphone IS the super agent, its round button is not repeated
-    val bottomD = minOf(chipH, avail / bottomCount - 4f).coerceAtLeast(20f)
+    val allMode = Projects.isAll(context)
+    val fs = context.resources.configuration.fontScale
+    val agentOn = state.agent?.enabled == true
+    val agentNeeds = state.agent?.let { it.say != null || it.proposal != null || it.command != null } == true
+    // Until Aiwa has been allowed to start its backend (once), the robot is the red « Autoriser Aiwa » button
+    val needsSetup = !hasTermuxPermission(context)
 
+    // Three rows: (1) update · loop · project · session · repository, (2) campaign · docs · video · page · app, (3) settings · + · robot · Claude · question
     Column(
         modifier = GlanceModifier.fillMaxSize()
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        // ---- the session and the repository, ----
+        // ---- row 1 ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            val fs = context.resources.configuration.fontScale
-            val rounds = 0
-            // the room each of the two pills really has: the row, less the round buttons and the gaps, shared by two
             val projW = 62f
+            val rounds = 1 + (if (state.appUpdateReady) 1 else 0)
+            // the room each of the two pills really has: the row, less the round buttons and the gaps, shared by two
             val each = (avail - rounds * (chipH + GAP) - GAP * 2 - projW) / 2f - 12f
+            // only while a newer build is downloaded (a tap opens the installer)
+            if (state.appUpdateReady) {
+                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
+                Spacer(GlanceModifier.width(GAP.dp))
+            }
+            RoundButton(
+                icon = R.drawable.ic_loop,
+                description = if (loopOn) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
+                background = if (loopOn) green else pill, action = actionStartActivity<LoopsActivity>(), diameter = chipH.dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
             val sessionTitle = bandInfo(state, each).title
             val sessionBad = sessionTitle.endsWith("▸")
             // The « Projet » button: the name of the pair now on the two pills (or the invitation to name it)
-            val allMode = Projects.isAll(context)
             Chip(
                 if (allMode) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", projW - 12f, fs),
                 if (allMode) green else if (locked) PILL_DIM else pill, if (locked) TEXT_DIM else fg,
@@ -465,43 +478,43 @@ private fun LightContent(state: AiwaState) {
                 if (allMode) GlanceModifier.defaultWeight() else GlanceModifier.width(projW.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp,
             )
             if (!allMode) {
-            Spacer(GlanceModifier.width(GAP.dp))
-            Chip(
-                if (sessionBad) sessionTitle else fitLabel(state.session, each - textWidth(" ▾", fs), fs) + " ▾",
-                if (locked) PILL_DIM else if (sessionBad) alertRed else pill, if (locked) TEXT_DIM else fg,
-                if (sessionBad) bandInfo(state, each).action else lockable(locked, actionStartActivity<SessionPickerActivity>()),
-                GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
-            )
-            Spacer(GlanceModifier.width(GAP.dp))
-            Box(modifier = GlanceModifier.defaultWeight().height(chipH.dp), contentAlignment = Alignment.CenterEnd) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                Chip(
+                    if (sessionBad) sessionTitle else fitLabel(state.session, each - textWidth(" ▾", fs), fs) + " ▾",
+                    if (locked) PILL_DIM else if (sessionBad) alertRed else pill, if (locked) TEXT_DIM else fg,
+                    if (sessionBad) bandInfo(state, each).action else lockable(locked, actionStartActivity<SessionPickerActivity>()),
+                    GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
+                )
+                Spacer(GlanceModifier.width(GAP.dp))
                 Chip(
                     "⎇ " + fitLabel(state.repo?.substringAfter('/') ?: "Dépôt", each - textWidth("⎇  ▾", fs), fs) + " ▾",
                     if (locked) PILL_DIM else if (state.repo == null) alertRed else pill, if (locked) TEXT_DIM else fg,
-                    lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.fillMaxSize(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
+                    lockable(locked, actionStartActivity<RepoPickerActivity>()), GlanceModifier.defaultWeight(), alignStart = true, height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
                 )
             }
-            }
         }
-        // ---- the five kinds: grey until the repository holds one, coloured once it does ----
-        Row(modifier = GlanceModifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
-            lightKinds(state, context).forEachIndexed { i, kind ->
-                if (i > 0) Spacer(GlanceModifier.width(4.dp))
+        // ---- row 2: the campaign, then the kinds (grey until the repository holds one, coloured once it does) ----
+        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            Chip("Campagne", pill, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 10.sp, hPad = 2.dp)
+            lightKinds(state, context).filter { it.mode != "aiwa" }.forEach { kind ->
+                Spacer(GlanceModifier.width(4.dp))
                 Chip(
                     kind.word, if (kind.found) green else PILL_DIM, if (kind.found) fg else TEXT_DIM,
                     actionRunCallback<PickKindCallback>(actionParametersOf(MODE_KEY to kind.mode, KIND_FOUND_KEY to (if (kind.found) "1" else "0"))),
-                    GlanceModifier.defaultWeight(), bold = kind.current, height = 22.dp, textSize = 10.sp, hPad = 2.dp,
+                    GlanceModifier.defaultWeight(), bold = kind.current, height = chipH.dp, textSize = 10.sp, hPad = 2.dp,
                 )
             }
         }
-        // ---- the microphone, Claude, the question, the update ----
+        // ---- row 3: the settings, the +, the robot (the super agent), Claude, the question ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            val agentOn = state.agent?.enabled == true
+            RoundButton(
+                icon = R.drawable.ic_settings,
+                description = "Réglages : modèle, push, voix, mots, mises à jour…",
+                background = pill, action = actionStartActivity<SettingsActivity>(), diameter = chipH.dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(icon = R.drawable.ic_plus, description = if (state.attachments > 0) "${state.attachments} pièce(s) jointe(s) en attente : ajouter ou retirer" else "Ajouter : un document, un média, ou écrire à un contact", background = if (state.attachments > 0) green else pill, action = actionStartActivity<PlusMenuActivity>(), diameter = chipH.dp)
             Spacer(GlanceModifier.width(GAP.dp))
-            // the microphone IS the super agent: a tap opens it (it listens, knows every pill and routes what is said), a second tap closes it
-            val agentNeeds = state.agent?.let { it.say != null || it.proposal != null || it.command != null } == true
-            // Until Aiwa has been allowed to start its backend (once), this button is the red « Autoriser Aiwa » one
-            val needsSetup = !hasTermuxPermission(LocalContext.current)
             Box(
                 modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (needsSetup || agentNeeds) alertRed else if (agentOn) green else pill).cornerRadius(((rowH - 2f) / 2).dp)
                     .clickable(if (needsSetup) actionStartActivity<SetupActivity>() else actionStartActivity<AgentToggleActivity>()),
@@ -525,32 +538,6 @@ private fun LightContent(state: AiwaState) {
             if (state.ask != null) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
-            }
-        }
-        // ---- the loop, the Aiwa app, the campaign, the settings, and the update when there is one: five equal slots ----
-        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            @Composable fun Slot(content: @Composable () -> Unit) {
-                Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.Center) { content() }
-            }
-            Slot {
-                RoundButton(
-                    icon = R.drawable.ic_loop,
-                    description = if (loopOn) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
-                    background = if (loopOn) green else pill, action = actionStartActivity<LoopsActivity>(), diameter = bottomD.dp,
-                )
-            }
-            Slot { RoundButton(icon = R.drawable.ic_aiwa, description = "L'application Aiwa", background = pill, action = actionStartActivity<StoreActivity>(), diameter = bottomD.dp) }
-            Slot { RoundButton(icon = R.drawable.ic_proposals, description = "Campagne : les propositions à valider", background = pill, action = actionStartActivity<ProposalsActivity>(), diameter = bottomD.dp) }
-            Slot {
-                RoundButton(
-                    icon = R.drawable.ic_settings,
-                    description = "Réglages : session, dépôt, modèle, push, voix, commentaire, mises à jour…",
-                    background = pill, action = actionStartActivity<SettingsActivity>(), diameter = bottomD.dp,
-                )
-            }
-            // bottom right: only while a newer build is downloaded (a tap opens the installer); the slot stays, so the others do not move when it appears
-            Slot {
-                if (state.appUpdateReady) RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = bottomD.dp)
             }
         }
     }
