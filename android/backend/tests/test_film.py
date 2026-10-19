@@ -29,8 +29,9 @@ class FakeFal:
         self.folder = Path(folder)
         self.calls = []
         self.fail_on = None
-        make_clip(self.folder / "video.mp4", with_audio=False)
-        make_clip(self.folder / "mouth.mp4")
+        if HAVE_FFMPEG:        # the CI runner of the Android job has no ffmpeg: the tests that make a film are skipped there
+            make_clip(self.folder / "video.mp4", with_audio=False)
+            make_clip(self.folder / "mouth.mp4")
         (self.folder / "voice.wav").write_bytes(b"RIFF0000WAVE")
 
     def __call__(self, method, url, payload=None, key=None):
