@@ -154,6 +154,22 @@ class VoiceDictation(
         if (repoNames.isEmpty()) repoNames = withContext(Dispatchers.IO) { try { LocalClaudeBridge().githubRepos().map { it.name } } catch (err: Exception) { emptyList() } }
         val parsed = parseDictation(text, voiceModels(), voiceSessions(), repoNames, true)
         val pills = pillCommandsOnly(parsed.commands)
+        // « cast la vidéo » / « arrête la TV » said alone: the video goes to the TV (or stops) at once, nothing is sent to a session
+        val tv = parsed.commands.filter { it is VoiceCommand.Cast || it is VoiceCommand.CastStop }
+        if (pills.isEmpty() && tv.isNotEmpty() && (parsed.message.isBlank() || isResidue(parsed.message))) {
+            for (command in tv) {
+                if (command is VoiceCommand.CastStop) {
+                    CastService.stop(appContext)
+                    try { LocalClaudeBridge().castClear() } catch (err: Exception) { }
+                } else if (command is VoiceCommand.Cast) {
+                    val latest = withContext(Dispatchers.IO) { try { LocalClaudeBridge().videos().videos.firstOrNull() } catch (err: Exception) { null } }
+                    if (latest == null) toastOnMain(appContext, "Aucune vidéo à envoyer à la TV.")
+                    else try { CastService.start(appContext, latest.url, command.tv, latest.name) } catch (err: Exception) { toastOnMain(appContext, "Envoi à la TV impossible : ${err.message ?: "?"}") }
+                }
+            }
+            end()
+            return
+        }
         if (pills.isEmpty() && parsed.problems.isNotEmpty()) {
             // something was said as a pill (a repository that is not in the list): nothing leaves on a guess
             copyToClipboard(appContext, text)

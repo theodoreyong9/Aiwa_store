@@ -58,6 +58,21 @@ class WakeWordDetector(
         }
     }
 
+    /** Every word of a finished result was heard with at least MIN_CONFIDENCE (a result with no word detail is not trusted). */
+    private fun sure(result: JSONObject): Boolean {
+        val words = result.optJSONArray("result") ?: return false
+        if (words.length() == 0) return false
+        for (i in 0 until words.length()) {
+            val word = words.getJSONObject(i)
+            if (word.optString("word") != "[unk]" && word.optDouble("conf", 0.0) < MIN_CONFIDENCE) return false
+        }
+        return true
+    }
+
+    private companion object {
+        const val MIN_CONFIDENCE = 0.85
+    }
+
     /** One listening, from opening the microphone to giving it back. True when it is over for good (a word heard, a failure, a stop); false when a media started playing. */
     @android.annotation.SuppressLint("MissingPermission")
     private fun listenOnce(): Boolean {
@@ -82,6 +97,7 @@ class WakeWordDetector(
         var sinceCheck = 0
         try {
             Recognizer(model, sampleRate.toFloat(), WakeWords.grammar(custom + liaison + more.all())).use { recognizer ->
+                recognizer.setWords(true)
                 record.startRecording()
                 val buffer = ShortArray(2048)
                 while (running) {
@@ -90,7 +106,12 @@ class WakeWordDetector(
                     if (n == 0) continue
                     // about every second (8 reads of 128 ms): has a media started? then the microphone goes back and this listening ends
                     if (pauseOnMedia && ++sinceCheck >= 8) { sinceCheck = 0; if (mediaPlaying()) { interrupted = true; break } }
-                    val heard = if (recognizer.acceptWaveForm(buffer, n)) JSONObject(recognizer.result).optString("text") else JSONObject(recognizer.partialResult).optString("partial")
+                    // Rigour: only a FINISHED sentence counts (a guess in the middle of a sound woke the phone for things that were not the word), and every word of it must be heard with
+                    // confidence. The detector no longer improvises.
+                    if (!recognizer.acceptWaveForm(buffer, n)) continue
+                    val result = JSONObject(recognizer.result)
+                    if (!sure(result)) continue
+                    val heard = result.optString("text")
                     val kind = if (heard.isEmpty()) null else wakeKind(heard, custom, liaison, more)
                     if (kind != null) { woken = kind; running = false }
                 }

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Wake word: only a finished sentence heard with confidence wakes the phone (no more guesses on a partial sound).
+- Voice: « cast la vidéo » / « arrête la TV » said to the agent act at once (the video goes to the TV).
+
 - Settings: a button turns the wake-word listening on or off.
 - **Le premier message d'une session n'est plus un énorme bloc de règles** (brain 144) : il faisait environ 30 000 caractères. Les textes longs et fixes — design, direction créative, jeux, documents, propositions, vidéo — sont maintenant des documents du Store (`docs/consignes/*.md`, générés par le code : `python3 android/backend/gen_consignes.py`, un test vérifie qu'ils sont à jour) et le message n'a plus qu'une ligne pour chacun, qui dit quand le lire et où (pour la vidéo, la section de la qualité en cours, avec le dépôt et la dimension par défaut). Il fait environ 7 600 caractères ; le dépôt, le push, le déploiement, la vérification, les questions et l'alerte restent écrits dedans (le déploiement et les questions contiennent le canal privé du téléphone, qui ne doit pas être publié). Un document modifié est redit au message suivant (marque de version dans la ligne). Demande le cerveau 144.
 - **La vue « Tous » n'attend plus un clic pour s'indexer** (brain 143) : le cerveau lit lui-même l'arborescence de chaque dépôt au démarrage puis toutes les 5 minutes, et relit celui d'une session dès qu'un message lui est envoyé (2 minutes plus tard, le temps que quelque chose soit créé) ; à l'ouverture de la vue, ce qui a déjà été lu s'affiche tout de suite, et ce qui a plus d'une minute est relu en arrière-plan, la vue se rafraîchissant seule pour montrer le nouveau. Demande le cerveau 143 et le nouvel APK.
