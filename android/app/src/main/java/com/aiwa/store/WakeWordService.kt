@@ -234,7 +234,8 @@ class WakeWordService : Service() {
             val notification = notification("Je prépare l'écoute…")
             if (Build.VERSION.SDK_INT >= 30) startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE) else startForeground(NOTIFICATION_ID, notification)
         } catch (err: Exception) {
-            fail("Écoute permanente impossible : ${err.message}")
+            // Android refuses a microphone service started while the app is not on screen (the first opening, a restart): no message, and the wish is kept: it starts as soon as Aiwa is shown (ensureStarted)
+            stopSelf()
             return START_NOT_STICKY
         }
         instance = this
