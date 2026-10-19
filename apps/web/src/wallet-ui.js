@@ -564,7 +564,7 @@ export function initWalletPage(repo) {
   });
 
   // Disconnect: the phrase is forgotten by this phone (asked twice: the words are the wallet).
-  $('btn-disconnect').addEventListener('click', async () => {
+  $('btn-forget').addEventListener('click', async () => {
     if (!connected()) { $('lite-result').textContent = 'No wallet connected. Type the 12 words above to connect.'; return; }
     if ($('disconnect-confirm').hidden) { $('disconnect-confirm').hidden = false; return; }
     await stop();

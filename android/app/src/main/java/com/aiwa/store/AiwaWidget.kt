@@ -478,9 +478,9 @@ private fun LightContent(state: AiwaState) {
             )
             // Wallet and Store: each opens its own page of the web app, alone (no tabs, no browser bar)
             Spacer(GlanceModifier.width(GAP.dp))
-            Chip("Wallet", pill, fg, actionStartActivity(storePageIntent(context, "wallet", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+            Chip("Wallet", pill, fg, actionStartIntent(storePageIntent(context, "wallet", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
             Spacer(GlanceModifier.width(GAP.dp))
-            Chip("Store", pill, fg, actionStartActivity(storePageIntent(context, "store", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+            Chip("Store", pill, fg, actionStartIntent(storePageIntent(context, "store", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
         }
         // ---- row 2: the campaign, then the kinds (grey until the repository holds one, coloured once it does) ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- After « c'est prêt », a new document is offered (« je le lis, ou je l'ouvre ? ») and a new video too (« je la lance sur la TV ? »): nothing is done without the answer, and only while the listening service holds the microphone.
+
 - No more « Écoute permanente impossible » message when Android refuses to start the microphone in the background (first opening): the listening just starts once Aiwa is on screen.
 
 - Widget: the session and repository pills are now inside « Projet »; to its right, « Wallet » and « Store » each open their own page of the web app alone (no tabs, no browser bar). The Wallet page: connect (12 words) and disconnect, SOL devnet balance, faucet, burn with the patience rate, AIWA balance, claimable, claim (soon), publication and ranking scores, and Push (the repository's web page goes to the Store in aiwa mode, signed with its hash). The Store page: the list and its search by name or id.

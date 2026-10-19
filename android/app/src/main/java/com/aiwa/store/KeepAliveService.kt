@@ -131,7 +131,11 @@ class KeepAliveService : Service() {
     private fun announceReady(state: AiwaState) {
         val was = spokenFresh
         spokenFresh = state.ciFresh
-        if (state.ciFresh && !was && ReadySettings.enabled(applicationContext)) CoroutineScope(Dispatchers.Default).launch { Speaker.speakAndWait(applicationContext, Vocabulary.spoken(applicationContext, "accomplissement")) }
+        if (state.ciFresh && !was && ReadySettings.enabled(applicationContext)) CoroutineScope(Dispatchers.Default).launch {
+            Speaker.speakAndWait(applicationContext, Vocabulary.spoken(applicationContext, "accomplissement"))
+            // a new document or video: read it / open it / send it to the TV, on the person's word
+            try { ProductionOffer.run(applicationContext) } catch (err: Exception) { }
+        }
     }
 
     // The super agent is set up but its listening is off: when something worth reporting happens (a new production, a failed workflow, a question), the phone speaks first and asks if the person is available.
