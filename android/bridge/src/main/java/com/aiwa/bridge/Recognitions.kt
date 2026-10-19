@@ -16,7 +16,7 @@ object Recognitions {
 
     val SLOTS = listOf(
         Slot("agent", "Réveil (ancien)", listOf("mon agent"), "Réveille aussi le super agent."),
-        Slot("liaison", "Réveil", listOf("heille wa", "haye wa"), "Ce que tu dis pour réveiller le super agent, écran verrouillé ou non : il répond « J'écoute » et prend une commande.", MINE),
+        Slot("liaison", "Réveil", listOf("mon agent", "heille wa", "haye wa"), "Ce que tu dis pour réveiller le super agent, écran verrouillé ou non : il répond « J'écoute » et prend une commande.", MINE),
         Slot("instruction", "Instruction", listOf("instruction"), "Ce qui suit règle les pastilles session et dépôt."),
         Slot("session", "Pastille session", listOf("session"), "Dans une instruction : « session … » choisit la session."),
         Slot("repo", "Pastille dépôt", listOf("dépôt", "repo"), "Dans une instruction : « dépôt … » choisit le dépôt."),

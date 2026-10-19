@@ -796,7 +796,7 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Super agent : réglages, détruire et recommencer", false, lines = 1) { open(AgentActivity::class.java) })
                 add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }}", false, lines = 1) { open(LlmKeyActivity::class.java) })
                 add(PickerEntry("Aiwa", false, header = true) { })
-                add(PickerEntry("Mes mots (les onze reconnaissances)", false, lines = 1) { open(RecognitionsActivity::class.java) })
+                add(PickerEntry("Mes mots", false, lines = 1) { open(RecognitionsActivity::class.java) })
                 add(PickerEntry("État d'Aiwa", false, lines = 1) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
                 add(PickerEntry("Version : appli ${AppUpdater.installedVersion(applicationContext) ?: "?"} · cerveau ${AiwaRepository.state.value.backendVersion.takeIf { it > 0 } ?: "?"}${AiwaRepository.state.value.backendUpdatedAt.takeIf { it > 0 }?.let { " (mis à jour le " + java.text.SimpleDateFormat("dd/MM à HH:mm", java.util.Locale.FRANCE).format(java.util.Date(it * 1000)) + ")" } ?: ""}${if (AppUpdater.readyFile(applicationContext) != null) " · mise à jour téléchargée" else ""}", false, lines = 2) { })
@@ -814,9 +814,6 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry(if (AvailabilitySettings.enabled(applicationContext)) "✓  « Je suis disponible ? » du super agent" else "« Je suis disponible ? » du super agent : coupé", AvailabilitySettings.enabled(applicationContext), lines = 1) {
                     AvailabilitySettings.set(applicationContext, !AvailabilitySettings.enabled(applicationContext)); finish()
                 })
-                add(PickerEntry("Écoute permanente", false, header = true) { })
-                // No switch to turn it on: the super agent button of the widget is its trigger (it asks for the microphone and starts it); what stays is the way to stop it
-                if (wanted) add(PickerEntry("Éteindre l'écoute permanente", false, lines = 1) { toggle() })
             }
             PickerSheet(entries) { finish() }
         }
