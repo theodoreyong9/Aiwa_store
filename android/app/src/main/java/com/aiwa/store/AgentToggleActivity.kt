@@ -38,7 +38,8 @@ class AgentToggleActivity : ComponentActivity() {
         wakeAiwa(applicationContext)
         val agent = AiwaRepository.state.value.agent      // no super agent session is needed any more: the button listens for a command
         when {
-            agent?.enabled == true -> WakeWordService.closeAgentMode(applicationContext)
+            // The service knows whether it listens; the brain's flag can be stale (a restart) or missing, and the button then never closed what was open
+            WakeWordService.instance?.isAgentOpen() == true -> WakeWordService.closeAgentMode(applicationContext)
             ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED -> { micPermission.launch(Manifest.permission.RECORD_AUDIO); return }
             else -> { WakeWordService.openAgentMode(applicationContext); reportAfterOpening() }
         }

@@ -628,6 +628,10 @@ class HealthActivity : ComponentActivity() {
             }
             val entries = buildList {
                 add(PickerEntry("État d'Aiwa", false, header = true) { })
+                // What the buttons Docs · Vidéo · Page · App · Aiwa read for the repository in use, and where a colour could come from
+                val kinds = listOf("documents" to "Docs", "video" to "Vidéo", "page" to "Page", "apk" to "App", "aiwa" to "Aiwa")
+                    .joinToString(" · ") { (k, label) -> label + " " + if (Productions.has(applicationContext, state.repo, k)) "✓" else "✗" }
+                add(PickerEntry("Boutons de ${state.repo?.substringAfter('/') ?: "?"} : $kinds — site : ${state.siteKind} / ${state.siteState}", false, lines = 4) { })
                 add(
                     PickerEntry(
                         if (state.backend == "up") "✓  Backend (Termux) : en marche"

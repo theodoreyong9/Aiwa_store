@@ -103,6 +103,10 @@ private val FILLERS = listOf("Je regarde.", "Je réfléchis.", "Un instant.", "T
 private val APPLY_REGEX = Regex("""\bfais[\s-]?le\b|\bapplique\b""")
 private val SEND_REGEX = Regex("""\bdis?t?[\s-]?lui\b""")
 
+/** The agent as the widget sees it with the flag set: made from nothing when the brain has not described one yet (it used to stay null, and the widget never knew the super agent was open). */
+internal fun agentFlag(agent: com.aiwa.bridge.AgentInfo?, on: Boolean): com.aiwa.bridge.AgentInfo =
+    agent?.copy(enabled = on) ?: com.aiwa.bridge.AgentInfo(enabled = on, session = null, interval = 0, creating = false, error = null, say = null, proposal = null)
+
 class WakeWordService : Service() {
     companion object {
         private const val CHANNEL_ID = "aiwa_listen"
@@ -148,7 +152,7 @@ class WakeWordService : Service() {
             if (running != null) running.closeAgent()
             else CoroutineScope(Dispatchers.IO).launch {
                 try { LocalClaudeBridge().agent("set", mapOf("enabled" to false)) } catch (err: Exception) { }
-                AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
+                AiwaRepository.update { it.copy(agent = agentFlag(it.agent, false)) }
                 AiwaWidget().updateAll(context.applicationContext)
             }
         }
@@ -177,7 +181,7 @@ class WakeWordService : Service() {
             agentListener?.stop(); agentListener = null
             detector?.stop(); detector = null
             agentCall("set", mapOf("enabled" to false))
-            AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false), listening = false) }
+            AiwaRepository.update { it.copy(agent = agentFlag(it.agent, false), listening = false) }
             ListenSettings.setEnabled(applicationContext, false)
             AiwaWidget().updateAll(applicationContext)
             Speaker.speakNatural(applicationContext, Vocabulary.spoken(applicationContext, "veille").replaceFirstChar { it.uppercase() } + ".")
@@ -261,6 +265,9 @@ class WakeWordService : Service() {
     // ---- The second listening: the liaison agent. "Mon super agent" (heard by the first listening) or the button of the widget opens it. The first listening is
     // only paused meanwhile, and "repasse en manuel" (or closing the agent) gives it back. Everything said goes to the agent; what it says, the phone says. ----
 
+    /** Is the super agent open (listening for a command) right now? The widget button trusts this, not the brain's flag. */
+    fun isAgentOpen(): Boolean = agentMode
+
     fun openAgent() {
         main.post {
             if (agentMode || model == null) return@post
@@ -271,7 +278,7 @@ class WakeWordService : Service() {
             answeringAsk = null
             pendingCommand.clear()
             holdCpu(true)
-            AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = true)) }
+            AiwaRepository.update { it.copy(agent = agentFlag(it.agent, true)) }
             scope.launch {
                 agentCall("set", mapOf("enabled" to true))
                 // The natural voice is installed once (about 80 MB), in the backend; until it is ready the phone's own voice speaks.
@@ -309,7 +316,7 @@ class WakeWordService : Service() {
         answeringAsk = null
         draftOffered = false
         keepPending()
-        AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
+        AiwaRepository.update { it.copy(agent = agentFlag(it.agent, false)) }
         scope.launch {
             agentCall("set", mapOf("enabled" to false))
             CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
@@ -622,7 +629,7 @@ class WakeWordService : Service() {
         agentListener = null
         if (agentMode) {
             agentMode = false
-            AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
+            AiwaRepository.update { it.copy(agent = agentFlag(it.agent, false)) }
             CoroutineScope(Dispatchers.IO).launch { try { LocalClaudeBridge().agent("set", mapOf("enabled" to false)) } catch (err: Exception) { } }
         }
         dictation?.cancel()
