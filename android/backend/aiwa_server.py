@@ -35,6 +35,7 @@ import subprocess
 import termios
 import threading
 import calendar
+import datetime
 import time
 import urllib.error
 import urllib.parse
@@ -57,7 +58,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 148
+BACKEND_VERSION = 149
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -603,7 +604,7 @@ def _document_line(repo):
         "N'utilise que ce que le fichier dit : n'invente aucun poste, chiffre, client ni prix, et dans `facts.md` sépare ce qui vient du fichier de ce que tu ajoutes. "
         "Mes réalisations GitHub ne sont utilisées QUE si ma demande dit que je l'ai coché : alors prends parmi mes dépôts PUBLICS ceux qui servent le propos, "
         "montre-les au bon moment de la vidéo (vraies captures ou pages), liste ceux que tu retiens dans `brief.md`, jamais un dépôt privé que je n'ai pas nommé. "
-        "Sans cette mention, le fichier seul compte. Mets la vidéo dans `docs/videos/` du dépôt en cours : l'appli montre la liste de toutes les vidéos de ce dépôt. "
+        "Sans cette mention, le fichier seul compte. Mets la vidéo dans la release `videos` du dépôt en cours (`gh release upload videos <fichier> --clobber`, à défaut dans `docs/videos/`) : l'appli montre la liste de toutes les vidéos de ce dépôt. "
         "Mes fichiers sources sont dans le dossier `aiwa-campagne/` du dépôt en cours : quand ma demande en nomme, lis-les là (tu y as accès), un par un ; un CSV, un JSON ou un texte tels quels, "
         "un tableur .xlsx avec Python (openpyxl ou pandas), un PDF avec `pdftotext`, une image ou une vidéo en les citant ou en les intégrant telles quelles sans rien dire de leur contenu que tu n'as pas pu lire. "
         "Quand ma demande contient un document collé et te dit de le ranger, écris-en une copie dans `aiwa-campagne/` (même nom) et pousse-la avec la consigne Push."
@@ -612,8 +613,8 @@ def _document_line(repo):
 
 def _image_line():
     """Where a picture goes: the folder the widget's Média list shows."""
-    return ("Images : quand je te demande une image (illustration, logo, visuel, photo retouchée), fabrique-la en PNG, JPG ou WebP et pose-la dans `docs/images/` du dépôt en cours, avec un nom qui dit ce qu'elle montre, "
-            "puis pousse-la avec la consigne Push : l'appli montre la liste de toutes les images de ce dépôt. Dis-moi en une phrase ce qu'elle montre et d'où viennent ses éléments (rien d'inventé présenté comme une photo).")
+    return ("Images : quand je te demande une image (illustration, logo, visuel, photo retouchée), fabrique-la en PNG, JPG ou WebP, avec un nom qui dit ce qu'elle montre, et dépose-la dans la release `images` du dépôt en cours (`gh release create images --title Images --notes \"\"` si elle n'existe pas, puis `gh release upload images <fichier> --clobber`), "
+            "à défaut dans `docs/images/` avec la consigne Push : l'appli montre la liste de toutes les images de ce dépôt. Dis-moi en une phrase ce qu'elle montre et d'où viennent ses éléments (rien d'inventé présenté comme une photo).")
 
 
 def _video_full(repo):
@@ -648,9 +649,11 @@ def _video_full(repo):
         "note de 1 à 5 l'accroche, la clarté du message, le rythme, le mouvement de chaque plan, la lisibilité, la direction artistique, le son, l'honnêteté (rien d'inventé) et l'appel à l'action ; "
         "corrige tout ce qui est sous 4 et recommence l'aperçu, jusqu'à trois tours ; si tu as un outil de sous-agent, confie la critique à un agent neuf qui ne voit que les images et le brief. "
         "Donne-moi les notes finales telles quelles. Le contrôle `video-kit check` signale `slideshow` quand l'image bouge trop peu : refais alors le plan concerné. Dis aussi ce qui est provisoire (la voix de synthèse, la musique générée). "
-        f"Termine toujours par le lien direct vers chaque fichier vidéo (`https://raw.githubusercontent.com/{repo}/main/docs/videos/nom-9x16.mp4`), pour que je le trouve. "
-        f"Dépose chaque vidéo dans le dossier `docs/videos/` du dépôt {repo} (un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4`, directement dans `docs/videos/`, jamais ailleurs ; GitHub refuse un fichier de plus de 100 Mo : réencode-le plus léger), "
-        "avec ses fichiers d'étapes et son rapport de contrôle sous `docs/videos/<nom>/` dans le dépôt, puis dis-moi en une phrase ce qui est fait. "
+        f"Termine toujours par le lien direct vers chaque fichier vidéo (`https://github.com/{repo}/releases/download/videos/nom-9x16.mp4`), pour que je le trouve. "
+        f"Dépose chaque vidéo dans la release GitHub de tag `videos` du dépôt {repo} (un fichier par vidéo, nommé `nom-9x16.mp4`, `nom-16x9.mp4` ; une release accepte des fichiers jusqu'à 2 Go et ne grossit pas l'historique du dépôt) : "
+        "si elle n'existe pas, crée-la (`gh release create videos --title Vidéos --notes \"\"`), puis `gh release upload videos <fichier> --clobber`. "
+        "Si `gh` ne marche pas dans ta session, dépose le fichier dans `docs/videos/` (GitHub refuse un fichier de plus de 100 Mo : réencode-le plus léger). "
+        "Ses fichiers d'étapes et son rapport de contrôle restent sous `docs/videos/<nom>/` dans le dépôt (de petits fichiers texte). Puis dis-moi en une phrase ce qui est fait. "
         "Si Chromium, ffmpeg, Node ou un accès GitHub te manquent, mets-les en place toi-même (`apt-get install -y ffmpeg espeak-ng`, `npx playwright install chromium`, `sh video-kit/src/voice-setup.sh` pour la voix naturelle de la voix off, l'API GitHub avec le jeton de l'environnement) "
         "au lieu de t'arrêter."
     )
@@ -763,7 +766,7 @@ def _video_line_text(repo, quality="moyen"):
             "le rythme généré (`beat.py`, pas de recherche de musique), SANS voix de synthèse ni voix off (le texte à l'écran porte le message), assemble avec `video-kit assemble`, contrôle avec `video-kit check` et corrige UNE fois ce qu'il signale. "
             "Pas de recherche de campagnes, pas de plans 3D ni de catalogue, pas de critique en plusieurs tours. N'invente rien : tout ce qui est affiché vient de ce que j'ai fourni ou de ma création. "
             "Dis-moi que c'est la qualité simple, et ce qui est provisoire (rythme généré, pas de voix). "
-            f"Termine par le lien direct vers le fichier (`https://raw.githubusercontent.com/{repo}/main/docs/videos/nom-9x16.mp4`), dépose-le dans `docs/videos/` du dépôt (directement dans `docs/videos/`, jamais ailleurs)."
+            f"Termine par le lien direct vers le fichier (`https://github.com/{repo}/releases/download/videos/nom-9x16.mp4`) ; dépose-le dans la release `videos` du dépôt (`gh release upload videos <fichier> --clobber`, la release se crée avec `gh release create videos --title Vidéos --notes \"\"`), à défaut dans `docs/videos/`."
         )
     full = _video_full(repo)
     if quality == "max":
@@ -2900,6 +2903,30 @@ def _documents_snapshot():
     return {"repo": repo, "documents": items}
 
 
+def _release_assets(repo, tag):
+    """The files of the GitHub release `tag` as [{name, url, ts}] (ts = epoch seconds), read from the public page of the release (no API, no token: the hourly limit does not apply).
+    [] when there is no such release or GitHub does not answer."""
+    try:
+        request = urllib.request.Request(f"https://github.com/{repo}/releases/expanded_assets/{urllib.parse.quote(tag)}", headers={"User-Agent": "aiwa"})
+        with urllib.request.urlopen(request, timeout=15) as reply:
+            page = reply.read(2_000_000).decode("utf-8", "replace")
+    except (OSError, ValueError):
+        return []
+    out, seen = [], set()
+    for m in re.finditer(r'href="(/' + re.escape(repo) + r'/releases/download/' + re.escape(urllib.parse.quote(tag)) + r'/([^"]+))"(.*?)</li>', page, re.S):
+        name = urllib.parse.unquote(m.group(2))
+        if name in seen:
+            continue
+        seen.add(name)
+        when = re.search(r'datetime="([^"]+)"', m.group(3))
+        try:
+            ts = int(datetime.datetime.fromisoformat(when.group(1).replace("Z", "+00:00")).timestamp()) if when else 0
+        except ValueError:
+            ts = 0
+        out.append({"name": name, "url": "https://github.com" + m.group(1), "ts": ts})
+    return out
+
+
 IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg")
 MEDIA_FOLDERS = {"video": "docs/videos", "image": "docs/images"}
 
@@ -2930,6 +2957,8 @@ def _images_snapshot():
         {"name": n, "url": f"https://raw.githubusercontent.com/{repo}/HEAD/docs/images/{urllib.parse.quote(n)}", "ts": dates.get("docs/images/" + n, 0)}
         for n in names if n.lower().endswith(IMAGE_EXT)
     ]
+    have = {i["name"] for i in items}
+    items += [a for a in _release_assets(repo, "images") if a["name"].lower().endswith(IMAGE_EXT) and a["name"] not in have]
     items.sort(key=lambda d: (d["ts"], d["name"].lower()), reverse=True)
     return {"repo": repo, "images": items}
 
@@ -2946,6 +2975,19 @@ def media_delete(kind, name, path=None):
     if kind == "video" and path == "docs":
         folder = "docs"
     gh = github.gh_path()
+    if path == "release":
+        tag = "videos" if kind == "video" else "images"
+        if not gh or not github._gh_login():
+            return {"ok": False, "error": "gh n'est pas connecté dans Termux", "needs": "session", "path": f"release {tag}/{name}"}
+        try:
+            done = subprocess.run([gh, "release", "delete-asset", tag, name, "-y", "-R", repo], capture_output=True, text=True, timeout=90)
+        except (OSError, subprocess.SubprocessError) as err:
+            return {"ok": False, "error": str(err), "needs": "session", "path": f"release {tag}/{name}"}
+        if done.returncode != 0:
+            return {"ok": False, "error": _clean((done.stderr or "") + (done.stdout or "")).strip()[-200:] or "suppression refusée", "needs": "session", "path": f"release {tag}/{name}"}
+        with lock:
+            video_cache.update(key=None, items=[], at=0)
+        return {"ok": True}
     if not gh or not github._gh_login():
         return {"ok": False, "error": "gh n'est pas connecté dans Termux", "needs": "session", "path": f"{folder}/{name}"}
     target = f"repos/{repo}/contents/{urllib.parse.quote(folder + '/' + name)}"
@@ -2963,6 +3005,13 @@ def media_delete(kind, name, path=None):
         video_cache.update(key=None, items=[], at=0)
     file_dates_cache.pop(repo, None)
     return {"ok": True}
+
+
+def _with_release_videos(repo, items):
+    """The videos of the release `videos` first (newest first), then those of the folders (the older way)."""
+    have = {i["name"] for i in items}
+    fresh = sorted((a for a in _release_assets(repo, "videos") if a["name"].lower().endswith(VIDEO_EXT) and a["name"] not in have), key=lambda a: a["ts"], reverse=True)
+    return [{"name": a["name"], "size": 0, "url": a["url"], "ts": str(a["ts"] or "")} for a in fresh] + items
 
 
 def _videos_snapshot():
@@ -2984,6 +3033,7 @@ def _videos_snapshot():
         for item in items:
             path = item["url"].split("/HEAD/", 1)[-1]
             item["ts"] = str(dates.get(urllib.parse.unquote(path), "") or "")
+        items = _with_release_videos(repo, items)
         with lock:
             video_cache.update(key=repo, items=items, at=now)
         _videos_remember(repo, items)
@@ -3004,6 +3054,7 @@ def _videos_snapshot():
         return {"repo": repo, "videos": kept}
     items = _video_items(repo, [(str(e.get("name") or ""), int(e.get("size") or 0)) for e in (videos_folder if isinstance(videos_folder, list) else []) if isinstance(e, dict) and e.get("type") == "file"],
                          [(str(e.get("name") or ""), int(e.get("size") or 0)) for e in (docs_folder if isinstance(docs_folder, list) else []) if isinstance(e, dict) and e.get("type") == "file"])
+    items = _with_release_videos(repo, items)
     with lock:
         video_cache.update(key=repo, items=items, at=now)
     _videos_remember(repo, items)

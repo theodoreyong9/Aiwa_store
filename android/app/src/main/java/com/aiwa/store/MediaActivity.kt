@@ -42,8 +42,14 @@ internal suspend fun deleteMedia(context: Context, kind: String, name: String, p
     val result = withContext(Dispatchers.IO) { bridge.mediaDelete(kind, name, path) }
     if (result.ok) { toastOnMain(context, "« $name » supprimé."); return true }
     if (result.needsSession) {
-        val folder = if (kind == "image") "docs/images" else if (path == "docs") "docs" else "docs/videos"
-        val sent = sendAndTrack(context, bridge, "Supprime le fichier `$folder/$name` du dépôt en cours (un commit qui le retire) et pousse-le avec la consigne Push.", toastErrors = true)
+        val request = if (path == "release") {
+            val tag = if (kind == "image") "images" else "videos"
+            "Supprime le fichier `$name` de la release `$tag` du dépôt en cours (`gh release delete-asset $tag $name -y`)."
+        } else {
+            val folder = if (kind == "image") "docs/images" else if (path == "docs") "docs" else "docs/videos"
+            "Supprime le fichier `$folder/$name` du dépôt en cours (un commit qui le retire) et pousse-le avec la consigne Push."
+        }
+        val sent = sendAndTrack(context, bridge, request, toastErrors = true)
         if (sent) toastOnMain(context, "gh n'est pas connecté ici : la session est chargée de supprimer « $name ».")
         return false
     }
@@ -61,24 +67,24 @@ class ImagesActivity : ComponentActivity() {
             val context = this
             val scope = rememberCoroutineScope()
             var images by remember { mutableStateOf<List<ImageItem>?>(null) }
-            var asking by remember { mutableStateOf<String?>(null) }
+            var asking by remember { mutableStateOf<ImageItem?>(null) }
             suspend fun load() { images = withContext(Dispatchers.IO) { LocalClaudeBridge().images().second } }
             LaunchedEffect(Unit) { load() }
             val list = images
             val entries = buildList {
                 val sure = asking
                 if (sure != null) {
-                    add(PickerEntry("Supprimer « $sure » du dépôt ?", false, header = true, lines = 2) { })
+                    add(PickerEntry("Supprimer « ${sure.name} » ?", false, header = true, lines = 2) { })
                     add(PickerEntry("Oui, supprimer", false, lines = 1, button = true) {
                         asking = null
-                        scope.launch { if (deleteMedia(context, "image", sure)) load() }
+                        scope.launch { if (deleteMedia(context, "image", sure.name, if (sure.url.contains("/releases/download/")) "release" else null)) load() }
                     })
                     add(PickerEntry("Non, garder", false, lines = 1, button = true) { asking = null })
                 } else if (list == null) add(PickerEntry("Chargement…", false, lines = 1) { })
                 else if (list.isEmpty()) add(PickerEntry("Aucune image dans ${AiwaRepository.state.value.repo} (ou dépôt privé). Demande-en une : elle ira dans docs/images/.", false, lines = 3) { })
                 else list.forEach { img ->
                     val when_ = dateTimeLabel(img.ts)
-                    add(PickerEntry(img.name + if (when_.isNotEmpty()) "\n$when_" else "", false, lines = 2, side = "🗑", onSide = { asking = img.name }, side2 = "↗", onSide2 = {
+                    add(PickerEntry(img.name + if (when_.isNotEmpty()) "\n$when_" else "", false, lines = 2, side = "🗑", onSide = { asking = img }, side2 = "↗", onSide2 = {
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, img.name).putExtra(Intent.EXTRA_TEXT, img.url)
                         try { startActivity(Intent.createChooser(send, "Partager l'image").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (err: Exception) { toastOnMain(context, "Partage impossible.") }
                     }) {

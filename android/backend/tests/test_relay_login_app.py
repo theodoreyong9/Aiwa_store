@@ -937,9 +937,9 @@ class AskAndVideoTests(Base):
 
     def test_a_session_on_a_repository_is_told_where_the_videos_go(self):
         text = dict(srv._instruction_lines("o/r", "w", "main", True))["video"]
-        self.assertIn("dans le dossier `docs/videos/` du dépôt o/r", text)
+        self.assertIn("dans la release GitHub de tag `videos` du dépôt o/r", text)
         self.assertNotIn("aiwa-videos", text)
-        self.assertNotIn("release GitHub", text)
+        self.assertIn("docs/videos/", text, "and the folder stays the way out when gh does not work")
         self.assertIn("N'invente aucune statistique", text)
         self.assertNotIn("video", dict(srv._instruction_lines(None, None, None, True)))
 
@@ -2497,3 +2497,26 @@ class MediaTests(unittest.TestCase):
         self.assertIn("docs/images/", text)
         self.assertFalse(srv.media_delete("video", "../x.mp4")["ok"])
         self.assertFalse(srv.media_delete("other", "x.png")["ok"])
+
+
+class ReleaseAssetsTests(unittest.TestCase):
+    def test_the_files_of_a_release_are_read_from_its_public_page(self):
+        import aiwa_server as srv
+        page = ('<ul><li><a href="/me/site/releases/download/videos/film-9x16.mp4">film-9x16.mp4</a>'
+                '<relative-time datetime="2026-10-19T10:00:00Z"></relative-time></li>'
+                '<li><a href="/me/site/releases/download/videos/Source%20code.zip">x</a></li></ul>')
+
+        class Reply:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self, n): return page.encode()
+        original = srv.urllib.request.urlopen
+        srv.urllib.request.urlopen = lambda *a, **k: Reply()
+        try:
+            got = srv._release_assets("me/site", "videos")
+        finally:
+            srv.urllib.request.urlopen = original
+        self.assertEqual(got[0]["name"], "film-9x16.mp4")
+        self.assertEqual(got[0]["url"], "https://github.com/me/site/releases/download/videos/film-9x16.mp4")
+        self.assertGreater(got[0]["ts"], 0)
+        self.assertEqual(len(got), 2)

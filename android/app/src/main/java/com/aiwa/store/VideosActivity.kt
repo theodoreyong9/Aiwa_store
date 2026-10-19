@@ -124,12 +124,12 @@ private fun VideosWindow(onClose: () -> Unit) {
     val sure = asking
     // Nothing is deleted without the confirming tap
     val confirm = if (sure == null) null else listOf(
-        PickerEntry("Supprimer « ${sure.name} » du dépôt ?", false, header = true, lines = 2) { },
+        PickerEntry("Supprimer « ${sure.name} » ?", false, header = true, lines = 2) { },
         PickerEntry("Oui, supprimer", false, lines = 1, button = true) {
             asking = null
             scope.launch {
-                val atRoot = !sure.url.contains("/docs/videos/")
-                if (deleteMedia(context, "video", sure.name, if (atRoot) "docs" else null)) { list = null; list = try { bridge.videos() } catch (err: Exception) { null } }
+                val where = if (sure.url.contains("/releases/download/")) "release" else if (!sure.url.contains("/docs/videos/")) "docs" else null
+                if (deleteMedia(context, "video", sure.name, where)) { list = null; list = try { bridge.videos() } catch (err: Exception) { null } }
             }
         },
         PickerEntry("Non, garder", false, lines = 1, button = true) { asking = null },

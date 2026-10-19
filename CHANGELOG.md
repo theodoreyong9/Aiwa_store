@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Videos and images go to GitHub releases (`videos`, `images`): a release takes files up to 2 GB and does not grow the repository's history; the sessions are told to upload with `gh` (and to fall back to `docs/videos/`, `docs/images/` when `gh` does not work), the lists show both (the release first), and 🗑 deletes a release file with `gh release delete-asset` (brain 149).
+
 - Widget: « Vidéo » is now « Média » and opens two folders, Vidéos and Images (the pictures a session makes go to `docs/images/`, which has a list of its own); every line of the video and image lists has a 🗑 that asks first, then deletes the file with the person's own `gh` (or asks the session when `gh` is not connected) (brain 148).
 
 - Natural talk: the answer is written for the ear (spoken French, short first sentence, no symbols) and streams: each sentence is read as Claude writes it, the first one is heard while the others are still coming (brain 147).
