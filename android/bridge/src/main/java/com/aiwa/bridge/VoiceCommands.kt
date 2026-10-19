@@ -606,7 +606,8 @@ private val QUESTION_STARTS = listOf(
 
 /** A question for the super agent to answer by voice, not a command for a session: it opens with a question word (« explique-moi le projet », « c'est quoi ce dépôt », « pourquoi… »). */
 fun isQuestion(text: String): Boolean {
-    val plain = WakeWords.plain(text).replace('-', ' ').replace('\'', ' ').replace('’', ' ').replace(Regex("\\s+"), " ").trim()
+    // every apostrophe and hyphen is a space here (WakeWords.plain keeps only what follows an apostrophe: « c'est » would become « est »)
+    val plain = Normalizer.normalize(text.lowercase(Locale.ROOT), Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").replace(Regex("[^a-z0-9]+"), " ").trim()
     if (plain.isEmpty()) return false
     return QUESTION_STARTS.any { plain == it.trim() || plain.startsWith(if (it.endsWith(" ")) it else "$it ") }
 }
