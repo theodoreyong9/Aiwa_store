@@ -808,7 +808,7 @@ class DesignLineTests(Base):
     def test_it_is_told_once_and_again_only_when_it_changes(self):
         with unittest.mock.patch.object(srv, "deploy_mode", "store"):
             first, told = srv._compose(None, None, None, None, True)
-            self.assertIn("Design :", first)
+            self.assertIn("docs/consignes/design.md", first, "the design rules are read from the Store, not written into the message")
             again, _ = srv._compose({"instr": told}, None, None, None, True)
             self.assertEqual(again, "")
 
@@ -2066,7 +2066,8 @@ class AttachmentTests(unittest.TestCase):
         self.assertEqual(got["session_id"], "session_W", "the session asked for, not the one in use")
         self.assertEqual(queued[0][0], "session_W")
         self.assertIn("Jean Da Cunha, chef des ventes", queued[0][1])
-        self.assertIn("qualité MOYENNE", queued[0][1])
+        self.assertIn("qualité moyen", queued[0][1], "the video instruction names the quality said, and points to its section")
+        self.assertIn("Qualité moyen", queued[0][1])
         self.assertEqual(srv.attach_list(), [], "the files left with the message")
 
     def test_too_big_or_empty_is_refused_and_clear_empties(self):
@@ -2417,3 +2418,25 @@ class AnswerQuestionTests(unittest.TestCase):
             self.assertIn("not logged in", answer["error"])
         finally:
             srv.llm, srv._answer_context = saved
+
+
+class ConsignesTests(unittest.TestCase):
+    """The long fixed instructions live in docs/consignes/ (generated), and the first message only points to them."""
+
+    def test_the_published_documents_are_the_ones_the_code_makes(self):
+        folder = Path(__file__).resolve().parents[3] / "docs" / "consignes"
+        for name, text in srv.consignes_documents().items():
+            self.assertTrue((folder / name).exists(), f"{name} is missing: run python3 android/backend/gen_consignes.py")
+            self.assertEqual((folder / name).read_text(encoding="utf-8"), text, f"{name} is out of date: run python3 android/backend/gen_consignes.py")
+
+    def test_the_first_message_is_short_and_points_to_the_documents(self):
+        text, told = srv._compose({}, "me/site", "aiwa/20261019-100000", "main", True)
+        self.assertLess(len(text), 12000, "it used to be thirty thousand characters")
+        for key in ("design", "creative", "game", "document", "proposals", "video"):
+            self.assertIn(f"{srv.CONSIGNES_BASE}/{key}.md", text)
+        self.assertNotIn("Clone le Store en lecture seule", text, "the long design text is not in the message")
+
+    def test_a_changed_document_is_told_again_with_a_new_version_mark(self):
+        a = srv._pointer_line("design", "un texte", "o/r", "moyen", "16:9")
+        b = srv._pointer_line("design", "un autre texte", "o/r", "moyen", "16:9")
+        self.assertNotEqual(a, b)

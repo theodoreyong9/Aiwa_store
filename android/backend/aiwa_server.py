@@ -57,7 +57,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 143
+BACKEND_VERSION = 144
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1042,13 +1042,55 @@ def _instruction_lines(repo, work, base, direct, origin=None, quality=None):
     return lines
 
 
+# The long, fixed texts of the instructions (design, creative direction, games, documents, proposals, video) are NOT written into the first message of a session: that message was
+# thirty thousand characters of rules, in the middle of the conversation. They are published as documents of the Store (docs/consignes/, generated from this code: see
+# consignes_documents and the test that keeps them in step), and the message holds one line for each, which says when to read it and where.
+CONSIGNES_BASE = f"{REFERENCE_RAW}/docs/consignes"
+_PLACEHOLDER_REPO = "<propriétaire>/<dépôt>"
+_POINTERS = {
+    "design": "Design (interface d'un site, d'une PWA, d'un APK, d'un écran de contrat)",
+    "creative": "Direction créative (une page n'est pas un modèle à remplir)",
+    "game": "Jeux (quand ma demande est un jeu)",
+    "document": "Documents et fichiers (quand tu produis un document pour moi)",
+    "proposals": "Propositions et campagnes (quand ma demande est de trouver des cibles et de leur proposer quelque chose)",
+}
+
+
+def consignes_documents():
+    """{"design.md": text, …}: the fixed instructions as documents, with <propriétaire>/<dépôt> where a repository goes. Generated, never written by hand."""
+    docs = {}
+    note = "*Dans ce texte, `<propriétaire>/<dépôt>` est le dépôt de ta session. Document généré par Aiwa : ne le modifie pas.*\n\n"
+    for key, title in _POINTERS.items():
+        text = {"design": _design_line, "creative": _creative_line, "game": _game_line,
+                "document": lambda: _document_line(_PLACEHOLDER_REPO), "proposals": lambda: _proposals_line(_PLACEHOLDER_REPO)}[key]()
+        docs[f"{key}.md"] = f"# {title}\n\n{note}{text}\n"
+    sections = "".join(f"## Qualité {q}\n\n{_video_line(_PLACEHOLDER_REPO, q)}\n\n" for q in VIDEO_QUALITIES)
+    docs["video.md"] = f"# Vidéo\n\n{note}La consigne de la session dit quelle qualité s'applique : lis seulement cette section.\n\n{sections}"
+    return docs
+
+
+def _pointer_line(key, full, repo, quality, fmt):
+    """The one line that replaces a long fixed instruction in a message; it carries a short version mark so that a changed text is told again."""
+    mark = hashlib.sha1(full.encode()).hexdigest()[:6]
+    if key == "video":
+        return (f"Vidéo (qualité {quality}, dimension par défaut {fmt}, sauf si ma demande en précise une) : quand je te demande une vidéo, lis la section « Qualité {quality} » de "
+                f"{CONSIGNES_BASE}/video.md (le dépôt est {repo}) et suis-la [v{mark}].")
+    return f"{_POINTERS[key]} : lis {CONSIGNES_BASE}/{key}.md avant de t'y mettre, et suis-le [v{mark}]."
+
+
 def _compose(entry, repo, work, base, direct, origin=None, quality=None):
     """The instructions added to a message, and what was told (a hash per
     instruction, kept with the session). Everything goes with a session's
     FIRST message; after that only what changed since — a new or altered
     instruction, or a note that one was withdrawn — and nothing at all when
     nothing changed, so the conversation isn't buried in repeats."""
-    lines = _instruction_lines(repo, work, base, direct, origin, quality)
+    with lock:
+        shown_quality = quality if quality in VIDEO_QUALITIES else video_quality
+        shown_format = video_format
+    lines = [
+        (key, _pointer_line(key, text, repo, shown_quality, shown_format) if key in _POINTERS or key == "video" else text)
+        for key, text in _instruction_lines(repo, work, base, direct, origin, quality)
+    ]
     told = {key: hashlib.sha1(text.encode()).hexdigest()[:8] for key, text in lines}
     previous = (entry or {}).get("instr")
     if not isinstance(previous, dict) or not previous:
