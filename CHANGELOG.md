@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **Le bouton de mise à jour est en bas à droite du widget** (cinquième emplacement de la rangée du bas, vide tant qu'il n'y a pas de mise à jour, pour que les autres boutons ne bougent pas quand elle arrive). Il était à la fin de la rangée du micro. Demande le nouvel APK.
 - **Le bouton d'état du workflow (la pastille qui tourne sur le dépôt) est retiré du widget.** Demande le nouvel APK.
 - **« Éteins toi » éteint le super agent mais garde le réveil** : dit au super agent, il dit « à toute » et se met en veille (le mot de réveil continue d'écouter, le point du micro reste) ; dit pendant la veille, il ne fait rien. Seul le bouton du widget (ou « Arrêter » dans la notification) arrête tout, point du micro compris. Demande le nouvel APK.
 - **Le bouton du super agent se fie au service, pas au drapeau du cerveau** : le bouton fermait le super agent seulement si le cerveau disait « ouvert » ; quand ce drapeau manquait ou était périmé (redémarrage, cerveau pas à jour), un appui rouvrait au lieu de fermer — le widget restait gris, le point du micro restait allumé, et « mon agent » était pris pour une commande au lieu de réveiller. Le bouton demande maintenant au service s'il écoute vraiment, et le widget sait que le super agent est ouvert même sans description venue du cerveau.

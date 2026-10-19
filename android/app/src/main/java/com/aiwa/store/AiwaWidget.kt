@@ -526,13 +526,8 @@ private fun LightContent(state: AiwaState) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
             }
-            // only while a newer build is downloaded (a tap opens the installer)
-            if (state.appUpdateReady) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
-            }
         }
-        // ---- the loop, the Aiwa app, the super agent, the comment, the settings: five equal slots ----
+        // ---- the loop, the Aiwa app, the campaign, the settings, and the update when there is one: five equal slots ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             @Composable fun Slot(content: @Composable () -> Unit) {
                 Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.Center) { content() }
@@ -552,6 +547,10 @@ private fun LightContent(state: AiwaState) {
                     description = "Réglages : session, dépôt, modèle, push, voix, commentaire, mises à jour…",
                     background = pill, action = actionStartActivity<SettingsActivity>(), diameter = bottomD.dp,
                 )
+            }
+            // bottom right: only while a newer build is downloaded (a tap opens the installer); the slot stays, so the others do not move when it appears
+            Slot {
+                if (state.appUpdateReady) RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = bottomD.dp)
             }
         }
     }
