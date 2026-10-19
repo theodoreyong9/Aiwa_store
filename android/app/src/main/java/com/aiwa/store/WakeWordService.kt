@@ -95,6 +95,7 @@ object WakeWordSettings {
 private val RESEND_REGEX = Regex("""\brenvoi(?:e|es|ez|yer)?\b.*\binstructions?\b""")
 private val WHERE_REGEX = Regex("""\b(?:tu\s+es|tes|t\s+es)\s+ou\s+la\b""")
 private val REPORT_REGEX = Regex("""\brapport\b|\bfais\s+(?:le|ton)\s+point\b""")
+private val ERASE_REGEX = Regex("""efface(?:\s+(?:tout|ca|le|la|ce|message|commande))*""")
 private val OFF_REGEX = Regex("""\beteins\b""")
 private val STOP_AGENT_REGEX = Regex("""(?:stop|arrete)(?:\s+(?:l\s+|la\s+)?(?:super\s+)?(?:agent|claude|commande))?""")
 private val MANUAL_REGEX = Regex("""\b(?:repasse|reviens|retourne|passe)\s+(?:en|au)\s+(?:mode\s+)?manuel\b|\b(?:ferme|quitte)\s+(?:l\s+)?agent\b""")
@@ -366,6 +367,13 @@ class WakeWordService : Service() {
                     } else say("Stop non confirmé : rien n'est arrêté.")
                 }
                 MANUAL_REGEX.containsMatchIn(plain) -> { agentBusy = false; closeAgent(); return@launch }
+                // « efface »: what was said and has not left (the command being made, the message kept) is dropped
+                ERASE_REGEX.matches(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("efface", plain) -> {
+                    pendingCommand.clear()
+                    draftOffered = false
+                    AgentDraft.clear(applicationContext)
+                    say("Effacé")
+                }
                 draftOffered -> {
                     draftOffered = false
                     val draft = AgentDraft.get(applicationContext)

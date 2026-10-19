@@ -435,8 +435,11 @@ private fun LightContent(state: AiwaState) {
     val size = LocalSize.current
     val avail = size.width.value - 20f
     val tab = aiwaTab(state)
-    val rowH = ((size.height.value - 16f) / 3f).coerceIn(26f, 46f)
-    val chipH = (rowH - 4f).coerceAtLeast(24f)
+    // Thin: three rows in one cell of the home screen (it can be pulled taller); the mode buttons are thinner still
+    val rowH = ((size.height.value - 8f) / 3f).coerceIn(18f, 40f)
+    val chipH = (rowH - 2f).coerceAtLeast(18f)
+    val modeH = (chipH * 0.8f).coerceAtLeast(16f)
+    val blue = rgb(android.graphics.Color.rgb(58, 110, 205))
     val loopOn = state.loopPair.isNotEmpty()
     val allMode = Projects.isAll(context)
     val fs = context.resources.configuration.fontScale
@@ -449,7 +452,7 @@ private fun LightContent(state: AiwaState) {
     Column(
         modifier = GlanceModifier.fillMaxSize()
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 4.dp),
     ) {
         // ---- row 1 ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
@@ -465,7 +468,7 @@ private fun LightContent(state: AiwaState) {
             RoundButton(
                 icon = R.drawable.ic_loop,
                 description = if (loopOn) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
-                background = if (loopOn) green else pill, action = actionStartActivity<LoopsActivity>(), diameter = chipH.dp,
+                background = if (loopOn) green else blue, action = actionStartActivity<LoopsActivity>(), diameter = chipH.dp,
             )
             Spacer(GlanceModifier.width(GAP.dp))
             val sessionTitle = bandInfo(state, each).title
@@ -495,18 +498,29 @@ private fun LightContent(state: AiwaState) {
         }
         // ---- row 2: the campaign, then the kinds (grey until the repository holds one, coloured once it does) ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            Chip("Campagne", pill, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 10.sp, hPad = 2.dp)
+            RoundButton(icon = R.drawable.ic_proposals, description = "Campagne : les propositions à valider", background = blue, action = actionStartActivity<ProposalsActivity>(), diameter = modeH.dp)
             lightKinds(state, context).filter { it.mode != "aiwa" }.forEach { kind ->
                 Spacer(GlanceModifier.width(4.dp))
                 Chip(
                     kind.word, if (kind.found) green else PILL_DIM, if (kind.found) fg else TEXT_DIM,
                     actionRunCallback<PickKindCallback>(actionParametersOf(MODE_KEY to kind.mode, KIND_FOUND_KEY to (if (kind.found) "1" else "0"))),
-                    GlanceModifier.defaultWeight(), bold = kind.current, height = chipH.dp, textSize = 10.sp, hPad = 2.dp,
+                    GlanceModifier.defaultWeight(), bold = kind.current, height = modeH.dp, textSize = 10.sp, hPad = 2.dp,
                 )
             }
         }
-        // ---- row 3: the settings, the +, the robot (the super agent), Claude, the question ----
+        // ---- row 3: Claude (bottom left), the settings, the +, the robot (the super agent), the question ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
+            if (state.cloudSessionId != null) {
+                RoundButton(
+                    icon = R.drawable.ic_claude,
+                    description = if (state.waiting) "Claude attend ta réponse : ouvrir" else "Ouvrir la conversation dans Claude",
+                    background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
+                    action = actionStartActivity<OpenClaudeActivity>(),
+                    diameter = chipH.dp,
+                )
+                Spacer(GlanceModifier.width(GAP.dp))
+            }
             RoundButton(
                 icon = R.drawable.ic_settings,
                 description = "Réglages : modèle, push, voix, mots, mises à jour…",
@@ -523,17 +537,6 @@ private fun LightContent(state: AiwaState) {
                 // only the robot head (the colour says the state: grey off, green listening, red something to say); the words stay only for the permission to give
                 if (needsSetup) Text("Autoriser Aiwa", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 else Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = if (agentOn) "Super agent : il écoute, fermer" else "Parler au super agent", modifier = GlanceModifier.size(20.dp))
-            }
-            // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
-            if (state.cloudSessionId != null) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(
-                    icon = R.drawable.ic_claude,
-                    description = if (state.waiting) "Claude attend ta réponse : ouvrir" else "Ouvrir la conversation dans Claude",
-                    background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
-                    action = actionStartActivity<OpenClaudeActivity>(),
-                    diameter = chipH.dp,
-                )
             }
             if (state.ask != null) {
                 Spacer(GlanceModifier.width(GAP.dp))
