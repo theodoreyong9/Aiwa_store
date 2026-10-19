@@ -2452,3 +2452,11 @@ class ConnectorTests(unittest.TestCase):
         assert ag.parse_command({"connector": {"kind": "appel", "to": "abc"}}, set()) is None
         assert ag.parse_command({"connector": {"kind": "agenda", "subject": "RDV", "start": "2026-11-02 10:30"}}, set())["connector"]["start"] == "2026-11-02 10:30"
         assert ag.parse_command({"connector": {"kind": "agenda", "subject": "RDV", "start": "demain"}}, set()) is None
+
+    def test_social_connectors(self):
+        import aiwa_agent as ag
+        wa = ag.parse_command({"connector": {"kind": "whatsapp", "to": "+33 6 12 34 56 78", "body": "Coucou"}}, set())["connector"]
+        self.assertEqual(wa["to"], "+33612345678")
+        self.assertEqual(ag.parse_command({"connector": {"kind": "telegram", "to": "@paul_x1", "body": "Hi"}}, set())["connector"]["to"], "paul_x1")
+        self.assertIsNone(ag.parse_command({"connector": {"kind": "x", "body": "a" * 281}}, set()))
+        self.assertEqual(ag.parse_command({"connector": {"kind": "tweet", "body": "ok"}}, set())["connector"]["kind"], "twitter")

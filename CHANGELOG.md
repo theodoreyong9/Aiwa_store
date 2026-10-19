@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Settings → Connectors: mail, agenda, SMS and call (off until turned on); the super agent prepares one, the phone reads it back, and after the confirmation the app opens filled in (the person taps send/call/save) (brain 145).
+- Settings → Connectors: mail, agenda, SMS, call, WhatsApp, Telegram and X (off until turned on); the super agent prepares one, the phone reads it back, and after the confirmation the app opens filled in (the person taps send/call/save) (brain 145).
 
 - Wake word: only a finished sentence heard with confidence wakes the phone (no more guesses on a partial sound).
 - Voice: « cast la vidéo » / « arrête la TV » said to the agent act at once (the video goes to the TV).
