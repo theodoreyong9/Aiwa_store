@@ -120,10 +120,25 @@ def owner_cache_age(owner):
     return time.time() - cached[0] if cached else float("inf")
 
 
+OWNER_REPOS_FILE = os.path.join(os.path.expanduser("~"), ".aiwa_owner_repos.json")
+
+
+def _owner_repos_saved():
+    try:
+        with open(OWNER_REPOS_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
 def owner_repos(owner, max_age=600):
     """The PUBLIC repositories of a GitHub user or organization, most
     recently pushed first: a plain unauthenticated web request (public
-    data, no token). Cached ten minutes, or `max_age` seconds."""
+    data, no token). Cached ten minutes, or `max_age` seconds. When GitHub
+    refuses (its limit without a token is 60 questions an hour) the last good
+    list is kept — also across a restart — instead of an empty one: the list
+    of repositories must not depend on the moment it was asked for."""
     cached = _owner_cache.get(owner)
     if cached and time.time() - cached[0] < max_age:
         return cached[1]
@@ -135,13 +150,27 @@ def owner_repos(owner, max_age=600):
         with urllib.request.urlopen(request, timeout=10) as reply:
             data = json.load(reply)
         fetched_at = time.time()
+        ok = True
     except (OSError, ValueError):
-        data, fetched_at = [], time.time() - 540  # retry in a minute
+        data, fetched_at, ok = [], time.time() - max(0, max_age - 60), False  # retry in a minute
     repos = [
         {"name": r["full_name"], "private": False}
         for r in data
         if isinstance(r, dict) and r.get("full_name") and not r.get("archived")
     ]
+    if ok:
+        try:
+            saved = _owner_repos_saved()
+            saved[owner] = repos
+            with open(OWNER_REPOS_FILE, "w", encoding="utf-8") as f:
+                json.dump(saved, f)
+        except OSError:
+            pass
+    else:
+        # refused or unreachable: the last good list (in memory, else on disk) stays
+        previous = cached[1] if cached and cached[1] else _owner_repos_saved().get(owner, [])
+        if isinstance(previous, list) and previous:
+            repos = previous
     _owner_cache[owner] = (fetched_at, repos)
     return repos
 

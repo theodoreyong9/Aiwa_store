@@ -2317,3 +2317,33 @@ class ProjectsKeptByTheBrainTests(unittest.TestCase):
         self.assertEqual(srv.projects_get()["projects"], [{"name": "Test", "repo": "me/test", "session": "new"}])
         self.assertFalse(srv.projects_save("pas du json")["ok"])
         self.assertFalse(srv.projects_save("{}")["ok"])
+
+
+class OwnerReposKeepTheLastGoodListTests(unittest.TestCase):
+    """GitHub refuses after 60 questions an hour without a token: the list of repositories must not turn into a short one at that moment."""
+
+    def setUp(self):
+        import tempfile
+        self.dir = tempfile.TemporaryDirectory()
+        self.saved = (srv.github.OWNER_REPOS_FILE, dict(srv.github._owner_cache))
+        srv.github.OWNER_REPOS_FILE = str(Path(self.dir.name) / "owner.json")
+        srv.github._owner_cache.clear()
+
+    def tearDown(self):
+        srv.github.OWNER_REPOS_FILE = self.saved[0]
+        srv.github._owner_cache.clear(); srv.github._owner_cache.update(self.saved[1])
+        self.dir.cleanup()
+
+    def test_a_refusal_keeps_the_last_good_list_even_after_a_restart(self):
+        good = [{"full_name": "me/a"}, {"full_name": "me/b"}]
+        class Reply:
+            def __init__(self, data): self.data = data
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self, *a): return json.dumps(self.data).encode()
+        with unittest.mock.patch("urllib.request.urlopen", return_value=Reply(good)):
+            self.assertEqual([r["name"] for r in srv.github.owner_repos("me", max_age=0)], ["me/a", "me/b"])
+        with unittest.mock.patch("urllib.request.urlopen", side_effect=OSError("403")):
+            self.assertEqual([r["name"] for r in srv.github.owner_repos("me", max_age=0)], ["me/a", "me/b"], "in memory")
+            srv.github._owner_cache.clear()      # a restart of the brain
+            self.assertEqual([r["name"] for r in srv.github.owner_repos("me", max_age=0)], ["me/a", "me/b"], "from the disk")
