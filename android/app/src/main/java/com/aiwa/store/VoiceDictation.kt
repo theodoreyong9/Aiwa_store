@@ -163,7 +163,8 @@ class VoiceDictation(
             end()
             return
         }
-        runInstructions(if (pills.isEmpty()) parsed.copy(commands = emptyList(), message = text, problems = emptyList()) else parsed)
+        // « mets-toi sur le repo test »: once the pill words are taken out, « mets-toi sur le » is what is left: that is not a request, nothing is sent for it
+        runInstructions(if (pills.isEmpty()) parsed.copy(commands = emptyList(), message = text, problems = emptyList()) else parsed.copy(message = if (isResidue(parsed.message)) "" else parsed.message))
     }
 
     /** The settings the agent asked for, written as a spoken instruction (« instruction aiwa modèle opus push main »): understood by the same parser, applied by the same code. The read-back was done by the caller. */
@@ -367,7 +368,8 @@ class VoiceDictation(
         // The pills were changed: the session ALWAYS receives where it is now (repository and session), with the rest of what was said if there is any
         val state = AiwaRepository.state.value
         val pillsChanged = done.isNotEmpty() && !repoRefused
-        val toSend = if (pillsChanged) pillInfoMessage(state.repo, if (state.cloudSessionId != null) state.session else null, message) else message
+        // The super agent: a pure change of pill sends nothing (the session is told where it works with its next message, like a change of model)
+        val toSend = if (pillsChanged && !(confirmRepoAlways && message.isBlank())) pillInfoMessage(state.repo, if (state.cloudSessionId != null) state.session else null, message) else message
         if (toSend.isNotBlank()) {
             if (repoRefused) {
                 // The message was meant for the other repository: it does not go to this one. It is not lost.
@@ -383,6 +385,16 @@ class VoiceDictation(
         if (report) readReport(bridge)
         AiwaWidget().updateAll(appContext)
         end()
+    }
+
+    private val residueWords = setOf(
+        "mets", "met", "toi", "sur", "le", "la", "les", "l", "au", "aux", "a", "en", "passe", "va", "vas", "bascule", "change", "changer", "reviens", "retourne", "travaille", "bosse",
+        "utilise", "prends", "depot", "repo", "projet", "session", "mon", "ma", "ton", "notre", "dans", "de", "du", "des", "un", "une", "et", "puis", "maintenant", "stp", "nouvelle", "nouveau",
+    )
+
+    private fun isResidue(message: String): Boolean {
+        val words = com.aiwa.bridge.WakeWords.plain(message).split(' ').filter { it.isNotEmpty() }
+        return words.all { it in residueWords }
     }
 
     private fun keepDraft() { if (confirmRepoAlways && commandText.isNotBlank()) AgentDraft.set(appContext, commandText) }

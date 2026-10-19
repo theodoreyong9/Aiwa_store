@@ -29,6 +29,7 @@ object Recognitions {
         Slot("report", "Rapport du super agent", listOf("fais ton rapport"), "Dit au super agent ouvert de faire son rapport d'activité et de proposer une idée."),
         Slot("accomplissement", "Accomplissement", listOf("c'est prêt"), "Ce qu'Aiwa dit à voix haute quand un travail est prêt.", AIWA),
         Slot("dispo", "Rapport", listOf("t'es dispo ?"), "Ce qu'Aiwa te demande à voix haute pour te proposer son rapport d'activité.", AIWA),
+        Slot("question", "Question", listOf("j'ai une question"), "Ce qu'Aiwa dit avant de te lire la question d'une session.", AIWA),
         Slot("veille", "Veille", listOf("à toute"), "Ce qu'Aiwa dit quand il se remet en veille (dix secondes sans rien entendre).", AIWA),
         Slot("ecoute", "Écoute", listOf("j'écoute"), "Ce qu'Aiwa dit quand le super agent s'ouvre.", AIWA),
     )
@@ -42,7 +43,7 @@ object Recognitions {
         val single = setOf("instruction", "session", "repo", "stop", "eteins")
         val words = plain.split(' ')
         if (slot in single && words.size != 1) return "Un seul mot pour cette reconnaissance."
-        if (slot !in setOf("validation", "stop", "eteins", "resend", "where", "report", "liaison", "envoi", "accomplissement", "dispo", "veille", "ecoute") && words.size != 1) return "Un seul mot pour cette reconnaissance."
+        if (slot !in setOf("validation", "stop", "eteins", "resend", "where", "report", "liaison", "envoi", "accomplissement", "dispo", "question", "veille", "ecoute") && words.size != 1) return "Un seul mot pour cette reconnaissance."
         if (plain.length < 3) return "« $plain » est trop court : au moins 3 lettres."
         if (words.all { it in COMMON_WORDS }) return "« $plain » est un mot trop courant : il se déclencherait dans toutes les phrases."
         return null

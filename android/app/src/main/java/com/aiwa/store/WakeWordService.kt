@@ -298,8 +298,11 @@ class WakeWordService : Service() {
     }
 
     /** Nothing heard for ten seconds: the super agent goes back to sleep (the wake word listens again). Its unfinished message is kept (AgentDraft), and offered when it opens again. */
-    private fun standbyAgent() {
-        if (!agentMode || agentBusy || paused) return
+    private fun standbyAgent(force: Boolean = false) {
+        if (!agentMode || (!force && (agentBusy || paused))) return
+        runningCommand?.cancel()
+        runningCommand = null
+        waitToken++
         agentMode = false
         agentListener?.stop()
         agentListener = null
@@ -315,31 +318,9 @@ class WakeWordService : Service() {
         }
     }
 
+    /** The button (or « repasse en manuel »): the super agent goes back to sleep, the wake word keeps listening. Only « éteins toi » turns the whole listening off. */
     fun closeAgent() {
-        main.post {
-            if (!agentMode) return@post
-            agentMode = false
-            waitToken++
-            agentListener?.stop()
-            agentListener = null
-            runningCommand?.cancel()
-            runningCommand = null
-            answeringAsk = null
-            draftOffered = false
-            keepPending()
-            AiwaRepository.update { it.copy(agent = it.agent?.copy(enabled = false)) }
-            scope.launch {
-                agentCall("set", mapOf("enabled" to false))
-                CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
-                Speaker.speakNatural(applicationContext, "Agent éteint.")
-                // the microphone of the widget IS the super agent: when it is turned off nothing keeps listening (the small model of the wake word used to start again by itself,
-                // and the settings had to be opened to close it)
-                if (!agentMode) {
-                    ListenSettings.setEnabled(applicationContext, false)
-                    stopSelf()
-                }
-            }
-        }
+        main.post { if (agentMode) standbyAgent(force = true) }
     }
 
     private suspend fun agentCall(action: String, fields: Map<String, Any> = emptyMap()): String? =
@@ -506,6 +487,7 @@ class WakeWordService : Service() {
         scope.launch {
             val options = if (ask.options.isNotEmpty()) " " + ask.options.joinToString(", ou ") + "." else ""
             say("Question : " + ask.question)
+            Speaker.speakAndWait(applicationContext, Vocabulary.spoken(applicationContext, "question").replaceFirstChar { it.uppercase() } + ".")
             Speaker.speakAndWait(applicationContext, ask.question.trim().trimEnd('.', '?') + " ?" + options)
             delay(300)
             answeringAsk = ask

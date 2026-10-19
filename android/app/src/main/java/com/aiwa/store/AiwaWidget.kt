@@ -376,7 +376,7 @@ private fun lightKinds(state: AiwaState, context: Context): List<LightKind> {
         LightKind("documents", "Docs", Productions.has(context, state.repo, "documents"), tab == "media" && sub == "documents"),
         LightKind("video", "Vidéo", Productions.has(context, state.repo, "video"), tab == "media" && sub == "video"),
         LightKind("pages", "Page", Productions.has(context, state.repo, "page") || hasSite && state.siteKind != "apk" && state.siteState == "live", tab == "pages"),
-        LightKind("android", "App", Productions.has(context, state.repo, "apk") || hasSite && state.siteKind == "apk", tab == "android"),
+        LightKind("android", "App", Productions.has(context, state.repo, "apk") || hasSite && state.siteKind == "apk" && state.siteState == "live", tab == "android"),
         LightKind("aiwa", "Aiwa", Productions.has(context, state.repo, "aiwa"), tab == "aiwa"),
     )
 }

@@ -50,7 +50,7 @@ class RecognitionsActivity : ComponentActivity() {
 
 // What each recognition can be changed by: said to the small model (the wake-level words) and/or written (the words read in text)
 private val BY_VOICE = setOf("agent", "liaison", "instruction", "stop", "eteins", "resend", "where")
-private val BY_WRITING = setOf("instruction", "session", "repo", "validation", "stop", "eteins", "resend", "where", "report", "envoi", "accomplissement", "dispo", "veille", "ecoute")
+private val BY_WRITING = setOf("instruction", "session", "repo", "validation", "stop", "eteins", "resend", "where", "report", "envoi", "accomplissement", "dispo", "question", "veille", "ecoute")
 
 @Composable
 private fun RecognitionsWindow(onClose: () -> Unit) {
