@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **The super agent reads the repositories and what sessions leave in them** (brain 164): its charter no longer says it needs no repository. It reads the person's repositories in READ-ONLY (`add_repo` with `read`, public ones by raw), their branches, commits, files, `aiwa-out/`, journals and workflows; it still writes nothing but its registry. A session's own conversation stays unreadable and it must say so. When asked to improve or extend something that EXISTS (a video, a site…), it first reads that folder (for a video `docs/videos/<name>/` and `docs/PROMO-VIDEO.md`), says what it found, and its message to the session names those exact files, asks to reread them before touching anything and not to recreate an equivalent. Only a written rule, not a lock: a session that ignores it cannot be stopped by the brain. A new agent session picks it up; an existing one has the old charter.
+
 - **One switch « Conversation naturelle », on by default, and the voice's failure is said** (brain 163): the natural voice and the fluid conversation are one switch in Settings. When the voice installation fails the line shows the reason (the end of the error) and a tap tries again; the brain also logs it. Before it only said « installation échouée ». The cause on the person's phone is not known yet: it is what the message will tell. Only compiled by CI.
 
 - **The widget shows one listening at a time** (app only): with the permanent listening on, the robot is hidden (the wake word opens the agent; the switch stays, to close everything); with the robot open alone, the switch is hidden. The switch wins when both would be hidden, so one of the two is always there. Only compiled by CI, not tried on a phone; the widget redraws a second or two after a change.

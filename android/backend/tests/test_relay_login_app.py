@@ -1050,6 +1050,17 @@ class InstructionTests(Base):
         finally:
             srv.EXTERNAL_FILE, srv.external_open = old_file, old_open
 
+    def test_the_agent_reads_the_repositories_but_writes_only_its_registry(self):
+        import aiwa_agent as ag
+        text = ag.charter("https://ntfy.sh/aiwa-x", "u/agent-repo")
+        self.assertIn("LECTURE SEULE", text)
+        self.assertIn("accès `read`", text)
+        self.assertIn("docs/PROMO-VIDEO.md", text)
+        self.assertIn("Tu ne modifies aucun code ni aucun dépôt", text)      # the rule of writing stays
+        self.assertNotIn("AUCUN dépôt ni d'aucun accès", text)
+        self.assertIn("n'est pas accessible", text)                        # a session's own conversation is not readable
+        self.assertIn("Tu n'as accès à aucun dépôt", ag.direct_system(set()))  # the API agent has no tools
+
     def test_the_door_for_other_agents(self):
         srv.external_open = False
         srv.external_inbox.clear(); srv.external_times.clear()
