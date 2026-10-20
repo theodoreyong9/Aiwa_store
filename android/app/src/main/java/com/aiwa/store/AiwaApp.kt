@@ -37,6 +37,9 @@ fun enableDictation(context: Context) {
  * harmless, the next tap or app open does it.
  */
 fun wakeAiwa(context: Context) {
+    // The permanent listening needs one visible moment to start (Android refuses a microphone service started from the background): any Aiwa window that opens gives it, so that the robot
+    // button does not have to be pressed first. Silent: nothing is said when it is refused.
+    if (context is android.app.Activity || ListenSettings.enabled(context)) try { WakeWordService.ensureStarted(context) } catch (err: Exception) { /* retried at the next window */ }
     if (!dictationEnabled(context)) return
     try {
         ContextCompat.startForegroundService(context, Intent(context, KeepAliveService::class.java))

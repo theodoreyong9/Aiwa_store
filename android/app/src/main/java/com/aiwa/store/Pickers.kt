@@ -753,13 +753,6 @@ class SettingsActivity : ComponentActivity() {
         startActivity(Intent(this, screen))
     }
 
-    // The super agent has nothing to set up: its one setting is to start from a new session (the next message makes it)
-    private fun pickCloudNew() {
-        val appContext = applicationContext
-        finish()
-        CoroutineScope(Dispatchers.Default).launch { switchCloud(appContext, LocalClaudeBridge(), "new") }
-    }
-
     private fun togglePush(direct: Boolean) {
         val app = applicationContext
         finish()
@@ -783,7 +776,7 @@ class SettingsActivity : ComponentActivity() {
                 if (state.repo != null) {
                     add(PickerEntry(if (state.pushMain) "Push : direct sur main" else "Push : sur une branche", false, lines = 1) { togglePush(state.pushMain) })
                 }
-                add(PickerEntry("Super agent : nouvelle session", false, lines = 1) { pickCloudNew() })
+                add(PickerEntry("Super agent", false, lines = 1) { open(AgentSessionsActivity::class.java) })
                 add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }}", false, lines = 1) { open(LlmKeyActivity::class.java) })
                 add(PickerEntry("Connecteurs : ${ConnectorSettings.KINDS.filter { ConnectorSettings.enabled(applicationContext, it.first) }.joinToString(", ") { it.second }.ifEmpty { "aucun" }}", false, lines = 1) { open(ConnectorsActivity::class.java) })
                 add(PickerEntry("Film de moi : clé fal, ma voix, plafond", false, lines = 1) { open(FilmSettingsActivity::class.java) })

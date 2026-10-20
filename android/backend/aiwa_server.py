@@ -61,7 +61,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 152
+BACKEND_VERSION = 153
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -3303,7 +3303,10 @@ def _comments_take():
 # ---------- the agent: a session of its own that follows the others and talks with the person (see aiwa_agent.py) ----------
 AGENT_FILE = LOOPS_FILE.with_name("aiwa-agent.json")
 agent_lock = threading.Lock()
-agent = {"command": None, "enabled": False, "session": None, "repo": None, "decisions": [], "interval": agent_lib.INTERVAL_DEFAULT, "sig": None, "last": 0.0, "say": None, "proposal": None, "creating": False, "error": None}
+agent = {"command": None, "enabled": False, "session": None, "repo": None, "decisions": [], "interval": agent_lib.INTERVAL_DEFAULT, "sig": None, "last": 0.0, "say": None, "proposal": None, "creating": False, "error": None, "history": []}
+
+
+AGENT_HISTORY_MAX = 12
 
 
 def _agent_load():
@@ -3321,11 +3324,13 @@ def _agent_load():
             repo=raw.get("repo") if isinstance(raw.get("repo"), str) and github.REPO_RE.fullmatch(raw.get("repo")) else None,
         )
         agent["enabled"] = False   # the agent follows only while the person has its listening open (never kept from a previous run)
+        old = raw.get("history")
+        agent["history"] = [h for h in (old if isinstance(old, list) else []) if isinstance(h, dict) and isinstance(h.get("id"), str) and CLOUD_ID_RE.fullmatch(h["id"])][:AGENT_HISTORY_MAX]
 
 
 def _agent_save():
     try:
-        AGENT_FILE.write_text(json.dumps({"enabled": agent["enabled"], "session": agent["session"], "interval": agent["interval"], "repo": agent["repo"]}), encoding="utf-8")
+        AGENT_FILE.write_text(json.dumps({"enabled": agent["enabled"], "session": agent["session"], "interval": agent["interval"], "repo": agent["repo"], "history": agent.get("history", [])}), encoding="utf-8")
     except OSError:
         pass
 
@@ -3730,7 +3735,7 @@ def agent_snapshot():
     with agent_lock:
         say = agent["say"] if agent["say"] and not agent["say"]["spoken"] else None
         proposal = dict(agent["proposal"]) if agent["proposal"] else None
-        out = {"enabled": agent["enabled"], "session": agent["session"], "repo": agent["repo"], "interval": agent["interval"], "creating": agent["creating"], "error": agent["error"], "voice": voice.state, "llm": llm.state,
+        out = {"enabled": agent["enabled"], "session": agent["session"], "repo": agent["repo"], "interval": agent["interval"], "creating": agent["creating"], "error": agent["error"], "voice": voice.state, "llm": llm.state, "history": [{"id": h["id"], "repo": h.get("repo"), "title": h.get("title")} for h in agent.get("history", [])],
                "say": {k: say[k] for k in ("id", "text", "ts")} if say else None}
     if proposal:
         entry = _session_entry(proposal["session"]) or {}
@@ -3784,6 +3789,48 @@ def agent_create(repo=None):
     return {"ok": True}
 
 
+def _agent_remember(session, repo):
+    """The session of the agent that is put aside goes to the list of the old ones (with what Aiwa knew of it), to be taken back later. Caller holds agent_lock."""
+    if not session:
+        return
+    entry = next((e for e in _load_cloud_sessions() if e.get("id") == session), None) or {"id": session}
+    item = {"id": session, "repo": repo, "title": str(entry.get("title") or "Ancien agent")[:60], "entry": entry}
+    agent["history"] = [item] + [h for h in agent.get("history", []) if h.get("id") != session]
+    del agent["history"][AGENT_HISTORY_MAX:]
+
+
+def agent_resume(session_id):
+    """The person takes an old agent back: it becomes the agent (the one in place, if any, is put aside in its turn)."""
+    global current_cloud, last_cloud
+    with agent_lock:
+        if agent["creating"]:
+            return {"ok": False, "error": "la création est en cours"}
+        item = next((h for h in agent.get("history", []) if h.get("id") == session_id), None)
+        if item is None:
+            return {"ok": False, "error": "cet ancien agent n'est plus dans la liste"}
+        previous = agent["session"]
+        _agent_remember(previous, agent["repo"])
+        agent["history"] = [h for h in agent["history"] if h.get("id") != session_id]
+        agent.update(session=session_id, repo=item.get("repo") if github.REPO_RE.fullmatch(str(item.get("repo") or "")) else None, enabled=False, command=None, proposal=None, say=None, sig=None, last=0.0, error=None)
+        _agent_save()
+    with store_lock:
+        entries = [e for e in _load_cloud_sessions() if e.get("id") != previous]      # the agent put aside leaves the list of work sessions, as when it is destroyed
+        if not any(e.get("id") == session_id for e in entries) and isinstance(item.get("entry"), dict):
+            entries.insert(0, item["entry"])
+        try:
+            CLOUD_STORE.write_text(json.dumps(entries[:30]), encoding="utf-8")
+        except OSError:
+            pass
+    if previous:
+        with lock:
+            if current_cloud == previous:
+                current_cloud = None
+            if last_cloud == previous:
+                last_cloud = None
+            _save_state()
+    return {"ok": True, "session": session_id}
+
+
 def agent_destroy():
     """The person starts the super agent over: its session is forgotten by Aiwa (the list of sessions, the settings), its proposal, its pending commands and its last words are dropped,
     and « Créer l'agent » is offered again. The conversation itself stays in claude.ai (nothing here can delete a cloud session): it can be archived there."""
@@ -3792,6 +3839,7 @@ def agent_destroy():
         session = agent["session"]
         if agent["creating"]:
             return {"ok": False, "error": "la création est en cours"}
+        _agent_remember(session, agent["repo"])
         agent.update(session=None, repo=None, decisions=[], enabled=False, command=None, proposal=None, say=None, sig=None, last=0.0, error=None)
         _agent_save()
     if session:
@@ -4821,6 +4869,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply_json(agent_stop())
             elif action == "destroy":
                 self.reply_json(agent_destroy())
+            elif action == "resume":
+                self.reply_json(agent_resume(str(data.get("id") or "")))
             elif action == "report":
                 self.reply_json(agent_send(spoken=agent_lib.REPORT_REQUEST))
             elif action == "vocabulary":

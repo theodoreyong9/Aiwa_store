@@ -145,6 +145,7 @@
         <activity android:name=".FilmActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
         <activity android:name=".FilmQuoteActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
         <activity android:name=".VoicePrintActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:taskAffinity="" android:excludeFromRecents="true" />
+        <activity android:name=".AgentSessionsActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:taskAffinity="" android:excludeFromRecents="true" />
         <!-- The loops between two sessions, a builder and a critic (LoopsActivity.kt). -->
         <activity android:name=".LoopsActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"

@@ -245,3 +245,30 @@ class FilmServerTests(unittest.TestCase):
                 self.assertFalse(srv.media_delete("film", "0123456789")["ok"])
             finally:
                 srv.film = old
+
+
+class AgentHistoryTests(unittest.TestCase):
+    def test_a_destroyed_agent_can_be_taken_back_and_the_one_in_place_is_put_aside(self):
+        import aiwa_server as srv
+        with tempfile.TemporaryDirectory() as tmp:
+            old = (srv.CLOUD_STORE, srv.AGENT_FILE, dict(srv.agent))
+            srv.CLOUD_STORE = Path(tmp) / "cloud.json"
+            srv.AGENT_FILE = Path(tmp) / "agent.json"
+            try:
+                first, second = "session_01AAAAAAAAAAAAAAAAAAAA", "session_01BBBBBBBBBBBBBBBBBBBB"
+                srv.CLOUD_STORE.write_text(json.dumps([{"id": first, "title": "Agent un"}, {"id": second, "title": "Agent deux"}]))
+                srv.agent.update(session=first, repo="me/reg", history=[], creating=False)
+                srv.agent_destroy()
+                self.assertIsNone(srv.agent["session"])
+                self.assertEqual([h["id"] for h in srv.agent["history"]], [first])
+                self.assertFalse(any(e["id"] == first for e in json.loads(srv.CLOUD_STORE.read_text())), "put aside: not in the work sessions")
+                srv.agent.update(session=second, repo="me/reg2")
+                self.assertTrue(srv.agent_resume(first)["ok"])
+                self.assertEqual(srv.agent["session"], first)
+                self.assertEqual(srv.agent["repo"], "me/reg")
+                self.assertEqual([h["id"] for h in srv.agent["history"]], [second], "the agent in place went to the old ones")
+                self.assertFalse(srv.agent_resume("session_01CCCCCCCCCCCCCCCCCCCC")["ok"])
+            finally:
+                srv.CLOUD_STORE, srv.AGENT_FILE = old[0], old[1]
+                srv.agent.clear()
+                srv.agent.update(old[2])
