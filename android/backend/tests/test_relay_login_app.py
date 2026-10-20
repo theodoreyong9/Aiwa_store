@@ -1015,6 +1015,38 @@ class InstructionTests(Base):
         # read-only: it must not contradict the rule that only the session's repositories are touched
         self.assertNotIn("add_repo", text)
 
+    def test_the_door_fetches_the_workers_inbox(self):
+        import tempfile, urllib.request
+        from pathlib import Path
+        old_file, old_open = srv.EXTERNAL_FILE, srv.external_open
+        srv.EXTERNAL_FILE = Path(tempfile.mkdtemp()) / "external.json"
+        try:
+            self.assertIsNone(srv._external_config())
+            self.assertIn("adresse", srv._external_save("https://evil.example.com", "a" * 20))
+            self.assertIn("clé", srv._external_save("https://aiwa-porte.x.workers.dev", "short"))
+            self.assertIsNone(srv._external_save("https://aiwa-porte.x.workers.dev/" + "k" * 20 + "/mcp", "k" * 20))   # the connector address pasted whole
+            self.assertEqual(srv._external_config(), ("https://aiwa-porte.x.workers.dev", "k" * 20))
+            self.assertEqual(oct(srv.EXTERNAL_FILE.stat().st_mode & 0o777), "0o600")
+            asked = []
+            class Reply:
+                def __enter__(self): return self
+                def __exit__(self, *a): return False
+                def read(self, n): return json.dumps({"messages": [{"who": "ChatGPT", "text": "Salut", "ts": 1}]}).encode()
+            def fake(request, timeout=0):
+                asked.append(request.full_url); return Reply()
+            real = urllib.request.urlopen
+            urllib.request.urlopen = fake
+            try:
+                srv.external_open = True
+                srv.external_inbox.clear(); srv.external_times.clear()
+                self.assertEqual(srv._external_fetch(), 1)
+            finally:
+                urllib.request.urlopen = real
+            self.assertEqual(asked, ["https://aiwa-porte.x.workers.dev/" + "k" * 20 + "/inbox"])
+            self.assertEqual(srv.external_inbox[-1]["who"], "ChatGPT")
+        finally:
+            srv.EXTERNAL_FILE, srv.external_open = old_file, old_open
+
     def test_the_door_for_other_agents(self):
         srv.external_open = False
         srv.external_inbox.clear(); srv.external_times.clear()

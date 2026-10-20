@@ -46,7 +46,7 @@ import kotlinx.coroutines.withContext
 private fun sourceLabel(source: String) = if (source == "pixabay") "Pixabay" else "Pexels"
 
 @androidx.compose.runtime.Composable
-private fun StockSheet(onClose: () -> Unit, content: @androidx.compose.runtime.Composable () -> Unit) {
+internal fun StockSheet(onClose: () -> Unit, content: @androidx.compose.runtime.Composable () -> Unit) {
     DarkSheetTheme {
         Box(
             Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f)).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClose() },

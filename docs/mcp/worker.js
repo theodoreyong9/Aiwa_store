@@ -1,11 +1,12 @@
 // Aiwa MCP door: a Cloudflare Worker that other agents (ChatGPT, Claude, …) call as a remote MCP server.
-// It does ONE thing: it drops the message on the person's private ntfy channel; the phone, which already listens to that channel, announces it.
+// It does ONE thing: it keeps the message in a small Cloudflare KV store (binding INBOX); the phone comes to fetch it (every 30 s or so) and announces it.
 // Nothing is executed and nothing is sent anywhere else: the person decides what to do with the message on the phone.
 //
-// Two secrets, set in the Worker's Settings → Variables and Secrets (never in this file, never in a repository):
-//   NTFY_TOPIC : the channel shown in the Aiwa app (Settings → Agents externes)
-//   MCP_KEY    : the key shown in the same screen
+// Set up in the Cloudflare dashboard (never in this file, never in a repository):
+//   a KV namespace bound to this Worker under the variable name INBOX (Settings → Bindings)
+//   a secret MCP_KEY: a long random key of your choice (Settings → Variables and Secrets)
 // The address to give the other agent is:  https://<your-worker>.workers.dev/<MCP_KEY>/mcp
+// The same address (without /mcp) and the key go in the Aiwa app (Settings → Agents externes), which fetches the messages from  /<MCP_KEY>/inbox
 const TOOL = {
   name: "envoyer_au_super_agent",
   description: "Send a short message to the person's Aiwa super agent. The person hears it on their phone and decides what to do; nothing is done automatically. Use it to tell them something or to ask them a question.",
@@ -34,10 +35,10 @@ function sameKey(a, b) {
 export default {
   async fetch(request, env) {
     const parts = new URL(request.url).pathname.split("/").filter(Boolean);
-    if (parts.length !== 2 || parts[1] !== "mcp" || !sameKey(parts[0], env.MCP_KEY || "")) {
+    if (parts.length !== 2 || !sameKey(parts[0], env.MCP_KEY || "") || !["mcp", "inbox"].includes(parts[1])) {
       return new Response("not found", { status: 404 });
     }
-    if (request.method === "GET") return new Response("method not allowed", { status: 405 });
+    if (parts[1] === "inbox") return inbox(request, env);
     if (request.method !== "POST") return new Response("method not allowed", { status: 405 });
     let msg;
     try { msg = await request.json(); } catch { return fail(null, -32700, "parse error"); }
@@ -48,7 +49,7 @@ export default {
       return rpc(id, {
         protocolVersion: (params && params.protocolVersion) || "2025-03-26",
         capabilities: { tools: {} },
-        serverInfo: { name: "aiwa", version: "1" },
+        serverInfo: { name: "aiwa", version: "2" },
       });
     }
     if (method === "ping") return rpc(id, {});
@@ -59,23 +60,29 @@ export default {
       const text = String(args.message || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 600);
       const from = String(args.from || "un agent externe").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 40);
       if (!text) return rpc(id, { isError: true, content: [{ type: "text", text: "Empty message." }] });
-      if (!env.NTFY_TOPIC) return rpc(id, { isError: true, content: [{ type: "text", text: "The door is not set up." }] });
-      let sent;
+      if (!env.INBOX) return rpc(id, { isError: true, content: [{ type: "text", text: "The door is not set up: no KV binding named INBOX." }] });
       try {
-        sent = await fetch("https://ntfy.sh/" + encodeURIComponent(String(env.NTFY_TOPIC).trim()), {
-          method: "POST",
-          headers: { Title: "aiwa-ext", "User-Agent": "aiwa-door" },
-          body: JSON.stringify({ from, message: text }),
-        });
+        const now = Date.now();
+        await env.INBOX.put("m:" + String(now).padStart(15, "0") + ":" + crypto.randomUUID().slice(0, 8), JSON.stringify({ who: from, text, ts: Math.floor(now / 1000) }), { expirationTtl: 86400 });
       } catch (err) {
-        return rpc(id, { isError: true, content: [{ type: "text", text: "The relay could not be reached: " + String(err).slice(0, 120) }] });
-      }
-      if (!sent.ok) {
-        const why = (await sent.text().catch(() => "")).slice(0, 160);
-        return rpc(id, { isError: true, content: [{ type: "text", text: "The relay answered " + sent.status + ": " + why }] });
+        return rpc(id, { isError: true, content: [{ type: "text", text: "The message could not be stored: " + String(err).slice(0, 120) }] });
       }
       return rpc(id, { content: [{ type: "text", text: "Message left for the person's phone. It does not mean it was read: they decide what to do with it." }] });
     }
     return fail(id, -32601, "method not found");
   },
 };
+
+// The phone fetches what is waiting; what it takes is removed, so that a message is told once.
+async function inbox(request, env) {
+  if (request.method !== "GET") return new Response("method not allowed", { status: 405 });
+  if (!env.INBOX) return json({ messages: [] });
+  const listed = await env.INBOX.list({ prefix: "m:", limit: 20 });
+  const messages = [];
+  for (const key of listed.keys) {
+    const raw = await env.INBOX.get(key.name);
+    await env.INBOX.delete(key.name);
+    try { messages.push(JSON.parse(raw)); } catch { /* a damaged entry is dropped */ }
+  }
+  return json({ messages });
+}

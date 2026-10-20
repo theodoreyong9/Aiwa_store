@@ -62,7 +62,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 158
+BACKEND_VERSION = 159
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4519,18 +4519,85 @@ def _external_said(raw):
     return True
 
 
+EXTERNAL_FILE = APP_DIR / "external.json"      # the Worker's address and the person's key: owner-only, never in a repository
+EXTERNAL_HOST_RE = re.compile(r"https://[a-z0-9-]+(?:\.[a-z0-9-]+)*\.workers\.dev")
+EXTERNAL_KEY_RE = re.compile(r"[A-Za-z0-9_-]{16,128}")
+EXTERNAL_POLL = 30
+
+
+def _external_config():
+    """(address, key) of the person's Worker, or None."""
+    try:
+        data = json.loads(EXTERNAL_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    url, key = (data or {}).get("url"), (data or {}).get("key")
+    if isinstance(url, str) and isinstance(key, str) and EXTERNAL_HOST_RE.fullmatch(url) and EXTERNAL_KEY_RE.fullmatch(key):
+        return url, key
+    return None
+
+
+def _external_save(url, key):
+    url = str(url or "").strip().rstrip("/")
+    url = re.sub(r"/[A-Za-z0-9_-]+/mcp$", "", url)          # the whole connector address pasted: keep the Worker's address only
+    key = str(key or "").strip()
+    if not EXTERNAL_HOST_RE.fullmatch(url):
+        return "l'adresse doit ressembler à https://ton-worker.ton-compte.workers.dev"
+    if not EXTERNAL_KEY_RE.fullmatch(key):
+        return "la clé doit faire 16 à 128 caractères : lettres, chiffres, - et _"
+    fd = os.open(str(EXTERNAL_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump({"url": url, "key": key}, f)
+    os.chmod(str(EXTERNAL_FILE), 0o600)
+    return None
+
+
+def _external_fetch():
+    """One look at the Worker's inbox: what waits there is taken (the Worker forgets it) and said. Returns how many were taken, or None when it could not be asked."""
+    config = _external_config()
+    if not config:
+        return None
+    url, key = config
+    try:
+        request = urllib.request.Request(f"{url}/{key}/inbox", headers={"User-Agent": "aiwa"})
+        with urllib.request.urlopen(request, timeout=15) as reply:
+            data = json.loads(reply.read(200_000))
+    except (OSError, ValueError):
+        return None
+    taken = 0
+    for item in (data.get("messages") if isinstance(data, dict) else None) or []:
+        if isinstance(item, dict) and _external_said(json.dumps({"from": item.get("who"), "message": item.get("text")})):
+            taken += 1
+    return taken
+
+
+def _external_loop():
+    while True:
+        time.sleep(EXTERNAL_POLL)
+        with lock:
+            opened = external_open
+        if opened:
+            _external_fetch()
+
+
 def external_api(path, body):
     global external_open
-    if path == "/api/external/open":
+    error = None
+    if path in ("/api/external/open", "/api/external/config"):
         try:
             data = json.loads(body) if body.strip() else {}
         except ValueError:
             data = {}
-        with lock:
-            external_open = isinstance(data, dict) and data.get("open") is True
-        _save_state()
+        data = data if isinstance(data, dict) else {}
+        if path == "/api/external/open":
+            with lock:
+                external_open = data.get("open") is True
+            _save_state()
+        else:
+            error = _external_save(data.get("url"), data.get("key"))
+    config = _external_config()
     with lock:
-        return {"ok": True, "open": external_open, "topic": waiting_topic, "inbox": list(external_inbox)[-5:]}
+        return {"ok": error is None, "error": error, "open": external_open, "url": config[0] if config else "", "configured": bool(config), "inbox": list(external_inbox)[-5:]}
 
 
 def _relay_event(event):
@@ -4816,7 +4883,7 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(film_api(self.path, body))
         elif self.path.startswith("/api/stock/"):
             self.reply_json(stock_api(self.path, body))
-        elif self.path == "/api/external/open":
+        elif self.path in ("/api/external/open", "/api/external/config"):
             self.reply_json(external_api(self.path, body))
         elif self.path == "/api/media_delete":
             try:
@@ -5295,6 +5362,7 @@ if __name__ == "__main__":
     threading.Thread(target=_all_prewarm_loop, daemon=True).start()
     _login_state()  # looks the login up in the background, so the first status already knows
     threading.Thread(target=_relay_listener, daemon=True).start()
+    threading.Thread(target=_external_loop, daemon=True).start()
     threading.Thread(target=_self_update_loop, daemon=True).start()
     print(f"{time.strftime('%H:%M:%S')} Aiwa backend listening on http://{HOST}:{PORT}", flush=True)
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

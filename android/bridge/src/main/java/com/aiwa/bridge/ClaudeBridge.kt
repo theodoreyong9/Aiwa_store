@@ -40,7 +40,7 @@ data class FilmJob(val ok: Boolean, val error: String, val id: String, val state
 /** Free stock videos (Pexels, Pixabay) with the person's own keys. */
 data class StockClip(val id: String, val title: String, val duration: Int, val author: String, val licence: String, val source: String, val raw: String)
 data class StockSaved(val id: String, val title: String, val author: String, val saved: String, val savedError: String)
-data class ExternalStatus(val open: Boolean, val topic: String, val inbox: List<String>)
+data class ExternalStatus(val open: Boolean, val configured: Boolean, val url: String, val inbox: List<String>, val error: String? = null)
 data class StockStatus(val pexels: Boolean, val pixabay: Boolean, val clips: List<StockSaved>)
 
 /** Before saving a film in GitHub: the repository in use, whether it is public, whether gh is connected. */
