@@ -1019,7 +1019,7 @@ class InstructionTests(Base):
         import tempfile, urllib.request
         from pathlib import Path
         old_file, old_open = srv.EXTERNAL_FILE, srv.external_open
-        srv.EXTERNAL_FILE = Path(tempfile.mkdtemp()) / "external.json"
+        srv.EXTERNAL_FILE = Path(tempfile.mkdtemp()) / "not-yet" / "external.json"      # the folder does not exist yet, as on a phone that has kept no app
         try:
             self.assertIsNone(srv._external_config())
             self.assertIn("adresse", srv._external_save("https://evil.example.com", "a" * 20))

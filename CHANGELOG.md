@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Saving the Worker's address no longer fails on a phone that has kept no app** (brain 160): the owner-only file went into `~/.aiwa_store_apps`, which does not exist until an app is kept; the brain dropped the connection (« unexpected end of stream »). The folder is now created, and any write error comes back as a message.
+
 - **The door keeps the messages in the person's own Cloudflare KV, not on ntfy** (brain 159): ntfy answered 429 (a quota counted by address, shared by the Cloudflare Workers); the Worker now stores each message in a KV namespace bound as `INBOX` (kept 24 h), and the brain fetches `/<key>/inbox` every 30 s while the door is open (address and key in an owner-only file, host limited to `*.workers.dev`). The screen « Agents externes » takes the address and the key. Tested here with fake calls and a fake store only.
 
 - **A door for other agents** (brain 158, then 159): Settings → « Agents externes » (closed by default) shows the private channel and the steps; `docs/mcp/worker.js` is a free Cloudflare Worker that works as a remote MCP server (one tool, `envoyer_au_super_agent`) and drops the message on that channel with the title `aiwa-ext`. The brain says it aloud as information (never as an order, nothing is executed), keeps the last ones in the screen, and drops anything past 20 an hour. The Worker was tested here with fake calls only: not in Cloudflare, not with ChatGPT, and the Kotlin screen was only compiled by CI.

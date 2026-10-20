@@ -62,7 +62,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 159
+BACKEND_VERSION = 160
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4545,10 +4545,14 @@ def _external_save(url, key):
         return "l'adresse doit ressembler à https://ton-worker.ton-compte.workers.dev"
     if not EXTERNAL_KEY_RE.fullmatch(key):
         return "la clé doit faire 16 à 128 caractères : lettres, chiffres, - et _"
-    fd = os.open(str(EXTERNAL_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump({"url": url, "key": key}, f)
-    os.chmod(str(EXTERNAL_FILE), 0o600)
+    try:
+        EXTERNAL_FILE.parent.mkdir(parents=True, exist_ok=True)       # the folder does not exist until an app has been kept
+        fd = os.open(str(EXTERNAL_FILE), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump({"url": url, "key": key}, f)
+        os.chmod(str(EXTERNAL_FILE), 0o600)
+    except OSError as err:
+        return f"impossible d'enregistrer : {err}"
     return None
 
 
