@@ -769,14 +769,25 @@ class SettingsActivity : ComponentActivity() {
             val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
                 run {
+                    // ONE switch, on by default: the natural voice and the fluid conversation go together
                     val voiceState = state.agent?.voice ?: "none"
-                    val on = NaturalVoice.enabled(applicationContext)
-                    val note = if (!on) " (voix du téléphone)" else when (voiceState) { "ready" -> ""; "installing" -> " — installation en cours (environ 80 Mo)"; "error" -> " — installation échouée, voix du téléphone"; else -> " — pas encore installée, voix du téléphone" }
-                    add(PickerEntry((if (on) "✓  Voix naturelle : active" else "Voix naturelle : coupée") + note, false, lines = 2) { NaturalVoice.setEnabled(applicationContext, !on); finish() })
+                    val on = NaturalVoice.enabled(applicationContext) && ConversationSettings.fluid(applicationContext)
+                    val note = if (!on) " (voix du téléphone, conversation par tours)" else when (voiceState) {
+                        "ready" -> ""
+                        "installing" -> " — voix en cours d'installation (environ 80 Mo)"
+                        "error" -> " — installation de la voix échouée : ${state.agent?.voiceError?.take(110) ?: "?"} (toucher pour réessayer)"
+                        else -> " — voix pas encore installée, voix du téléphone en attendant (toucher pour installer)"
+                    }
+                    add(PickerEntry((if (on) "✓  Conversation naturelle : active" else "Conversation naturelle : coupée") + note, false, lines = 4) {
+                        if (on && (voiceState == "error" || voiceState == "none")) {
+                            CoroutineScope(Dispatchers.IO).launch { try { LocalClaudeBridge().voiceSetup() } catch (err: Exception) { } }
+                            toastOnMain(applicationContext, "Installation de la voix relancée")
+                        } else {
+                            NaturalVoice.setEnabled(applicationContext, !on); ConversationSettings.setFluid(applicationContext, !on)
+                        }
+                        finish()
+                    })
                 }
-                add(PickerEntry(if (ConversationSettings.fluid(applicationContext)) "✓  Conversation fluide : active" else "Conversation fluide : coupée", false, lines = 1) {
-                    ConversationSettings.setFluid(applicationContext, !ConversationSettings.fluid(applicationContext)); finish()
-                })
                 add(PickerEntry(if (wanted) "✓  Écoute du réveil : active" else "Écoute du réveil : coupée", false, lines = 1) { toggle(); finish() })
                 add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
                 if (state.repo != null) {

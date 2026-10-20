@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **One switch « Conversation naturelle », on by default, and the voice's failure is said** (brain 163): the natural voice and the fluid conversation are one switch in Settings. When the voice installation fails the line shows the reason (the end of the error) and a tap tries again; the brain also logs it. Before it only said « installation échouée ». The cause on the person's phone is not known yet: it is what the message will tell. Only compiled by CI.
+
 - **The widget shows one listening at a time** (app only): with the permanent listening on, the robot is hidden (the wake word opens the agent; the switch stays, to close everything); with the robot open alone, the switch is hidden. The switch wins when both would be hidden, so one of the two is always there. Only compiled by CI, not tried on a phone; the widget redraws a second or two after a change.
 
 - **The 🤖 button no longer turns the permanent listening on** (app only): opening the super agent used to set the switch of the permanent listening, and the switch showed « on » whenever the service ran. Now the button opens ONLY the second listening; the switch is the person's wish and nothing else (it shows « on » only when it was turned on). The agent closes as before (a second tap, or the closing word); if the switch is off the service ends with it, if it is on the wake word listens again. Only compiled by CI, not tried on a phone.

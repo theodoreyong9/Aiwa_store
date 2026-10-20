@@ -62,7 +62,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 162
+BACKEND_VERSION = 163
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -3847,7 +3847,7 @@ def agent_snapshot():
     with agent_lock:
         say = agent["say"] if agent["say"] and not agent["say"]["spoken"] else None
         proposal = dict(agent["proposal"]) if agent["proposal"] else None
-        out = {"enabled": agent["enabled"], "session": agent["session"], "repo": agent["repo"], "interval": agent["interval"], "creating": agent["creating"], "error": agent["error"], "voice": voice.state, "llm": llm.state, "history": [{"id": h["id"], "repo": h.get("repo"), "title": h.get("title")} for h in agent.get("history", [])],
+        out = {"enabled": agent["enabled"], "session": agent["session"], "repo": agent["repo"], "interval": agent["interval"], "creating": agent["creating"], "error": agent["error"], "voice": voice.state, "voice_error": (voice.error or "")[:200] if voice.state == "error" else None, "llm": llm.state, "history": [{"id": h["id"], "repo": h.get("repo"), "title": h.get("title")} for h in agent.get("history", [])],
                "say": {k: say[k] for k in ("id", "text", "ts")} if say else None}
     if proposal:
         entry = _session_entry(proposal["session"]) or {}

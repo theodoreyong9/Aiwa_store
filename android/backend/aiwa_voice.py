@@ -85,6 +85,7 @@ class Voice:
         except Exception as err:
             detail = getattr(err, "stderr", b"") or b""
             self.state, self.error = "error", (str(err) + " " + detail.decode("utf-8", "replace")[-200:]).strip()
+            print("natural voice: installation failed: " + self.error, flush=True)
 
     def say(self, text):
         """The sentence as WAV bytes, or None when the voice is not ready or fails."""

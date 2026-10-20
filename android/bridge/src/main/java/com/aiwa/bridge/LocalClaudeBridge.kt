@@ -111,7 +111,8 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                         c.optJSONObject("connector")?.let { k -> AgentConnector(k.optString("kind"), k.optString("to"), k.optString("subject"), k.optString("body"), k.optString("start")) }) },
                     a.optString("llm", "none"),
                     a.str("repo"),
-                    a.optJSONArray("history")?.let { h -> (0 until h.length()).mapNotNull { i -> h.optJSONObject(i)?.let { o -> AgentOld(o.optString("id"), o.str("repo"), o.optString("title", "Ancien agent")) } } } ?: emptyList(),
+                    a.optJSONArray("history")?.let { h -> (0 until h.length()).mapNotNull { i -> h.optJSONObject(i)?.let { o -> AgentOld(o.optString("id"), o.str("repo"), o.optString("title", "Ancien agent")) } } } ?: emptyList(),,
+                    a.str("voice_error")
                 )
             },
             sentApp = json.optJSONObject("sent_app")?.let {
