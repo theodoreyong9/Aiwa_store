@@ -37,8 +37,16 @@ import org.vosk.SpeakerModel
 /** Whether the person turned the always-on listening on (off until they do, in the app's screen). */
 object ListenSettings {
     private const val PREFS = "aiwa_listen"
-    // On by default (the wake word must work without a button, the screen locked): only « Arrêter » in the notification turns it off. "on_v2": the old flag, which closing the agent used to switch off, is ignored.
-    fun enabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("on_v2", true)
+    // OFF at each installation and each update (Android lets a microphone service start only while Aiwa is on screen: the person turns it on, with the switch of the widget or the one of the settings, and it
+    // then stays on). "on_v2": the old flag, which closing the agent used to switch off, is ignored.
+    fun enabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("on_v2", false)
+
+    /** Called when the application starts: a new version (or a first installation) closes the switch. */
+    fun resetForNewVersion(context: Context) {
+        val version = try { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(context.packageManager.getPackageInfo(context.packageName, 0)) } catch (err: Exception) { return }
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getLong("listen_version", -1L) != version) prefs.edit().putBoolean("on_v2", false).putLong("listen_version", version).apply()
+    }
     fun setEnabled(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("on_v2", on).apply() }
 }
 

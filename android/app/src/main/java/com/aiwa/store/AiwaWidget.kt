@@ -524,6 +524,13 @@ private fun LightContent(state: AiwaState) {
                 if (needsSetup) Text("Autoriser Aiwa", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 else Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = if (agentOn) "Super agent : il écoute, fermer" else "Parler au super agent", modifier = GlanceModifier.size(20.dp))
             }
+            // The switch of the permanent listening, at the right of the robot: green when it listens, grey when it is closed (it is closed at each installation and update)
+            Spacer(GlanceModifier.width(GAP.dp))
+            RoundButton(
+                icon = R.drawable.ic_mic,
+                description = if (state.listening) "Écoute permanente : active, toucher pour la couper" else "Écoute permanente : coupée, toucher pour l'activer",
+                background = if (state.listening) green else pill, action = actionStartActivity<ListenToggleActivity>(), diameter = chipH.dp,
+            )
             if (state.ask != null) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)

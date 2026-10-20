@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Settings → « Super agent » (brain 153): « Nouvelle session » puts the agent in place aside and goes to the choice of its repository; the old ones are listed there and each can be taken back (the one in place is put aside in its turn). Replaces the entry « Super agent : nouvelle session », which in fact changed the work session.
-- The permanent listening no longer waits for a first press on the robot button: any Aiwa window that opens (a widget tap, the settings) starts it when it is wanted; it is switched on and off in the settings.
+- The permanent listening has ONE switch, closed at each installation and each update (Android lets a microphone service start only while Aiwa is on screen): a new button at the right of the robot on the widget (green when it listens) and the line « Écoute du réveil » of the settings turn it on and off. The robot only opens and closes the super agent.
 
 - « Mes mots »: one line per word, with the three actions at its right (✎ write, 🎤 say, ↺ back to the original; the reset button no longer falls off the screen), and, on the wake word only, an option « Seulement ma voix »: Vosk's small speaker model (13 MB, downloaded the first time) makes a print of the owner's voice from twelve seconds of reading, and a wake word said by a voice too far from it does not wake the phone (« stop » and « éteins » always work; off by default; a filter against other voices, not a security).
 
