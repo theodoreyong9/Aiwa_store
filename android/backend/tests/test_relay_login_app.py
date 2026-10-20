@@ -1015,6 +1015,17 @@ class InstructionTests(Base):
         # read-only: it must not contradict the rule that only the session's repositories are touched
         self.assertNotIn("add_repo", text)
 
+    def test_the_first_message_has_the_session_keep_the_instructions_in_a_file_out_of_git(self):
+        srv.deploy_mode = "store"
+        first, told = srv._compose({}, None, "w", "main", True)
+        self.assertIn("CLAUDE.local.md", first)
+        self.assertIn(".git/info/exclude", first)
+        again, _ = srv._compose({"instr": told}, None, "w", "main", True)
+        self.assertEqual(again, "")
+        older = {k: v for k, v in told.items() if k != "sources"}
+        update, _ = srv._compose({"instr": older}, None, "w", "main", True)
+        self.assertIn("CLAUDE.local.md", update)
+
     def test_the_reference_is_told_once_then_only_when_it_changes(self):
         srv.deploy_mode = "store"
         first, told = srv._compose({}, None, "w", "main", True)

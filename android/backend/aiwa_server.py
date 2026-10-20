@@ -62,7 +62,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 156
+BACKEND_VERSION = 157
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1098,6 +1098,14 @@ def _pointer_line(key, full, repo, quality, fmt):
                 f"{CONSIGNES_BASE}/video.md (le dépôt est {repo}) et suis-la [v{mark}].")
     return f"{_POINTERS[key]} : lis {CONSIGNES_BASE}/{key}.md avant de t'y mettre, et suis-le [v{mark}]."
 
+# A long conversation gets summarised by Claude Code and the first message can fade; a file at the root of the session is read again by Claude Code
+# every time. It stays out of git (it holds the person's private channel), so nothing of it reaches a repository.
+_FILE_NOTE = (
+    "- Mémoire des consignes : écris ce bloc de consignes, tel quel, dans `CLAUDE.local.md` à la racine de ton répertoire de travail (il est relu à chaque reprise de la conversation) "
+    "et ajoute cette ligne à `.git/info/exclude` pour qu'il ne soit JAMAIS commité ni poussé (il contient mon canal privé). "
+    "Si tu l'as déjà fait, mets-le à jour avec les changements. Si un jour tu ne retrouves plus une consigne dans ta conversation, relis ce fichier avant de répondre."
+)
+
 
 def _compose(entry, repo, work, base, direct, origin=None, quality=None):
     """The instructions added to a message, and what was told (a hash per
@@ -1115,12 +1123,12 @@ def _compose(entry, repo, work, base, direct, origin=None, quality=None):
     told = {key: hashlib.sha1(text.encode()).hexdigest()[:8] for key, text in lines}
     previous = (entry or {}).get("instr")
     if not isinstance(previous, dict) or not previous:
-        return "\n\n[Aiwa — consignes de cette conversation]\n" + "\n".join(f"- {text}" for _, text in lines), told
+        return "\n\n[Aiwa — consignes de cette conversation]\n" + "\n".join(f"- {text}" for _, text in lines) + "\n" + _FILE_NOTE, told
     parts = [f"- {text}" for key, text in lines if previous.get(key) != told[key]]
     parts += [f"- Consigne retirée : {_INSTRUCTION_LABELS.get(key, key)}." for key in previous if key not in told]
     if not parts:
         return "", told
-    return "\n\n[Aiwa — consignes mises à jour]\n" + "\n".join(parts), told
+    return "\n\n[Aiwa — consignes mises à jour]\n" + "\n".join(parts) + "\n- Mets aussi à jour `CLAUDE.local.md` avec ces changements.", told
 
 
 def _preview():
