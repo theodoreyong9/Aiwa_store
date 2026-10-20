@@ -28,7 +28,10 @@ MODELS = {
     "video": {"endpoint": "fal-ai/kling-video/o1/reference-to-video", "usd_per_second": 0.112},
     "lipsync": {"endpoint": "veed/lipsync/v2", "usd_per_second": 0.07},
     "voice": {"endpoint": "fal-ai/f5-tts", "usd_per_1000_chars": 0.05},
+    "swap": {"endpoint": "fal-ai/pixverse/swap", "usd_per_second": 0.08},      # about 0.15–0.40 $ for 5 s on fal's page: the upper end is quoted
 }
+KINDS = ("me", "product", "both", "swap")
+MAX_SWAP_SECONDS = 30
 SCENE_SECONDS = (5, 10)
 MAX_SCENES = 12
 DEFAULT_CAP_USD = 20.0
@@ -215,6 +218,8 @@ class Film:
         prompt = scene["situation"]
         if kind == "product":
             prompt += ". Le produit des images de référence reste strictement identique : forme, couleurs, matière, logo et texte inchangés."
+        elif kind == "both":
+            prompt += ". La personne des premières images de référence et le produit des dernières restent strictement identiques : visage, silhouette, forme, couleurs, logo et texte du produit inchangés."
         out = {}
         pname = self._pick(props, ["prompt"], "prompt")
         many = self._pick(props, ["image_urls", "reference_image_urls", "images", "input_image_urls"], "image_urls")
@@ -304,9 +309,11 @@ class Film:
         return hashlib.sha1(json.dumps([scene["situation"], scene["seconds"], scene["says"], aspect, kind], ensure_ascii=False).encode()).hexdigest()[:12]
 
     def _price(self, scene, kind="me"):
+        if kind == "swap":
+            return round(MODELS["swap"]["usd_per_second"] * scene["seconds"], 3)
         video = MODELS["video"]["usd_per_second"] * scene["seconds"]
         mouth = voice = 0.0
-        if scene["says"] and kind == "me":
+        if scene["says"] and kind in ("me", "both"):
             mouth = MODELS["lipsync"]["usd_per_second"] * scene["seconds"]
             voice = MODELS["voice"]["usd_per_1000_chars"] * max(1, len(scene["says"])) / 1000
         return round(video + mouth + voice, 3)
@@ -322,37 +329,78 @@ class Film:
         job["over_cap"] = job["total"] > self.cap()
         return job
 
-    def prepare(self, direction, says="", seconds=None, aspect="9:16", photos=None, consent=False, kind="me"):
-        """photos: [bytes]. Returns the quote ({"ok", "id", "scenes", "total", ...}); nothing is sent to fal yet."""
+    def prepare(self, direction, says="", seconds=None, aspect="9:16", photos=None, consent=False, kind="me", photos_product=None, swap="product"):
+        """photos: [bytes], the main references (the person; or the product for a product film; or what replaces something in the person's own video). photos_product: the product, for « moi + produit ».
+        kind: me | product | both | swap (the person's own video, in which the product or the person is replaced: the video comes next, see set_source). Returns the quote; nothing is sent to fal yet."""
         if not self._key():
             return {"ok": False, "error": "pas de clé fal : colle-la dans les réglages"}
-        kind = "product" if kind == "product" else "me"
+        kind = kind if kind in KINDS else "me"
+        swap = "person" if swap == "person" else "product"
         if not consent:
-            return {"ok": False, "error": "il faut dire que c'est ton produit, ou que tu as le droit de l'utiliser" if kind == "product" else "il faut dire que c'est toi sur les photos (et ta voix), ou que la personne est d'accord"}
+            return {"ok": False, "error": {"product": "il faut dire que c'est ton produit, ou que tu as le droit de l'utiliser", "both": "il faut dire que c'est toi, et que le produit est à toi ou que tu as le droit de l'utiliser",
+                    "swap": "il faut dire que la vidéo est à toi (ou que tu as le droit de l'utiliser)" + (" et que la personne remplacée est d'accord" if swap == "person" else "")}.get(kind, "il faut dire que c'est toi sur les photos (et ta voix), ou que la personne est d'accord")}
         if not photos:
             return {"ok": False, "error": "il faut au moins une photo"}
-        if not str(direction or "").strip():
+        if kind == "both" and not photos_product:
+            return {"ok": False, "error": "il faut au moins une photo du produit"}
+        if not str(direction or "").strip() and kind != "swap":
             return {"ok": False, "error": "dis ce que tu veux dans le film"}
-        if says and kind == "me" and not self._voice_path():
+        if says and kind in ("me", "both") and not self._voice_path():
             return {"ok": False, "error": "pour parler dans le film, enregistre d'abord ta voix dans les réglages"}
         job_id = uuid.uuid4().hex[:10]
         folder = self.home / job_id
         folder.mkdir(parents=True, exist_ok=True)
-        paths = []
-        for i, data in enumerate(photos[:7]):
-            if not data or len(data) > 12_000_000:
-                continue
-            path = folder / f"photo{i}.jpg"
-            path.write_bytes(data)
-            paths.append(path.name)
-        if not paths:
+
+        def keep(items, prefix, limit):
+            names = []
+            for i, data in enumerate((items or [])[:limit]):
+                if not data or len(data) > 12_000_000:
+                    continue
+                path = folder / f"{prefix}{i}.jpg"
+                path.write_bytes(data)
+                names.append(path.name)
+            return names
+        paths = keep(photos, "photo", 4 if kind == "both" else 7)
+        product = keep(photos_product, "prod", 3) if kind == "both" else []
+        if not paths or (kind == "both" and not product):
             return {"ok": False, "error": "photos vides ou trop grosses"}
         (folder / "kind.txt").write_text(kind)
+        if kind == "swap":
+            what = "la personne" if swap == "person" else "le produit"
+            scenes = [{"situation": _safe(direction, 500) or f"Remplacer {what} dans la vidéo", "seconds": 0, "says": ""}]
+            state = "needs_video"
+        else:
+            scenes, state = self._plan(direction, says, seconds, kind), "quoted"
         job = {"id": job_id, "dir": folder, "direction": _safe(direction, 1500), "says": _safe(says, 1500), "aspect": aspect if aspect in ("9:16", "16:9", "1:1") else "9:16",
-               "photos": paths, "kind": kind, "scenes": self._plan(direction, says, seconds, kind), "state": "quoted", "step": "", "error": None, "film": None, "confirmed": False}
+               "photos": paths, "photos_product": product, "kind": kind, "swap": swap, "scenes": scenes, "state": state, "step": "", "error": None, "film": None, "confirmed": False}
         self.quote(job)
         with self.lock:
             self.jobs[job_id] = job
+        self._save(job)
+        return {"ok": True, **self.view(job)}
+
+    def set_source(self, job_id, data):
+        """The person's own video, for a swap: kept, its length read (it is what the quote is made from)."""
+        job = self.jobs.get(job_id)
+        if not job or job.get("kind") != "swap" or job["state"] == "running":
+            return {"ok": False, "error": "film inconnu ou pas un remplacement"}
+        if not data or len(data) > 200_000_000:
+            return {"ok": False, "error": "vidéo vide ou trop grosse (200 Mo au plus)"}
+        path = job["dir"] / "source.mp4"
+        path.write_bytes(data)
+        try:
+            seconds = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)], capture_output=True, text=True, timeout=60).stdout.strip())
+        except (OSError, ValueError, subprocess.SubprocessError):
+            seconds = 0.0
+        if seconds <= 0:
+            path.unlink(missing_ok=True)
+            return {"ok": False, "error": "je n'arrive pas à lire cette vidéo (ffmpeg est-il installé : pkg install ffmpeg ?)"}
+        if seconds > MAX_SWAP_SECONDS:
+            path.unlink(missing_ok=True)
+            return {"ok": False, "error": f"la vidéo dure {int(seconds)} s : {MAX_SWAP_SECONDS} s au plus pour un remplacement"}
+        job["scenes"][0]["seconds"] = max(1, int(seconds + 0.999))
+        job["state"], job["error"] = "quoted", None
+        self.quote(job)
         self._save(job)
         return {"ok": True, **self.view(job)}
 
@@ -382,7 +430,7 @@ class Film:
     @staticmethod
     def view(job):
         return {"id": job["id"], "state": job["state"], "step": job["step"], "error": job["error"], "total": job.get("total", 0), "over_cap": job.get("over_cap", False),
-                "aspect": job["aspect"], "film": job["film"], "label": AI_LABEL, "kind": job["kind"], "saved": job.get("saved", "none"), "saved_error": job.get("saved_error", ""),
+                "aspect": job["aspect"], "film": job["film"], "label": AI_LABEL, "kind": job["kind"], "swap": job.get("swap", ""), "saved": job.get("saved", "none"), "saved_error": job.get("saved_error", ""),
                 "scenes": [{"situation": s["situation"], "seconds": s["seconds"], "says": s["says"], "price": s.get("price", 0), "done": s.get("done", False)} for s in job["scenes"]]}
 
     def get(self, job_id):
@@ -397,6 +445,8 @@ class Film:
             return {"ok": False, "error": "film inconnu"}
         if not confirmed:
             return {"ok": False, "error": "devis non confirmé"}
+        if job["state"] == "needs_video":
+            return {"ok": False, "error": "il manque ta vidéo"}
         if job["state"] == "running":
             return {"ok": True, **self.view(job)}
         self.quote(job)
@@ -406,14 +456,17 @@ class Film:
         threading.Thread(target=self._produce, args=(job,), daemon=True).start()
         return {"ok": True, **self.view(job)}
 
-    def _data_uri(self, path):
-        mime = "audio/mp4" if path.suffix in (".m4a", ".mp4", ".aac") else "audio/wav" if path.suffix == ".wav" else "audio/mpeg" if path.suffix == ".mp3" else "image/jpeg"
+    def _data_uri(self, path, mime=None):
+        mime = mime or "audio/mp4" if path.suffix in (".m4a", ".mp4", ".aac") else "audio/wav" if path.suffix == ".wav" else "audio/mpeg" if path.suffix == ".mp3" else "image/jpeg"
         return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
 
     def _produce(self, job):
         try:
             folder = job["dir"]
-            photos = [self._data_uri(folder / name) for name in job["photos"]]
+            if job["kind"] == "swap":
+                self._produce_swap(job)
+                return
+            photos = [self._data_uri(folder / name) for name in job["photos"]] + [self._data_uri(folder / name) for name in job.get("photos_product", [])]
             sample = None
             clips = []
             total = len(job["scenes"])
@@ -421,7 +474,7 @@ class Film:
                 clip = folder / f"scene_{self.scene_key(scene, job['aspect'], job['kind'])}.mp4"
                 if not clip.exists():
                     audio_url = None
-                    if scene["says"] and job["kind"] == "me":
+                    if scene["says"] and job["kind"] in ("me", "both"):
                         if sample is None:
                             sample = self._data_uri(self._voice_path())
                         job["step"] = f"scène {i}/{total} : ta voix"
@@ -434,7 +487,7 @@ class Film:
                     video_url = self._find_url(video, (".mp4", ".mov", ".webm"))
                     if not video_url:
                         raise FilmError("l'image n'a rien rendu : " + _safe(json.dumps(video)))
-                    if audio_url and job["kind"] == "me":
+                    if audio_url and job["kind"] in ("me", "both"):
                         job["step"] = f"scène {i}/{total} : la bouche"
                         mouth = self.run("lipsync", self._lipsync_inputs(video_url, audio_url))
                         video_url = self._find_url(mouth, (".mp4", ".mov", ".webm")) or video_url
@@ -455,6 +508,55 @@ class Film:
             job.update(state="error", error=str(err))
         except Exception as err:      # never silent: the person sees why
             job.update(state="error", error=f"erreur inattendue : {_safe(err)}")
+
+    def _fal_file(self, path, content_type):
+        """A file for fal: small ones travel inside the request, bigger ones are put in fal's storage first (an address is asked for, the bytes are sent there)."""
+        if path.stat().st_size <= 4_000_000:
+            return self._data_uri(path, content_type)
+        info = self._call("POST", "https://rest.alpha.fal.ai/storage/upload/initiate?storage_type=gcs", {"content_type": content_type, "file_name": path.name})
+        upload_url, file_url = info.get("upload_url"), info.get("file_url")
+        if not upload_url or not file_url:
+            raise FilmError("fal n'a pas donné d'adresse d'envoi pour la vidéo : " + _safe(json.dumps(info)))
+        try:
+            urllib.request.urlopen(urllib.request.Request(upload_url, data=path.read_bytes(), method="PUT", headers={"Content-Type": content_type}), timeout=900)
+        except (OSError, ValueError) as err:
+            raise FilmError(f"l'envoi de la vidéo à fal a échoué : {err}")
+        return file_url
+
+    def _swap_inputs(self, video_url, image_url, target, prompt):
+        props = self._inputs("swap")
+        out = {self._pick(props, ["video_url"], "video_url") or "video_url": video_url}
+        out[self._pick(props, ["image_url", "reference_image_url", "reference_image", "swap_image_url"], "image_url") or "image_url"] = image_url
+        mode = self._pick(props, ["mode", "swap_mode", "type"], "mode")
+        if mode:
+            out[mode] = "person" if target == "person" else "object"
+        pname = self._pick(props, ["prompt"], None)
+        if pname and prompt:
+            out[pname] = prompt
+        return out
+
+    def _produce_swap(self, job):
+        folder = job["dir"]
+        scene = job["scenes"][0]
+        clip = folder / f"scene_{self.scene_key(scene, job['aspect'], job['kind'])}.mp4"
+        if not clip.exists():
+            source = folder / "source.mp4"
+            if not source.exists():
+                raise FilmError("il manque ta vidéo")
+            job["step"] = "envoi de ta vidéo"
+            video = self._fal_file(source, "video/mp4")
+            image = self._data_uri(folder / job["photos"][0])
+            job["step"] = "remplacement"
+            result = self.run("swap", self._swap_inputs(video, image, job.get("swap", "product"), scene["situation"]))
+            url = self._find_url(result, (".mp4", ".mov", ".webm"))
+            if not url:
+                raise FilmError("le remplacement n'a rien rendu : " + _safe(json.dumps(result)))
+            job["step"] = "téléchargement"
+            self._download(url, clip)
+        job["step"] = "assemblage"
+        job["film"] = self._assemble(job, [clip])
+        job.update(state="done", step="terminé")
+        self._save(job)
 
     def _add_voiceover(self, raw, text, out):
         """The voice-over (the phone's natural voice) laid on the generated clip; the clip's length wins (a text longer than the scene is cut)."""
@@ -508,7 +610,7 @@ class Film:
     @staticmethod
     def asset_name(job_id, kind):
         """The file name in the release (plain ASCII: GitHub rewrites spaces and accents)."""
-        return f"film-de-{'produit' if kind == 'product' else 'moi'}-{job_id}.mp4"
+        return f"film-de-{ {'product': 'produit', 'both': 'moi-produit', 'swap': 'remplacement'}.get(kind, 'moi') }-{job_id}.mp4"
 
     def mark_saved(self, job_id, state, error=""):
         """state: none | pending (a session was asked to save it) | saved | failed."""

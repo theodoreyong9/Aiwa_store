@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- One « Film » screen (Média), on the same fal key, with four modes (brain 155): Moi, Produit, **Moi + produit** (both in one go: cheaper, less faithful, said on the screen), and **Remplacer dans ma vidéo** (the person's own video of 30 s at most, in which the product OR the person is replaced by what the photos show: PixVerse Swap, quoted from the video's length; a replaced person needs the agreement of that person, asked before anything starts). One box to tick per thing used (me, the product, the video, the person replaced). The voice « film avec moi et mon produit » opens the right mode.
+
 - The natural voice (Piper) is installed by default, in the background, when the brain starts (about 80 MB, once, brain 154); the person only has the switch « Voix naturelle » in the settings (on by default; off or not yet installed: the phone's own voice). The conversation uses it.
 - Settings → Super agent: the old « L'agent » window is gone (its switch, its point every N minutes, « faire le point », the typed message and « Détruire » were duplicates or did nothing); a proposal or settings the agent is waiting for appear on the first lines of the Super agent list, with « Envoyer » and « Annuler ».
 

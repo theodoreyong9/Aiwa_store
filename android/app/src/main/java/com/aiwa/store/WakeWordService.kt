@@ -120,6 +120,7 @@ private val MANUAL_REGEX = Regex("""\b(?:repasse|reviens|retourne|passe)\s+(?:en
 private val FILLERS = listOf("Je regarde.", "Je réfléchis.", "Un instant.", "Toujours là, je vérifie.")
 
 private val FILM_REGEX = Regex("""\bfilm de moi\b|\bfilm avec moi\b|\bfilm ou je (?:suis|dis|parle)\b""")
+private val BOTH_FILM_REGEX = Regex("""\bfilm (?:avec|de) moi et (?:mon|le) produit\b|\bfilm (?:avec|de) mon produit et moi\b""")
 private val PRODUCT_FILM_REGEX = Regex("""\b(?:film|video) (?:de|du|pour (?:mon|le|un)) produit\b|\bfilm de mon produit\b""")
 
 private val APPLY_REGEX = Regex("""\bfais[\s-]?le\b|\bapplique\b""")
@@ -434,6 +435,7 @@ class WakeWordService : Service() {
         // « fais-moi un film de moi … »: the film circuit (its own key, photos and quote), after a yes
         if (pendingCommand.isEmpty()) {
             val said = plainWords(text).joinToString(" ")
+            if (BOTH_FILM_REGEX.containsMatchIn(said)) { filmByVoice(withoutSend(text).trim(), "both"); return }
             if (PRODUCT_FILM_REGEX.containsMatchIn(said)) { filmByVoice(withoutSend(text).trim(), "product"); return }
             if (FILM_REGEX.containsMatchIn(said)) { filmByVoice(withoutSend(text).trim()); return }
         }
@@ -453,7 +455,7 @@ class WakeWordService : Service() {
     }
 
     private suspend fun filmByVoice(direction: String, kind: String = "me") {
-        say((if (kind == "product") "Film de produit : " else "Film de moi : ") + direction)
+        say((when (kind) { "product" -> "Film de produit : "; "both" -> "Film moi + produit : "; else -> "Film de moi : " }) + direction)
         val status = withContext(Dispatchers.IO) { LocalClaudeBridge().filmStatus() }
         if (status == null) { Speaker.speakNatural(applicationContext, "Le cerveau ne répond pas, ou il est trop ancien pour les films."); return }
         if (!status.key) {
@@ -462,7 +464,7 @@ class WakeWordService : Service() {
             return
         }
         val yes = Vocabulary.spoken(applicationContext, "validation")
-        val agreed = askAloud(applicationContext, (if (kind == "product") "Pour un film de ton produit" else "Pour un film de toi") + ", j'utilise ta clé fal et tes photos. C'est facturé par fal, et je te montre le prix avant. Dis « $yes » pour continuer.") { Speaker.speakNatural(applicationContext, it) }
+        val agreed = askAloud(applicationContext, (when (kind) { "product" -> "Pour un film de ton produit"; "both" -> "Pour un film de toi avec ton produit"; else -> "Pour un film de toi" }) + ", j'utilise ta clé fal et tes photos. C'est facturé par fal, et je te montre le prix avant. Dis « $yes » pour continuer.") { Speaker.speakNatural(applicationContext, it) }
         if (!agreed) { Speaker.speakNatural(applicationContext, "D'accord, je laisse."); return }
         FilmActivity.open(applicationContext, direction, kind)
     }

@@ -235,48 +235,122 @@ class FilmActivity : ComponentActivity() {
         setContent {
             val scope = rememberCoroutineScope()
             var status by remember { mutableStateOf<FilmStatus?>(null) }
-            var photos by remember { mutableStateOf<List<Uri>>(emptyList()) }
+            // me | product | both (the person and the product) | swap (the product or the person is replaced in the person's own video)
+            var mode by remember { mutableStateOf(intent.getStringExtra(EXTRA_KIND)?.takeIf { it in listOf("me", "product", "both", "swap") } ?: "me") }
+            var swapTarget by remember { mutableStateOf("product") }
+            var photosMe by remember { mutableStateOf<List<Uri>>(emptyList()) }
+            var photosProduct by remember { mutableStateOf<List<Uri>>(emptyList()) }
+            var video by remember { mutableStateOf<Uri?>(null) }
             var direction by remember { mutableStateOf(intent.getStringExtra(EXTRA_DIRECTION).orEmpty()) }
             var says by remember { mutableStateOf("") }
             var aspect by remember { mutableStateOf("9:16") }
-            var consent by remember { mutableStateOf(false) }
+            val checked = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
             var busy by remember { mutableStateOf(false) }
+            var progress by remember { mutableStateOf("") }
             var note by remember { mutableStateOf<String?>(null) }
-            val product = intent.getStringExtra(EXTRA_KIND) == "product"
             LaunchedEffect(Unit) { status = withContext(Dispatchers.IO) { LocalClaudeBridge().filmStatus() } }
-            val pick = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris -> if (uris.isNotEmpty()) photos = uris.take(7) }
+            val pickMe = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris -> if (uris.isNotEmpty()) photosMe = uris.take(if (mode == "both") 4 else 7) }
+            val pickProduct = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris -> if (uris.isNotEmpty()) photosProduct = uris.take(if (mode == "both") 3 else 7) }
+            val pickVideo = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) video = uri }
             val st = status
+
+            val swap = mode == "swap"
+            val needMe = mode == "me" || mode == "both" || (swap && swapTarget == "person")
+            val needProduct = mode == "product" || mode == "both" || (swap && swapTarget == "product")
+            val canSpeak = mode == "me" || mode == "both"
+            val voiceOver = mode == "product"
+            // What the person must say is true before anything starts (one box per thing used)
+            val required = buildList {
+                if (needMe) add("me" to "C'est moi sur les photos" + (if (canSpeak) ", et c'est ma voix (ou celle de quelqu'un qui est d'accord)" else "") + ".")
+                if (needProduct) add("product" to "Le produit est à moi, ou j'ai le droit de l'utiliser.")
+                if (swap) add("video" to "La vidéo est à moi, ou j'ai le droit de l'utiliser.")
+                if (swap && swapTarget == "person") add("agree" to "La personne qui est remplacée dans la vidéo est d'accord (ou c'est moi).")
+            }
+            val allChecked = required.all { checked[it.first] == true }
+            val mainPhotos = if (mode == "product" || (swap && swapTarget == "product")) photosProduct else photosMe
+            val ready = mainPhotos.isNotEmpty() && (mode != "both" || photosProduct.isNotEmpty()) && (!swap || video != null) && (swap || direction.isNotBlank()) && allChecked
+
             FilmSheet({ if (!busy) finish() }) {
-                Text(if (product) "Film de produit" else "Film de moi", style = MaterialTheme.typography.titleMedium)
+                Text("Film", style = MaterialTheme.typography.titleMedium)
                 when {
-                    st == null -> Text("Le cerveau ne répond pas (ou il est trop ancien : il faut la version 150).", style = MaterialTheme.typography.bodySmall)
+                    st == null -> Text("Le cerveau ne répond pas (ou il est trop ancien : il faut la version 155).", style = MaterialTheme.typography.bodySmall)
                     !st.key -> {
                         Text("Il manque ta clé fal.ai.", style = MaterialTheme.typography.bodyMedium)
                         Button(onClick = { startActivity(Intent(this@FilmActivity, FalKeyActivity::class.java)); finish() }, modifier = Modifier.fillMaxWidth()) { Text("Mettre ma clé") }
                     }
                     else -> {
-                        Text(if (product) "Des photos de ton produit (1 à 7, sous plusieurs angles, nettes), ce que tu veux montrer, et la voix off si tu en veux une. Le devis vient avant toute dépense." else "Des photos de toi (1 à 7, de face, nettes), ce que tu veux voir, et les paroles que tu veux dire. Le devis vient avant toute dépense.", style = MaterialTheme.typography.bodySmall)
-                        OutlinedButton(onClick = { pick.launch("image/*") }, modifier = Modifier.fillMaxWidth()) { Text(if (photos.isEmpty()) (if (product) "Choisir les photos du produit" else "Choisir mes photos") else "${photos.size} photo(s) — changer") }
-                        OutlinedTextField(value = direction, onValueChange = { direction = it.take(1500) }, label = { Text(if (product) "Ce que je veux montrer du produit" else "Ce que je veux dans le film") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
-                        OutlinedTextField(value = says, onValueChange = { says = it.take(1500) }, label = { Text(if (product) "Voix off (facultatif, telle que je l'écris)" else "Mes paroles (facultatif, telles que je les dis)") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-                        if (!product && says.isNotBlank() && !st.voice) Text("Pour parler, enregistre d'abord ta voix (Réglages → Film de moi).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                        OutlinedButton(onClick = { aspect = when (aspect) { "9:16" -> "16:9"; "16:9" -> "1:1"; else -> "9:16" } }, modifier = Modifier.fillMaxWidth()) { Text("Format : $aspect") }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = consent, onCheckedChange = { consent = it })
-                            Text(if (product) "C'est mon produit, ou j'ai le droit de l'utiliser. Le film sera marqué « généré par IA » : relis chaque plan, un logo ou un texte peut être déformé." else "C'est moi sur les photos, et c'est ma voix (ou celle de quelqu'un qui est d'accord). Le film sera marqué « généré par IA ».", style = MaterialTheme.typography.bodySmall)
+                        // The kind of film
+                        val modes = listOf("me" to "Moi", "product" to "Produit", "both" to "Moi + produit", "swap" to "Remplacer dans ma vidéo")
+                        modes.chunked(2).forEach { row ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                row.forEach { (id, label) ->
+                                    if (mode == id) Button(onClick = { }, modifier = Modifier.weight(1f)) { Text(label, maxLines = 1) }
+                                    else OutlinedButton(onClick = { mode = id }, enabled = !busy, modifier = Modifier.weight(1f)) { Text(label, maxLines = 1) }
+                                }
+                            }
                         }
+                        Text(
+                            when (mode) {
+                                "me" -> "Un film inventé où tu apparais : tes photos, ce que tu veux voir, tes paroles."
+                                "product" -> "Un film inventé de ton produit : ses photos sous plusieurs angles, ce que tu veux montrer, une voix off."
+                                "both" -> "Un film avec toi ET ton produit, en une seule fois : économique, mais moins fidèle. Ton visage ou le logo du produit peuvent se déformer."
+                                else -> "Ta propre vidéo, où seul un élément change : le produit ou la personne est remplacé par ce que montrent tes photos."
+                            } + " Le devis vient avant toute dépense.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        if (swap) OutlinedButton(onClick = { swapTarget = if (swapTarget == "product") "person" else "product" }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Remplacer : ${if (swapTarget == "product") "le produit" else "la personne"}") }
+                        if (swap) OutlinedButton(onClick = { pickVideo.launch("video/*") }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (video == null) "Choisir ma vidéo (30 s au plus)" else "Vidéo choisie — changer") }
+                        if (needMe) OutlinedButton(onClick = { pickMe.launch("image/*") }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (photosMe.isEmpty()) (if (swap) "Choisir mes photos (le visage qui remplace)" else "Choisir mes photos") else "${photosMe.size} photo(s) de moi — changer")
+                        }
+                        if (needProduct) OutlinedButton(onClick = { pickProduct.launch("image/*") }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (photosProduct.isEmpty()) (if (swap) "Choisir les photos du produit qui remplace" else "Choisir les photos du produit") else "${photosProduct.size} photo(s) du produit — changer")
+                        }
+                        OutlinedTextField(
+                            value = direction, onValueChange = { direction = it.take(1500) }, enabled = !busy,
+                            label = { Text(if (swap) "Ce qu'il faut remplacer (facultatif, ex : la gourde bleue)" else if (mode == "product") "Ce que je veux montrer du produit" else "Ce que je veux dans le film") },
+                            modifier = Modifier.fillMaxWidth(), minLines = if (swap) 1 else 3,
+                        )
+                        if (canSpeak || voiceOver) OutlinedTextField(
+                            value = says, onValueChange = { says = it.take(1500) }, enabled = !busy,
+                            label = { Text(if (voiceOver) "Voix off (facultatif, telle que je l'écris)" else "Mes paroles (facultatif, telles que je les dis)") }, modifier = Modifier.fillMaxWidth(), minLines = 2,
+                        )
+                        if (canSpeak && says.isNotBlank() && !st.voice) Text("Pour parler, enregistre d'abord ta voix (Réglages → Film de moi).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        if (!swap) OutlinedButton(onClick = { aspect = when (aspect) { "9:16" -> "16:9"; "16:9" -> "1:1"; else -> "9:16" } }, modifier = Modifier.fillMaxWidth()) { Text("Format : $aspect") }
+                        required.forEach { (key, text) ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = checked[key] == true, onCheckedChange = { checked[key] = it })
+                                Text(text, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Text("Le film sera marqué « généré par IA ». Relis chaque plan : un logo ou un texte peut être déformé.", style = MaterialTheme.typography.bodySmall, color = SheetDim)
                         note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                         Button(onClick = {
                             busy = true; note = null
                             val app = applicationContext
                             scope.launch {
-                                val blobs = withContext(Dispatchers.IO) { photos.mapNotNull { shrinkJpeg(app, it) }.map { Base64.encodeToString(it, Base64.NO_WRAP) } }
-                                val job = withContext(Dispatchers.IO) { LocalClaudeBridge().filmPrepare(direction.trim(), says.trim(), aspect, blobs, consent, if (product) "product" else "me") }
-                                busy = false
+                                progress = "Je prépare les photos…"
+                                fun encode(uris: List<Uri>) = uris.mapNotNull { shrinkJpeg(app, it) }.map { Base64.encodeToString(it, Base64.NO_WRAP) }
+                                val main = withContext(Dispatchers.IO) { encode(mainPhotos) }
+                                val extra = if (mode == "both") withContext(Dispatchers.IO) { encode(photosProduct) } else emptyList()
+                                progress = "Je prépare le devis…"
+                                var job = withContext(Dispatchers.IO) {
+                                    LocalClaudeBridge().filmPrepare(direction.trim(), says.trim(), aspect, main, allChecked, mode, extra, swapTarget)
+                                }
+                                if (job.ok && swap) {
+                                    progress = "J'envoie ta vidéo…"
+                                    val uri = video!!
+                                    job = withContext(Dispatchers.IO) {
+                                        val length = try { app.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L } catch (err: Exception) { -1L }
+                                        val input = app.contentResolver.openInputStream(uri)
+                                        if (input == null) job.copy(ok = false, error = "je n'arrive pas à lire cette vidéo") else LocalClaudeBridge().filmSource(job.id, input, length)
+                                    }
+                                }
+                                busy = false; progress = ""
                                 if (job.ok) { startActivity(Intent(this@FilmActivity, FilmQuoteActivity::class.java).putExtra(EXTRA_JOB, job.id)); finish() } else note = job.error
                             }
-                        }, enabled = !busy && photos.isNotEmpty() && direction.isNotBlank() && consent, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (busy) "Je prépare le devis…" else "Préparer le devis")
+                        }, enabled = !busy && ready, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (busy) progress.ifBlank { "Un instant…" } else "Préparer le devis")
                         }
                     }
                 }
@@ -286,7 +360,7 @@ class FilmActivity : ComponentActivity() {
     }
 
     companion object {
-        /** From the voice: the screen opens with what was said as the direction. */
+        /** From the voice: the screen opens with what was said as the direction (kind: me | product | both | swap). */
         fun open(context: Context, direction: String, kind: String = "me") {
             context.startActivity(Intent(context, FilmActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra(EXTRA_DIRECTION, direction).putExtra(EXTRA_KIND, kind))
         }

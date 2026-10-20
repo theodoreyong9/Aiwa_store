@@ -166,6 +166,47 @@ class FilmTests(unittest.TestCase):
         self.assertTrue(all("strictement identique" in p for p in prompts))
         self.assertEqual(film_lib.Film.films(self.film)[0]["kind"], "product")
 
+    def test_a_film_with_the_person_and_the_product_needs_both_and_sends_both_references(self):
+        refused = self.film.prepare("moi avec la gourde", "Bonjour à tous", photos=[b"moi"], consent=True, kind="both")
+        self.assertIn("produit", refused["error"])
+        quote = self.film.prepare("moi avec la gourde", "Bonjour à tous", photos=[b"moi1", b"moi2"], photos_product=[b"prod1"], consent=True, kind="both")
+        self.assertTrue(quote["ok"], quote)
+        said = [s for s in quote["scenes"] if s["says"]]
+        self.assertTrue(said and said[0]["price"] > 0.112 * said[0]["seconds"], "the mouth and the voice are paid in this mode too")
+        if HAVE_FFMPEG:
+            self.film.start(quote["id"], confirmed=True)
+            view = self.wait(quote["id"])
+            self.assertEqual(view["state"], "done", view["error"])
+            first = [c[2] for c in self.fal.calls if c[0] == "POST" and "kling" in c[1]][0]
+            self.assertEqual(len(first["image_urls"]), 3, "two photos of the person and one of the product, together")
+            self.assertIn("strictement identiques", first["prompt"])
+
+    @unittest.skipUnless(HAVE_FFMPEG, "ffmpeg needed")
+    def test_a_swap_is_made_on_the_persons_own_video_and_quoted_by_its_length(self):
+        refused = self.film.prepare("", photos=[b"prod"], consent=False, kind="swap")
+        self.assertIn("vidéo est à toi", refused["error"])
+        refused = self.film.prepare("", photos=[b"moi"], consent=False, kind="swap", swap="person")
+        self.assertIn("personne remplacée est d'accord", refused["error"])
+        quote = self.film.prepare("la gourde bleue", photos=[b"prod"], consent=True, kind="swap", swap="product")
+        self.assertTrue(quote["ok"], quote)
+        self.assertEqual(quote["state"], "needs_video")
+        self.assertFalse(self.film.start(quote["id"], confirmed=True)["ok"], "no video yet")
+        clip = Path(self.tmp.name) / "mine.mp4"
+        make_clip(clip)                       # one second
+        data = clip.read_bytes()
+        view = self.film.set_source(quote["id"], data)
+        self.assertTrue(view["ok"], view)
+        self.assertEqual(view["state"], "quoted")
+        self.assertEqual(view["scenes"][0]["seconds"], 1)
+        self.assertAlmostEqual(view["total"], 0.08, places=2)
+        self.assertFalse(self.film.set_source("nope", data)["ok"])
+        self.film.start(quote["id"], confirmed=True)
+        done = self.wait(quote["id"])
+        self.assertEqual(done["state"], "done", done["error"])
+        sent = [c[2] for c in self.fal.calls if c[0] == "POST" and "pixverse" in c[1]][0]
+        self.assertTrue(sent["video_url"].startswith("data:video/mp4;base64,"))
+        self.assertTrue(sent["image_url"].startswith("data:image/jpeg;base64,"))
+
     def test_the_key_is_never_given_back(self):
         status = self.film.status()
         self.assertTrue(status["key"])

@@ -563,8 +563,21 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
     }
     fun filmCap(usd: Double): String? { val j = filmPost("/api/film/cap", JSONObject().put("cap", usd)); return if (j.optBoolean("ok", false)) null else j.optString("error", "?") }
     fun filmVoice(base64: String, ext: String): String? { val j = filmPost("/api/film/voice", JSONObject().put("data", base64).put("ext", ext)); return if (j.optBoolean("ok", false)) null else j.optString("error", "?") }
-    fun filmPrepare(direction: String, says: String, aspect: String, photosBase64: List<String>, consent: Boolean, kind: String = "me"): FilmJob =
-        filmJob(filmPost("/api/film/prepare", JSONObject().put("direction", direction).put("says", says).put("aspect", aspect).put("consent", consent).put("kind", kind).put("photos", org.json.JSONArray(photosBase64))))
+    fun filmPrepare(direction: String, says: String, aspect: String, photosBase64: List<String>, consent: Boolean, kind: String = "me", photosProductBase64: List<String> = emptyList(), swap: String = "product"): FilmJob =
+        filmJob(filmPost("/api/film/prepare", JSONObject().put("direction", direction).put("says", says).put("aspect", aspect).put("consent", consent).put("kind", kind).put("swap", swap)
+            .put("photos", org.json.JSONArray(photosBase64)).put("photos_product", org.json.JSONArray(photosProductBase64))))
+
+    /** The person's own video, for a replacement: sent as it is (raw bytes), the quote comes back. Blocking (off the main thread). */
+    fun filmSource(id: String, input: java.io.InputStream, length: Long): FilmJob = try {
+        val connection = URI("$baseUrl/api/film/source?id=$id").toURL().openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.doOutput = true
+        connection.readTimeout = 300_000
+        if (length > 0) connection.setFixedLengthStreamingMode(length) else connection.setChunkedStreamingMode(0)
+        connection.setRequestProperty("Content-Type", "application/octet-stream")
+        connection.outputStream.use { out -> input.use { it.copyTo(out) } }
+        filmJob(JSONObject(connection.inputStream.bufferedReader().use { it.readText() }))
+    } catch (e: Exception) { filmJob(JSONObject().put("ok", false).put("error", e.message ?: "?")) }
     fun filmEdit(id: String, index: Int, situation: String?, says: String?, remove: Boolean = false): FilmJob =
         filmJob(filmPost("/api/film/edit", JSONObject().put("id", id).put("index", index).apply { if (situation != null) put("situation", situation); if (says != null) put("says", says); put("remove", remove) }))
     fun filmStart(id: String): FilmJob = filmJob(filmPost("/api/film/start", JSONObject().put("id", id).put("confirmed", true)))
