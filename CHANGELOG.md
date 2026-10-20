@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **A message from an outside agent goes into the super agent's session, and the person can answer it** (brain 162): the brain writes it into the agent's Claude session as « [Aiwa — message d'un agent externe : NOM] », data and never an order (the name is the one the agent gives itself, nothing proves it); no more voice, no more red button, and the settings list shows only when it came and whether it was delivered, never the text (a message that finds no agent session is tried again for an hour). « réponds à ChatGPT : … » to the agent: it adds `reply` to its command, and the brain leaves the answer in the Worker (`/<key>/reply`, 24 h), where the other agent reads it with its second tool `lire_les_reponses` (or in the result of its next `envoyer_au_super_agent`): an agent cannot be called, it has to come and look. Only a sender that wrote through the door can be answered. Tested with fake calls only; the Worker must be redeployed from `docs/mcp/worker.js`.
+
 - **« Mon Worker » says it saved** (brain 161): the screen shows the saved address, keeps the saved key when the field is left empty (it is never shown again), says « Enregistré ✓ » and goes back to « Agents externes », where the Worker's address and the last messages are. Before, it closed in silence and reopened empty.
 
 - **Saving the Worker's address no longer fails on a phone that has kept no app** (brain 160): the owner-only file went into `~/.aiwa_store_apps`, which does not exist until an app is kept; the brain dropped the connection (« unexpected end of stream »). The folder is now created, and any write error comes back as a message.

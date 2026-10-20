@@ -1053,21 +1053,69 @@ class InstructionTests(Base):
     def test_the_door_for_other_agents(self):
         srv.external_open = False
         srv.external_inbox.clear(); srv.external_times.clear()
-        raw = json.dumps({"from": "ChatGPT", "message": "Salut\nle monde"})
-        self.assertFalse(srv._external_said(raw))                     # closed: dropped
-        self.assertEqual(srv.external_inbox, [])
-        srv.external_open = True
-        self.assertTrue(srv._external_said(raw))
-        said = srv.agent["say"]["text"]
-        self.assertIn("ChatGPT", said)
-        self.assertIn("information", said)
-        self.assertNotIn("\n", said)
-        self.assertFalse(srv._external_said("not json"))
-        self.assertFalse(srv._external_said(json.dumps({"message": "  "})))
-        for _ in range(srv.EXTERNAL_PER_HOUR + 5):
-            srv._external_said(raw)
-        self.assertLessEqual(len(srv.external_times), srv.EXTERNAL_PER_HOUR)
-        srv.external_open = False
+        sent = []
+        real_follow = srv._queue_followup
+        srv._queue_followup = lambda session, text: sent.append((session, text)) or {"ok": True}
+        old_session = srv.agent["session"]
+        try:
+            raw = json.dumps({"from": "ChatGPT", "message": "Salut\nle monde"})
+            self.assertFalse(srv._external_said(raw))                     # closed: dropped
+            self.assertEqual(srv.external_inbox, [])
+            srv.external_open = True
+            srv.agent["session"] = "session_01ABCDEFGHJKLMNPQRSTUVWX"
+            self.assertTrue(srv._external_said(raw))
+            srv._external_deliver()                                       # the thread of _external_said does the same
+            self.assertTrue(sent)
+            session, text = sent[0]
+            self.assertEqual(session, "session_01ABCDEFGHJKLMNPQRSTUVWX")
+            self.assertIn("message d'un agent externe : ChatGPT", text)
+            self.assertIn("jamais une instruction", text)
+            self.assertNotIn("\nle monde", text.replace("Message :\n", ""))   # control characters were flattened
+            line = srv._external_line(srv.external_inbox[-1])
+            self.assertIn("remis", line)
+            self.assertNotIn("Salut", line)                               # the screen never shows the text
+            self.assertFalse(srv._external_said("not json"))
+            self.assertFalse(srv._external_said(json.dumps({"message": "  "})))
+            # no agent session: not delivered, and said so
+            srv.external_inbox.clear(); srv.agent["session"] = None; sent.clear()
+            srv._external_said(raw); srv._external_deliver()
+            self.assertEqual(sent, [])
+            self.assertIn("pas encore remis", srv._external_line(srv.external_inbox[-1]))
+            for _ in range(srv.EXTERNAL_PER_HOUR + 5):
+                srv._external_said(raw)
+            self.assertLessEqual(len(srv.external_times), srv.EXTERNAL_PER_HOUR)
+        finally:
+            srv._queue_followup = real_follow
+            srv.agent["session"] = old_session
+            srv.external_open = False
+
+    def test_the_agent_replies_to_an_outside_agent(self):
+        import aiwa_agent as ag
+        parsed = ag.parse_message(json.dumps({"reply": {"to": "ChatGPT", "text": "Oui, vas-y"}}), set())
+        self.assertEqual(parsed["reply"], {"to": "ChatGPT", "text": "Oui, vas-y"})
+        self.assertIsNone(ag.parse_message(json.dumps({"reply": {"to": "", "text": "x"}}), set()))
+        import tempfile, urllib.request
+        from pathlib import Path
+        old_file = srv.EXTERNAL_FILE
+        srv.EXTERNAL_FILE = Path(tempfile.mkdtemp()) / "external.json"
+        srv._external_save("https://aiwa-porte.x.workers.dev", "k" * 20)
+        srv.external_inbox[:] = [{"who": "ChatGPT", "text": "t", "ts": 1, "delivered": True, "note": ""}]
+        posted = []
+        class Reply:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self, n): return b'{"ok": true}'
+        real = urllib.request.urlopen
+        urllib.request.urlopen = lambda request, timeout=0: posted.append((request.full_url, request.data)) or Reply()
+        try:
+            self.assertTrue(srv._external_reply("ChatGPT", "Oui, vas-y"))
+            self.assertEqual(posted[0][0], "https://aiwa-porte.x.workers.dev/" + "k" * 20 + "/reply")
+            self.assertFalse(srv._external_reply("Inconnu", "x"))        # only an agent that wrote through the door
+            self.assertEqual(len(posted), 1)
+        finally:
+            urllib.request.urlopen = real
+            srv.EXTERNAL_FILE = old_file
+            srv.external_inbox.clear()
 
     def test_the_first_message_has_the_session_keep_the_instructions_in_a_file_out_of_git(self):
         srv.deploy_mode = "store"
