@@ -30,13 +30,17 @@ object VoskModelStore {
     fun lastHash(context: Context): String? = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("model_sha256", null)
 
     /** Downloads and unpacks the model. Null when it is there; otherwise why not. Blocking: call it off the main thread. */
-    fun download(context: Context, onProgress: (Int) -> Unit): String? {
+    fun download(context: Context, onProgress: (Int) -> Unit): String? =
+        fetch(context, MODEL_URL, dir(context), listOf("am/final.mdl", "conf/model.conf"), "model_sha256", onProgress)
+
+    /** The same, for any Vosk archive (the speaker model too): `markers` are the files that must be in it. */
+    internal fun fetch(context: Context, url: String, target: File, markers: List<String>, hashKey: String, onProgress: (Int) -> Unit): String? {
         val root = File(context.filesDir, "vosk")
-        val temp = File(root, "model.tmp")
+        val temp = File(root, target.name + ".tmp")
         try {
             temp.deleteRecursively()
             if (!temp.mkdirs()) return "dossier impossible à créer"
-            val connection = URL(MODEL_URL).openConnection() as HttpURLConnection
+            val connection = URL(url).openConnection() as HttpURLConnection
             connection.connectTimeout = 20_000
             connection.readTimeout = 30_000
             if (connection.responseCode != 200) return "le site du modèle répond ${connection.responseCode}"
@@ -85,13 +89,12 @@ object VoskModelStore {
                     entry = zip.nextEntry
                 }
             }
-            if (!File(temp, "am/final.mdl").isFile || !File(temp, "conf/model.conf").isFile) return "l'archive n'a pas la forme d'un modèle Vosk"
+            if (markers.any { !File(temp, it).isFile }) return "l'archive n'a pas la forme d'un modèle Vosk"
             val hash = digest.digest().joinToString("") { "%02x".format(it) }
-            val target = dir(context)
             target.deleteRecursively()
             target.parentFile?.mkdirs()
             if (!temp.renameTo(target)) return "modèle impossible à placer"
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("model_sha256", hash).apply()
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(hashKey, hash).apply()
             return null
         } catch (err: Exception) {
             return err.message ?: err.javaClass.simpleName
@@ -99,4 +102,13 @@ object VoskModelStore {
             temp.deleteRecursively()
         }
     }
+}
+
+/** The small speaker model of Vosk (about 13 MB, Apache 2.0): it turns a voice into 128 numbers that can be compared. Downloaded once, only when « seulement ma voix » is turned on. */
+object SpeakerModelStore {
+    const val URL = "https://alphacephei.com/vosk/models/vosk-model-spk-0.4.zip"
+    fun dir(context: Context): File = File(context.filesDir, "vosk/spk")
+    fun isReady(context: Context): Boolean = File(dir(context), "final.ext.raw").isFile && File(dir(context), "mfcc.conf").isFile
+    fun download(context: Context, onProgress: (Int) -> Unit): String? =
+        VoskModelStore.fetch(context, URL, dir(context), listOf("final.ext.raw", "mfcc.conf"), "spk_sha256", onProgress)
 }

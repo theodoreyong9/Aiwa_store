@@ -32,6 +32,7 @@ import kotlin.coroutines.resume
 import org.vosk.LibVosk
 import org.vosk.LogLevel
 import org.vosk.Model
+import org.vosk.SpeakerModel
 
 /** Whether the person turned the always-on listening on (off until they do, in the app's screen). */
 object ListenSettings {
@@ -214,6 +215,7 @@ class WakeWordService : Service() {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var preparing: Job? = null
     private var model: Model? = null
+    private var speakerModel: SpeakerModel? = null
     private var detector: WakeWordDetector? = null
     private var dictation: VoiceDictation? = null
     private var lock: PowerManager.WakeLock? = null
@@ -624,8 +626,12 @@ class WakeWordService : Service() {
         if (paused || dictation != null) return
         say("À l'écoute : dis « " + WakeWordSettings.name(this, "liaison").ifBlank { "mon super agent" } + " » pour parler au super agent, ou « stop Claude »")
         holdCpu(true)
+        // « Seulement ma voix »: with the owner's print and the speaker model, a wake word said by another voice does not wake the phone
+        val print = if (VoiceLock.enabled(this) && SpeakerModelStore.isReady(this)) VoiceLock.print(this) else null
+        val speaker = if (print == null) null else speakerModel ?: try { SpeakerModel(SpeakerModelStore.dir(this).absolutePath).also { speakerModel = it } } catch (err: Throwable) { null }
         detector = WakeWordDetector(
             model = current,
+            speaker = speaker, print = if (speaker != null) print else null, maxDistance = VoiceLock.maxDistance(this),
             custom = WakeWordSettings.variants(this),
             liaison = WakeWordSettings.variants(this, "liaison"),
             more = WakeWordSettings.customs(this),

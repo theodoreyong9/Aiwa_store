@@ -26,6 +26,10 @@ class WakeWordDetector(
     private val liaison: List<String> = emptyList(),
     /** The spellings chosen for instruction, stop, éteins and renvoi (empty lists = the words of origin only). */
     private val more: com.aiwa.bridge.WakeCustoms = com.aiwa.bridge.WakeCustoms(),
+    /** « Seulement ma voix »: the speaker model, the owner's print and how far a voice may be from it (null = no check). */
+    private val speaker: org.vosk.SpeakerModel? = null,
+    private val print: DoubleArray? = null,
+    private val maxDistance: Double = 0.55,
     private val onWake: (WakeKind) -> Unit,
     private val onFailure: (String) -> Unit,
     /** True while a sound or a video plays on the phone (another app). With [pauseOnMedia], the microphone is then given back and listening waits: a video is never paused by it, and its own sound is never taken for a word. */
@@ -98,6 +102,7 @@ class WakeWordDetector(
         try {
             Recognizer(model, sampleRate.toFloat(), WakeWords.grammar(custom + liaison + more.all())).use { recognizer ->
                 recognizer.setWords(true)
+                if (speaker != null && print != null) try { recognizer.setSpeakerModel(speaker) } catch (err: Throwable) { /* the check is then not done */ }
                 record.startRecording()
                 val buffer = ShortArray(2048)
                 while (running) {
@@ -112,7 +117,16 @@ class WakeWordDetector(
                     val result = JSONObject(recognizer.result)
                     if (!sure(result)) continue
                     val heard = result.optString("text")
-                    val kind = if (heard.isEmpty()) null else wakeKind(heard, custom, liaison, more)
+                    var kind = if (heard.isEmpty()) null else wakeKind(heard, custom, liaison, more)
+                    // Only the wake words are checked against the owner's voice: « stop », « éteins » and the others always work
+                    if (kind != null && print != null && speaker != null && (kind == WakeKind.AGENT || kind == WakeKind.LIAISON)) {
+                        val array = result.optJSONArray("spk")
+                        // no print in the result (too little voice to measure): not refused, a measure that cannot be made must not lock the owner out
+                        if (array != null && array.length() >= 64) {
+                            val voice = DoubleArray(array.length()) { array.optDouble(it) }
+                            if (VoiceLock.distance(voice, print) > maxDistance) kind = null
+                        }
+                    }
                     if (kind != null) { woken = kind; running = false }
                 }
             }
