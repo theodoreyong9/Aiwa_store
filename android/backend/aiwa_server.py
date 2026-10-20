@@ -62,7 +62,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 157
+BACKEND_VERSION = 158
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -244,6 +244,11 @@ ci_announced = {}
 # When the user last sent a message through Aiwa (epoch seconds, persisted): a green
 # commit only counts as news if its runs finished after it.
 last_message_at = 0
+# The door for other agents (docs/mcp/worker.js drops their message on the relay, title aiwa-ext): closed until the person opens it in Settings.
+external_open = False
+external_inbox = []      # the last messages that came in, newest last: [{who, text, ts}]
+external_times = []      # when messages were taken, to keep a flood out
+EXTERNAL_MAX, EXTERNAL_PER_HOUR = 600, 20
 REPOS_STORE = Path.home() / ".aiwa_repos.json"
 FAVORITES_STORE = Path.home() / ".aiwa_favorite_repos.json"
 store_lock = threading.Lock()
@@ -254,7 +259,7 @@ followup_lock = threading.Lock()
 
 def _load_state():
     global current_model, current_cloud, current_repo, push_main, deploy_mode, extra, video_quality, video_format
-    global current_effort, waiting_topic, last_cloud, sent_app, ask_list, last_message_at, repo_access_missing
+    global current_effort, waiting_topic, last_cloud, sent_app, ask_list, last_message_at, repo_access_missing, external_open
     try:
         data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -294,6 +299,7 @@ def _load_state():
         ci_seen.update({k: v for k, v in seen.items() if isinstance(k, str) and isinstance(v, str)})
     sent = data.get("last_message")
     last_message_at = sent if isinstance(sent, int) else 0
+    external_open = data.get("external_open") is True
     checked = data.get("relay_cloud")
     if isinstance(checked, dict):
         relay_cloud.update({k: checked.get(k) if isinstance(checked.get(k), (int, float)) else None for k in ("asked", "ok")})
@@ -333,7 +339,7 @@ def _save_state():
             "push_main": push_main, "deploy": deploy_mode, "video_quality": video_quality, "video_format": video_format, "extra": extra, "extra_repos": extra_repos, "source_repos": source_repos,
             "effort": current_effort, "topic": waiting_topic, "last_cloud": last_cloud, "ci_seen": ci_seen,
             "relay_cloud": relay_cloud, "sent_app": sent_app, "ask_list": ask_list, "relay_seen": relay_seen, "last_message": last_message_at,
-            "repo_access_missing": repo_access_missing,
+            "repo_access_missing": repo_access_missing, "external_open": external_open,
         }), encoding="utf-8")
     except OSError as err:
         print(f"[{_ts()}] could not save state: {err}", flush=True)
@@ -4480,6 +4486,53 @@ def _sent_app_seen():
             _save_state()
 
 
+def _external_said(raw):
+    """A message from another agent through the door (title aiwa-ext, from docs/mcp/worker.js): said aloud as information, never as an order, and kept in a short list.
+    Nothing it says is executed. Dropped when the door is closed, and past EXTERNAL_PER_HOUR messages an hour."""
+    with lock:
+        opened = external_open
+    if not opened:
+        print(f"[{_ts()}] external message dropped: the door is closed", flush=True)
+        return False
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        data = None
+    if not isinstance(data, dict):
+        return False
+    text = re.sub(r"[\x00-\x1f]+", " ", str(data.get("message") or "")).strip()[:EXTERNAL_MAX]
+    who = re.sub(r"[\x00-\x1f]+", " ", str(data.get("from") or "")).strip()[:40] or "un agent externe"
+    if not text:
+        return False
+    stamp = time.time()
+    with lock:
+        external_times[:] = [t for t in external_times if stamp - t < 3600]
+        if len(external_times) >= EXTERNAL_PER_HOUR:
+            print(f"[{_ts()}] external message dropped: too many in an hour", flush=True)
+            return False
+        external_times.append(stamp)
+        external_inbox.append({"who": who, "text": text, "ts": int(stamp)})
+        del external_inbox[:-20]
+    with agent_lock:
+        agent["say"] = {"id": f"s{int(stamp * 1000)}", "text": f"Message de {who}, à prendre comme une information : {text}", "ts": int(stamp), "spoken": False}
+    print(f"[{_ts()}] external message from {who}: {len(text)} characters", flush=True)
+    return True
+
+
+def external_api(path, body):
+    global external_open
+    if path == "/api/external/open":
+        try:
+            data = json.loads(body) if body.strip() else {}
+        except ValueError:
+            data = {}
+        with lock:
+            external_open = isinstance(data, dict) and data.get("open") is True
+        _save_state()
+    with lock:
+        return {"ok": True, "open": external_open, "topic": waiting_topic, "inbox": list(external_inbox)[-5:]}
+
+
 def _relay_event(event):
     """One message of the relay topic: an app (title aiwa-app, or a *.app.html / *.aiwa.html attachment), the relay
     test (title aiwa-check) or Claude's "I wait for you" ping."""
@@ -4501,6 +4554,8 @@ def _relay_event(event):
     elif title == "aiwa-agent":
         _agent_said(event.get("message"))
         _cloud_check_seen()
+    elif title == "aiwa-ext":
+        _external_said(event.get("message"))
     elif title == "aiwa-ask":
         _ask_set(event.get("message"), event.get("id"))
         _cloud_check_seen()
@@ -4701,6 +4756,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(_all_snapshot((query.get("kind") or [""])[0], refresh=(query.get("refresh") or [""])[0] == "1"))
         elif self.path == "/api/documents":
             self.reply_json(_documents_snapshot())
+        elif self.path == "/api/external/status":
+            self.reply_json(external_api("/api/external/status", ""))
         elif self.path == "/api/stock/status":
             self.reply_json({"ok": True, **stock.status(), "clips": [{**c, "saved": stock_saved.get(c.get("id", ""), {}).get("state", "none"), "saved_error": stock_saved.get(c.get("id", ""), {}).get("error", "")} for c in stock.clips()][:30]})
         elif self.path == "/api/film/info":
@@ -4759,6 +4816,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(film_api(self.path, body))
         elif self.path.startswith("/api/stock/"):
             self.reply_json(stock_api(self.path, body))
+        elif self.path == "/api/external/open":
+            self.reply_json(external_api(self.path, body))
         elif self.path == "/api/media_delete":
             try:
                 data = json.loads(body) if body.strip() else {}

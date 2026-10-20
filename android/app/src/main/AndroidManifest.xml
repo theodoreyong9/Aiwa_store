@@ -149,6 +149,7 @@
         <activity android:name=".ListenToggleActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:taskAffinity="" android:excludeFromRecents="true" />
         <!-- Free stock videos with the person's own keys (StockActivities.kt). -->
         <activity android:name=".StockSettingsActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
+        <activity android:name=".ExternalActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
         <activity android:name=".StockKeyActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
         <activity android:name=".StockSearchActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
         <!-- The loops between two sessions, a builder and a critic (LoopsActivity.kt). -->

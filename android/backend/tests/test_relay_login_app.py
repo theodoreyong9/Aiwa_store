@@ -1015,6 +1015,25 @@ class InstructionTests(Base):
         # read-only: it must not contradict the rule that only the session's repositories are touched
         self.assertNotIn("add_repo", text)
 
+    def test_the_door_for_other_agents(self):
+        srv.external_open = False
+        srv.external_inbox.clear(); srv.external_times.clear()
+        raw = json.dumps({"from": "ChatGPT", "message": "Salut\nle monde"})
+        self.assertFalse(srv._external_said(raw))                     # closed: dropped
+        self.assertEqual(srv.external_inbox, [])
+        srv.external_open = True
+        self.assertTrue(srv._external_said(raw))
+        said = srv.agent["say"]["text"]
+        self.assertIn("ChatGPT", said)
+        self.assertIn("information", said)
+        self.assertNotIn("\n", said)
+        self.assertFalse(srv._external_said("not json"))
+        self.assertFalse(srv._external_said(json.dumps({"message": "  "})))
+        for _ in range(srv.EXTERNAL_PER_HOUR + 5):
+            srv._external_said(raw)
+        self.assertLessEqual(len(srv.external_times), srv.EXTERNAL_PER_HOUR)
+        srv.external_open = False
+
     def test_the_first_message_has_the_session_keep_the_instructions_in_a_file_out_of_git(self):
         srv.deploy_mode = "store"
         first, told = srv._compose({}, None, "w", "main", True)

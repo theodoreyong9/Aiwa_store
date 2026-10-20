@@ -581,6 +581,12 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
     fun filmEdit(id: String, index: Int, situation: String?, says: String?, remove: Boolean = false): FilmJob =
         filmJob(filmPost("/api/film/edit", JSONObject().put("id", id).put("index", index).apply { if (situation != null) put("situation", situation); if (says != null) put("says", says); put("remove", remove) }))
     fun filmStart(id: String): FilmJob = filmJob(filmPost("/api/film/start", JSONObject().put("id", id).put("confirmed", true)))
+    fun externalStatus(): ExternalStatus? = try { externalOf(JSONObject(getText("/api/external/status"))) } catch (e: Exception) { null }
+    fun externalOpen(open: Boolean): ExternalStatus? = try { externalOf(filmPost("/api/external/open", JSONObject().put("open", open))) } catch (e: Exception) { null }
+    private fun externalOf(j: JSONObject): ExternalStatus {
+        val a = j.optJSONArray("inbox")
+        return ExternalStatus(j.optBoolean("open"), j.optString("topic"), if (a == null) emptyList() else (0 until a.length()).map { val m = a.getJSONObject(it); m.optString("who") + " : " + m.optString("text") })
+    }
     fun stockStatus(): StockStatus? = try {
         val j = JSONObject(getText("/api/stock/status"))
         val a = j.optJSONArray("clips")
