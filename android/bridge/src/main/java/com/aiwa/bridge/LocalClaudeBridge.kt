@@ -545,7 +545,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
             FilmScene(x.optString("situation"), x.optInt("seconds", 5), x.optString("says"), x.optDouble("price", 0.0), x.optBoolean("done", false))
         }
         return FilmJob(json.optBoolean("ok", false), json.optString("error"), json.optString("id"), json.optString("state"), json.optString("step"), json.optDouble("total", 0.0),
-            json.optBoolean("over_cap", false), json.optString("aspect", "9:16"), scenes)
+            json.optBoolean("over_cap", false), json.optString("aspect", "9:16"), scenes, json.optString("saved", "none"), json.optString("saved_error"))
     }
 
     private fun filmPost(path: String, body: JSONObject): JSONObject = try { JSONObject(postText(path, body.toString())) } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: "?") }
@@ -567,6 +567,17 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
     fun filmEdit(id: String, index: Int, situation: String?, says: String?, remove: Boolean = false): FilmJob =
         filmJob(filmPost("/api/film/edit", JSONObject().put("id", id).put("index", index).apply { if (situation != null) put("situation", situation); if (says != null) put("says", says); put("remove", remove) }))
     fun filmStart(id: String): FilmJob = filmJob(filmPost("/api/film/start", JSONObject().put("id", id).put("confirmed", true)))
+    fun filmInfo(): FilmInfo? = try {
+        val j = JSONObject(getText("/api/film/info"))
+        FilmInfo(j.optString("repo").takeIf { it.isNotBlank() && it != "null" }, if (j.isNull("public")) null else j.optBoolean("public"), j.optBoolean("gh"))
+    } catch (e: Exception) { null }
+
+    /** (true, null) when the saving started; (false, why, and the message tells to connect gh). */
+    fun filmPublish(id: String): Pair<Boolean, String?> {
+        val j = filmPost("/api/film/publish", JSONObject().put("id", id))
+        return if (j.optBoolean("ok", false)) true to null else false to j.optString("error", "?")
+    }
+
     fun filmGet(id: String): FilmJob = filmJob(try { JSONObject(getText("/api/film/get?id=$id")) } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: "?") })
 
     /** The pictures of the repository in use (the files of docs/images/), the most recently changed first. */

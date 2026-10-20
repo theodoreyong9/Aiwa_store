@@ -174,6 +174,58 @@ class FilmTests(unittest.TestCase):
         self.assertFalse(self.film.save_key("pas une clé!")["ok"])
 
 
+class FilmKeepingTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def make(self):
+        film = film_lib.Film(home=Path(self.tmp.name), planner=lambda d, s, n, k="me": {"scenes": [{"situation": "une scène", "seconds": 5, "says": ""}, {"situation": "une autre", "seconds": 5, "says": ""}]}, sleep=lambda s: None)
+        film.save_key("abcd1234:efgh5678abcd1234")
+        return film
+
+    def test_a_film_can_be_retouched_after_the_brain_restarts(self):
+        first = self.make()
+        quote = first.prepare("un film", photos=[b"jpg"], consent=True)
+        again = self.make()          # a new brain: the plan comes back from the disk
+        view = again.edit(quote["id"], 0, situation="une scène changée")
+        self.assertTrue(view["ok"], view)
+        self.assertEqual(view["scenes"][0]["situation"], "une scène changée")
+
+    def test_deleting_the_film_keeps_the_drafts_unless_asked(self):
+        film = self.make()
+        quote = film.prepare("un film", photos=[b"jpg"], consent=True)
+        folder = film.home / quote["id"]
+        (folder / "film.mp4").write_bytes(b"x")
+        (folder / "scene_abc.mp4").write_bytes(b"y")
+        self.assertTrue(film.delete(quote["id"], drafts=False)["ok"])
+        self.assertFalse((folder / "film.mp4").exists())
+        self.assertTrue((folder / "scene_abc.mp4").exists() and (folder / "photo0.jpg").exists(), "photos, plan and scene clips stay")
+        self.assertTrue(film.get(quote["id"])["ok"], "and it can be retouched")
+        (folder / "film.mp4").write_bytes(b"x")
+        self.assertTrue(film.delete(quote["id"], drafts=True)["ok"])
+        self.assertFalse(folder.exists())
+
+    def test_saving_in_github_says_what_to_do_when_it_cannot(self):
+        import aiwa_server as srv
+        old = (srv.film, srv.github.gh_path, srv._chosen_repo, srv.ATTACH_MAX)
+        film = self.make()
+        quote = film.prepare("un film", photos=[b"jpg"], consent=True)
+        job = film.jobs[quote["id"]]
+        (job["dir"] / "film.mp4").write_bytes(b"x" * 2048)
+        job["film"] = "film.mp4"
+        try:
+            srv.film, srv.github.gh_path, srv._chosen_repo = film, (lambda: None), (lambda: "me/site")
+            srv.ATTACH_MAX = 1024       # the film is bigger than the relay accepts
+            answer = srv.film_publish(quote["id"])
+            self.assertFalse(answer["ok"])
+            self.assertEqual(answer["needs"], "gh")
+            self.assertIn("gh auth login", film.get(quote["id"])["saved_error"])
+            self.assertEqual(film.get(quote["id"])["saved"], "failed")
+        finally:
+            srv.film, srv.github.gh_path, srv._chosen_repo, srv.ATTACH_MAX = old
+
+
 if __name__ == "__main__":
     unittest.main()
 
@@ -188,7 +240,7 @@ class FilmServerTests(unittest.TestCase):
                 folder = srv.film.home / "0123456789"
                 folder.mkdir()
                 (folder / "film.mp4").write_bytes(b"x")
-                self.assertTrue(srv.media_delete("film", "http://127.0.0.1:8765/api/film/file/0123456789.mp4")["ok"])
+                self.assertTrue(srv.media_delete("film", "http://127.0.0.1:8765/api/film/file/0123456789.mp4", "drafts")["ok"])
                 self.assertFalse(folder.exists())
                 self.assertFalse(srv.media_delete("film", "0123456789")["ok"])
             finally:

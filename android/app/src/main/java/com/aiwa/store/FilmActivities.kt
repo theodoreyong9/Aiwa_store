@@ -352,6 +352,20 @@ class FilmQuoteActivity : ComponentActivity() {
                 }
             }
 
+            // Follow-up of the saving in GitHub (a session may take minutes)
+            val saving = job?.saved == "pending"
+            LaunchedEffect(saving) {
+                if (!saving) return@LaunchedEffect
+                while (true) {
+                    delay(5_000)
+                    val next = withContext(Dispatchers.IO) { LocalClaudeBridge().filmGet(id) }
+                    job = next
+                    if (next.saved != "pending") break
+                }
+            }
+            var info by remember { mutableStateOf<com.aiwa.bridge.FilmInfo?>(null) }
+            LaunchedEffect(job?.state) { if (job?.state == "done") info = withContext(Dispatchers.IO) { LocalClaudeBridge().filmInfo() } }
+
             FilmSheet({ if (job?.state != "running") finish() }) {
                 val j = job
                 Text("Devis du film", style = MaterialTheme.typography.titleMedium)
@@ -372,7 +386,27 @@ class FilmQuoteActivity : ComponentActivity() {
                     when (j.state) {
                         "running" -> Text("En cours : ${j.step}…", style = MaterialTheme.typography.bodyMedium)
                         "done" -> {
-                            Text("Terminé ✓ Il est en tête de la liste des vidéos.", style = MaterialTheme.typography.bodyMedium)
+                            Text("Terminé ✓ Il est en tête de la liste des vidéos, sur ce téléphone.", style = MaterialTheme.typography.bodyMedium)
+                            val where = info
+                            when (j.saved) {
+                                "saved" -> Text("Sauvegardé dans GitHub ✓", style = MaterialTheme.typography.bodyMedium)
+                                "pending" -> Text("Sauvegarde dans GitHub en cours… (une session le dépose, quelques minutes)", style = MaterialTheme.typography.bodyMedium)
+                                else -> {
+                                    if (j.saved == "failed") Text(j.savedError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                    else Text("Seulement sur ce téléphone pour l'instant.", style = MaterialTheme.typography.bodySmall, color = SheetDim)
+                                    if (where?.repo == null) Text("Choisis un dépôt (le bouton du widget) pour le sauvegarder dans GitHub.", style = MaterialTheme.typography.bodySmall, color = SheetDim)
+                                    else {
+                                        if (where.isPublic == true) Text("Le dépôt ${where.repo} est public : le film sera visible par tous.", style = MaterialTheme.typography.bodySmall, color = SheetDim)
+                                        Button(onClick = {
+                                            scope.launch {
+                                                val result = withContext(Dispatchers.IO) { LocalClaudeBridge().filmPublish(id) }
+                                                job = withContext(Dispatchers.IO) { LocalClaudeBridge().filmGet(id) }
+                                                if (!result.first) toastOnMain(applicationContext, result.second ?: "Sauvegarde impossible.")
+                                            }
+                                        }, modifier = Modifier.fillMaxWidth()) { Text("Sauvegarder dans GitHub (${where.repo})") }
+                                    }
+                                }
+                            }
                             Button(onClick = { startActivity(Intent(this@FilmQuoteActivity, VideosActivity::class.java)); finish() }, modifier = Modifier.fillMaxWidth()) { Text("Voir mes vidéos") }
                         }
                         "error" -> {

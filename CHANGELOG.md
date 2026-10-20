@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Films of the person and of a product, kept (brain 152): a finished film can be saved in the release `films` of the repository in use, with a warning when it is public; WITHOUT gh first (a session is asked to put it there, the file travels by the relay, the arrival is checked in the release), and when that does not work or the film is too big for the relay, the person is told to connect gh in Termux (`pkg install gh`, `gh auth login`) and, with gh connected, it goes straight to GitHub. The drafts (photos, plan, scene clips) stay in Termux only; the plan is now kept on disk, so a film can still be retouched after Termux restarts. Deleting a film offers « the film only » or « the film and its drafts ».
+
 - « Film de produit » (brain 151), on the same circuit as « Film de moi » (same fal key, quote, cap, nothing paid before the confirmation; Média → Film de produit, or by voice « fais-moi un film de produit… »): photos of the product from several angles are the references (Kling O1 keeps it identical from one scene to the next), the scenes show it in use, in hand, in close-up; a voice-over written by the person is read in the phone's own natural voice (free: no cloning, no lip-sync, so only the pictures are paid), and the film is marked « généré par IA ». The words are hers only; no figure, test or review is invented.
 
 - Conversation fluide, for real: you can speak over the voice (the microphone listens as a call's, with the phone's echo canceller when it has one; the voice stops and the listening opens), the end of what you say is waited for less long (0.9 s instead of 2 s), and a question whose words stopped changing for 0.7 s is taken as said without waiting for the recognizer.

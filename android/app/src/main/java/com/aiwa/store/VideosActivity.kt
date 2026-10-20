@@ -123,18 +123,29 @@ private fun VideosWindow(onClose: () -> Unit) {
 
     val sure = asking
     // Nothing is deleted without the confirming tap
-    val confirm = if (sure == null) null else listOf(
+    val isFilm = sure?.url?.contains("/api/film/file/") == true
+    val confirm = if (sure != null && isFilm) listOf(
+        PickerEntry("Supprimer « ${sure.name} » de ce téléphone ?", false, header = true, lines = 2) { },
+        PickerEntry("Le film seul (garder les brouillons pour le retoucher)", false, lines = 2, button = true) {
+            asking = null
+            scope.launch { if (deleteMedia(context, "film", sure.url)) { list = null; list = try { bridge.videos() } catch (err: Exception) { null } } }
+        },
+        PickerEntry("Le film et ses brouillons (plus de retouche possible)", false, lines = 2, button = true) {
+            asking = null
+            scope.launch { if (deleteMedia(context, "film", sure.url, "drafts")) { list = null; list = try { bridge.videos() } catch (err: Exception) { null } } }
+        },
+        PickerEntry("Non, garder", false, lines = 1, button = true) { asking = null },
+    ) else if (sure == null) null else listOf(
         PickerEntry("Supprimer « ${sure.name} » ?", false, header = true, lines = 2) { },
         PickerEntry("Oui, supprimer", false, lines = 1, button = true) {
             asking = null
             scope.launch {
-                if (sure.url.contains("/api/film/file/")) {
-                    // a film made on this phone: deleted from the brain
-                    if (deleteMedia(context, "film", sure.url)) { list = null; list = try { bridge.videos() } catch (err: Exception) { null } }
-                    return@launch
-                }
-                val where = if (sure.url.contains("/releases/download/")) "release" else if (!sure.url.contains("/docs/videos/")) "docs" else null
-                if (deleteMedia(context, "video", sure.name, where)) { list = null; list = try { bridge.videos() } catch (err: Exception) { null } }
+                val inRelease = sure.url.contains("/releases/download/")
+                val where = if (inRelease) "release" else if (!sure.url.contains("/docs/videos/")) "docs" else null
+                // the file's real name in the release (the list may show a nicer one), and the right release: videos, or films
+                val kind = if (sure.url.contains("/releases/download/films/")) "film" else "video"
+                val fileName = if (inRelease) android.net.Uri.decode(sure.url.substringAfterLast('/')) else sure.name
+                if (deleteMedia(context, kind, fileName, where)) { list = null; list = try { bridge.videos() } catch (err: Exception) { null } }
             }
         },
         PickerEntry("Non, garder", false, lines = 1, button = true) { asking = null },

@@ -34,7 +34,9 @@ data class ImageItem(val name: String, val url: String, val ts: Long)
 /** « Film de moi »: what the settings show (never the key), and a quote / the state of a film. */
 data class FilmStatus(val key: Boolean, val voice: Boolean, val cap: Double, val sampleText: String, val perMinute: Double)
 data class FilmScene(val situation: String, val seconds: Int, val says: String, val price: Double, val done: Boolean)
-data class FilmJob(val ok: Boolean, val error: String, val id: String, val state: String, val step: String, val total: Double, val overCap: Boolean, val aspect: String, val scenes: List<FilmScene>)
+data class FilmJob(val ok: Boolean, val error: String, val id: String, val state: String, val step: String, val total: Double, val overCap: Boolean, val aspect: String, val scenes: List<FilmScene>, val saved: String = "none", val savedError: String = "")
+/** Before saving a film in GitHub: the repository in use, whether it is public, whether gh is connected. */
+data class FilmInfo(val repo: String?, val isPublic: Boolean?, val gh: Boolean)
 
 /** The answer to a deletion: done, or why not (and `needs` = "session" when a session must be asked instead). */
 data class MediaDeleteResult(val ok: Boolean, val error: String = "", val needsSession: Boolean = false)

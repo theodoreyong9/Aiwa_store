@@ -33,6 +33,7 @@ import signal
 import struct
 import sys
 import subprocess
+import tempfile
 import termios
 import threading
 import calendar
@@ -60,7 +61,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 151
+BACKEND_VERSION = 152
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -2930,7 +2931,7 @@ def _release_assets(repo, tag):
 
 
 IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg")
-MEDIA_FOLDERS = {"video": "docs/videos", "image": "docs/images"}
+MEDIA_FOLDERS = {"video": "docs/videos", "image": "docs/images", "film": "docs/films"}
 
 
 def _images_snapshot():
@@ -2968,14 +2969,12 @@ def _images_snapshot():
 def media_delete(kind, name, path=None):
     """Deletes ONE file of the chosen repository's media folders (docs/videos, docs/images, or a video at the root of docs/) with the person's own `gh` (a commit on the default branch).
     Without a connected `gh` nothing is done and the app asks a session instead. {"ok"} | {"ok": False, "error", "needs": "session"}."""
-    if kind == "film":
+    if kind == "film" and path != "release":
         match = re.search(r"([0-9a-f]{10})", str(name or ""))
-        folder_path = film.home / match.group(1) if match else None
-        if not folder_path or not (folder_path / "film.mp4").exists():
+        if not match:
             return {"ok": False, "error": "film introuvable"}
-        shutil.rmtree(folder_path, ignore_errors=True)
-        film.jobs.pop(match.group(1), None)
-        return {"ok": True}
+        # path "drafts": the film and its drafts (photos, plan, scene clips); anything else: the final film only, the drafts stay
+        return film.delete(match.group(1), path == "drafts")
     with lock:
         repo = _chosen_repo()
     name = str(name or "")
@@ -2986,7 +2985,7 @@ def media_delete(kind, name, path=None):
         folder = "docs"
     gh = github.gh_path()
     if path == "release":
-        tag = "videos" if kind == "video" else "images"
+        tag = {"video": "videos", "image": "images", "film": "films"}[kind]
         if not gh or not github._gh_login():
             return {"ok": False, "error": "gh n'est pas connecté dans Termux", "needs": "session", "path": f"release {tag}/{name}"}
         try:
@@ -3022,7 +3021,8 @@ def _film_items(host):
     out = []
     for f in film.films():
         stamp = time.strftime("%d-%m %H:%M", time.localtime(f["ts"]))
-        out.append({"name": f"Film de {'produit' if f.get('kind') == 'product' else 'moi'} {stamp}.mp4", "size": f["path"].stat().st_size, "url": f"http://{host}/api/film/file/{f['id']}.mp4", "ts": str(f["ts"])})
+        mark = " · sauvegardé" if f.get("saved") == "saved" else ""
+        out.append({"name": f"Film de {'produit' if f.get('kind') == 'product' else 'moi'} {stamp}{mark}.mp4", "size": f["path"].stat().st_size, "url": f"http://{host}/api/film/file/{f['id']}.mp4", "ts": str(f["ts"])})
     return out
 
 
@@ -3030,7 +3030,14 @@ def _with_release_videos(repo, items):
     """The videos of the release `videos` first (newest first), then those of the folders (the older way)."""
     have = {i["name"] for i in items}
     fresh = sorted((a for a in _release_assets(repo, "videos") if a["name"].lower().endswith(VIDEO_EXT) and a["name"] not in have), key=lambda a: a["ts"], reverse=True)
-    return [{"name": a["name"], "size": 0, "url": a["url"], "ts": str(a["ts"] or "")} for a in fresh] + items
+    listed = [{"name": a["name"], "size": 0, "url": a["url"], "ts": str(a["ts"] or "")} for a in fresh]
+    # the films saved in the release `films` (the ones made on this phone are listed by _film_items: not twice)
+    local = {f["id"] for f in film.films()}
+    for a in sorted(_release_assets(repo, "films"), key=lambda x: x["ts"], reverse=True):
+        m = re.fullmatch(r"film-de-(moi|produit)-([0-9a-f]{10})\.mp4", a["name"])
+        if m and m.group(2) not in local:
+            listed.append({"name": f"Film de {m.group(1)} sauvegardé {m.group(2)[:4]}.mp4", "size": 0, "url": a["url"], "ts": str(a["ts"] or "")})
+    return listed + items
 
 
 def _videos_snapshot():
@@ -3574,6 +3581,96 @@ def _film_planner(direction, says, seconds, kind="me"):
 film = film_lib.Film(planner=_film_planner, voiceover=lambda text: voice.say(text))
 
 
+def film_info():
+    """For the « save in GitHub » step: the repository in use, whether it is public (the film would be seen by anyone), and whether gh is connected."""
+    with lock:
+        repo = _chosen_repo()
+    public = None
+    if repo and github.REPO_RE.fullmatch(repo):
+        try:
+            data = _github_json(f"https://api.github.com/repos/{repo}")
+            if isinstance(data, dict) and "private" in data:
+                public = not data["private"]
+        except GithubUnavailable:
+            public = None
+    return {"ok": True, "repo": repo, "public": public, "gh": bool(github.gh_path() and github._gh_login())}
+
+
+def _release_upload(repo, path, asset):
+    """gh: the release `films` is created if it is not there, the file is put in it (replaced if it exists). (ok, error)"""
+    gh = github.gh_path()
+    if not gh:
+        return False, "gh n'est pas installé"
+    if subprocess.run([gh, "release", "view", "films", "-R", repo], capture_output=True, timeout=60).returncode != 0:
+        made = subprocess.run([gh, "release", "create", "films", "--title", "Films", "--notes", "Films faits avec Aiwa (générés par IA)", "-R", repo], capture_output=True, text=True, timeout=120)
+        if made.returncode != 0:
+            return False, _clean((made.stderr or "") + (made.stdout or "")).strip()[-200:] or "création de la release refusée"
+    tmp = Path(tempfile.mkdtemp()) / asset
+    shutil.copy(path, tmp)
+    try:
+        done = subprocess.run([gh, "release", "upload", "films", str(tmp), "--clobber", "-R", repo], capture_output=True, text=True, timeout=1800)
+    finally:
+        shutil.rmtree(tmp.parent, ignore_errors=True)
+    if done.returncode != 0:
+        return False, _clean((done.stderr or "") + (done.stdout or "")).strip()[-200:] or "envoi refusé"
+    return True, ""
+
+
+FILM_GH_HELP = "Pour sauvegarder tes films dans GitHub, connecte GitHub dans Termux : `pkg install gh` puis `gh auth login` (une seule fois)."
+
+
+def film_publish(job_id):
+    """Saves the finished film in the release `films` of the repository in use. First WITHOUT gh (a session is asked to do it, the file travels by the relay), then it is checked that the film
+    arrived; when that does not work, or when the film is too big for the relay, the person is told to connect gh (and with gh already there it goes straight to GitHub)."""
+    job = film.jobs.get(job_id)
+    if not job or not job.get("film"):
+        return {"ok": False, "error": "film introuvable ou pas terminé"}
+    with lock:
+        repo = _chosen_repo()
+    if not repo or not github.REPO_RE.fullmatch(repo):
+        return {"ok": False, "error": "choisis d'abord un dépôt (le bouton du widget)"}
+    path = job["dir"] / job["film"]
+    asset = film.asset_name(job_id, job.get("kind"))
+    if github.gh_path() and github._gh_login():
+        film.mark_saved(job_id, "pending")
+
+        def direct():
+            try:
+                ok, error = _release_upload(repo, path, asset)
+            except (OSError, subprocess.SubprocessError) as err:
+                ok, error = False, str(err)
+            film.mark_saved(job_id, "saved" if ok else "failed", "" if ok else f"{error} {FILM_GH_HELP}")
+        threading.Thread(target=direct, daemon=True).start()
+        return {"ok": True, "via": "gh"}
+    # without gh: through a session
+    size = path.stat().st_size
+    if size > ATTACH_MAX:
+        film.mark_saved(job_id, "failed", f"le film ({size // 1048576} Mo) est trop gros pour le relais (maximum {ATTACH_MAX // 1048576} Mo). {FILM_GH_HELP}")
+        return {"ok": False, "error": film.jobs[job_id]["saved_error"], "needs": "gh"}
+    attached = attach_add(json.dumps({"name": asset, "data": base64.b64encode(path.read_bytes()).decode()}))
+    if not attached.get("ok"):
+        film.mark_saved(job_id, "failed", f"{attached.get('error')}. {FILM_GH_HELP}")
+        return {"ok": False, "error": film.jobs[job_id]["saved_error"], "needs": "gh"}
+    film.mark_saved(job_id, "pending")
+    request = (f"Dépose le fichier joint `{asset}` dans la release GitHub de tag `films` du dépôt {repo} : crée la release si elle n'existe pas "
+               f"(`gh release create films --title Films --notes \"Films faits avec Aiwa (générés par IA)\"`), puis `gh release upload films {asset} --clobber`. "
+               "Si `gh` ne marche pas dans ta session, dépose-le dans `docs/films/` du dépôt. Dis-moi en une phrase ce qui est fait.")
+
+    def send_and_watch():
+        sent = cloud_send(request)
+        if not sent.get("ok"):
+            film.mark_saved(job_id, "failed", f"la session n'a pas pu être jointe ({sent.get('error')}). {FILM_GH_HELP}")
+            return
+        for _ in range(40):          # twenty minutes
+            time.sleep(30)
+            if any(a["name"] == asset for a in _release_assets(repo, "films")):
+                film.mark_saved(job_id, "saved")
+                return
+        film.mark_saved(job_id, "failed", f"la session n'a pas déposé le film. {FILM_GH_HELP}")
+    threading.Thread(target=send_and_watch, daemon=True).start()
+    return {"ok": True, "via": "session"}
+
+
 def film_api(path, body):
     """The routes of « Film de moi » (POST, JSON in, JSON out). The photos and the voice come as base64."""
     try:
@@ -3603,6 +3700,8 @@ def film_api(path, body):
         return film.prepare(data.get("direction"), data.get("says") or "", data.get("seconds"), data.get("aspect") or "9:16", blobs(data.get("photos")), data.get("consent") is True, "product" if data.get("kind") == "product" else "me")
     if path == "/api/film/edit":
         return film.edit(str(data.get("id") or ""), int(data.get("index") or 0), data.get("situation"), data.get("says"), data.get("seconds"), data.get("remove") is True)
+    if path == "/api/film/publish":
+        return film_publish(str(data.get("id") or ""))
     if path == "/api/film/start":
         return film.start(str(data.get("id") or ""), data.get("confirmed") is True)
     return {"ok": False, "error": "route inconnue"}
@@ -4450,6 +4549,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(_all_snapshot((query.get("kind") or [""])[0], refresh=(query.get("refresh") or [""])[0] == "1"))
         elif self.path == "/api/documents":
             self.reply_json(_documents_snapshot())
+        elif self.path == "/api/film/info":
+            self.reply_json(film_info())
         elif self.path == "/api/film/status":
             self.reply_json({"ok": True, **film.status()})
         elif self.path.startswith("/api/film/get"):

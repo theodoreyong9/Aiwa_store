@@ -57,6 +57,26 @@ class Film:
         self.jobs = {}
         self._schemas = {}
         self.home.mkdir(parents=True, exist_ok=True)
+        self._load_jobs()
+
+    # ---------------- jobs kept on disk: a film can be retouched after Termux restarts ----------------
+    def _save(self, job):
+        data = {k: v for k, v in job.items() if k != "dir"}
+        try:
+            (job["dir"] / "job.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
+
+    def _load_jobs(self):
+        for path in self.home.glob("*/job.json"):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                data["dir"] = path.parent
+                if data.get("state") == "running":       # the brain stopped while it ran: what was made is kept, the rest can be started again
+                    data.update(state="quoted", step="", error="interrompu : relance pour terminer")
+                self.jobs[data["id"]] = data
+            except (OSError, ValueError, KeyError):
+                continue
 
     # ---------------- the key, the voice, the cap ----------------
     def _key(self):
@@ -333,6 +353,7 @@ class Film:
         self.quote(job)
         with self.lock:
             self.jobs[job_id] = job
+        self._save(job)
         return {"ok": True, **self.view(job)}
 
     def edit(self, job_id, index, situation=None, says=None, seconds=None, remove=False):
@@ -355,12 +376,13 @@ class Film:
                 scene["seconds"] = 10 if int(seconds) > 7 else 5
         job["state"], job["error"] = "quoted", None
         self.quote(job)
+        self._save(job)
         return {"ok": True, **self.view(job)}
 
     @staticmethod
     def view(job):
         return {"id": job["id"], "state": job["state"], "step": job["step"], "error": job["error"], "total": job.get("total", 0), "over_cap": job.get("over_cap", False),
-                "aspect": job["aspect"], "film": job["film"], "label": AI_LABEL, "kind": job["kind"],
+                "aspect": job["aspect"], "film": job["film"], "label": AI_LABEL, "kind": job["kind"], "saved": job.get("saved", "none"), "saved_error": job.get("saved_error", ""),
                 "scenes": [{"situation": s["situation"], "seconds": s["seconds"], "says": s["says"], "price": s.get("price", 0), "done": s.get("done", False)} for s in job["scenes"]]}
 
     def get(self, job_id):
@@ -428,6 +450,7 @@ class Film:
             job["step"] = "assemblage"
             job["film"] = self._assemble(job, clips)
             job.update(state="done", step="terminé")
+            self._save(job)
         except FilmError as err:
             job.update(state="error", error=str(err))
         except Exception as err:      # never silent: the person sees why
@@ -482,6 +505,34 @@ class Film:
         done = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", str(path)], capture_output=True, text=True, timeout=60)
         return bool(done.stdout.strip())
 
+    @staticmethod
+    def asset_name(job_id, kind):
+        """The file name in the release (plain ASCII: GitHub rewrites spaces and accents)."""
+        return f"film-de-{'produit' if kind == 'product' else 'moi'}-{job_id}.mp4"
+
+    def mark_saved(self, job_id, state, error=""):
+        """state: none | pending (a session was asked to save it) | saved | failed."""
+        job = self.jobs.get(job_id)
+        if job:
+            job["saved"], job["saved_error"] = state, error
+            self._save(job)
+
+    def delete(self, job_id, drafts):
+        """Deletes the film made on this phone. drafts=True: its photos, plan and scene clips too (it can no longer be retouched); False: only the final film, the drafts stay."""
+        job = self.jobs.get(job_id)
+        folder = self.home / job_id
+        if not (folder / "film.mp4").exists() and not job:
+            return {"ok": False, "error": "film introuvable"}
+        if drafts:
+            shutil.rmtree(folder, ignore_errors=True)
+            self.jobs.pop(job_id, None)
+        else:
+            (folder / "film.mp4").unlink(missing_ok=True)
+            if job:
+                job.update(film=None, state="quoted", saved="none", saved_error="")
+                self._save(job)
+        return {"ok": True}
+
     # ---------------- the films made ----------------
     def films(self):
         """The finished films for the Média list: [{name, path, ts}], newest first."""
@@ -491,5 +542,6 @@ class Film:
                 kind = (folder.parent / "kind.txt").read_text().strip()
             except OSError:
                 kind = "me"
-            out.append({"id": folder.parent.name, "path": folder, "ts": int(folder.stat().st_mtime), "kind": kind})
+            job = self.jobs.get(folder.parent.name) or {}
+            out.append({"id": folder.parent.name, "path": folder, "ts": int(folder.stat().st_mtime), "kind": kind, "saved": job.get("saved", "none")})
         return sorted(out, key=lambda f: f["ts"], reverse=True)
