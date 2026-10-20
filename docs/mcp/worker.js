@@ -60,12 +60,20 @@ export default {
       const from = String(args.from || "un agent externe").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 40);
       if (!text) return rpc(id, { isError: true, content: [{ type: "text", text: "Empty message." }] });
       if (!env.NTFY_TOPIC) return rpc(id, { isError: true, content: [{ type: "text", text: "The door is not set up." }] });
-      const sent = await fetch("https://ntfy.sh/" + encodeURIComponent(env.NTFY_TOPIC), {
-        method: "POST",
-        headers: { Title: "aiwa-ext" },
-        body: JSON.stringify({ from, message: text }),
-      });
-      if (!sent.ok) return rpc(id, { isError: true, content: [{ type: "text", text: "The message could not be left on the channel." }] });
+      let sent;
+      try {
+        sent = await fetch("https://ntfy.sh/" + encodeURIComponent(String(env.NTFY_TOPIC).trim()), {
+          method: "POST",
+          headers: { Title: "aiwa-ext", "User-Agent": "aiwa-door" },
+          body: JSON.stringify({ from, message: text }),
+        });
+      } catch (err) {
+        return rpc(id, { isError: true, content: [{ type: "text", text: "The relay could not be reached: " + String(err).slice(0, 120) }] });
+      }
+      if (!sent.ok) {
+        const why = (await sent.text().catch(() => "")).slice(0, 160);
+        return rpc(id, { isError: true, content: [{ type: "text", text: "The relay answered " + sent.status + ": " + why }] });
+      }
       return rpc(id, { content: [{ type: "text", text: "Message left for the person's phone. It does not mean it was read: they decide what to do with it." }] });
     }
     return fail(id, -32601, "method not found");
