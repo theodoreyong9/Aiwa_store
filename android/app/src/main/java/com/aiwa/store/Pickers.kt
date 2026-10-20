@@ -768,6 +768,12 @@ class SettingsActivity : ComponentActivity() {
             // the switch is the person's wish; "listening" is whether the service is running (after a restart of the phone it is not, until the app is opened)
             val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
+                run {
+                    val voiceState = state.agent?.voice ?: "none"
+                    val on = NaturalVoice.enabled(applicationContext)
+                    val note = if (!on) " (voix du téléphone)" else when (voiceState) { "ready" -> ""; "installing" -> " — installation en cours (environ 80 Mo)"; "error" -> " — installation échouée, voix du téléphone"; else -> " — pas encore installée, voix du téléphone" }
+                    add(PickerEntry((if (on) "✓  Voix naturelle : active" else "Voix naturelle : coupée") + note, false, lines = 2) { NaturalVoice.setEnabled(applicationContext, !on); finish() })
+                }
                 add(PickerEntry(if (ConversationSettings.fluid(applicationContext)) "✓  Conversation fluide : active" else "Conversation fluide : coupée", false, lines = 1) {
                     ConversationSettings.setFluid(applicationContext, !ConversationSettings.fluid(applicationContext)); finish()
                 })

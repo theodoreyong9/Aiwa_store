@@ -16,6 +16,15 @@ import kotlinx.coroutines.withTimeoutOrNull
  * The phone's own voice (Android's text-to-speech engine, the one set in the phone's settings): it asks the question that confirms
  * a repository, and says "C'est prêt". One engine per sentence, shut down right after: these are a few words a day.
  */
+/** « Voix naturelle »: on by default; off, the phone's own voice speaks. Installed by default in the background (see the brain); only the switch is the person's. */
+object NaturalVoice {
+    private const val PREFS = "aiwa_listen"
+    fun enabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("natural_voice", true)
+    fun setEnabled(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("natural_voice", on).apply() }
+    /** Is the natural voice usable right now (switched on and installed)? */
+    fun usable(context: Context): Boolean = enabled(context) && AiwaRepository.state.value.agent?.voice == "ready"
+}
+
 object Speaker {
     // Cutting the voice off (the person speaks over it, see BargeIn): whatever is playing ends at once and the sentences that follow are not said.
     @Volatile private var interrupted = false
@@ -70,7 +79,7 @@ object Speaker {
      * Only the liaison agent uses it: the first listening keeps the light voice.
      */
     suspend fun speakNatural(context: Context, text: String): Boolean {
-        val ready = AiwaRepository.state.value.agent?.voice == "ready"
+        val ready = NaturalVoice.usable(context)
         if (ready) {
             val file = try {
                 val wav = com.aiwa.bridge.LocalClaudeBridge().voiceSay(text)
@@ -91,7 +100,7 @@ object Speaker {
      */
     suspend fun speakNaturalStreamed(context: Context, text: String): Boolean {
         val sentences = text.trim().split(Regex("(?<=[.!?…])\\s+")).filter { it.isNotBlank() }.take(6)
-        if (sentences.size < 2 || AiwaRepository.state.value.agent?.voice != "ready") return speakNatural(context, text)
+        if (sentences.size < 2 || !NaturalVoice.usable(context)) return speakNatural(context, text)
         return kotlinx.coroutines.coroutineScope {
             val made = sentences.map { sentence ->
                 async(Dispatchers.IO) { try { com.aiwa.bridge.LocalClaudeBridge().voiceSay(sentence) } catch (err: Exception) { null } }
@@ -113,7 +122,7 @@ object Speaker {
      * one is heard while Claude is still writing the others. Returns when the channel is closed and everything has been said.
      */
     suspend fun speakFlow(context: Context, incoming: kotlinx.coroutines.channels.ReceiveChannel<String>) = kotlinx.coroutines.coroutineScope {
-        val natural = AiwaRepository.state.value.agent?.voice == "ready"
+        val natural = NaturalVoice.usable(context)
         val made = kotlinx.coroutines.channels.Channel<Pair<String, kotlinx.coroutines.Deferred<ByteArray?>>>(kotlinx.coroutines.channels.Channel.UNLIMITED)
         launch {
             for (sentence in incoming) {

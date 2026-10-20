@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The natural voice (Piper) is installed by default, in the background, when the brain starts (about 80 MB, once, brain 154); the person only has the switch « Voix naturelle » in the settings (on by default; off or not yet installed: the phone's own voice). The conversation uses it.
+- Settings → Super agent: the old « L'agent » window is gone (its switch, its point every N minutes, « faire le point », the typed message and « Détruire » were duplicates or did nothing); a proposal or settings the agent is waiting for appear on the first lines of the Super agent list, with « Envoyer » and « Annuler ».
+
 - Settings → « Super agent » (brain 153): « Nouvelle session » puts the agent in place aside and goes to the choice of its repository; the old ones are listed there and each can be taken back (the one in place is put aside in its turn). Replaces the entry « Super agent : nouvelle session », which in fact changed the work session.
 - The permanent listening has ONE switch, closed at each installation and each update (Android lets a microphone service start only while Aiwa is on screen): a new button at the right of the robot on the widget (green when it listens) and the line « Écoute du réveil » of the settings turn it on and off. The robot only opens and closes the super agent.
 

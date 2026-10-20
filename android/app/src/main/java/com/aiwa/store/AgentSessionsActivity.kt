@@ -23,8 +23,17 @@ class AgentSessionsActivity : ComponentActivity() {
         setContent {
             val agent = AiwaRepository.state.collectAsState().value.agent
             val entries = buildList {
-                if (agent == null) { add(PickerEntry("Le cerveau ne répond pas (ou il est trop ancien : il faut la version 153).", false, lines = 2) { }); return@buildList }
-                add(PickerEntry("Réglages de l'agent (écoute, voix, point)", false, lines = 1, button = true) { startActivity(Intent(this@AgentSessionsActivity, AgentActivity::class.java)); finish() })
+                if (agent == null) { add(PickerEntry("Le cerveau ne répond pas (ou il est trop ancien : il faut la version 154).", false, lines = 2) { }); return@buildList }
+                // What waits for the person's word: a proposal for a session, or settings the agent asked for (said aloud too: « vas-y, dis-lui » / « vas-y, fais-le »)
+                agent.proposal?.let { p ->
+                    add(PickerEntry("Proposition pour ${p.sessionTitle} :\n${p.message.take(200)}", false, header = true, lines = 6) { })
+                    add(PickerEntry("Envoyer à ${p.sessionTitle}", false, lines = 1, button = true) { act("confirm", p.id) })
+                    add(PickerEntry("Annuler la proposition", false, lines = 1, button = true) { act("cancel", p.id) })
+                }
+                agent.command?.let { c ->
+                    add(PickerEntry(c.readBack + "\nDis « vas-y, fais-le » (agent ouvert).", false, header = true, lines = 4) { })
+                    add(PickerEntry("Annuler ces réglages", false, lines = 1, button = true) { act("cancel", c.id) })
+                }
                 add(PickerEntry("＋ Nouvelle session", false, lines = 1, button = true) { startNew(agent.session != null) })
                 if (agent.session != null) add(PickerEntry("En place : ${agent.repo ?: "session de l'agent"}", true, lines = 1) { })
                 agent.history.forEach { old ->
@@ -33,6 +42,19 @@ class AgentSessionsActivity : ComponentActivity() {
                 if (agent.history.isEmpty()) add(PickerEntry("Pas d'ancienne session pour l'instant : elles apparaissent ici quand tu en commences une nouvelle.", false, lines = 2) { })
             }
             PickerSheet(entries) { finish() }
+        }
+    }
+
+    // One action on the agent (a proposal sent or cancelled), then the state is read again.
+    private fun act(action: String, id: String) {
+        val app = applicationContext
+        finish()
+        CoroutineScope(Dispatchers.Default).launch {
+            val bridge = LocalClaudeBridge()
+            val error = try { bridge.agent(action, mapOf("id" to id)) } catch (err: Exception) { err.message ?: "?" }
+            if (error != null) toastOnMain(app, error)
+            try { BackendSync.refresh(bridge) } catch (err: Exception) { }
+            AiwaWidget().updateAll(app)
         }
     }
 
