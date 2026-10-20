@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Free stock videos with the person's own keys (brain 156): Settings → « Banques de vidéos libres » takes a free Pexels key and/or a free Pixabay key (each kept in Termux only, never in a repository), searches the banks (« homme sur un canapé »), downloads the clip chosen on the phone (the file of about 1280 px, with its author, page and licence in a card) and puts it, on request, in the release `stock` of the repository in use (with gh, or by a session for a small clip, with the gh message when it cannot), so that the sessions that make a film find it: they are told about it in their instructions, and to credit the author and never let the person shown seem to recommend a product.
+
 - One « Film » screen (Média), on the same fal key, with four modes (brain 155): Moi, Produit, **Moi + produit** (both in one go: cheaper, less faithful, said on the screen), and **Remplacer dans ma vidéo** (the person's own video of 30 s at most, in which the product OR the person is replaced by what the photos show: PixVerse Swap, quoted from the video's length; a replaced person needs the agreement of that person, asked before anything starts). One box to tick per thing used (me, the product, the video, the person replaced). The voice « film avec moi et mon produit » opens the right mode.
 
 - The natural voice (Piper) is installed by default, in the background, when the brain starts (about 80 MB, once, brain 154); the person only has the switch « Voix naturelle » in the settings (on by default; off or not yet installed: the phone's own voice). The conversation uses it.

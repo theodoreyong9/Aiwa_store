@@ -51,6 +51,7 @@ import aiwa_agent as agent_lib
 import aiwa_voice as voice_lib
 import aiwa_llm as llm_lib
 import aiwa_film as film_lib
+import aiwa_stock as stock_lib
 
 
 def _ts():
@@ -61,7 +62,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 155
+BACKEND_VERSION = 156
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -540,7 +541,7 @@ def _known_repos():
     return [r for r in known if isinstance(r, str) and github.REPO_RE.fullmatch(r)]
 
 
-_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "creative": "direction créative", "game": "jeu", "ask": "questions", "video": "vidéo", "document": "fichier", "proposals": "propositions", "images": "images"}
+_INSTRUCTION_LABELS = {"repo": "dépôt", "push": "push", "deploy": "déploiement", "verify": "vérification", "sources": "dépôt de référence", "alert": "alerte", "extra": "consigne perso", "inspiration": "dépôts d'inspiration", "design": "design", "creative": "direction créative", "game": "jeu", "ask": "questions", "video": "vidéo", "document": "fichier", "proposals": "propositions", "images": "images", "stock": "clips libres"}
 
 
 def _design_line():
@@ -618,6 +619,12 @@ def _image_line():
     """Where a picture goes: the folder the widget's Média list shows."""
     return ("Images : quand je te demande une image (illustration, logo, visuel, photo retouchée), fabrique-la en PNG, JPG ou WebP, avec un nom qui dit ce qu'elle montre, et dépose-la dans la release `images` du dépôt en cours (`gh release create images --title Images --notes \"\"` si elle n'existe pas, puis `gh release upload images <fichier> --clobber`), "
             "à défaut dans `docs/images/` avec la consigne Push : l'appli montre la liste de toutes les images de ce dépôt. Dis-moi en une phrase ce qu'elle montre et d'où viennent ses éléments (rien d'inventé présenté comme une photo).")
+
+
+def _stock_line(repo):
+    """The free clips the person chose (Pexels, Pixabay) are in the release `stock`."""
+    return (f"Clips libres : la release `stock` du dépôt {repo} contient des vidéos libres que j'ai choisies moi-même, chacune avec sa fiche `.json` (auteur, licence, page). Pour une scène réelle (une personne, un lieu), regarde-les d'abord "
+            f"(`gh release view stock`, ou https://github.com/{repo}/releases/expanded_assets/stock), mets l'auteur et la licence dans ton rapport, et ne laisse jamais croire que la personne filmée recommande un produit.")
 
 
 def _video_full(repo):
@@ -1032,6 +1039,7 @@ def _instruction_lines(repo, work, base, direct, origin=None, quality=None):
         lines.append(("video", _video_line(repo, video_quality) + f" Dimension par défaut de la vidéo : {default_format} (9:16 vertical, 16:9 horizontal, 1:1 carré), sauf si ma demande en précise une."))
         lines.append(("document", _document_line(repo)))
         lines.append(("images", _image_line()))
+        lines.append(("stock", _stock_line(repo)))
         lines.append(("proposals", _proposals_line(repo)))
     lines.append(("ask", _ask_line(repo, work, topic)))
     # Mandatory, not a switch: it is how the widget learns that Claude is
@@ -3610,19 +3618,19 @@ def film_info():
     return {"ok": True, "repo": repo, "public": public, "gh": bool(github.gh_path() and github._gh_login())}
 
 
-def _release_upload(repo, path, asset):
-    """gh: the release `films` is created if it is not there, the file is put in it (replaced if it exists). (ok, error)"""
+def _release_upload(repo, path, asset, tag="films", title="Films", notes="Films faits avec Aiwa (générés par IA)"):
+    """gh: the release `tag` is created if it is not there, the file is put in it (replaced if it exists). (ok, error)"""
     gh = github.gh_path()
     if not gh:
         return False, "gh n'est pas installé"
-    if subprocess.run([gh, "release", "view", "films", "-R", repo], capture_output=True, timeout=60).returncode != 0:
-        made = subprocess.run([gh, "release", "create", "films", "--title", "Films", "--notes", "Films faits avec Aiwa (générés par IA)", "-R", repo], capture_output=True, text=True, timeout=120)
+    if subprocess.run([gh, "release", "view", tag, "-R", repo], capture_output=True, timeout=60).returncode != 0:
+        made = subprocess.run([gh, "release", "create", tag, "--title", title, "--notes", notes, "-R", repo], capture_output=True, text=True, timeout=120)
         if made.returncode != 0:
             return False, _clean((made.stderr or "") + (made.stdout or "")).strip()[-200:] or "création de la release refusée"
     tmp = Path(tempfile.mkdtemp()) / asset
     shutil.copy(path, tmp)
     try:
-        done = subprocess.run([gh, "release", "upload", "films", str(tmp), "--clobber", "-R", repo], capture_output=True, text=True, timeout=1800)
+        done = subprocess.run([gh, "release", "upload", tag, str(tmp), "--clobber", "-R", repo], capture_output=True, text=True, timeout=1800)
     finally:
         shutil.rmtree(tmp.parent, ignore_errors=True)
     if done.returncode != 0:
@@ -3683,6 +3691,84 @@ def film_publish(job_id):
         film.mark_saved(job_id, "failed", f"la session n'a pas déposé le film. {FILM_GH_HELP}")
     threading.Thread(target=send_and_watch, daemon=True).start()
     return {"ok": True, "via": "session"}
+
+
+stock = stock_lib.Stock()
+STOCK_GH_HELP = "Pour sauvegarder les clips dans GitHub, connecte GitHub dans Termux : `pkg install gh` puis `gh auth login` (une seule fois)."
+stock_saved = {}      # clip id -> {"state": none | pending | saved | failed, "error": ""}
+
+
+def stock_publish(clip_id):
+    """Puts a downloaded clip (and its card: author, licence, page) in the release `stock` of the repository in use, for the sessions that make a film. With gh it goes straight to GitHub; without it,
+    a small clip goes by a session (as the films do) and the arrival is checked; a big one needs gh, and the person is told so."""
+    clip_id = re.sub(r"[^a-z0-9-]", "", str(clip_id or ""))
+    path = stock.home / "clips" / f"{clip_id}.mp4"
+    card = stock.home / "clips" / f"{clip_id}.json"
+    if not clip_id or not path.exists():
+        return {"ok": False, "error": "clip introuvable"}
+    with lock:
+        repo = _chosen_repo()
+    if not repo or not github.REPO_RE.fullmatch(repo):
+        return {"ok": False, "error": "choisis d'abord un dépôt (le bouton du widget)"}
+    asset = f"{clip_id}.mp4"
+    stock_saved[clip_id] = {"state": "pending", "error": ""}
+    if github.gh_path() and github._gh_login():
+        def direct():
+            try:
+                ok, error = _release_upload(repo, path, asset, "stock", "Stock", "Clips libres choisis avec Aiwa (auteur et licence dans la fiche .json de chacun)")
+                if ok and card.exists():
+                    ok, error = _release_upload(repo, card, f"{clip_id}.json", "stock", "Stock", "Clips libres choisis avec Aiwa")
+            except (OSError, subprocess.SubprocessError) as err:
+                ok, error = False, str(err)
+            stock_saved[clip_id] = {"state": "saved" if ok else "failed", "error": "" if ok else f"{error} {STOCK_GH_HELP}"}
+        threading.Thread(target=direct, daemon=True).start()
+        return {"ok": True, "via": "gh"}
+    if path.stat().st_size > ATTACH_MAX:
+        stock_saved[clip_id] = {"state": "failed", "error": f"le clip est trop gros pour le relais. {STOCK_GH_HELP}"}
+        return {"ok": False, "error": stock_saved[clip_id]["error"], "needs": "gh"}
+    attached = attach_add(json.dumps({"name": asset, "data": base64.b64encode(path.read_bytes()).decode()}))
+    if not attached.get("ok"):
+        stock_saved[clip_id] = {"state": "failed", "error": f"{attached.get('error')}. {STOCK_GH_HELP}"}
+        return {"ok": False, "error": stock_saved[clip_id]["error"], "needs": "gh"}
+    request = (f"Dépose le fichier joint `{asset}` dans la release GitHub de tag `stock` du dépôt {repo} : crée la release si elle n'existe pas (`gh release create stock --title Stock --notes \"Clips libres\"`), "
+               f"puis `gh release upload stock {asset} --clobber`. Si `gh` ne marche pas dans ta session, dépose-le dans `docs/stock/`. Dis-moi en une phrase ce qui est fait.")
+
+    def send_and_watch():
+        sent = cloud_send(request)
+        if not sent.get("ok"):
+            stock_saved[clip_id] = {"state": "failed", "error": f"la session n'a pas pu être jointe ({sent.get('error')}). {STOCK_GH_HELP}"}
+            return
+        for _ in range(40):
+            time.sleep(30)
+            if any(a["name"] == asset for a in _release_assets(repo, "stock")):
+                stock_saved[clip_id] = {"state": "saved", "error": ""}
+                return
+        stock_saved[clip_id] = {"state": "failed", "error": f"la session n'a pas déposé le clip. {STOCK_GH_HELP}"}
+    threading.Thread(target=send_and_watch, daemon=True).start()
+    return {"ok": True, "via": "session"}
+
+
+def stock_api(path, body):
+    try:
+        data = json.loads(body) if body.strip() else {}
+    except ValueError:
+        data = {}
+    data = data if isinstance(data, dict) else {}
+    if path == "/api/stock/key":
+        return stock.save_key(str(data.get("source") or ""), data.get("key"))
+    if path == "/api/stock/key_clear":
+        return stock.clear_key(str(data.get("source") or ""))
+    if path == "/api/stock/search":
+        try:
+            return {"ok": True, "results": stock.search(data.get("query"), str(data.get("source") or "pexels"), data.get("portrait") is True)}
+        except stock_lib.StockError as err:
+            return {"ok": False, "error": str(err)}
+    if path == "/api/stock/download":
+        clip = data.get("clip") if isinstance(data.get("clip"), dict) else {}
+        return stock.download(clip)
+    if path == "/api/stock/publish":
+        return stock_publish(str(data.get("id") or ""))
+    return {"ok": False, "error": "route inconnue"}
 
 
 def film_api(path, body):
@@ -4607,6 +4693,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(_all_snapshot((query.get("kind") or [""])[0], refresh=(query.get("refresh") or [""])[0] == "1"))
         elif self.path == "/api/documents":
             self.reply_json(_documents_snapshot())
+        elif self.path == "/api/stock/status":
+            self.reply_json({"ok": True, **stock.status(), "clips": [{**c, "saved": stock_saved.get(c.get("id", ""), {}).get("state", "none"), "saved_error": stock_saved.get(c.get("id", ""), {}).get("error", "")} for c in stock.clips()][:30]})
         elif self.path == "/api/film/info":
             self.reply_json(film_info())
         elif self.path == "/api/film/status":
@@ -4661,6 +4749,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(projects_save(body))
         elif self.path.startswith("/api/film/"):
             self.reply_json(film_api(self.path, body))
+        elif self.path.startswith("/api/stock/"):
+            self.reply_json(stock_api(self.path, body))
         elif self.path == "/api/media_delete":
             try:
                 data = json.loads(body) if body.strip() else {}

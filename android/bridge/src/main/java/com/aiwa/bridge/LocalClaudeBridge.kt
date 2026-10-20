@@ -581,6 +581,33 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
     fun filmEdit(id: String, index: Int, situation: String?, says: String?, remove: Boolean = false): FilmJob =
         filmJob(filmPost("/api/film/edit", JSONObject().put("id", id).put("index", index).apply { if (situation != null) put("situation", situation); if (says != null) put("says", says); put("remove", remove) }))
     fun filmStart(id: String): FilmJob = filmJob(filmPost("/api/film/start", JSONObject().put("id", id).put("confirmed", true)))
+    fun stockStatus(): StockStatus? = try {
+        val j = JSONObject(getText("/api/stock/status"))
+        val a = j.optJSONArray("clips")
+        StockStatus(j.optBoolean("pexels"), j.optBoolean("pixabay"),
+            if (a == null) emptyList() else (0 until a.length()).map { val c = a.getJSONObject(it); StockSaved(c.optString("id"), c.optString("title"), c.optString("author"), c.optString("saved", "none"), c.optString("saved_error")) })
+    } catch (e: Exception) { null }
+
+    /** null when done, else why not. */
+    fun stockKey(source: String, key: String?): String? {
+        val j = if (key == null) filmPost("/api/stock/key_clear", JSONObject().put("source", source)) else filmPost("/api/stock/key", JSONObject().put("source", source).put("key", key))
+        return if (j.optBoolean("ok", false)) null else j.optString("error", "?")
+    }
+
+    /** (the clips, null) or (empty, why not). */
+    fun stockSearch(query: String, source: String, portrait: Boolean): Pair<List<StockClip>, String?> {
+        val j = filmPost("/api/stock/search", JSONObject().put("query", query).put("source", source).put("portrait", portrait))
+        if (!j.optBoolean("ok", false)) return emptyList<StockClip>() to j.optString("error", "?")
+        val a = j.optJSONArray("results") ?: return emptyList<StockClip>() to null
+        return (0 until a.length()).map {
+            val c = a.getJSONObject(it)
+            StockClip(c.optString("id"), c.optString("title"), c.optInt("duration", 0), c.optString("author"), c.optString("licence"), c.optString("source"), c.toString())
+        } to null
+    }
+
+    fun stockDownload(clip: StockClip): String? { val j = filmPost("/api/stock/download", JSONObject().put("clip", JSONObject(clip.raw))); return if (j.optBoolean("ok", false)) null else j.optString("error", "?") }
+    fun stockPublish(id: String): Pair<Boolean, String?> { val j = filmPost("/api/stock/publish", JSONObject().put("id", id)); return if (j.optBoolean("ok", false)) true to null else false to j.optString("error", "?") }
+
     fun filmInfo(): FilmInfo? = try {
         val j = JSONObject(getText("/api/film/info"))
         FilmInfo(j.optString("repo").takeIf { it.isNotBlank() && it != "null" }, if (j.isNull("public")) null else j.optBoolean("public"), j.optBoolean("gh"))
