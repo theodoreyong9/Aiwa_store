@@ -1027,6 +1027,9 @@ class InstructionTests(Base):
             self.assertIsNone(srv._external_save("https://aiwa-porte.x.workers.dev/" + "k" * 20 + "/mcp", "k" * 20))   # the connector address pasted whole
             self.assertEqual(srv._external_config(), ("https://aiwa-porte.x.workers.dev", "k" * 20))
             self.assertEqual(oct(srv.EXTERNAL_FILE.stat().st_mode & 0o777), "0o600")
+            self.assertIsNone(srv._external_save("https://other.x.workers.dev", ""))              # no key given: the one kept stays
+            self.assertEqual(srv._external_config(), ("https://other.x.workers.dev", "k" * 20))
+            self.assertIsNone(srv._external_save("https://aiwa-porte.x.workers.dev", "k" * 20))
             asked = []
             class Reply:
                 def __enter__(self): return self

@@ -62,7 +62,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 160
+BACKEND_VERSION = 161
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4541,6 +4541,8 @@ def _external_save(url, key):
     url = str(url or "").strip().rstrip("/")
     url = re.sub(r"/[A-Za-z0-9_-]+/mcp$", "", url)          # the whole connector address pasted: keep the Worker's address only
     key = str(key or "").strip()
+    if not key and _external_config():
+        key = _external_config()[1]                          # the key is not shown again: left empty, the one kept stays
     if not EXTERNAL_HOST_RE.fullmatch(url):
         return "l'adresse doit ressembler à https://ton-worker.ton-compte.workers.dev"
     if not EXTERNAL_KEY_RE.fullmatch(key):

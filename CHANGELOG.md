@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **« Mon Worker » says it saved** (brain 161): the screen shows the saved address, keeps the saved key when the field is left empty (it is never shown again), says « Enregistré ✓ » and goes back to « Agents externes », where the Worker's address and the last messages are. Before, it closed in silence and reopened empty.
+
 - **Saving the Worker's address no longer fails on a phone that has kept no app** (brain 160): the owner-only file went into `~/.aiwa_store_apps`, which does not exist until an app is kept; the brain dropped the connection (« unexpected end of stream »). The folder is now created, and any write error comes back as a message.
 
 - **The door keeps the messages in the person's own Cloudflare KV, not on ntfy** (brain 159): ntfy answered 429 (a quota counted by address, shared by the Cloudflare Workers); the Worker now stores each message in a KV namespace bound as `INBOX` (kept 24 h), and the brain fetches `/<key>/inbox` every 30 s while the door is open (address and key in an owner-only file, host limited to `*.workers.dev`). The screen « Agents externes » takes the address and the key. Tested here with fake calls and a fake store only.

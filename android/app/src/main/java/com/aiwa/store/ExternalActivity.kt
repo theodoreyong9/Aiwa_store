@@ -34,7 +34,7 @@ class ExternalActivity : ComponentActivity() {
             LaunchedEffect(Unit) { status = withContext(Dispatchers.IO) { LocalClaudeBridge().externalStatus() } }
             val st = status
             val entries = buildList {
-                if (st == null) { add(PickerEntry("Cerveau injoignable ou trop ancien (il faut la version 159).", false, lines = 2) { }); return@buildList }
+                if (st == null) { add(PickerEntry("Cerveau injoignable ou trop ancien (il faut la version 161).", false, lines = 2) { }); return@buildList }
                 add(PickerEntry(if (st.open) "Porte ouverte : les agents externes peuvent te parler (toucher pour fermer)" else "Porte fermée (toucher pour ouvrir)", st.open, lines = 2) {
                     scope.launch { status = withContext(Dispatchers.IO) { LocalClaudeBridge().externalOpen(!st.open) } }
                 })
@@ -61,18 +61,20 @@ class ExternalConfigActivity : ComponentActivity() {
             var url by remember { mutableStateOf("") }
             var key by remember { mutableStateOf("") }
             var note by remember { mutableStateOf<String?>(null) }
+            var kept by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) { withContext(Dispatchers.IO) { LocalClaudeBridge().externalStatus() }?.let { if (it.configured) { url = it.url; kept = true } } }
             StockSheet({ finish() }) {
                 Text("Mon Worker", style = MaterialTheme.typography.titleMedium)
                 Text("L'adresse de ton Worker Cloudflare (finit par .workers.dev, tu peux coller l'adresse complète du connecteur) et la clé MCP_KEY que tu as choisie. Elles restent dans le cerveau Termux (fichier lisible par toi seul).", style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Adresse du Worker") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = key, onValueChange = { key = it }, label = { Text("Clé MCP_KEY") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                OutlinedTextField(value = key, onValueChange = { key = it }, label = { Text(if (kept) "Clé MCP_KEY (laisse vide pour garder celle enregistrée)" else "Clé MCP_KEY") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                 Button(onClick = {
                     scope.launch {
                         val st = withContext(Dispatchers.IO) { LocalClaudeBridge().externalConfig(url.trim(), key.trim()) }
-                        if (st == null) note = "Cerveau injoignable ou trop ancien (version 159)." else if (st.error != null) note = st.error else finish()
+                        if (st == null) note = "Cerveau injoignable ou trop ancien (version 161)." else if (st.error != null) note = st.error else { toastOnMain(applicationContext, "Enregistré ✓"); startActivity(Intent(this@ExternalConfigActivity, ExternalActivity::class.java)); finish() }
                     }
-                }, enabled = url.isNotBlank() && key.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Enregistrer") }
+                }, enabled = url.isNotBlank() && (key.isNotBlank() || kept), modifier = Modifier.fillMaxWidth()) { Text("Enregistrer") }
                 note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                 OutlinedButton(onClick = { finish() }, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
             }
