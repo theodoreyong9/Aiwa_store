@@ -163,7 +163,7 @@ class WakeWordService : Service() {
 
         /** From a visible screen: opens the second listening (the liaison agent); the first one is paused while it is open. Starts the service if needed. */
         fun openAgentMode(context: Context) {
-            ListenSettings.setEnabled(context, true)
+            // The button opens ONLY the second listening: the switch of the permanent listening is not touched (it is the one switch of that wish)
             val running = instance
             if (running != null) { running.openAgent(); return }
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -262,7 +262,7 @@ class WakeWordService : Service() {
         }
         instance = this
         if (intent?.action == ACTION_OPEN_AGENT) { if (model != null) openAgent() else openAgentWhenReady = true }
-        AiwaRepository.update { it.copy(listening = true) }
+        AiwaRepository.update { it.copy(listening = ListenSettings.enabled(this)) }     // the switch shows the wish, not that the service runs for the super agent alone
         CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
         if (preparing?.isActive != true && detector == null && dictation == null && !agentMode) preparing = scope.launch { prepare() }
         // Not sticky on purpose: restarted by the system from the background, a microphone service is refused, and it would loop.
@@ -354,7 +354,8 @@ class WakeWordService : Service() {
             agentCall("set", mapOf("enabled" to false))
             CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
             Speaker.speakNatural(applicationContext, Vocabulary.spoken(applicationContext, "veille").replaceFirstChar { it.uppercase() } + ".")
-            if (!agentMode) listen()
+            // the permanent listening listens again only if the person wants it; opened by the button alone, the service ends with the agent
+            if (!agentMode) { if (ListenSettings.enabled(applicationContext)) listen() else stopSelf() }
         }
     }
 

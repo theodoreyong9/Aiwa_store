@@ -802,7 +802,7 @@ class SettingsActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        WakeWordService.instance?.let { AiwaRepository.update { s -> s.copy(listening = true) } }
+        if (WakeWordService.instance != null && ListenSettings.enabled(this)) AiwaRepository.update { s -> s.copy(listening = true) }
     }
 }
 
