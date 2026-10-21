@@ -470,10 +470,12 @@ private fun LightContent(state: AiwaState) {
             Spacer(GlanceModifier.width(GAP.dp))
             // « Projet »: the session and the repository are chosen inside it (red when one of them is missing or needs something)
             val projectBad = !allMode && (state.repo == null || bandInfo(state, 200f).title.endsWith("▸"))
+            // A question of Claude waits: the pill itself becomes the question (red, a tap answers it), then goes back to the project once it is answered
+            val asking = state.ask != null
             Chip(
-                if (allMode) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", avail - rounds * (chipH + GAP) - GAP * 3 - 2 * 54f - 24f, fs) + " ▾",
-                if (allMode) green else if (locked) PILL_DIM else if (projectBad) alertRed else pill, if (locked) TEXT_DIM else fg,
-                lockable(locked, actionStartActivity<ProjectPickerActivity>()),
+                if (asking) "Question de Claude ▸" else if (allMode) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", avail - rounds * (chipH + GAP) - GAP * 3 - 2 * 54f - 24f, fs) + " ▾",
+                if (asking) alertRed else if (allMode) green else if (locked) PILL_DIM else if (projectBad) alertRed else pill, if (asking) fg else if (locked) TEXT_DIM else fg,
+                if (asking) actionStartActivity<AskActivity>() else lockable(locked, actionStartActivity<ProjectPickerActivity>()),
                 GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
             )
             // Wallet and Store: each opens its own page of the web app, alone (no tabs, no browser bar)
@@ -494,7 +496,7 @@ private fun LightContent(state: AiwaState) {
                 )
             }
         }
-        // ---- row 3: Claude (bottom left), the settings, the +, the robot (the super agent), the question ----
+        // ---- row 3: Claude (bottom left), the settings, the +, the robot (the super agent) and the ear; the question of Claude is the « Projet » pill of row 1 while it waits ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
             if (state.cloudSessionId != null) {
@@ -539,10 +541,6 @@ private fun LightContent(state: AiwaState) {
                 description = if (state.listening) "Écoute permanente : active, toucher pour la couper" else "Écoute permanente : coupée, toucher pour l'activer",
                 background = if (state.listening) green else pill, action = actionStartActivity<ListenToggleActivity>(), diameter = chipH.dp,
             )
-            }
-            if (state.ask != null) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(icon = R.drawable.ic_question, description = "Claude te pose une question : répondre", background = alertRed, action = actionStartActivity<AskActivity>(), diameter = chipH.dp)
             }
         }
     }
