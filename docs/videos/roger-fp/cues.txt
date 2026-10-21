@@ -1,1 +1,0 @@
-0:room,3.2:room,4.0:tv,5.5:phone,8.5:phone,9.5:tv,17:tv,17.6:phone,21.5:phone,22.5:tv,29.2:tv,29.8:phone,31:tv,34.2:tv,34.8:phone,36:tv,41.3:tv,42:phone,44:phone,45:tv,99.5:tv,103:tv,108.3:phone,113.5:phone,114.5:tv,122:tv

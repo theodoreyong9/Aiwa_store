@@ -1,144 +1,187 @@
-<!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><title>Roger</title>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Roger 1P screens</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:1080px;height:1920px;overflow:hidden;background:#14121c;font-family:"DejaVu Sans","Liberation Sans",Arial,sans-serif;color:#fff}
-#wall{position:absolute;inset:0;background:linear-gradient(#2b2335,#17131f 60%)}
-#sun{position:absolute;inset:0;background:radial-gradient(ellipse at 85% 10%,rgba(255,170,80,.55),rgba(255,120,60,0) 60%);opacity:0}
-#tv{position:absolute;left:90px;top:110px;width:900px;height:520px;background:#0b0a10;border-radius:22px;padding:16px;box-shadow:0 0 60px rgba(120,170,255,.18)}
-#scr{position:relative;width:100%;height:100%;border-radius:10px;overflow:hidden;background:#1a1a26}
+html,body{width:1920px;height:1300px;overflow:hidden;background:#222;font-family:"DejaVu Sans","Liberation Sans",Arial,sans-serif;color:#fff}
+body.caps{background:transparent;height:1080px}
+body.caps #tv,body.caps #phone{display:none}
+body.screens #caps{display:none}
+#tv{position:absolute;left:60px;top:60px;width:868px;height:488px;overflow:hidden;background:#000}
 .pane{position:absolute;inset:0;opacity:0}
-#cap{position:absolute;left:60px;right:60px;top:660px;height:110px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:40px;font-weight:700;line-height:1.2;opacity:0;text-shadow:0 2px 12px #000}
-#top{position:absolute;left:0;right:0;top:34px;text-align:center;font-size:34px;letter-spacing:.04em;color:#cfc6e0;opacity:0}
-#table{position:absolute;left:0;right:0;top:1160px;bottom:0;background:linear-gradient(#6b4a32,#3d2a1b)}
-#phone{position:absolute;left:250px;top:1190px;width:580px;height:730px;background:#0c0c12;border-radius:56px 56px 0 0;padding:20px 20px 0;box-shadow:0 -10px 60px rgba(0,0,0,.6)}
-#ps{position:relative;width:100%;height:100%;background:linear-gradient(#2b2a6b,#6a3b7a 60%,#d4786a);border-radius:40px 40px 0 0;overflow:hidden;color:#1c1830}
-#hdr{height:200px;color:#fff;text-align:center;padding-top:26px}#clk{font-size:100px;font-weight:300;line-height:1}#dt{font-size:26px;opacity:.85;margin-top:6px}#off{position:absolute;inset:0;background:#05050a;z-index:5}
+#phone{position:absolute;left:1100px;top:60px;width:540px;height:1110px;overflow:hidden;background:#000}
+#ps{position:relative;width:540px;height:1110px;background:linear-gradient(#2b2a6b,#6a3b7a 60%,#d4786a);overflow:hidden;color:#1c1830}
+#hdr{height:200px;color:#fff;text-align:center;padding-top:26px}#clk{font-size:100px;font-weight:300;line-height:1}#dt{font-size:26px;opacity:.85;margin-top:6px}
+#off{position:absolute;inset:0;background:#05050a;z-index:5}
 #pill{display:inline-block;margin-top:10px;font-size:22px;background:rgba(255,255,255,.22);padding:5px 14px;border-radius:20px;opacity:0}
 #chat{position:absolute;left:0;right:0;top:215px;bottom:0;padding:16px 20px;display:flex;flex-direction:column;justify-content:flex-end;gap:12px;overflow:hidden}
-.m{max-width:86%;padding:14px 20px;border-radius:22px;font-size:27px;line-height:1.25;opacity:0}
-.m.a{background:rgba(255,255,255,.9);color:#1c1830;align-self:stretch;max-width:100%}.m.a:before{content:'🐦 Aiwa · maintenant';display:block;font-size:18px;color:#5b4fc5;margin-bottom:4px}
-.m.u{background:#4b3fb5;color:#fff;align-self:flex-end}
+.m{padding:14px 20px;border-radius:22px;font-size:27px;line-height:1.25;opacity:0;background:rgba(255,255,255,.9);color:#1c1830}
+.m:before{content:'🐦 Aiwa · maintenant';display:block;font-size:18px;color:#5b4fc5;margin-bottom:4px}
 .btns{display:flex;gap:10px;margin-top:10px}.btns span{background:#e7e3fa;color:#3a2f9a;padding:8px 18px;border-radius:16px;font-size:24px;font-weight:700}
 .bar{height:14px;background:#e3dff5;border-radius:8px;margin-top:12px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:#4b3fb5}
-#mail{position:absolute;left:470px;top:1250px;font-size:100px;opacity:0}
+/* the sites */
+.site{position:absolute;inset:0}
+.sa{position:absolute;left:0;top:0;width:868px;height:338px;overflow:hidden}
+.track{position:absolute;left:0;top:0;height:100%;display:flex}
+.page{width:868px;height:100%;flex:none;position:relative;overflow:hidden}
+.mb{position:absolute;left:18px;right:18px;bottom:12px;height:132px;background:#fff;color:#222;border-radius:12px;padding:10px 18px;font-size:19px;line-height:1.3;box-shadow:0 4px 16px rgba(0,0,0,.35);border-left:8px solid #4b3fb5;opacity:0}
+.mb small{display:block;color:#666;font-size:16px}.mb b{display:block;font-size:20px;margin:1px 0 4px}
+.stamp{position:absolute;right:16px;top:10px;color:#1c9c4a;font-weight:700;font-size:20px;opacity:0}
+.ph svg{width:100%;height:100%;display:block}
+.card{flex:1}.card .ph{height:150px;border-radius:10px;overflow:hidden}.card b{display:block;margin-top:8px;font-size:21px}
+.cursor{position:absolute;width:26px;height:26px;z-index:9;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.ripple{position:absolute;width:40px;height:40px;border-radius:50%;border:3px solid #ff4b1f;opacity:0;z-index:8}
+/* the captions layer */
+#caps{position:absolute;inset:0;width:1920px;height:1080px}
+#sub{position:absolute;left:200px;right:200px;top:900px;height:130px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:46px;font-weight:700;line-height:1.2;opacity:0;text-shadow:0 2px 14px #000,0 0 4px #000}
+#sub.a{font-style:italic;font-weight:500;color:#ffd2c2}
+#top{position:absolute;left:0;right:0;top:48px;text-align:center;font-size:38px;letter-spacing:.04em;color:#fff;opacity:0;text-shadow:0 2px 12px #000}
+#blink{position:absolute;inset:0;background:#000;opacity:0}
 #end{position:absolute;inset:0;background:rgba(14,12,22,.985);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;opacity:0;text-align:center}
-#end b{font-size:140px;letter-spacing:.06em}#end p{font-size:48px;line-height:1.3;padding:0 90px;color:#e5def8}#end small{font-size:28px;color:#9d93b8}
-.site{position:absolute;inset:0;padding:26px 36px}
-.site h1{font-size:44px;margin-bottom:6px}.site h2{font-size:26px;font-weight:400;opacity:.85;margin-bottom:16px}
-.hero{height:120px;border-radius:14px;position:relative;overflow:hidden}
-.btnr{display:inline-block;margin-top:8px;padding:6px 22px;border-radius:22px;font-size:22px;font-weight:700}
-.vid{position:absolute;right:36px;top:24px;width:130px;height:130px;border-radius:50%;border:6px solid #fff;overflow:hidden;background:#cfe0ff;box-shadow:0 8px 30px rgba(0,0,0,.5)}
-.vid span{display:none;font-size:17px;text-align:center;padding:5px}
-.mb{position:absolute;left:36px;right:36px;bottom:16px;height:160px;background:#fff;color:#222;border-radius:14px;padding:14px 22px;font-size:22px;line-height:1.3;box-shadow:0 4px 20px rgba(0,0,0,.35);opacity:0;border-left:8px solid #4b3fb5}.mb small{display:block;color:#666;font-size:19px}.mb b{display:block;font-size:23px;margin:2px 0 6px}
-#wg{width:760px;background:#1d1a2e;border-radius:40px;padding:28px;box-shadow:0 10px 50px rgba(0,0,0,.6);text-align:left;font-size:30px}#wg .r{display:flex;gap:14px;margin-bottom:16px}#wg .c{background:#34305a;padding:10px 22px;border-radius:24px;font-size:28px}#wg .l{flex:1;text-align:center;background:#2a2646;padding:14px 0;border-radius:20px;color:#bdb6e6}#wg .st{color:#9a94c4;font-size:26px;margin:4px 0 14px}#wg .in{display:flex;align-items:center;background:#34305a;border-radius:34px;padding:18px 26px;color:#aaa3d4}#wg .in b{margin-left:auto;font-size:36px}
-</style></head><body>
-<div id="wall"></div><div id="sun"></div>
-<div id="top">Samedi, 15 h. Canapé. Pas de PC.</div>
-<div id="tv"><div id="scr">
-  <div class="pane" id="p_idle" style="background:linear-gradient(135deg,#2a3550,#161a2a);display:flex;align-items:center;justify-content:center;font-size:120px;color:#5a6a95;opacity:1">15:07</div>
-  <div class="pane" id="p_veille" style="background:#10151f;padding:34px 44px">
-    <div style="font-size:34px;color:#8fb0ff;margin-bottom:22px">Veille · maisons d'hôtes</div>
-    <div id="rows" style="font-size:32px;line-height:1.9"></div>
-  </div>
-  <div class="pane" id="p_s1" style="background:#fbf6ea;color:#3b2a1a"><div class="site">
-    <h1>Les Tilleuls</h1><h2>Chambres d'hôtes · petit-déjeuner du jardin</h2>
-    <div class="hero" style="background:linear-gradient(#bfe3ff 55%,#9ccf7c 55%)"><svg viewBox="0 0 400 210" style="position:absolute;inset:0;width:100%;height:100%"><rect x="120" y="70" width="170" height="100" fill="#e9d2a9"/><polygon points="105,75 205,20 305,75" fill="#a2492f"/><rect x="190" y="110" width="30" height="60" fill="#6b3b22"/><circle cx="60" cy="110" r="38" fill="#4c9a49"/><circle cx="345" cy="120" r="32" fill="#4c9a49"/></svg></div>
-    <span class="btnr" style="background:#a2492f;color:#fff">Réserver</span>
-    <div class="vid"><svg viewBox="0 0 100 100" style="width:100%;height:100%"><rect width="100" height="100" fill="#cfe0ff"/><circle cx="50" cy="56" r="26" fill="#e8b890"/><path d="M24 50 Q50 14 76 50 Q70 30 50 30 Q30 30 24 50Z" fill="#3a2a22"/><circle cx="41" cy="54" r="3" fill="#222"/><circle cx="59" cy="54" r="3" fill="#222"/><ellipse class="vm" cx="50" cy="68" rx="7" ry="2" fill="#7a2f2f"/></svg><span>.</span></div>
-<div class="mb" id="mb1"><small>À : Les Tilleuls</small><b>Objet : votre site, refait pour vous</b>Bonjour, j’ai refait votre site et préparé une courte vidéo pour vous le présenter. Dites-moi ce que vous en pensez.<br>— Roger</div>
-  </div></div>
-  <div class="pane" id="p_vid" style="background:#000"></div>
-  <div class="pane" id="p_prog" style="background:#10151f;padding:40px 54px"><div style="font-size:34px;color:#8fb0ff;margin-bottom:28px">Vidéo de moi · rendu</div><div style="font-size:30px;line-height:1.7"><div>Étape en cours : voix et image</div><div id="pl2" style="color:#9aa8c8;font-size:26px"></div></div><div style="margin-top:30px;height:22px;background:#1d2538;border-radius:12px;overflow:hidden"><i id="pbar" style="display:block;height:100%;width:62%;background:#4b8bff"></i></div><div id="ppct" style="margin-top:14px;font-size:34px">62 % · environ 4 min</div></div>
-  <div class="pane" id="p_s2" style="background:#14261f;color:#f1e9d6;font-family:'DejaVu Serif',Georgia,serif"><div class="site" style="padding:22px 30px">
-    <div style="display:flex;justify-content:space-between;font-size:18px;letter-spacing:.18em;opacity:.7;font-family:'DejaVu Sans',sans-serif"><span>LE CLOS DES LILAS</span><span style="margin-right:150px">Chambres · Jardin · Contact</span></div>
-    <div style="display:flex;gap:22px;margin-top:14px">
-      <div style="width:330px;height:190px;border-radius:120px 120px 14px 14px;position:relative;overflow:hidden;background:linear-gradient(#ffd9e6 52%,#a8cf8a 52%)"><svg viewBox="0 0 400 210" style="position:absolute;inset:0;width:100%;height:100%"><rect x="90" y="75" width="220" height="95" fill="#f0e2d0"/><polygon points="80,80 200,28 320,80" fill="#475f8a"/><rect x="120" y="105" width="34" height="34" fill="#9fc3e8"/><rect x="246" y="105" width="34" height="34" fill="#9fc3e8"/><circle cx="50" cy="120" r="34" fill="#9a6fc0"/><circle cx="352" cy="125" r="30" fill="#9a6fc0"/></svg></div>
-      <div style="flex:1"><div style="font-size:38px;line-height:1.1;font-style:italic">Un week-end<br>chez vous,<br>au calme.</div>
-        <div style="margin-top:12px;display:flex;gap:8px;font-family:'DejaVu Sans',sans-serif;font-size:16px"><span style="border:2px solid #d9b96a;color:#d9b96a;padding:5px 12px;border-radius:6px">Chambre Lilas</span><span style="border:2px solid #d9b96a;color:#d9b96a;padding:5px 12px;border-radius:6px">Suite Jardin</span></div></div>
-    </div>
-    <div style="position:absolute;left:30px;top:250px;background:#d9b96a;color:#14261f;padding:8px 26px;border-radius:6px;font-size:20px;font-weight:700;font-family:'DejaVu Sans',sans-serif">Voir les chambres →</div>
-    <div class="vid" style="top:18px;right:26px;border-color:#d9b96a"><svg viewBox="0 0 100 100" style="width:100%;height:100%"><rect width="100" height="100" fill="#ffd9e6"/><circle cx="50" cy="56" r="26" fill="#e8b890"/><path d="M24 50 Q50 14 76 50 Q70 30 50 30 Q30 30 24 50Z" fill="#3a2a22"/><circle cx="41" cy="54" r="3" fill="#222"/><circle cx="59" cy="54" r="3" fill="#222"/><ellipse class="vm" cx="50" cy="68" rx="7" ry="2" fill="#7a2f2f"/></svg><span>.</span></div>
-    <div class="mb" id="mb2"><small>À : Le Clos des Lilas</small><b>Objet : votre site, refait pour vous</b>Bonjour, j’ai refait votre site et préparé une courte vidéo pour vous le présenter. Dites-moi ce que vous en pensez.<br>— Roger</div>
-  </div></div>
+#end b{font-size:140px;letter-spacing:.06em}#end small{font-size:28px;color:#9d93b8}
+#wg{width:760px;background:#1d1a2e;border-radius:40px;padding:28px;box-shadow:0 10px 50px rgba(0,0,0,.6);text-align:left;font-size:30px}#wg .r{display:flex;gap:14px;margin-bottom:16px;align-items:center}#wg .c{background:#34305a;padding:10px 22px;border-radius:24px;font-size:28px}#wg .l{flex:1;text-align:center;background:#2a2646;padding:14px 0;border-radius:20px;color:#bdb6e6}#wg .rd{width:56px;height:56px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;font-size:28px}
+</style></head><body class="screens">
+<div id="tv"><div id="scr" style="position:absolute;inset:0;overflow:hidden">
+ <div class="pane" id="p_idle" style="background:linear-gradient(135deg,#2a3550,#161a2a);display:flex;align-items:center;justify-content:center;font-size:120px;color:#5a6a95;opacity:1">15:07</div>
+ <div class="pane" id="p_work" style="background:#10151f;padding:40px 54px"><div style="font-size:34px;color:#8fb0ff;margin-bottom:26px">Sites en cours de modernisation</div><div id="wrows" style="font-size:32px;line-height:1.95"></div></div>
+ <div class="pane" id="p_s1" style="background:#fbf6ea;color:#3b2a1a"><div class="site"><div class="sa"><div class="track" id="tr1" style="width:1736px">
+   <div class="page" style="background:#fbf6ea"><div style="height:38px;display:flex;align-items:center;padding:0 22px;gap:26px;font-size:17px;background:#fffaf0;border-bottom:1px solid #eadfc6"><span style="font-family:'DejaVu Serif',Georgia,serif;font-size:22px;font-weight:700;margin-right:auto">Les Tilleuls</span><span>Accueil</span><span id="m1c">Chambres</span><span>Contact</span></div>
+     <div class="ph" style="position:absolute;left:0;top:38px;width:868px;height:300px"><div id="hz1" style="width:100%;height:100%;transform-origin:50% 60%"><svg viewBox="0 0 800 330" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<defs><linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd7a8"/><stop offset=".55" stop-color="#ffeccf"/><stop offset="1" stop-color="#cfe7ff"/></linearGradient></defs>
+<rect width="800" height="330" fill="url(#sky1)"/>
+<circle cx="640" cy="82" r="46" fill="#fff3c7" opacity=".9"/><circle cx="640" cy="82" r="30" fill="#ffe08a"/>
+<path d="M0 205 Q120 150 250 200 T520 190 T800 185 V330 H0Z" fill="#b9d6a0"/><path d="M0 225 Q160 185 330 225 T640 215 T800 220 V330 H0Z" fill="#9cc489"/>
+<path d="M0 250 Q200 225 420 250 T800 245 V330 H0Z" fill="#7fb06f"/>
+<rect x="104" y="170" width="12" height="57.2" rx="4" fill="#5a3e2b"/><circle cx="110" cy="159.6" r="52" fill="#5d9b4c"/><circle cx="86.6" cy="175.2" r="32.24" fill="#4a8a3b"/><circle cx="136.0" cy="170" r="36.4" fill="#4a8a3b"/><circle cx="115.2" cy="141.4" r="28.6" fill="#5d9b4c"/><rect x="694" y="168" width="12" height="63.800000000000004" rx="4" fill="#5a3e2b"/><circle cx="700" cy="156.4" r="58" fill="#5d9b4c"/><circle cx="673.9" cy="173.8" r="35.96" fill="#4a8a3b"/><circle cx="729.0" cy="168" r="40.599999999999994" fill="#4a8a3b"/><circle cx="705.8" cy="136.1" r="31.900000000000002" fill="#5d9b4c"/><rect x="34" y="215" width="12" height="33.0" rx="4" fill="#5a3e2b"/><circle cx="40" cy="209.0" r="30" fill="#6ba85a"/><circle cx="26.5" cy="218.0" r="18.6" fill="#549546"/><circle cx="55.0" cy="215" r="21.0" fill="#549546"/><circle cx="43.0" cy="198.5" r="16.5" fill="#6ba85a"/>
+<rect x="250" y="168" width="300" height="118" fill="#e6d4b0"/>
+<g stroke="#cdb98f" stroke-width="2" opacity=".6"><line x1="250" y1="180" x2="550" y2="180"/><line x1="250" y1="193" x2="550" y2="193"/><line x1="250" y1="206" x2="550" y2="206"/><line x1="250" y1="219" x2="550" y2="219"/><line x1="250" y1="232" x2="550" y2="232"/><line x1="250" y1="245" x2="550" y2="245"/><line x1="250" y1="258" x2="550" y2="258"/><line x1="250" y1="271" x2="550" y2="271"/><line x1="250" y1="284" x2="550" y2="284"/></g>
+<polygon points="232,172 400.0,92 568,172" fill="#b4533a"/><line x1="239" y1="166" x2="561" y2="166" stroke="#8d3d29" stroke-width="2" opacity=".5"/><line x1="246" y1="160" x2="554" y2="160" stroke="#8d3d29" stroke-width="2" opacity=".5"/><line x1="253" y1="154" x2="547" y2="154" stroke="#8d3d29" stroke-width="2" opacity=".5"/><line x1="260" y1="148" x2="540" y2="148" stroke="#8d3d29" stroke-width="2" opacity=".5"/><line x1="267" y1="142" x2="533" y2="142" stroke="#8d3d29" stroke-width="2" opacity=".5"/><line x1="274" y1="136" x2="526" y2="136" stroke="#8d3d29" stroke-width="2" opacity=".5"/><line x1="281" y1="130" x2="519" y2="130" stroke="#8d3d29" stroke-width="2" opacity=".5"/><line x1="288" y1="124" x2="512" y2="124" stroke="#8d3d29" stroke-width="2" opacity=".5"/><line x1="295" y1="118" x2="505" y2="118" stroke="#8d3d29" stroke-width="2" opacity=".5"/><line x1="302" y1="112" x2="498" y2="112" stroke="#8d3d29" stroke-width="2" opacity=".5"/><line x1="309" y1="106" x2="491" y2="106" stroke="#8d3d29" stroke-width="2" opacity=".5"/><line x1="316" y1="100" x2="484" y2="100" stroke="#8d3d29" stroke-width="2" opacity=".5"/>
+<rect x="470" y="96" width="26" height="52" fill="#a89478"/><rect x="466" y="90" width="34" height="10" fill="#8c7a60"/>
+<path d="M483 86 q-8 -16 4 -30 q10 -12 -2 -28" stroke="#d9d9d9" stroke-width="6" fill="none" opacity=".55" stroke-linecap="round"/>
+<rect x="277" y="198" width="8" height="58" fill="#4a7a52"/><rect x="331" y="198" width="8" height="58" fill="#4a7a52"/><rect x="285" y="198" width="46" height="58" fill="#bfe3ff" stroke="#f4efe6" stroke-width="3"/><line x1="308.0" y1="198" x2="308.0" y2="256" stroke="#f4efe6" stroke-width="2"/><line x1="285" y1="227.0" x2="331" y2="227.0" stroke="#f4efe6" stroke-width="2"/><rect x="462" y="198" width="8" height="58" fill="#4a7a52"/><rect x="516" y="198" width="8" height="58" fill="#4a7a52"/><rect x="470" y="198" width="46" height="58" fill="#bfe3ff" stroke="#f4efe6" stroke-width="3"/><line x1="493.0" y1="198" x2="493.0" y2="256" stroke="#f4efe6" stroke-width="2"/><line x1="470" y1="227.0" x2="516" y2="227.0" stroke="#f4efe6" stroke-width="2"/>
+<rect x="372" y="206" width="56" height="80" rx="28" fill="#7a4a2b"/><rect x="372" y="206" width="56" height="80" rx="28" fill="none" stroke="#f4efe6" stroke-width="4"/><circle cx="418" cy="248" r="3.5" fill="#e8c77a"/>
+<rect x="278" y="262" width="62" height="12" fill="#7a4a2b"/><line x1="284.0" y1="262" x2="284.0" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="284.0" cy="261" r="4" fill="#ff7a8a"/><line x1="292.6666666666667" y1="262" x2="292.6666666666667" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="292.6666666666667" cy="261" r="4" fill="#ffd34d"/><line x1="301.3333333333333" y1="262" x2="301.3333333333333" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="301.3333333333333" cy="261" r="4" fill="#ffffff"/><line x1="310.0" y1="262" x2="310.0" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="310.0" cy="261" r="4" fill="#ff7a8a"/><line x1="318.6666666666667" y1="262" x2="318.6666666666667" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="318.6666666666667" cy="261" r="4" fill="#ffd34d"/><line x1="327.3333333333333" y1="262" x2="327.3333333333333" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="327.3333333333333" cy="261" r="4" fill="#ffffff"/><line x1="336.0" y1="262" x2="336.0" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="336.0" cy="261" r="4" fill="#ff7a8a"/>
+<rect x="462" y="262" width="62" height="12" fill="#7a4a2b"/><line x1="468.0" y1="262" x2="468.0" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="468.0" cy="261" r="4" fill="#ff7a8a"/><line x1="476.6666666666667" y1="262" x2="476.6666666666667" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="476.6666666666667" cy="261" r="4" fill="#ffd34d"/><line x1="485.3333333333333" y1="262" x2="485.3333333333333" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="485.3333333333333" cy="261" r="4" fill="#ffffff"/><line x1="494.0" y1="262" x2="494.0" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="494.0" cy="261" r="4" fill="#ff7a8a"/><line x1="502.6666666666667" y1="262" x2="502.6666666666667" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="502.6666666666667" cy="261" r="4" fill="#ffd34d"/><line x1="511.3333333333333" y1="262" x2="511.3333333333333" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="511.3333333333333" cy="261" r="4" fill="#ffffff"/><line x1="520.0" y1="262" x2="520.0" y2="271" stroke="#3b7a3b" stroke-width="2"/><circle cx="520.0" cy="261" r="4" fill="#ff7a8a"/>
+<path d="M400 330 Q392 300 400 286 L440 286 Q452 300 480 330Z" fill="#e8d8b8"/>
+<line x1="60.0" y1="300" x2="60.0" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="60.0" cy="299" r="4" fill="#ff9ab0"/><line x1="75.45454545454545" y1="300" x2="75.45454545454545" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="75.45454545454545" cy="299" r="4" fill="#ffd34d"/><line x1="90.9090909090909" y1="300" x2="90.9090909090909" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="90.9090909090909" cy="299" r="4" fill="#ffffff"/><line x1="106.36363636363637" y1="300" x2="106.36363636363637" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="106.36363636363637" cy="299" r="4" fill="#c18cff"/><line x1="121.81818181818181" y1="300" x2="121.81818181818181" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="121.81818181818181" cy="299" r="4" fill="#ff9ab0"/><line x1="137.27272727272725" y1="300" x2="137.27272727272725" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="137.27272727272725" cy="299" r="4" fill="#ffd34d"/><line x1="152.72727272727275" y1="300" x2="152.72727272727275" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="152.72727272727275" cy="299" r="4" fill="#ffffff"/><line x1="168.1818181818182" y1="300" x2="168.1818181818182" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="168.1818181818182" cy="299" r="4" fill="#c18cff"/><line x1="183.63636363636363" y1="300" x2="183.63636363636363" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="183.63636363636363" cy="299" r="4" fill="#ff9ab0"/><line x1="199.0909090909091" y1="300" x2="199.0909090909091" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="199.0909090909091" cy="299" r="4" fill="#ffd34d"/><line x1="214.54545454545453" y1="300" x2="214.54545454545453" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="214.54545454545453" cy="299" r="4" fill="#ffffff"/><line x1="230.0" y1="300" x2="230.0" y2="309" stroke="#3b7a3b" stroke-width="2"/><circle cx="230.0" cy="299" r="4" fill="#c18cff"/><line x1="580.0" y1="303" x2="580.0" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="580.0" cy="302" r="4" fill="#ff9ab0"/><line x1="596.3636363636364" y1="303" x2="596.3636363636364" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="596.3636363636364" cy="302" r="4" fill="#ffd34d"/><line x1="612.7272727272727" y1="303" x2="612.7272727272727" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="612.7272727272727" cy="302" r="4" fill="#ffffff"/><line x1="629.0909090909091" y1="303" x2="629.0909090909091" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="629.0909090909091" cy="302" r="4" fill="#c18cff"/><line x1="645.4545454545455" y1="303" x2="645.4545454545455" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="645.4545454545455" cy="302" r="4" fill="#ff9ab0"/><line x1="661.8181818181818" y1="303" x2="661.8181818181818" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="661.8181818181818" cy="302" r="4" fill="#ffd34d"/><line x1="678.1818181818182" y1="303" x2="678.1818181818182" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="678.1818181818182" cy="302" r="4" fill="#ffffff"/><line x1="694.5454545454545" y1="303" x2="694.5454545454545" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="694.5454545454545" cy="302" r="4" fill="#c18cff"/><line x1="710.9090909090909" y1="303" x2="710.9090909090909" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="710.9090909090909" cy="302" r="4" fill="#ff9ab0"/><line x1="727.2727272727273" y1="303" x2="727.2727272727273" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="727.2727272727273" cy="302" r="4" fill="#ffd34d"/><line x1="743.6363636363636" y1="303" x2="743.6363636363636" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="743.6363636363636" cy="302" r="4" fill="#ffffff"/><line x1="760.0" y1="303" x2="760.0" y2="312" stroke="#3b7a3b" stroke-width="2"/><circle cx="760.0" cy="302" r="4" fill="#c18cff"/>
+<path d="M120 70 q10 -9 20 0 q10 -9 20 0" stroke="#3a3a3a" stroke-width="2.4" fill="none"/><path d="M200 48 q8 -7 16 0 q8 -7 16 0" stroke="#3a3a3a" stroke-width="2.4" fill="none"/>
+</svg></div></div>
+     <div style="position:absolute;left:34px;top:70px;width:340px;background:rgba(255,250,240,.93);border-radius:14px;padding:16px 20px"><div style="font-family:'DejaVu Serif',Georgia,serif;font-size:27px;line-height:1.15">Chambres d'hôtes<br>au cœur du jardin</div><div style="font-size:16px;margin:8px 0 12px;color:#6b5a48">Petit-déjeuner du verger, calme et sourires.</div><span style="background:#a2492f;color:#fff;padding:8px 18px;border-radius:20px;font-weight:700;font-size:16px">Voir les chambres</span></div></div>
+   <div class="page" style="background:#fbf6ea"><div style="height:38px;display:flex;align-items:center;padding:0 22px;gap:26px;font-size:17px;background:#fffaf0;border-bottom:1px solid #eadfc6"><span style="font-family:'DejaVu Serif',Georgia,serif;font-size:22px;font-weight:700;margin-right:auto">Les Tilleuls</span><span>Accueil</span><span style="color:#a2492f;font-weight:700;border-bottom:2px solid #a2492f">Chambres</span><span>Contact</span></div>
+     <div id="rooms1" style="position:absolute;left:24px;right:24px;top:56px;display:flex;gap:16px"><div class="card"><div class="ph"><svg viewBox="0 0 260 170" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<rect width="260" height="170" fill="#f3ead7"/><rect y="118" width="260" height="52" fill="#c9a273"/>
+<rect x="150" y="26" width="64" height="62" fill="#bfe3ff" stroke="#f4efe6" stroke-width="5"/><line x1="182" y1="26" x2="182" y2="88" stroke="#f4efe6" stroke-width="3"/><line x1="150" y1="57" x2="214" y2="57" stroke="#f4efe6" stroke-width="3"/>
+<path d="M142 22 h16 v72 q-8 -8 -16 0Z" fill="#8fb98a" opacity=".9"/><path d="M222 22 h-16 v72 q8 -8 16 0Z" fill="#8fb98a" opacity=".9"/>
+<rect x="24" y="84" width="112" height="46" rx="6" fill="#f2e6d0"/><rect x="24" y="70" width="20" height="62" rx="5" fill="#8c5a3a"/><rect x="48" y="76" width="34" height="16" rx="7" fill="#fff7ea"/><rect x="86" y="78" width="30" height="14" rx="7" fill="#fff7ea"/>
+<rect x="30" y="104" width="104" height="26" rx="6" fill="#8fb98a"/><line x1="30" y1="112" x2="134" y2="112" stroke="#fff" opacity=".35" stroke-width="2"/>
+<rect x="144" y="106" width="24" height="26" fill="#8c5a3a"/><rect x="150" y="90" width="12" height="16" rx="3" fill="#ffe29a"/><rect x="152" y="100" width="8" height="8" fill="#8c5a3a"/>
+<ellipse cx="216" cy="152" rx="30" ry="9" fill="#8fb98a" opacity=".5"/></svg></div><b>Chambre Tilleul</b></div><div class="card"><div class="ph"><svg viewBox="0 0 260 170" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<rect width="260" height="170" fill="#ece3d0"/><rect y="118" width="260" height="52" fill="#b98f63"/>
+<rect x="150" y="26" width="64" height="62" fill="#cde9ff" stroke="#f4efe6" stroke-width="5"/><line x1="182" y1="26" x2="182" y2="88" stroke="#f4efe6" stroke-width="3"/><line x1="150" y1="57" x2="214" y2="57" stroke="#f4efe6" stroke-width="3"/>
+<path d="M142 22 h16 v72 q-8 -8 -16 0Z" fill="#d98a7a" opacity=".9"/><path d="M222 22 h-16 v72 q8 -8 16 0Z" fill="#d98a7a" opacity=".9"/>
+<rect x="24" y="84" width="112" height="46" rx="6" fill="#e9dfcf"/><rect x="24" y="70" width="20" height="62" rx="5" fill="#8c5a3a"/><rect x="48" y="76" width="34" height="16" rx="7" fill="#fff7ea"/><rect x="86" y="78" width="30" height="14" rx="7" fill="#fff7ea"/>
+<rect x="30" y="104" width="104" height="26" rx="6" fill="#d98a7a"/><line x1="30" y1="112" x2="134" y2="112" stroke="#fff" opacity=".35" stroke-width="2"/>
+<rect x="144" y="106" width="24" height="26" fill="#8c5a3a"/><rect x="150" y="90" width="12" height="16" rx="3" fill="#ffe29a"/><rect x="152" y="100" width="8" height="8" fill="#8c5a3a"/>
+<ellipse cx="216" cy="152" rx="30" ry="9" fill="#d98a7a" opacity=".5"/></svg></div><b>Chambre Verger</b></div><div class="card"><div class="ph"><svg viewBox="0 0 260 170" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<rect width="260" height="170" fill="#f6edd9"/><rect y="118" width="260" height="52" fill="#c2976a"/>
+<rect x="150" y="26" width="64" height="62" fill="#d3ecff" stroke="#f4efe6" stroke-width="5"/><line x1="182" y1="26" x2="182" y2="88" stroke="#f4efe6" stroke-width="3"/><line x1="150" y1="57" x2="214" y2="57" stroke="#f4efe6" stroke-width="3"/>
+<path d="M142 22 h16 v72 q-8 -8 -16 0Z" fill="#8aa6c9" opacity=".9"/><path d="M222 22 h-16 v72 q8 -8 16 0Z" fill="#8aa6c9" opacity=".9"/>
+<rect x="24" y="84" width="112" height="46" rx="6" fill="#f0e2c8"/><rect x="24" y="70" width="20" height="62" rx="5" fill="#8c5a3a"/><rect x="48" y="76" width="34" height="16" rx="7" fill="#fff7ea"/><rect x="86" y="78" width="30" height="14" rx="7" fill="#fff7ea"/>
+<rect x="30" y="104" width="104" height="26" rx="6" fill="#8aa6c9"/><line x1="30" y1="112" x2="134" y2="112" stroke="#fff" opacity=".35" stroke-width="2"/>
+<rect x="144" y="106" width="24" height="26" fill="#8c5a3a"/><rect x="150" y="90" width="12" height="16" rx="3" fill="#ffe29a"/><rect x="152" y="100" width="8" height="8" fill="#8c5a3a"/>
+<ellipse cx="216" cy="152" rx="30" ry="9" fill="#8aa6c9" opacity=".5"/></svg></div><b>Suite Jardin</b></div></div></div>
+  </div><div class="cursor" id="cu1"><svg viewBox="0 0 24 24"><path d="M3 2 L3 19 L8 14.5 L11.5 22 L14.5 20.5 L11 13.5 L18 13.5Z" fill="#111" stroke="#fff" stroke-width="1.6"/></svg></div><div class="ripple" id="rp1"></div></div>
+   <div class="mb" id="mb1"><div class="stamp" id="st1">✓ Envoyé</div><small>À : Les Tilleuls</small><b>Objet : votre site, refait pour vous</b>Bonjour, j'ai refait votre site et préparé une courte vidéo pour vous le présenter. Dites-moi ce que vous en pensez.<br>— Roger</div></div></div>
+ <div class="pane" id="p_s2" style="background:#14261f;color:#f1e9d6;font-family:'DejaVu Serif',Georgia,serif"><div class="site"><div class="sa"><div class="track" id="tr2" style="width:1736px">
+   <div class="page" style="background:#14261f"><div style="position:absolute;left:0;top:0;bottom:0;width:176px;background:#0e1c17;padding:20px 16px;font-family:'DejaVu Sans',sans-serif;font-size:16px;line-height:2.3"><div style="font-family:'DejaVu Serif',Georgia,serif;font-style:italic;font-size:22px;line-height:1.1;margin-bottom:14px;color:#d9b96a">Le Clos<br>des Lilas</div><div>Accueil</div><div id="m2c">Chambres</div><div>Le lac</div><div>Contact</div></div>
+     <div class="ph" style="position:absolute;left:176px;top:0;width:692px;height:338px"><div id="hz2" style="width:100%;height:100%;transform-origin:50% 60%"><svg viewBox="0 0 800 330" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<defs><linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a4a"/><stop offset=".6" stop-color="#5b6fa3"/><stop offset="1" stop-color="#f1b8a0"/></linearGradient><linearGradient id="lake" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9a99a"/><stop offset="1" stop-color="#3d5a8a"/></linearGradient></defs>
+<rect width="800" height="330" fill="url(#sky2)"/>
+<circle cx="0" cy="0" r="1.0" fill="#fff" opacity=".5"/><circle cx="97" cy="53" r="1.6" fill="#fff" opacity=".6"/><circle cx="194" cy="106" r="2.2" fill="#fff" opacity=".7"/><circle cx="291" cy="39" r="1.0" fill="#fff" opacity=".8"/><circle cx="388" cy="92" r="1.6" fill="#fff" opacity=".5"/><circle cx="485" cy="25" r="2.2" fill="#fff" opacity=".6"/><circle cx="582" cy="78" r="1.0" fill="#fff" opacity=".7"/><circle cx="679" cy="11" r="1.6" fill="#fff" opacity=".8"/><circle cx="776" cy="64" r="2.2" fill="#fff" opacity=".5"/><circle cx="73" cy="117" r="1.0" fill="#fff" opacity=".6"/><circle cx="170" cy="50" r="1.6" fill="#fff" opacity=".7"/><circle cx="267" cy="103" r="2.2" fill="#fff" opacity=".8"/><circle cx="364" cy="36" r="1.0" fill="#fff" opacity=".5"/><circle cx="461" cy="89" r="1.6" fill="#fff" opacity=".6"/><circle cx="558" cy="22" r="2.2" fill="#fff" opacity=".7"/><circle cx="655" cy="75" r="1.0" fill="#fff" opacity=".8"/><circle cx="752" cy="8" r="1.6" fill="#fff" opacity=".5"/><circle cx="49" cy="61" r="2.2" fill="#fff" opacity=".6"/><circle cx="146" cy="114" r="1.0" fill="#fff" opacity=".7"/><circle cx="243" cy="47" r="1.6" fill="#fff" opacity=".8"/><circle cx="340" cy="100" r="2.2" fill="#fff" opacity=".5"/><circle cx="437" cy="33" r="1.0" fill="#fff" opacity=".6"/><circle cx="534" cy="86" r="1.6" fill="#fff" opacity=".7"/><circle cx="631" cy="19" r="2.2" fill="#fff" opacity=".8"/><circle cx="728" cy="72" r="1.0" fill="#fff" opacity=".5"/><circle cx="25" cy="5" r="1.6" fill="#fff" opacity=".6"/><circle cx="122" cy="58" r="2.2" fill="#fff" opacity=".7"/><circle cx="219" cy="111" r="1.0" fill="#fff" opacity=".8"/><circle cx="316" cy="44" r="1.6" fill="#fff" opacity=".5"/><circle cx="413" cy="97" r="2.2" fill="#fff" opacity=".6"/><circle cx="510" cy="30" r="1.0" fill="#fff" opacity=".7"/><circle cx="607" cy="83" r="1.6" fill="#fff" opacity=".8"/><circle cx="704" cy="16" r="2.2" fill="#fff" opacity=".5"/><circle cx="1" cy="69" r="1.0" fill="#fff" opacity=".6"/><circle cx="98" cy="2" r="1.6" fill="#fff" opacity=".7"/><circle cx="195" cy="55" r="2.2" fill="#fff" opacity=".8"/><circle cx="292" cy="108" r="1.0" fill="#fff" opacity=".5"/><circle cx="389" cy="41" r="1.6" fill="#fff" opacity=".6"/><circle cx="486" cy="94" r="2.2" fill="#fff" opacity=".7"/><circle cx="583" cy="27" r="1.0" fill="#fff" opacity=".8"/>
+<circle cx="150" cy="62" r="24" fill="#fff6dc"/><circle cx="160" cy="56" r="22" fill="#2a3a63"/>
+<polygon points="0,200 120,92 190,150 280,70 400,170 520,100 640,160 720,110 800,190 800,230 0,230" fill="#6d7fae"/>
+<polygon points="280,70 252,104 268,98 280,112 294,98 310,106" fill="#f5f6ff"/><polygon points="120,92 100,118 114,112 124,124 136,112 146,120" fill="#f5f6ff"/><polygon points="720,110 700,134 712,128 722,140 734,128 744,136" fill="#f5f6ff"/>
+<polygon points="0,230 150,150 300,215 460,140 620,210 800,160 800,240 0,240" fill="#4a5c8c"/>
+<rect y="228" width="800" height="102" fill="url(#lake)"/>
+<g stroke="#fff" opacity=".35" stroke-width="2"><line x1="80" y1="250" x2="130" y2="250"/><line x1="170" y1="264" x2="220" y2="264"/><line x1="260" y1="278" x2="310" y2="278"/><line x1="350" y1="250" x2="400" y2="250"/><line x1="440" y1="264" x2="490" y2="264"/><line x1="530" y1="278" x2="580" y2="278"/><line x1="620" y1="250" x2="670" y2="250"/><line x1="710" y1="264" x2="760" y2="264"/></g>
+<path d="M0 285 Q200 262 420 288 T800 280 V330 H0Z" fill="#2f5a3a"/>
+<rect x="290" y="206" width="220" height="86" fill="#efe2d0"/><polygon points="274,208 400,140 526,208" fill="#3e5686"/>
+<g fill="#ffd98a"><path d="M322 236 h30 v34 h-30Z M448 236 h30 v34 h-30Z M385 240 h30 v52 h-30Z"/></g>
+<g fill="#ffd98a"><path d="M322 236 q15 -22 30 0Z M448 236 q15 -22 30 0Z M385 240 q15 -22 30 0Z"/></g>
+<circle cx="98.0" cy="276.0" r="21.84" fill="#b58cd9"/><circle cx="124.0" cy="279.0" r="21.84" fill="#9a6fc6"/><circle cx="150.0" cy="282.0" r="21.84" fill="#caa6ea"/><circle cx="176.0" cy="276.0" r="21.84" fill="#b58cd9"/><circle cx="202.0" cy="279.0" r="21.84" fill="#9a6fc6"/><circle cx="98.0" cy="258.6" r="21.84" fill="#caa6ea"/><circle cx="124.0" cy="252.6" r="21.84" fill="#b58cd9"/><circle cx="150.0" cy="255.6" r="21.84" fill="#9a6fc6"/><circle cx="176.0" cy="258.6" r="21.84" fill="#caa6ea"/><circle cx="202.0" cy="252.6" r="21.84" fill="#b58cd9"/><circle cx="98.0" cy="232.2" r="21.84" fill="#9a6fc6"/><circle cx="124.0" cy="235.2" r="21.84" fill="#caa6ea"/><circle cx="150.0" cy="229.2" r="21.84" fill="#b58cd9"/><circle cx="176.0" cy="232.2" r="21.84" fill="#9a6fc6"/><circle cx="202.0" cy="235.2" r="21.84" fill="#caa6ea"/><rect x="103.19999999999999" y="291.6" width="93.60000000000001" height="26.0" fill="#2f5a3a" rx="8"/><circle cx="590.0" cy="278.0" r="25.2" fill="#b58cd9"/><circle cx="620.0" cy="281.0" r="25.2" fill="#9a6fc6"/><circle cx="650.0" cy="284.0" r="25.2" fill="#caa6ea"/><circle cx="680.0" cy="278.0" r="25.2" fill="#b58cd9"/><circle cx="710.0" cy="281.0" r="25.2" fill="#9a6fc6"/><circle cx="590.0" cy="257.0" r="25.2" fill="#caa6ea"/><circle cx="620.0" cy="251.0" r="25.2" fill="#b58cd9"/><circle cx="650.0" cy="254.0" r="25.2" fill="#9a6fc6"/><circle cx="680.0" cy="257.0" r="25.2" fill="#caa6ea"/><circle cx="710.0" cy="251.0" r="25.2" fill="#b58cd9"/><circle cx="590.0" cy="227.0" r="25.2" fill="#9a6fc6"/><circle cx="620.0" cy="230.0" r="25.2" fill="#caa6ea"/><circle cx="650.0" cy="224.0" r="25.2" fill="#b58cd9"/><circle cx="680.0" cy="227.0" r="25.2" fill="#9a6fc6"/><circle cx="710.0" cy="230.0" r="25.2" fill="#caa6ea"/><rect x="596.0" y="296.0" width="108.0" height="30.0" fill="#2f5a3a" rx="8"/><circle cx="32.0" cy="300.0" r="15.959999999999999" fill="#b58cd9"/><circle cx="51.0" cy="303.0" r="15.959999999999999" fill="#9a6fc6"/><circle cx="70.0" cy="306.0" r="15.959999999999999" fill="#caa6ea"/><circle cx="89.0" cy="300.0" r="15.959999999999999" fill="#b58cd9"/><circle cx="108.0" cy="303.0" r="15.959999999999999" fill="#9a6fc6"/><circle cx="32.0" cy="288.9" r="15.959999999999999" fill="#caa6ea"/><circle cx="51.0" cy="282.9" r="15.959999999999999" fill="#b58cd9"/><circle cx="70.0" cy="285.9" r="15.959999999999999" fill="#9a6fc6"/><circle cx="89.0" cy="288.9" r="15.959999999999999" fill="#caa6ea"/><circle cx="108.0" cy="282.9" r="15.959999999999999" fill="#b58cd9"/><circle cx="32.0" cy="268.8" r="15.959999999999999" fill="#9a6fc6"/><circle cx="51.0" cy="271.8" r="15.959999999999999" fill="#caa6ea"/><circle cx="70.0" cy="265.8" r="15.959999999999999" fill="#b58cd9"/><circle cx="89.0" cy="268.8" r="15.959999999999999" fill="#9a6fc6"/><circle cx="108.0" cy="271.8" r="15.959999999999999" fill="#caa6ea"/><rect x="35.8" y="311.4" width="68.4" height="19.0" fill="#2f5a3a" rx="8"/><circle cx="704.0" cy="304.0" r="15.12" fill="#b58cd9"/><circle cx="722.0" cy="307.0" r="15.12" fill="#9a6fc6"/><circle cx="740.0" cy="310.0" r="15.12" fill="#caa6ea"/><circle cx="758.0" cy="304.0" r="15.12" fill="#b58cd9"/><circle cx="776.0" cy="307.0" r="15.12" fill="#9a6fc6"/><circle cx="704.0" cy="293.8" r="15.12" fill="#caa6ea"/><circle cx="722.0" cy="287.8" r="15.12" fill="#b58cd9"/><circle cx="740.0" cy="290.8" r="15.12" fill="#9a6fc6"/><circle cx="758.0" cy="293.8" r="15.12" fill="#caa6ea"/><circle cx="776.0" cy="287.8" r="15.12" fill="#b58cd9"/><circle cx="704.0" cy="274.6" r="15.12" fill="#9a6fc6"/><circle cx="722.0" cy="277.6" r="15.12" fill="#caa6ea"/><circle cx="740.0" cy="271.6" r="15.12" fill="#b58cd9"/><circle cx="758.0" cy="274.6" r="15.12" fill="#9a6fc6"/><circle cx="776.0" cy="277.6" r="15.12" fill="#caa6ea"/><rect x="707.6" y="314.8" width="64.8" height="18.0" fill="#2f5a3a" rx="8"/>
+</svg></div></div>
+     <div style="position:absolute;left:206px;top:26px;width:300px"><div style="font-style:italic;font-size:32px;line-height:1.1;text-shadow:0 2px 10px #0008">Un week-end chez vous,<br>au bord du lac.</div><span style="display:inline-block;margin-top:12px;background:#d9b96a;color:#14261f;padding:8px 18px;border-radius:6px;font-weight:700;font-size:16px;font-family:'DejaVu Sans',sans-serif">Voir les chambres →</span></div></div>
+   <div class="page" style="background:#14261f"><div style="position:absolute;left:0;top:0;bottom:0;width:176px;background:#0e1c17;padding:20px 16px;font-family:'DejaVu Sans',sans-serif;font-size:16px;line-height:2.3"><div style="font-family:'DejaVu Serif',Georgia,serif;font-style:italic;font-size:22px;line-height:1.1;margin-bottom:14px;color:#d9b96a">Le Clos<br>des Lilas</div><div>Accueil</div><div style="color:#d9b96a;font-weight:700">Chambres</div><div>Le lac</div><div>Contact</div></div>
+     <div id="rooms2" style="position:absolute;left:196px;right:20px;top:46px;display:flex;gap:14px"><div class="card"><div class="ph"><svg viewBox="0 0 260 170" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<rect width="260" height="170" fill="#2d3b5c"/><rect y="118" width="260" height="52" fill="#6b5a4a"/>
+<rect x="150" y="26" width="64" height="62" fill="#9fb7e0" stroke="#f4efe6" stroke-width="5"/><line x1="182" y1="26" x2="182" y2="88" stroke="#f4efe6" stroke-width="3"/><line x1="150" y1="57" x2="214" y2="57" stroke="#f4efe6" stroke-width="3"/>
+<path d="M142 22 h16 v72 q-8 -8 -16 0Z" fill="#9a6fc6" opacity=".9"/><path d="M222 22 h-16 v72 q8 -8 16 0Z" fill="#9a6fc6" opacity=".9"/>
+<rect x="24" y="84" width="112" height="46" rx="6" fill="#cfd9ee"/><rect x="24" y="70" width="20" height="62" rx="5" fill="#8c5a3a"/><rect x="48" y="76" width="34" height="16" rx="7" fill="#fff7ea"/><rect x="86" y="78" width="30" height="14" rx="7" fill="#fff7ea"/>
+<rect x="30" y="104" width="104" height="26" rx="6" fill="#9a6fc6"/><line x1="30" y1="112" x2="134" y2="112" stroke="#fff" opacity=".35" stroke-width="2"/>
+<rect x="144" y="106" width="24" height="26" fill="#8c5a3a"/><rect x="150" y="90" width="12" height="16" rx="3" fill="#ffe29a"/><rect x="152" y="100" width="8" height="8" fill="#8c5a3a"/>
+<ellipse cx="216" cy="152" rx="30" ry="9" fill="#9a6fc6" opacity=".5"/></svg></div><b>Chambre Lilas</b></div><div class="card"><div class="ph"><svg viewBox="0 0 260 170" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<rect width="260" height="170" fill="#33425f"/><rect y="118" width="260" height="52" fill="#745f4d"/>
+<rect x="150" y="26" width="64" height="62" fill="#a9c1e6" stroke="#f4efe6" stroke-width="5"/><line x1="182" y1="26" x2="182" y2="88" stroke="#f4efe6" stroke-width="3"/><line x1="150" y1="57" x2="214" y2="57" stroke="#f4efe6" stroke-width="3"/>
+<path d="M142 22 h16 v72 q-8 -8 -16 0Z" fill="#caa6ea" opacity=".9"/><path d="M222 22 h-16 v72 q8 -8 16 0Z" fill="#caa6ea" opacity=".9"/>
+<rect x="24" y="84" width="112" height="46" rx="6" fill="#e5d3f2"/><rect x="24" y="70" width="20" height="62" rx="5" fill="#8c5a3a"/><rect x="48" y="76" width="34" height="16" rx="7" fill="#fff7ea"/><rect x="86" y="78" width="30" height="14" rx="7" fill="#fff7ea"/>
+<rect x="30" y="104" width="104" height="26" rx="6" fill="#caa6ea"/><line x1="30" y1="112" x2="134" y2="112" stroke="#fff" opacity=".35" stroke-width="2"/>
+<rect x="144" y="106" width="24" height="26" fill="#8c5a3a"/><rect x="150" y="90" width="12" height="16" rx="3" fill="#ffe29a"/><rect x="152" y="100" width="8" height="8" fill="#8c5a3a"/>
+<ellipse cx="216" cy="152" rx="30" ry="9" fill="#caa6ea" opacity=".5"/></svg></div><b>Chambre Famille</b></div><div class="card"><div class="ph"><svg viewBox="0 0 260 170" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<rect width="260" height="170" fill="#2e4a45"/><rect y="118" width="260" height="52" fill="#6a5a48"/>
+<rect x="150" y="26" width="64" height="62" fill="#a4cfc7" stroke="#f4efe6" stroke-width="5"/><line x1="182" y1="26" x2="182" y2="88" stroke="#f4efe6" stroke-width="3"/><line x1="150" y1="57" x2="214" y2="57" stroke="#f4efe6" stroke-width="3"/>
+<path d="M142 22 h16 v72 q-8 -8 -16 0Z" fill="#e0b36a" opacity=".9"/><path d="M222 22 h-16 v72 q8 -8 16 0Z" fill="#e0b36a" opacity=".9"/>
+<rect x="24" y="84" width="112" height="46" rx="6" fill="#d4e4d9"/><rect x="24" y="70" width="20" height="62" rx="5" fill="#8c5a3a"/><rect x="48" y="76" width="34" height="16" rx="7" fill="#fff7ea"/><rect x="86" y="78" width="30" height="14" rx="7" fill="#fff7ea"/>
+<rect x="30" y="104" width="104" height="26" rx="6" fill="#e0b36a"/><line x1="30" y1="112" x2="134" y2="112" stroke="#fff" opacity=".35" stroke-width="2"/>
+<rect x="144" y="106" width="24" height="26" fill="#8c5a3a"/><rect x="150" y="90" width="12" height="16" rx="3" fill="#ffe29a"/><rect x="152" y="100" width="8" height="8" fill="#8c5a3a"/>
+<ellipse cx="216" cy="152" rx="30" ry="9" fill="#e0b36a" opacity=".5"/></svg></div><b>Suite du Lac</b></div></div></div>
+  </div><div class="cursor" id="cu2"><svg viewBox="0 0 24 24"><path d="M3 2 L3 19 L8 14.5 L11.5 22 L14.5 20.5 L11 13.5 L18 13.5Z" fill="#fff" stroke="#111" stroke-width="1.6"/></svg></div><div class="ripple" id="rp2"></div></div>
+   <div class="mb" id="mb2" style="font-family:'DejaVu Serif',Georgia,serif"><div class="stamp" id="st2">✓ Envoyé</div><small>À : Le Clos des Lilas</small><b>Objet : votre site, refait pour vous</b>Bonjour, j'ai refait votre site et préparé une courte vidéo pour vous le présenter. Dites-moi ce que vous en pensez.<br>— Roger</div></div></div>
+ <div class="pane" id="p_vid" style="background:#000"></div>
+ <div class="pane" id="p_prog" style="background:#10151f;padding:40px 54px"><div style="font-size:34px;color:#8fb0ff;margin-bottom:26px">Vidéo de reportage · rendu</div><div style="font-size:28px;line-height:1.8"><div>Voix ✓ &nbsp; Images ✓</div><div id="pl3">Intégration du visage…</div><div id="pl2" style="color:#9aa8c8;font-size:24px"></div></div><div style="margin-top:26px;height:22px;background:#1d2538;border-radius:12px;overflow:hidden"><i id="pbar" style="display:block;height:100%;width:62%;background:#4b8bff"></i></div><div id="ppct" style="margin-top:14px;font-size:34px">62 % · environ 4 min</div></div>
 </div></div>
-<svg id="room" viewBox="0 0 1080 1920" style="position:absolute;inset:0;width:1080px;height:1920px">
-  <ellipse cx="540" cy="1120" rx="470" ry="30" fill="rgba(0,0,0,.35)"/>
-  <rect x="140" y="800" width="800" height="270" rx="60" fill="#6f3434"/>
-  <rect x="60" y="900" width="130" height="210" rx="50" fill="#80403f"/>
-  <rect x="890" y="900" width="130" height="210" rx="50" fill="#80403f"/>
-  <g id="roger">
-    <rect x="430" y="905" width="220" height="190" rx="50" fill="#3d5a80"/>
-    <rect x="410" y="1035" width="140" height="62" rx="28" fill="#2c3a55"/><rect x="540" y="1035" width="140" height="62" rx="28" fill="#2c3a55"/>
-    <g id="armsUp" stroke="#3d5a80" stroke-width="44" stroke-linecap="round" fill="none"><path d="M455 945 Q380 900 462 810"/><path d="M625 945 Q700 900 618 810"/></g>
-    <g id="armsDown" stroke="#3d5a80" stroke-width="44" stroke-linecap="round" fill="none" style="display:none"><path d="M450 950 Q410 1010 470 1050"/><path d="M630 950 Q670 1010 610 1050"/></g>
-    <rect x="515" y="885" width="50" height="40" fill="#e8b890"/>
-    <circle cx="540" cy="840" r="66" fill="#e8b890"/>
-    <path d="M474 835 Q480 760 540 764 Q600 760 606 835 Q590 790 540 792 Q490 790 474 835Z" fill="#3a2a22"/>
-    <g id="eyesOpen"><circle cx="517" cy="838" r="6" fill="#222"/><circle cx="563" cy="838" r="6" fill="#222"/></g>
-    <g id="eyesShut" style="display:none" stroke="#222" stroke-width="4" fill="none"><path d="M507 840 Q517 846 527 840"/><path d="M553 840 Q563 846 573 840"/></g>
-    <g stroke="#222" stroke-width="3.5" fill="none"><circle cx="517" cy="838" r="17"/><circle cx="563" cy="838" r="17"/><path d="M534 838 H546"/></g>
-    <ellipse id="mouth" cx="540" cy="878" rx="12" ry="3" fill="#7a2f2f"/>
-  </g>
-</svg>
-<div id="cap"></div>
-<div id="table"></div>
 <div id="phone"><div id="ps"><div id="off"></div><div id="hdr"><div id="clk">15:07</div><div id="dt">samedi</div><span id="pill">● écoute</span></div><div id="chat"></div></div></div>
-<div id="mail">✉️</div>
-<div id="end"><b>AIWA</b><p style="font-size:56px;margin-top:-10px">Le widget</p><div id="wg"><div class="r"><span class="c">Projet ▾</span><span class="c">Wallet</span><span class="c">Store</span></div><div class="r"><span class="l">Docs</span><span class="l">Média</span><span class="l">Page</span><span class="l">App</span></div><div class="st">Prêt</div><div class="in"><span>Dis ou écris à ton agent…</span><b>🎤</b></div></div><small>Illustration</small></div>
+<div id="caps"><div id="top">Samedi, 15 h. Canapé. Pas de PC.</div><div id="sub"></div><div id="blink"></div>
+ <div id="end"><b>AIWA</b><p style="font-size:56px;margin-top:-10px">Le widget</p><div id="wg"><div class="r"><span class="c rd">↻</span><span class="c" style="flex:1;text-align:center">Projet ▾</span><span class="c">Wallet</span><span class="c">Store</span></div><div class="r"><span class="c rd">✉</span><span class="l">Docs</span><span class="l">Média</span><span class="l">Page</span><span class="l">App</span></div><div class="r"><span class="c rd" style="background:#e2662d">C</span><span class="c rd">⚙</span><span class="c rd">+</span><span class="c" style="flex:1;text-align:center;background:#3a355f;height:48px;line-height:48px;padding:0;font-size:30px">🤖</span><span class="c rd"><svg viewBox="0 0 24 24" width="30" height="30"><path fill="#fff" d="M17,20c-0.29,0 -0.56,-0.06 -0.76,-0.15 -0.71,-0.37 -1.21,-0.88 -1.71,-2.38 -0.51,-1.56 -1.47,-2.29 -2.39,-3 -0.79,-0.61 -1.61,-1.24 -2.32,-2.53C9.29,10.98 9,9.93 9,9c0,-2.8 2.2,-5 5,-5s5,2.2 5,5h2c0,-4.03 -3.03,-7 -7,-7S7,4.97 7,9c0,1.34 0.44,2.89 1.21,4.04 0.58,1.3 1.58,2.07 2.43,2.76 0.74,0.58 1.37,1.09 1.74,2.21 0.5,1.51 1.12,2.43 2.43,3.3 0.5,0.2 1.12,0.69 2.19,0.69 2.21,0 4,-1.79 4,-4h-2c0,1.1 -0.9,2 -2,2z M7.64,2.64L6.22,1.22C4.23,3.21 3,5.96 3,9s1.23,5.79 3.22,7.78l1.41,-1.41C6.01,13.74 5,11.49 5,9s1.01,-4.74 2.64,-6.36z M11.5,9c0,1.38 1.12,2.5 2.5,2.5s2.5,-1.12 2.5,-2.5 -1.12,-2.5 -2.5,-2.5 -2.5,1.12 -2.5,2.5z"/></svg></span></div></div><small>Illustration</small></div></div>
 <script>
-const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)), ramp=(t,a,b)=>clamp((t-a)/(b-a),0,1);
-const SPEAK=[[4.0,5.25],[6.6,17.26],[20.6,21.19],[28.4,29.19],[33.2,33.97],[36.0,40.86],[100.5,107.91],[114.0,114.63]];
-const CAPS=[[4.0,5.3,"« Hé, mon petit oisillon. »"],[6.6,10.3,"« Regarde où en est ma veille des maisons d'hôtes. »"],[10.3,13.8,"« Propose à chaque cible son site refait, avec une vidéo personnalisée. »"],[13.8,17.3,"« Envoie-leur par mail, et caste sur la télé quand c'est prêt. »"],[20.6,21.4,"« Oui. »"],[28.4,29.3,"« Envoie. »"],[33.2,34.1,"« Envoie. »"],[36.0,38.7,"« Au fait, ma session Claude vidéo Aiwa est terminée ? »"],[38.7,40.9,"« Montre-la-moi, s'il te plaît. »"],[100.5,104.0,"« Maintenant, envoie-moi où en est la vidéo de moi, »"],[104.0,108.2,"« dis-moi combien de temps, et augmente les crédits du serveur du bureau pour accélérer. »"],[114.0,114.7,"« Oui. »"]];
-const MSGS=[
- [5.5,'a','J’écoute.'],
- [17.3,'a','Veille, sites refaits, vidéos, mails. Je lance&nbsp;?<div class="btns"><span>Oui</span><span>Non</span></div>'],
- [20.6,'u','Oui.'],
- [22.0,'a','Ça tourne.<div class="bar"><i id="bar"></i></div>'],
- [25.5,'a','C’est prêt. Premier site, sur la télé.<div class="btns"><span>Envoyer par mail</span></div>'],
- [28.4,'u','Envoie.'],
- [29.4,'a','✓ Envoyé · Les Tilleuls'],
- [30.9,'a','Deuxième site, sur la télé.<div class="btns"><span>Envoyer par mail</span></div>'],
- [33.2,'u','Envoie.'],
- [34.2,'a','✓ Envoyé · Le Clos des Lilas'],
- [41.4,'a','Elle est terminée. Je la passe sur la télé.'],
- [108.6,'a','Vidéo de toi : 62 %, environ 4 min. Augmenter les crédits du serveur du bureau ?<div class="btns"><span>Oui</span><span>Non</span></div>'],
- [115.0,'a','✓ Crédits augmentés · environ 2 min']];
+const EV={"wake": 5.0, "glance_in": 7.6, "glance_hold": 9.4, "glance_out": 11.0, "back_tv": 13.0, "work_from": 25.2, "work_to": 28.6, "site1": [28.6, 38.9], "site2": [38.9, 49.9], "film_from": 58.2, "film_len": 47.279, "prog_from": 110.6, "boost": 117.1, "end": 121.6, "total": 126.0}, CAPS=[["R", 4.0, 7.78, "Mon agent, le serveur du bureau a terminé ma veille des maisons d'hôtes ?"], ["A", 8.4, 9.34, "Pas encore."], ["R", 12.6, 15.57, "Tant pis, modernise les sites internet qui en ont besoin,"], ["R", 15.57, 18.83, "et propose-leur par mail le résultat avec une vidéo de présentation."], ["R", 18.83, 21.5, "Cast ça sur la télé pour que je valide."], ["A", 22.1, 23.67, "Compris. Je lance ?"], ["R", 24.2, 24.77, "Oui."], ["A", 25.2, 25.94, "Ça tourne."], ["A", 28.6, 31.25, "C'est prêt. Premier site, sur la télé."], ["R", 36.4, 37.12, "Envoie."], ["A", 37.4, 38.32, "Envoyé."], ["A", 38.9, 40.91, "Deuxième site, sur la télé."], ["R", 47.0, 47.81, "Envoie."], ["A", 48.2, 49.07, "Envoyé."], ["R", 50.2, 54.51, "Au fait, ma session Claude vidéo Aiwa est terminée ? Montre-la-moi, s'il te plaît."], ["A", 55.1, 57.74, "Elle est terminée. Je la passe sur la télé."], ["R", 106.2, 110.0, "Et pour ma vidéo de reportage, mon visage a bien été intégré ?"], ["A", 110.6, 112.11, "Ce n'est pas encore terminé."], ["R", 112.8, 116.49, "D'accord, utilise mes crédits pour accélérer, s'il te plaît."], ["A", 117.1, 119.23, "C'est fait. Environ deux minutes."]], T={"R1": [4.0, 7.78], "A1": [8.4, 9.34], "R2": [12.6, 21.5], "A2": [22.1, 23.67], "R3": [24.2, 24.77], "A3": [25.2, 25.94], "A4": [28.6, 31.25], "R4": [36.4, 37.12], "A5": [37.4, 38.32], "A6": [38.9, 40.91], "R5": [47.0, 47.81], "A7": [48.2, 49.07], "R6": [50.2, 54.51], "A8": [55.1, 57.74], "R7": [106.2, 110.0], "A9": [110.6, 112.11], "R8": [112.8, 116.49], "A10": [117.1, 119.23]};
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),ramp=(t,a,b)=>clamp((t-a)/(b-a)),eo=x=>1-Math.pow(1-x,3),eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
 const $=id=>document.getElementById(id);
-const chat=$('chat');
-const els=MSGS.map(m=>{const d=document.createElement('div');d.className='m '+m[1];d.innerHTML=m[2];chat.appendChild(d);return d});
-const ROWS=[["Les Tilleuls",24.1],["Le Clos des Lilas",24.5],["La Ferme du Moulin",24.9],["Chez Mado",25.3]];
-const rows=$('rows');
-ROWS.forEach(r=>{const d=document.createElement('div');d.style.opacity=0;d.innerHTML=r[0]+' <span style="color:#6fd98a;float:right">analysé</span>';rows.appendChild(d)});
-function render(t){
-  $('top').style.opacity=ramp(t,.3,.8)*(1-ramp(t,3.2,3.8));
-  $('sun').style.opacity=ramp(t,22,25.4)*.9;
-  const up=t<4.0;
-  $('armsUp').style.display=up?'':'none'; $('armsDown').style.display=up?'none':'';
-  const yawn=t>1.4&&t<3.2;
-  $('eyesOpen').style.display=yawn?'none':''; $('eyesShut').style.display=yawn?'':'none';
-  let mo=3,mr=12;
-  if(yawn){const y=Math.sin(Math.PI*ramp(t,1.4,3.2));mo=3+26*y;mr=12+4*y}
-  if(SPEAK.some(s=>t>=s[0]&&t<=s[1])){mo=4+7*Math.abs(Math.sin(t*17));mr=11}
-  $('mouth').setAttribute('ry',mo);$('mouth').setAttribute('rx',mr);
-  $('roger').setAttribute('transform','translate(0,'+(Math.sin(t*2)*2.5)+')');
-  const cp=CAPS.find(c=>t>=c[0]&&t<c[1]);
-  const cap=$('cap'); if(cp){cap.textContent=cp[2];cap.style.opacity=Math.min(ramp(t,cp[0],cp[0]+.15),1-ramp(t,cp[1]-.15,cp[1]))}else cap.style.opacity=0;
-  $('p_idle').style.opacity=t<24?1:0;
-  $('p_veille').style.opacity=(t>=22.4&&t<25.5)?1:0;
-  $('p_s1').style.opacity=(t>=25.5&&t<30.9)?1:0;
-  $('p_s2').style.opacity=(t>=30.9&&t<45)?1:0; $('p_vid').style.opacity=(t>=45&&t<99.8)?1:0; $('p_prog').style.opacity=(t>=99.8)?1:0; {const pc=62+ramp(t,115.0,119.0)*18;$('pbar').style.width=(t>=115.0?pc:62)+'%';$('ppct').textContent=(t>=115.0?Math.round(pc)+' % · environ 2 min':'62 % · environ 4 min');$('pl2').textContent=t>=115.0?'Crédits du serveur du bureau : augmentés':'Serveur du bureau : crédits normaux'}
-  rows.childNodes.forEach((d,i)=>d.style.opacity=ramp(t,ROWS[i][1]-.35,ROWS[i][1]-.15));
-  document.querySelectorAll('.vm').forEach(e=>e.setAttribute('ry',((t>=25.5&&t<28.4)||(t>=30.9&&t<33.2))?(2+5*Math.abs(Math.sin(t*15))):2));
-  $('mb1').style.opacity=ramp(t,26.2,26.6)*(t<30.9?1:0); $('mb2').style.opacity=ramp(t,31.6,32)*(t<45?1:0);
-  $('off').style.opacity=1-ramp(t,5.4,5.7);
-  $('pill').style.opacity=(t>=5.5&&t<17.3)?1:0;
-  els.forEach((d,i)=>{const at=MSGS[i][0];const v=ramp(t,at,at+.25);d.style.opacity=v;d.style.transform='translateY('+((1-v)*20)+'px)';d.style.display=(t>=at&&MSGS[i][1]==='a')?'':'none'});
-  const b=$('bar'); if(b) b.style.width=(ramp(t,22.2,25.4)*100)+'%';
-  let mv=0,mp=0;
-  [29.4,34.2].forEach(a=>{if(t>=a&&t<a+1.3){mv=1;mp=(t-a)/1.3}});
-  const m=$('mail'); m.style.opacity=mv?(1-mp*mp):0; m.style.top=(1250-mp*700)+'px'; m.style.left=(470+mp*220)+'px'; m.style.transform='scale('+(1-mp*.6)+') rotate('+(mp*25)+'deg)';
-  $('end').style.opacity=ramp(t,114.0,118.7);
+if(location.search.includes('mode=caps')){document.body.className='caps';document.documentElement.style.background='transparent'}
+const MSGS=[[T.A1[0],'Pas encore.'],[T.A2[0],'Compris. Je lance&nbsp;?<div class="btns"><span>Oui</span><span>Non</span></div>'],[T.A3[0],'Ça tourne.<div class="bar"><i id="bar"></i></div>'],[T.A4[0],'C’est prêt. Premier site, sur la télé.<div class="btns"><span>Envoyer par mail</span></div>'],[T.A5[0],'✓ Envoyé · Les Tilleuls'],[T.A6[0],'Deuxième site, sur la télé.<div class="btns"><span>Envoyer par mail</span></div>'],[T.A7[0],'✓ Envoyé · Le Clos des Lilas'],[T.A8[0],'Elle est terminée. Je la passe sur la télé.'],[T.A9[0],'Pas encore terminé.'],[T.A10[0],'✓ Crédits utilisés · environ 2 min']];
+const els=MSGS.map(m=>{const d=document.createElement('div');d.className='m';d.innerHTML=m[1];$('chat').appendChild(d);return d});
+const WR=[["Les Tilleuls",.5],["Le Clos des Lilas",1.4]];WR.forEach(r=>{const d=document.createElement('div');d.innerHTML=r[0]+' <span class="s" style="float:right;color:#9aa8c8">en cours…</span>';$('wrows').appendChild(d)});
+function site(n,t,a,b,sidebar){
+  const lt=t-a,on=t>=a&&t<b;$('p_s'+n).style.opacity=on?Math.min(ramp(lt,0,.4),1-ramp(t,b-.3,b)):0;if(!on)return;
+  const tr=$('tr'+n),u=eio(ramp(lt,3.7,4.5));tr.style.transform=`translateX(${-868*u}px)`;
+  $('hz'+n).style.transform=`scale(${1+.05*ramp(lt,0,5)})`;
+  // the cursor goes to « Chambres » and clicks
+  const cx0=n==1?790:640,cy0=n==1?230:230,tx=n==1?596:70,ty=n==1?20:(sidebar?78:78),k=eio(ramp(lt,2.3,3.4)),px=cx0+(tx-cx0)*k,py=cy0+(ty-cy0)*k;
+  const cu=$('cu'+n),rp=$('rp'+n);cu.style.left=px+'px';cu.style.top=py+'px';cu.style.opacity=lt<4.6?1:Math.max(0,1-ramp(lt,4.6,5.2));
+  const r=ramp(lt,3.5,4.2);rp.style.left=(tx-14)+'px';rp.style.top=(ty-14)+'px';rp.style.opacity=r>0&&r<1?1-r:0;rp.style.transform=`scale(${.4+1.4*r})`;
+  const mb=$('mb'+n);mb.style.opacity=ramp(lt,1.6,2.1);mb.style.transform=`translateY(${(1-eo(ramp(lt,1.6,2.1)))*30}px)`;
+  const sent=n==1?T.A5[0]:T.A7[0];$('st'+n).style.opacity=t>=sent?1:0;
+  document.querySelectorAll('#rooms'+n+' .card').forEach((c,i)=>{const q=ramp(lt,4.4+i*.3,4.9+i*.3);c.style.opacity=q;c.style.transform=`translateY(${(1-eo(q))*18}px)`});
+  if(n==1)$('m1c').style.cssText=lt>3.5?'color:#a2492f;font-weight:700':'';
 }
-window.render=render; render(0);
+function render(t){
+  // the TV
+  const w=t>=EV.work_from&&t<EV.work_to;
+  $('p_work').style.opacity=w?1:0;
+  document.querySelectorAll('#wrows div').forEach((d,i)=>{const done=t>=EV.work_from+WR[i][1]+1.0;const s=d.querySelector('.s');s.textContent=done?'✓ modernisé':'en cours…';s.style.color=done?'#6fd98a':'#9aa8c8'});
+  site(1,t,EV.site1[0],EV.site1[1],false);site(2,t,EV.site2[0],EV.site2[1],true);
+  const filmOn=t>=EV.film_from&&t<EV.film_from+EV.film_len;
+  $('p_vid').style.opacity=filmOn?1:0;
+  const progOn=t>=EV.prog_from;$('p_prog').style.opacity=progOn?1:0;
+  const pc=62+ramp(t,EV.boost,EV.boost+4)*20,b=t>=EV.boost;$('pbar').style.width=(b?pc:62)+'%';$('ppct').textContent=b?Math.round(pc)+' % · environ 2 min':'62 % · environ 4 min';$('pl2').textContent=b?'Crédits utilisés pour accélérer':'';$('pl3').textContent=b?'Intégration du visage… accélérée':'Intégration du visage…';
+  $('p_idle').style.opacity=(w||filmOn||progOn||(t>=EV.site1[0]&&t<EV.site2[1]))?0:1;
+  // the phone: dark until the wake word, then the lock screen; the replies as notifications
+  $('off').style.opacity=1-ramp(t,EV.wake,EV.wake+.35);$('pill').style.opacity=(t>=EV.wake&&t<T.A1[0])?1:0;
+  els.forEach((d,i)=>{const at=MSGS[i][0],v=ramp(t,at,at+.25);d.style.opacity=v;d.style.transform=`translateY(${(1-v)*20}px)`;d.style.display=t>=at?'':'none'});
+  const bar=$('bar');if(bar)bar.style.width=(ramp(t,T.A3[0],EV.work_to)*100)+'%';
+  // the captions layer
+  const top=$('top');top.style.opacity=ramp(t,.3,.8)*(1-ramp(t,3.0,3.6));
+  const c=CAPS.find(c=>t>=c[1]&&t<c[2]),sub=$('sub');
+  if(c){sub.className=c[0]=='A'?'a':'';sub.textContent=(c[0]=='A'?'':'')+'« '+c[3]+' »';if(c[0]=='A')sub.textContent='Aiwa : '+c[3];sub.style.opacity=Math.min(ramp(t,c[1],c[1]+.15),1-ramp(t,c[2]-.15,c[2]))}else sub.style.opacity=0;
+  const bl=(t>1.3&&t<1.9)?Math.sin(Math.PI*ramp(t,1.3,1.9)):((t>2.5&&t<3.0)?Math.sin(Math.PI*ramp(t,2.5,3.0)):0);$('blink').style.opacity=Math.min(1,bl*1.15);
+  $('end').style.opacity=ramp(t,EV.end,EV.end+.8);
+}
+window.render=render;render(0);
 </script></body></html>

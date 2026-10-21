@@ -1,0 +1,139 @@
+{
+ "lines": [
+  [
+   "R1",
+   "Mon agent, le serveur du bureau a terminé ma veille des maisons d'hôtes ?"
+  ],
+  [
+   "A1",
+   "Pas encore."
+  ],
+  [
+   "R2",
+   "Tant pis, modernise les sites internet qui en ont besoin, et propose-leur par mail le résultat avec une vidéo de présentation. Cast ça sur la télé pour que je valide."
+  ],
+  [
+   "A2",
+   "Compris. Je lance ?"
+  ],
+  [
+   "R3",
+   "Oui."
+  ],
+  [
+   "A3",
+   "Ça tourne."
+  ],
+  [
+   "A4",
+   "C'est prêt. Premier site, sur la télé."
+  ],
+  [
+   "R4",
+   "Envoie."
+  ],
+  [
+   "A5",
+   "Envoyé."
+  ],
+  [
+   "A6",
+   "Deuxième site, sur la télé."
+  ],
+  [
+   "R5",
+   "Envoie."
+  ],
+  [
+   "A7",
+   "Envoyé."
+  ],
+  [
+   "R6",
+   "Au fait, ma session Claude vidéo Aiwa est terminée ? Montre-la-moi, s'il te plaît."
+  ],
+  [
+   "A8",
+   "Elle est terminée. Je la passe sur la télé."
+  ],
+  [
+   "R7",
+   "Et pour ma vidéo de reportage, mon visage a bien été intégré ?"
+  ],
+  [
+   "A9",
+   "Ce n'est pas encore terminé."
+  ],
+  [
+   "R8",
+   "D'accord, utilise mes crédits pour accélérer, s'il te plaît."
+  ],
+  [
+   "A10",
+   "C'est fait. Environ deux minutes."
+  ]
+ ],
+ "dur": {
+  "R1": 3.78,
+  "A1": 0.94,
+  "R2": 8.9,
+  "A2": 1.57,
+  "R3": 0.57,
+  "A3": 0.74,
+  "A4": 2.65,
+  "R4": 0.72,
+  "A5": 0.92,
+  "A6": 2.01,
+  "R5": 0.81,
+  "A7": 0.87,
+  "R6": 4.31,
+  "A8": 2.64,
+  "R7": 3.8,
+  "A9": 1.51,
+  "R8": 3.69,
+  "A10": 2.13
+ },
+ "start": {
+  "R1": 4.0,
+  "A1": 8.4,
+  "R2": 12.6,
+  "A2": 22.1,
+  "R3": 24.2,
+  "A3": 25.2,
+  "A4": 28.6,
+  "R4": 36.4,
+  "A5": 37.4,
+  "A6": 38.9,
+  "R5": 47.0,
+  "A7": 48.2,
+  "R6": 50.2,
+  "A8": 55.1,
+  "R7": 106.2,
+  "A9": 110.6,
+  "R8": 112.8,
+  "A10": 117.1
+ },
+ "ev": {
+  "wake": 5.0,
+  "glance_in": 7.6,
+  "glance_hold": 9.4,
+  "glance_out": 11.0,
+  "back_tv": 13.0,
+  "work_from": 25.2,
+  "work_to": 28.6,
+  "site1": [
+   28.6,
+   38.9
+  ],
+  "site2": [
+   38.9,
+   49.9
+  ],
+  "film_from": 58.2,
+  "film_len": 47.279,
+  "prog_from": 110.6,
+  "boost": 117.1,
+  "end": 121.6,
+  "total": 126.0
+ }
+}
