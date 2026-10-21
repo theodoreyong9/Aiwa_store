@@ -589,6 +589,10 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         val a = j.optJSONArray("inbox")
         return ExternalStatus(j.optBoolean("open"), j.optBoolean("configured"), j.optString("url"), if (a == null) emptyList() else (0 until a.length()).map { val m = a.getJSONObject(it); m.optString("who") + " : " + m.optString("text") }, if (j.optBoolean("ok", true)) null else j.optString("error"))
     }
+    fun styleStatus(): StyleStatus? = try { styleOf(JSONObject(getText("/api/style"))) } catch (e: Exception) { null }
+    fun styleSet(enabled: Boolean): StyleStatus? = try { styleOf(filmPost("/api/style/set", JSONObject().put("enabled", enabled))) } catch (e: Exception) { null }
+    fun styleClear(): StyleStatus? = try { styleOf(filmPost("/api/style/clear", JSONObject())) } catch (e: Exception) { null }
+    private fun styleOf(j: JSONObject) = StyleStatus(j.optBoolean("enabled", true), j.optInt("count"), j.optBoolean("ready"), j.optString("note"))
     fun scenarios(): ScenarioList? = try { scenarioListOf(JSONObject(getText("/api/scenarios"))) } catch (e: Exception) { null }
     fun scenarioSave(sc: Scenario): ScenarioList? = try {
         val words = org.json.JSONArray().apply { sc.words.forEach { put(JSONObject().put("word", it.word).put("does", it.does)) } }

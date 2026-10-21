@@ -800,6 +800,7 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Banques de vidéos libres : clés Pexels et Pixabay, recherche", false, lines = 2) { open(StockSettingsActivity::class.java) })
                 add(PickerEntry("Agents externes : une porte pour ChatGPT et d'autres (MCP)", false, lines = 2) { open(ExternalActivity::class.java) })
                 add(PickerEntry("Scénarios : un mot lance un double de moi, ou le rapport", false, lines = 2) { open(ScenariosActivity::class.java) })
+                add(PickerEntry("Ma façon de parler : l'agent me répond comme je parle", false, lines = 2) { open(StyleActivity::class.java) })
                 add(PickerEntry("Mes mots", false, lines = 1) { open(RecognitionsActivity::class.java) })
                 add(PickerEntry("État d'Aiwa", false, lines = 1) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)

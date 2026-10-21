@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **The agent talks like the person** (brain 169, `aiwa_style.py`, Settings → Ma façon de parler): the brain counts, in what she says to the agent (never the sentences, never anything but counts, file owner-only), the length of what she says, tu or vous, informal contractions and a few little words; once 8 utterances are counted it adds a short note to what the agent is told (the answers, the direct agent and the agent session), so that Claude writes its spoken sentences in a register like hers. On by default; can be switched off or emptied. Only the WORDS and the register: the timbre stays Piper's (a cloned voice would need another service), and the speaking rate is not measured yet.
+
 - **Aiwa film v25-3 (53 s)** (`docs/videos/aiwa-v25-3/`: `build.py` patches v25-2): three pages after « Et te pousse à créer. » : « Lance des scénarios. » (a person and her dashed double), « Un mot, et ton double s'ouvre. », « Traduction instantanée. » (two bubbles FR / EN); the rest moves 5.76 s later. The film itself is not in the repository.
 - **Roger in the first person, version 4 (work in progress)** (`docs/videos/roger-fp/`): he first asks the agent to take his CV and make an application campaign (cover letters, videos, only the files and the link of the ad), then the guesthouses; `timeline.py` builds every time from one place (schedule, captions, camera, stretches), `audio.sh` the sound, `compose.py` the picture; the film on the TV is v25-3.
 

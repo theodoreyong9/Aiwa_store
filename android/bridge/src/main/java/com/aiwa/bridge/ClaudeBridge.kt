@@ -49,6 +49,8 @@ data class Scenario(val id: String, val name: String, val word: String, val kind
 data class ScenarioList(val scenarios: List<Scenario>, val error: String? = null)
 /** What the session of a scenario said since the last look: `say` is spoken aloud, `note` is only shown. */
 data class ScenarioSay(val say: String, val note: String)
+/** The person's way of speaking as the brain learned it (counts only): `note` is what the agent is told, empty while there is not enough yet. */
+data class StyleStatus(val enabled: Boolean, val count: Int, val ready: Boolean, val note: String)
 data class StockStatus(val pexels: Boolean, val pixabay: Boolean, val clips: List<StockSaved>)
 
 /** Before saving a film in GitHub: the repository in use, whether it is public, whether gh is connected. */

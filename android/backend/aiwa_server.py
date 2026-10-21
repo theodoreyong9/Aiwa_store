@@ -53,6 +53,7 @@ import aiwa_llm as llm_lib
 import aiwa_film as film_lib
 import aiwa_stock as stock_lib
 import aiwa_scenarios as scen_lib
+import aiwa_style as style_lib
 
 
 def _ts():
@@ -63,7 +64,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 168
+BACKEND_VERSION = 169
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1329,17 +1330,18 @@ def answer_question(question):
     q = " ".join(str(question or "").split())[:600]
     if not q:
         return {"ok": False, "error": "question vide"}
+    style.observe(q)
     context = _answer_context()
     talk = _conversation_text()
     if talk:
         context = (context + "\n\n" if context else "") + "La conversation jusqu'ici (continue-la naturellement, sans la répéter) :\n" + talk
     if llm.state == "ready":
-        text = llm.ask(ANSWER_SYSTEM + ("\n\n" + context if context else ""), [{"role": "user", "content": q}], max_tokens=400)
+        text = llm.ask(ANSWER_SYSTEM + ("\n\n" + style.note() if style.note() else "") + ("\n\n" + context if context else ""), [{"role": "user", "content": q}], max_tokens=400)
         if text:
             answer = " ".join(str(text).split())[:900]
             _conversation_add(q, answer)
             return {"ok": True, "text": answer}
-    prompt = ANSWER_SYSTEM + ("\n\n" + context if context else "") + "\n\nQuestion : " + q
+    prompt = ANSWER_SYSTEM + ("\n\n" + style.note() if style.note() else "") + ("\n\n" + context if context else "") + "\n\nQuestion : " + q
     last_error = "pas de réponse"
     for extra in (["--model", "haiku"], []):
         try:
@@ -1381,6 +1383,8 @@ def answer_stream(question, emit):
     q = " ".join(str(question or "").split())[:600]
     if not q:
         return False
+    if llm.state != "ready":
+        style.observe(q)      # with the key, answer_question below observes it
     context = _answer_context()
     talk = _conversation_text()
     if talk:
@@ -1392,7 +1396,7 @@ def answer_stream(question, emit):
         for sentence in _sentences_from(result["text"], final=True)[0]:
             emit(sentence)
         return True
-    prompt = ANSWER_SYSTEM + ("\n\n" + context if context else "") + "\n\nQuestion : " + q
+    prompt = ANSWER_SYSTEM + ("\n\n" + style.note() if style.note() else "") + ("\n\n" + context if context else "") + "\n\nQuestion : " + q
     try:
         proc = subprocess.Popen(["claude", "-p", "--model", "haiku", "--output-format", "stream-json", "--include-partial-messages", "--verbose"],
                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
@@ -3399,9 +3403,11 @@ def _agent_direct(spoken=None):
     with agent_lock:
         own = agent["session"]
         history = list(agent_chat[-8:])
+    if spoken and spoken not in (agent_lib.REPORT_REQUEST,) and not spoken.startswith("[Aiwa"):
+        style.observe(spoken)
     user = {"role": "user", "content": agent_lib.direct_user(text, spoken=spoken, stamp=time.strftime("%H:%M"))}
     known = {e["id"] for e in _load_cloud_sessions() if e.get("id")}
-    answer = llm.ask(agent_lib.direct_system(known), history + [user])
+    answer = llm.ask(agent_lib.direct_system(known) + ("\n\n" + style.note() if style.note() else ""), history + [user])
     if answer is None:
         if own:   # the usual way, through its session
             agent_send(spoken=spoken, direct=False)
@@ -3431,7 +3437,9 @@ def agent_send(spoken=None, direct=True):
     text, sig = _agent_digest()
     with agent_lock:
         told = list(agent.get("decisions", []))
-    result = _queue_followup(session, agent_lib.point_message(text, _loops_relay_url(), spoken=spoken, stamp=time.strftime("%H:%M"), decisions=told, fallback=_agent_fallback_text(session)))
+    if spoken and spoken != agent_lib.REPORT_REQUEST and not spoken.startswith("[Aiwa"):
+        style.observe(spoken)
+    result = _queue_followup(session, agent_lib.point_message(text, _loops_relay_url(), spoken=spoken, stamp=time.strftime("%H:%M"), decisions=told, fallback=_agent_fallback_text(session)) + ("\n\n" + style.note() if style.note() else ""))
     if result["ok"]:
         with agent_lock:
             agent["sig"], agent["last"] = sig, time.time()
@@ -3577,6 +3585,7 @@ def _agent_said(raw):
 
 voice = voice_lib.Voice()
 llm = llm_lib.Llm()
+style = style_lib.Style(APP_DIR / "style.json")      # the person's way of speaking (counts only), so that the agent talks like her
 
 
 def _film_planner(direction, says, seconds, kind="me"):
@@ -5065,6 +5074,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(external_api("/api/external/status", ""))
         elif self.path == "/api/scenarios":
             self.reply_json(scenario_api("/api/scenarios", ""))
+        elif self.path == "/api/style":
+            self.reply_json({"ok": True, **style.status()})
         elif self.path == "/api/stock/status":
             self.reply_json({"ok": True, **stock.status(), "clips": [{**c, "saved": stock_saved.get(c.get("id", ""), {}).get("state", "none"), "saved_error": stock_saved.get(c.get("id", ""), {}).get("error", "")} for c in stock.clips()][:30]})
         elif self.path == "/api/film/info":
@@ -5125,6 +5136,16 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(stock_api(self.path, body))
         elif self.path in ("/api/external/open", "/api/external/config"):
             self.reply_json(external_api(self.path, body))
+        elif self.path in ("/api/style/set", "/api/style/clear"):
+            try:
+                data = json.loads(body) if body.strip() else {}
+            except ValueError:
+                data = {}
+            if self.path.endswith("clear"):
+                style.clear()
+            elif isinstance(data, dict) and isinstance(data.get("enabled"), bool):
+                style.set_enabled(data["enabled"])
+            self.reply_json({"ok": True, **style.status()})
         elif self.path in ("/api/scenarios/save", "/api/scenarios/delete", "/api/scenarios/create", "/api/scenarios/use", "/api/scenarios/launch", "/api/scenarios/say", "/api/scenarios/said"):
             self.reply_json(scenario_api(self.path, body))
         elif self.path == "/api/media_delete":
