@@ -517,7 +517,11 @@ private fun LightContent(state: AiwaState) {
             Spacer(GlanceModifier.width(GAP.dp))
             // One listening at a time on screen: the permanent listening on hides the robot (the wake word opens the agent, the switch stays to close everything); the robot open alone hides the switch.
             val permanentOn = state.listening && !needsSetup
-            if (permanentOn) Spacer(GlanceModifier.defaultWeight()) else
+            if (permanentOn) Box(
+                // the permanent listening on: the ear takes the whole place of the robot (green), one tap closes it
+                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(green).cornerRadius(((rowH - 2f) / 2).dp).clickable(actionStartActivity<ListenToggleActivity>()),
+                contentAlignment = Alignment.Center,
+            ) { Image(provider = ImageProvider(R.drawable.ic_ear), contentDescription = "Écoute permanente : active, toucher pour la couper", modifier = GlanceModifier.size(20.dp)) } else
             Box(
                 modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (needsSetup || agentNeeds) alertRed else if (agentOn) green else pill).cornerRadius(((rowH - 2f) / 2).dp)
                     .clickable(if (needsSetup) actionStartActivity<SetupActivity>() else actionStartActivity<AgentToggleActivity>()),
@@ -528,7 +532,7 @@ private fun LightContent(state: AiwaState) {
                 else Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = if (agentOn) "Super agent : il écoute, fermer" else "Parler au super agent", modifier = GlanceModifier.size(20.dp))
             }
             // The switch of the permanent listening, at the right of the robot: green when it listens, grey when it is closed (it is closed at each installation and update)
-            if (permanentOn || !agentOn) {
+            if (!permanentOn && !agentOn) {
             Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(
                 icon = R.drawable.ic_ear,

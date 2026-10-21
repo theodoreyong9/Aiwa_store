@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **The permanent-listening switch of the widget shows an ear instead of a microphone** (app only): the 🎤 icon at the right of the robot is now an ear (`ic_ear`), since the robot is the one that takes a command and the switch only listens for the wake word. Only compiled by CI.
+- **The permanent-listening switch of the widget shows an ear instead of a microphone** (app only): the 🎤 icon at the right of the robot is now an ear (`ic_ear`), since the robot is the one that takes a command and the switch only listens for the wake word. With the permanent listening on, the ear takes the whole place of the robot (a wide green pill, one tap closes it), as the robot does over the ear when it is open. Only compiled by CI.
 
 - **Video v25 + MCP (55 s)** (`docs/videos/aiwa-v25-mcp/`: `build.py` patches the page of v25, with its cues and schedule; the film itself is not in the repository): the same film as v25, with two pages added INSIDE its engine after « Et te pousse à créer. » and before « Et vote. » — « Et ouvre-le aux autres agents. », « Une porte MCP. » — one sculpture that evolves (your agent and the agents outside, then the MCP ring), same constellations, camera, bloom, captions and progress line; everything after is moved 4 s later, and the sound is rebuilt (« Killers », Kevin MacLeod, CC BY 4.0, from its start; Piper voice). The agents drawn around yours (ChatGPT, Claude, two others) are examples. Kit check ok; the film was looked at in stills, not in motion.
 
