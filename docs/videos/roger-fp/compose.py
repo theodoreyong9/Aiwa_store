@@ -15,11 +15,10 @@ FPS = 24; D = 5      # a crossfade of 5 frames (0.21 s)
 T = json.load(open(a.timeline))
 TOTAL = round(T['EV']['total'] * FPS)
 
-# (kind, from, to) in frames of the final timeline. kind: s = 3D frames, p56 / p90 = plate at that lens, film = the film on the 90 mm plate
-SEG = [('s', 0, 27.0), ('p56', 27.0, 33.0), ('s', 33.0, 38.8), ('p56', 38.8, 43.8), ('s', 43.8, 60.4), ('film', 60.4, 103.2), ('s', 103.2, 105.5), ('p56', 105.5, 110.2), ('s', 110.2, 121.2), ('p56', 121.2, T['EV']['total'])]
-SEG = [(k, round(x * 12) * 2, round(y * 12) * 2) for k, x, y in SEG]      # on even frames: the 3D pieces are 12 a second
+# (kind, from, to) in seconds of the final timeline, written by timeline.py: s = 3D frames, p56 = plate at 56 mm, film = the film on the 90 mm plate
+SEG = [(k, round(x * 12) * 2, round(y * 12) * 2) for k, x, y in json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'seg.json')))]      # on even frames: the 3D pieces are 12 a second
 CORN = {'p56': ('plate400/00400.png', 612, 345, 697, 392), 'p90': ('plate900/00900.png', 400, 226, 1120, 630)}
-FILM_AT = 58.2      # when the film starts on the TV
+FILM_AT = T['EV']['film_from']      # when the film starts on the TV
 
 
 def run(cmd):

@@ -1,6 +1,14 @@
 {
  "lines": [
   [
+   "R0",
+   "Mon agent, prends mon CV et fais une campagne de postulation, avec lettre de motivation et vidéo. Donne-moi simplement les fichiers et le lien de l'annonce."
+  ],
+  [
+   "A0",
+   "Compris. Je cherche les annonces et je te prépare tout."
+  ],
+  [
    "R1",
    "Mon agent, le serveur du bureau a terminé ma veille des maisons d'hôtes ?"
   ],
@@ -74,6 +82,8 @@
   ]
  ],
  "dur": {
+  "R0": 8.54,
+  "A0": 3.4,
   "R1": 3.78,
   "A1": 0.94,
   "R2": 8.9,
@@ -94,46 +104,50 @@
   "A10": 2.13
  },
  "start": {
-  "R1": 4.0,
-  "A1": 8.4,
-  "R2": 12.6,
-  "A2": 22.1,
-  "R3": 24.2,
-  "A3": 25.2,
-  "A4": 28.6,
-  "R4": 36.4,
-  "A5": 37.4,
-  "A6": 38.9,
-  "R5": 47.0,
-  "A7": 48.2,
-  "R6": 50.2,
-  "A8": 55.1,
-  "R7": 106.2,
-  "A9": 110.6,
-  "R8": 112.8,
-  "A10": 117.1
+  "R0": 4.0,
+  "A0": 13.14,
+  "R1": 18.75,
+  "A1": 23.15,
+  "R2": 27.35,
+  "A2": 36.85,
+  "R3": 38.95,
+  "A3": 39.95,
+  "A4": 43.35,
+  "R4": 51.15,
+  "A5": 52.15,
+  "A6": 53.65,
+  "R5": 61.75,
+  "A7": 62.95,
+  "R6": 64.95,
+  "A8": 69.85,
+  "R7": 126.71,
+  "A9": 131.11,
+  "R8": 133.31,
+  "A10": 137.61
  },
  "ev": {
   "wake": 5.0,
   "glance_in": 7.6,
   "glance_hold": 9.4,
   "glance_out": 11.0,
-  "back_tv": 13.0,
-  "work_from": 25.2,
-  "work_to": 28.6,
+  "back_tv": 27.75,
+  "work_from": 39.95,
+  "work_to": 43.35,
   "site1": [
-   28.6,
-   38.9
+   43.35,
+   53.65
   ],
   "site2": [
-   38.9,
-   49.9
+   53.65,
+   64.65
   ],
-  "film_from": 58.2,
-  "film_len": 47.279,
-  "prog_from": 110.6,
-  "boost": 117.1,
-  "end": 121.6,
-  "total": 126.0
- }
+  "film_from": 72.95,
+  "film_len": 53.039,
+  "prog_from": 131.11,
+  "boost": 137.61,
+  "end": 142.11,
+  "total": 146.51,
+  "ready": 65.95
+ },
+ "delta": 14.75
 }
