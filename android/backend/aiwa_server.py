@@ -52,6 +52,7 @@ import aiwa_voice as voice_lib
 import aiwa_llm as llm_lib
 import aiwa_film as film_lib
 import aiwa_stock as stock_lib
+import aiwa_scenarios as scen_lib
 
 
 def _ts():
@@ -62,7 +63,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 165
+BACKEND_VERSION = 166
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4644,6 +4645,89 @@ def _external_line(entry):
     return f"{when} · {state}"
 
 
+# ---------- scenarios: a prompt under a launch word of the person's own; the first time the word is said, a double of her (a session apart) is created ----------
+SCENARIOS_FILE = APP_DIR / "scenarios.json"
+scenario_lock = threading.Lock()
+scenario_sessions = {}      # scenario id -> {"history": [{"role", "content"}], "last": time}; kept in memory only: the double is temporary
+
+
+def _scenario_ask(sc, history):
+    """The raw answer of the double: with the person's key when there is one, else with the Claude of the phone. None when neither answers."""
+    system = scen_lib.system(sc)
+    if llm.state == "ready":
+        return llm.ask(system, history, max_tokens=400)
+    transcript = "\n".join(("Personne : " if m["role"] == "user" else "Toi : ") + m["content"] for m in history)
+    try:
+        done = subprocess.run(["claude", "-p", "--model", "haiku", "--output-format", "text"], input=system + "\n\nLa conversation :\n" + transcript + "\n\nTa réponse (le JSON seulement) :", capture_output=True, text=True, timeout=90)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return _clean(done.stdout or "").strip() if done.returncode == 0 else None
+
+
+def _scenario_listing(scenarios):
+    return {"ok": True, "scenarios": [scen_lib.public(s) for s in scenarios], "running": sorted(scenario_sessions)}
+
+
+def scenario_api(path, body):
+    try:
+        data = json.loads(body) if body.strip() else {}
+    except ValueError:
+        data = {}
+    data = data if isinstance(data, dict) else {}
+    sid = str(data.get("id") or "")
+    report = None
+    with scenario_lock:
+        scenarios = scen_lib.load(SCENARIOS_FILE)
+        if path == "/api/scenarios/save":
+            scenarios, _sc, error = scen_lib.upsert(scenarios, data)
+            if error:
+                return {"ok": False, "error": error}
+            scen_lib.save(SCENARIOS_FILE, scenarios)
+            return _scenario_listing(scenarios)
+        if path == "/api/scenarios/delete":
+            scenarios = [s for s in scenarios if s["id"] != sid]
+            scenario_sessions.pop(sid, None)
+            scen_lib.save(SCENARIOS_FILE, scenarios)
+            return _scenario_listing(scenarios)
+        if path == "/api/scenarios/end":
+            scenario_sessions.pop(sid, None)
+            return _scenario_listing(scenarios)
+        if path == "/api/scenarios":
+            return _scenario_listing(scenarios)
+        if path == "/api/scenarios/launch":
+            # the launch word was heard: a double is created the first time (and kept for the next time); the « report » kind asks the super agent instead
+            sc = next((s for s in scenarios if s["id"] == sid), None) if sid else scen_lib.match(str(data.get("text") or ""), scenarios)
+            if sc is None:
+                return {"ok": False, "error": "aucun scénario avec ce mot"}
+            if sc["kind"] != "report":
+                created = sc["id"] not in scenario_sessions
+                if created:
+                    scenario_sessions[sc["id"]] = {"history": [], "last": time.time()}
+                return {"ok": True, "created": created, "scenario": scen_lib.public(sc)}
+            report = sc
+        elif path == "/api/scenarios/say":
+            sc = next((s for s in scenarios if s["id"] == sid), None)
+            session = scenario_sessions.get(sid)
+            if sc is None or session is None:
+                return {"ok": False, "error": "ce scénario n'est pas lancé"}
+            turn = {"role": "user", "content": scen_lib.user_turn(sc, str(data.get("text") or ""))}
+            history = session["history"][-14:] + [turn]
+        else:
+            return {"ok": False, "error": "?"}
+    if report is not None:
+        sent = agent_send(spoken=agent_lib.REPORT_REQUEST)
+        return {"ok": sent.get("ok") is True, "error": sent.get("error"), "scenario": scen_lib.public(report), "created": False}
+    raw = _scenario_ask(sc, history)       # off the lock: a slow answer must not block the other scenarios
+    if raw is None:
+        return {"ok": False, "error": "Claude n'a pas répondu (clé, réseau ou quota)"}
+    reply = scen_lib.parse_reply(raw)
+    with scenario_lock:
+        if sid in scenario_sessions:
+            scenario_sessions[sid]["history"] = (scenario_sessions[sid]["history"] + [turn, {"role": "assistant", "content": json.dumps(reply, ensure_ascii=False)}])[-24:]
+            scenario_sessions[sid]["last"] = time.time()
+    return {"ok": True, **reply}
+
+
 def external_api(path, body):
     global external_open
     error = None
@@ -4889,6 +4973,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(_documents_snapshot())
         elif self.path == "/api/external/status":
             self.reply_json(external_api("/api/external/status", ""))
+        elif self.path == "/api/scenarios":
+            self.reply_json(scenario_api("/api/scenarios", ""))
         elif self.path == "/api/stock/status":
             self.reply_json({"ok": True, **stock.status(), "clips": [{**c, "saved": stock_saved.get(c.get("id", ""), {}).get("state", "none"), "saved_error": stock_saved.get(c.get("id", ""), {}).get("error", "")} for c in stock.clips()][:30]})
         elif self.path == "/api/film/info":
@@ -4949,6 +5035,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(stock_api(self.path, body))
         elif self.path in ("/api/external/open", "/api/external/config"):
             self.reply_json(external_api(self.path, body))
+        elif self.path in ("/api/scenarios/save", "/api/scenarios/delete", "/api/scenarios/end", "/api/scenarios/launch", "/api/scenarios/say"):
+            self.reply_json(scenario_api(self.path, body))
         elif self.path == "/api/media_delete":
             try:
                 data = json.loads(body) if body.strip() else {}

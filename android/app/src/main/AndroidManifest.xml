@@ -151,6 +151,8 @@
         <activity android:name=".StockSettingsActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
         <activity android:name=".ExternalActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
         <activity android:name=".ExternalConfigActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
+        <activity android:name=".ScenariosActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
+        <activity android:name=".ScenarioEditActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
         <activity android:name=".StockKeyActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
         <activity android:name=".StockSearchActivity" android:exported="false" android:theme="@style/Theme.Dictate" android:windowSoftInputMode="adjustResize" android:taskAffinity="" android:excludeFromRecents="true" />
         <!-- The loops between two sessions, a builder and a critic (LoopsActivity.kt). -->

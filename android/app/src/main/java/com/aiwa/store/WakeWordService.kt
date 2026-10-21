@@ -235,6 +235,9 @@ class WakeWordService : Service() {
     private var openAgentWhenReady = false
     private var agentListener: AgentListener? = null
     private var lastAgentSaid: String? = null
+    // Scenarios: the launch words known (read when the super agent opens), and the scenario whose double is being talked to (everything said goes to it until « fin du scénario »)
+    private var scenarioWords: List<com.aiwa.bridge.Scenario> = emptyList()
+    private var activeScenario: com.aiwa.bridge.Scenario? = null
     private var agentWatch: Job? = null
     // The question of Claude that was read aloud and waits for its spoken answer, and the one already read (a question is read once; the next one only comes after this one was answered).
     private var answeringAsk: com.aiwa.bridge.AskInfo? = null
@@ -314,6 +317,7 @@ class WakeWordService : Service() {
             AiwaRepository.update { it.copy(agent = agentFlag(it.agent, true)) }
             scope.launch {
                 agentCall("set", mapOf("enabled" to true))
+                scenarioWords = try { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarios()?.scenarios } } catch (err: Exception) { null } ?: emptyList()
                 // The natural voice is installed once (about 80 MB), in the backend; until it is ready the phone's own voice speaks.
                 if (AiwaRepository.state.value.agent?.voice == "none") try { withContext(Dispatchers.IO) { LocalClaudeBridge().voiceSetup() } } catch (err: Exception) { }
                 say("Super agent : dis ta commande, puis « " + Vocabulary.spoken(applicationContext, "envoi") + " »")
@@ -346,6 +350,8 @@ class WakeWordService : Service() {
         agentMode = false
         agentListener?.stop()
         agentListener = null
+        activeScenario?.let { sc -> scope.launch { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioEnd(sc.id) } } }
+        activeScenario = null
         answeringAsk = null
         draftOffered = false
         keepPending()
@@ -371,7 +377,7 @@ class WakeWordService : Service() {
         if (!agentMode || paused || agentListener != null) return
         val fluid = ConversationSettings.fluid(this)
         agentListener = AgentListener(
-            this, onQuiet = { main.post { standbyAgent() } }, quietMs = if (fluid) ConversationSettings.QUIET_MS else AgentListener.QUIET_MS,
+            this, onQuiet = { main.post { if (activeScenario != null) { agentListener?.stop(); agentListener = null; agentListen() } else standbyAgent() } }, quietMs = if (fluid) ConversationSettings.QUIET_MS else AgentListener.QUIET_MS,
             completeSilenceMs = if (fluid) 900L else 2000L, possiblySilenceMs = if (fluid) 600L else 1500L, earlyQuestion = fluid,
         ) { text -> main.post { heardForAgent(text) } }.also { it.start() }
     }
@@ -422,6 +428,8 @@ class WakeWordService : Service() {
                     say(if (error == null) "Réponse envoyée : $reply" else "Réponse non partie : $error")
                     try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }
                 }
+                activeScenario != null -> scenarioTurn(text, plain)
+                pendingCommand.isEmpty() && scenarioWords.any { heardWord(it.word, plain) } -> launchScenario(text)
                 else -> {
                     addToCommand(text)
                 }
@@ -429,6 +437,38 @@ class WakeWordService : Service() {
             agentBusy = false
             agentListen()
         }
+    }
+
+    private fun heardWord(word: String, plain: String): Boolean {
+        val w = com.aiwa.bridge.WakeWords.plain(word)
+        return w.isNotEmpty() && " $plain ".contains(" $w ")
+    }
+
+    /** A launch word was heard: the first time the brain creates the double (its session is kept afterwards); the « report » kind asks the super agent instead. */
+    private suspend fun launchScenario(text: String) {
+        val launched = try { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioLaunch(text) } } catch (err: Exception) { null }
+        if (launched == null) { Speaker.speakNatural(applicationContext, "Je n'ai pas pu lancer ce scénario : le cerveau ne répond pas, ou il est trop ancien."); return }
+        val (sc, created) = launched
+        if (sc.kind == "report") { say("Rapport demandé au super agent"); Speaker.speakNatural(applicationContext, "Je demande le rapport."); return }
+        activeScenario = sc
+        say("Scénario « " + sc.name + " » : " + (if (created) "double créé" else "double repris") + ". Dis « fin du scénario » pour le fermer.")
+        Speaker.speakNatural(applicationContext, "Scénario " + sc.name + (if (created) " lancé." else " repris."))
+    }
+
+    /** Everything said goes to the double. It speaks only when the scenario says so (its `say`); the rest is a note, shown in the notification. */
+    private suspend fun scenarioTurn(text: String, plain: String) {
+        val sc = activeScenario ?: return
+        if (Regex("""\b(?:fin|ferme|termine|quitte|arrete)\s+(?:du\s+|le\s+|ce\s+)?scenario\b""").containsMatchIn(plain)) {
+            withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioEnd(sc.id) }
+            activeScenario = null
+            say("Scénario « " + sc.name + " » fermé")
+            Speaker.speakNatural(applicationContext, "Scénario fermé.")
+            return
+        }
+        val reply = try { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioSay(sc.id, text) } } catch (err: Exception) { null }
+        if (reply == null || !reply.ok) { say("Scénario « " + sc.name + " » : " + (reply?.error ?: "pas de réponse")); return }
+        if (reply.note.isNotBlank()) say(sc.name + " (note) : " + reply.note)
+        if (reply.say.isNotBlank()) { say(sc.name + " : " + reply.say); Speaker.speakNatural(applicationContext, reply.say) }
     }
 
     // A command is kept, sentence after sentence, until the send word. Nothing is spoken meanwhile; the summary comes with the repository.
