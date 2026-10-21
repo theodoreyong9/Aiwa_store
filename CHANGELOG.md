@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **« Scénarios ▾ » in the Projet pill**: the sheet that opens from the « Projet » pill of the widget now has a Scénarios button (the same screen as in the settings).
+
 - **Roger in the first person, version 3 (work in progress)** (`docs/videos/roger-fp/`): no more black blink in the first seconds; more time on the phone and less on the still TV; the eyes drift all the time and more while Roger speaks (`compose.py`: crop of an enlarged picture, smooth to less than a pixel), with a slow push in and out during the film; `capture.js` renamed `capture.cjs` (the repository is an ES module). The film itself is not in the repository.
 
 - **Scenarios** (brain 166, `aiwa_scenarios.py`, Settings → Scénarios): a prompt kept under a launch word of the person's own. Said to the super agent, the word creates, the first time, a temporary DOUBLE of the person (a session of its own, kept in memory, that she talks to in parallel; with her Anthropic key, else with the Claude of the phone); the next time the same word resumes it. The scenario says when the double speaks aloud (otherwise it only notes in silence) and defines special words that mean something only inside that conversation (« scène », « ta position »…); « fin du scénario » closes it, and the listening no longer goes back to sleep while a double is open. Two scenarios come with the app: « Entretien » (listens, then on « scène » or « ta position » sums up, reconsiders, proposes a position) and « Rapport » (the word asks the super agent for the report of everything since the last conversation). Not tried on a phone.

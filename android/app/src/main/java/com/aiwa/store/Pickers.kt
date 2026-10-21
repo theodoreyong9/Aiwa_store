@@ -926,6 +926,7 @@ class ProjectPickerActivity : ComponentActivity() {
                     add(PickerEntry("Session : ${state.session} ▾", false, lines = 1, button = true) { startActivity(Intent(this@ProjectPickerActivity, SessionPickerActivity::class.java)); finish() })
                     add(PickerEntry("⎇ Dépôt : ${state.repo?.substringAfter('/') ?: "aucun"} ▾", false, lines = 1, button = true) { startActivity(Intent(this@ProjectPickerActivity, RepoPickerActivity::class.java)); finish() })
                 }
+                add(PickerEntry("Scénarios ▾", false, lines = 1, button = true) { startActivity(Intent(this@ProjectPickerActivity, ScenariosActivity::class.java)); finish() })
                 // At the top, two buttons: name the pair now on the pills, and « Tous »
                 if (!all && state.repo != null) add(PickerEntry("＋ Nommer la paire", false, button = true) {
                     startActivity(Intent(this@ProjectPickerActivity, ProjectNameActivity::class.java)); finish()
