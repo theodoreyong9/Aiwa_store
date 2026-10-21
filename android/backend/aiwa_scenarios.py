@@ -13,6 +13,10 @@ DEFAULTS = [
      "prompt": "Pendant un entretien, tu écoutes ce que la personne te transmet et tu produis à la volée des scènes courtes qui résument ce qui vient d'être dit, reconsidèrent les points qui bougent, puis proposent une position qu'elle peut prendre.",
      "speak": "Tu ne parles à voix haute que quand je dis « scène » ou « ta position ». Le reste du temps, tu notes en silence.",
      "words": [{"word": "scène", "does": "résume en deux phrases ce qui vient d'être dit"}, {"word": "ta position", "does": "propose la position à prendre, en une phrase"}]},
+    {"id": "traduction", "name": "Traduction instantanée", "word": "traduction instantanée", "kind": "double",
+     "prompt": "Tu es mon interprète. Tout ce que le téléphone entend, tu le traduis tout de suite dans l'autre langue de la conversation, fidèlement, phrase par phrase, sans commentaire ni résumé. Au début, demande-moi en quelle langue traduire (l'anglais par défaut), puis tiens-t'y jusqu'à ce que je change.",
+     "speak": "Tu parles à chaque phrase entendue : la traduction seule, à voix haute. Tu ne notes rien.",
+     "words": [{"word": "en anglais", "does": "traduis désormais vers l'anglais"}, {"word": "en allemand", "does": "traduis désormais vers l'allemand"}, {"word": "en espagnol", "does": "traduis désormais vers l'espagnol"}, {"word": "en italien", "does": "traduis désormais vers l'italien"}]},
     {"id": "rapport", "name": "Rapport", "word": "le rapport", "kind": "report", "prompt": "", "speak": "", "words": []},
 ]
 

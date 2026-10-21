@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Scenario « Traduction instantanée »** (comes with the app, launch word « traduction instantanée »): the double is an interpreter: it translates what the phone hears, aloud, phrase by phrase, into the language chosen with the special words « en anglais », « en allemand », « en espagnol », « en italien ». It goes through the relay, so a few seconds late: not simultaneous interpreting.
+- **Campaign: applications** (`docs/consignes/proposals.md`): when the request says the person is applying (CV, job offers), the targets are public job ads found on the web, the link of each ad goes in `currentUrl`, a cover letter (and a video if asked) is made from the CV without inventing anything about the person, and no contact point is required when only the files and the link are wanted. Not tried end to end.
+
 - **A scenario can be sent to any known session** (brain 168): on the scenario's screen, « Choisir une session » (« Changer de session » once there is one) lists « Nouvelle session », the scenario's own sessions, and all the other sessions the person has; choosing a known one sends it the scenario (its prompt, special words and rules, with the reply command) and it becomes the scenario's session.
 
 - **The « Projet » pill asks first: Projet or Scénario**: its sheet opens on two buttons; « Projet » shows what it showed (session, repository, pairs), « Scénario » opens the scenarios (the single « Scénarios ▾ » button added before is gone).
