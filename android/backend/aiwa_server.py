@@ -63,7 +63,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 167
+BACKEND_VERSION = 168
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4645,27 +4645,102 @@ def _external_line(entry):
     return f"{when} · {state}"
 
 
-# ---------- scenarios: a prompt under a launch word of the person's own; the first time the word is said, a double of her (a session apart) is created ----------
+# ---------- scenarios: a prompt under a launch word of the person's own. Each one is a super agent: a cloud session of its own (the double of the person), made the first time ----------
 SCENARIOS_FILE = APP_DIR / "scenarios.json"
+SCEN_SESSIONS_FILE = APP_DIR / "scenario-sessions.json"
 scenario_lock = threading.Lock()
-scenario_sessions = {}      # scenario id -> {"history": [{"role", "content"}], "last": time}; kept in memory only: the double is temporary
+scenario_run = {}      # scenario id -> {"creating": bool, "error": str|None, "said": [{"id", "say", "note", "ts"}]}   (in memory: only what is in flight)
 
 
-def _scenario_ask(sc, history):
-    """The raw answer of the double: with the person's key when there is one, else with the Claude of the phone. None when neither answers."""
-    system = scen_lib.system(sc)
-    if llm.state == "ready":
-        return llm.ask(system, history, max_tokens=400)
-    transcript = "\n".join(("Personne : " if m["role"] == "user" else "Toi : ") + m["content"] for m in history)
+def _scen_sessions():
     try:
-        done = subprocess.run(["claude", "-p", "--model", "haiku", "--output-format", "text"], input=system + "\n\nLa conversation :\n" + transcript + "\n\nTa réponse (le JSON seulement) :", capture_output=True, text=True, timeout=90)
-    except (OSError, subprocess.SubprocessError):
-        return None
-    return _clean(done.stdout or "").strip() if done.returncode == 0 else None
+        raw = json.loads(SCEN_SESSIONS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raw = {}
+    return raw if isinstance(raw, dict) else {}
 
 
-def _scenario_listing(scenarios):
-    return {"ok": True, "scenarios": [scen_lib.public(s) for s in scenarios], "running": sorted(scenario_sessions)}
+def _scen_sessions_save(data):
+    try:
+        SCEN_SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        SCEN_SESSIONS_FILE.write_text(json.dumps(data), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _scen_run(sid):
+    return scenario_run.setdefault(sid, {"creating": False, "error": None, "said": []})
+
+
+def _scenario_view(sc):
+    sessions = _scen_sessions().get(sc["id"]) or {}
+    with scenario_lock:
+        run = dict(_scen_run(sc["id"]))
+    titles = {e.get("id"): e.get("title") for e in _load_cloud_sessions() if e.get("id")}
+    return {**scen_lib.public(sc), "session": sessions.get("current"), "creating": run["creating"], "error": run["error"],
+            "sessions": [{"id": x["id"], "title": str(titles.get(x["id"]) or sc["name"])[:60], "current": x["id"] == sessions.get("current")} for x in sessions.get("list", []) if isinstance(x, dict) and x.get("id")]}
+
+
+def scenario_create(sc, fresh=False):
+    """The session of the scenario (a super agent of its own, on the repository in use), made in the background. With `fresh`, a new one even if there is one. {"ok", "error"}."""
+    with scenario_lock:
+        run = _scen_run(sc["id"])
+        if run["creating"]:
+            return {"ok": True, "creating": True}
+        if _scen_sessions().get(sc["id"], {}).get("current") and not fresh:
+            return {"ok": True, "creating": False}
+        run.update(creating=True, error=None)
+
+    def work():
+        global current_cloud, last_cloud
+        with lock:
+            previous = (current_cloud, last_cloud)
+            current_cloud = None            # a new session is made, and the one in use stays the one in use
+        try:
+            result = cloud_send(scen_lib.charter(sc, _loops_relay_url()))
+        except Exception as err:
+            result = {"ok": False, "error": str(err)}
+        finally:
+            with lock:
+                current_cloud, last_cloud = previous
+                _save_state()
+        with scenario_lock:
+            run = _scen_run(sc["id"])
+            run["creating"] = False
+            if result.get("ok"):
+                data = _scen_sessions()
+                entry = data.setdefault(sc["id"], {"current": None, "list": []})
+                entry["current"] = result["session_id"]
+                entry["list"] = [{"id": result["session_id"], "ts": int(time.time())}] + [x for x in entry.get("list", []) if x.get("id") != result["session_id"]][:9]
+                _scen_sessions_save(data)
+            else:
+                run["error"] = str(result.get("error"))[:300]
+    threading.Thread(target=work, daemon=True).start()
+    return {"ok": True, "creating": True}
+
+
+def _scenario_said(raw):
+    """What the session of a scenario says through the relay (title aiwa-scenario): {"scenario", "say", "note"}, kept until the phone comes to take it."""
+    try:
+        data = json.loads(str(raw or ""))
+    except ValueError:
+        return False
+    if not isinstance(data, dict) or not any(s["id"] == data.get("scenario") for s in scen_lib.load(SCENARIOS_FILE)):
+        return False
+    say, note = " ".join(str(data.get("say") or "").split())[:scen_lib.SAY_MAX], " ".join(str(data.get("note") or "").split())[:scen_lib.NOTE_MAX]
+    if not say and not note:
+        return False
+    with scenario_lock:
+        items = _scen_run(data["scenario"])["said"]
+        items.append({"id": f"{int(time.time() * 1000)}", "say": say, "note": note, "ts": int(time.time())})
+        del items[:-20]
+    return True
+
+
+def _scenario_send(session, text):
+    result = _queue_followup(session, text)
+    if not result["ok"]:
+        print(f"[{_ts()}] scenario: message not sent: {str(result.get('error'))[:200]}", flush=True)
 
 
 def scenario_api(path, body):
@@ -4675,57 +4750,59 @@ def scenario_api(path, body):
         data = {}
     data = data if isinstance(data, dict) else {}
     sid = str(data.get("id") or "")
-    report = None
+    scenarios = scen_lib.load(SCENARIOS_FILE)
+
+    def listing():
+        return {"ok": True, "scenarios": [_scenario_view(s) for s in scenarios]}
     with scenario_lock:
-        scenarios = scen_lib.load(SCENARIOS_FILE)
         if path == "/api/scenarios/save":
             scenarios, _sc, error = scen_lib.upsert(scenarios, data)
             if error:
                 return {"ok": False, "error": error}
             scen_lib.save(SCENARIOS_FILE, scenarios)
-            return _scenario_listing(scenarios)
-        if path == "/api/scenarios/delete":
+        elif path == "/api/scenarios/delete":
             scenarios = [s for s in scenarios if s["id"] != sid]
-            scenario_sessions.pop(sid, None)
             scen_lib.save(SCENARIOS_FILE, scenarios)
-            return _scenario_listing(scenarios)
-        if path == "/api/scenarios/end":
-            scenario_sessions.pop(sid, None)
-            return _scenario_listing(scenarios)
-        if path == "/api/scenarios":
-            return _scenario_listing(scenarios)
-        if path == "/api/scenarios/launch":
-            # the launch word was heard: a double is created the first time (and kept for the next time); the « report » kind asks the super agent instead
-            sc = next((s for s in scenarios if s["id"] == sid), None) if sid else scen_lib.match(str(data.get("text") or ""), scenarios)
-            if sc is None:
-                return {"ok": False, "error": "aucun scénario avec ce mot"}
-            if sc["kind"] != "report":
-                created = sc["id"] not in scenario_sessions
-                if created:
-                    scenario_sessions[sc["id"]] = {"history": [], "last": time.time()}
-                return {"ok": True, "created": created, "scenario": scen_lib.public(sc)}
-            report = sc
-        elif path == "/api/scenarios/say":
-            sc = next((s for s in scenarios if s["id"] == sid), None)
-            session = scenario_sessions.get(sid)
-            if sc is None or session is None:
-                return {"ok": False, "error": "ce scénario n'est pas lancé"}
-            turn = {"role": "user", "content": scen_lib.user_turn(sc, str(data.get("text") or ""))}
-            history = session["history"][-14:] + [turn]
-        else:
-            return {"ok": False, "error": "?"}
-    if report is not None:
-        sent = agent_send(spoken=agent_lib.REPORT_REQUEST)
-        return {"ok": sent.get("ok") is True, "error": sent.get("error"), "scenario": scen_lib.public(report), "created": False}
-    raw = _scenario_ask(sc, history)       # off the lock: a slow answer must not block the other scenarios
-    if raw is None:
-        return {"ok": False, "error": "Claude n'a pas répondu (clé, réseau ou quota)"}
-    reply = scen_lib.parse_reply(raw)
-    with scenario_lock:
-        if sid in scenario_sessions:
-            scenario_sessions[sid]["history"] = (scenario_sessions[sid]["history"] + [turn, {"role": "assistant", "content": json.dumps(reply, ensure_ascii=False)}])[-24:]
-            scenario_sessions[sid]["last"] = time.time()
-    return {"ok": True, **reply}
+            scenario_run.pop(sid, None)
+    if path in ("/api/scenarios", "/api/scenarios/save", "/api/scenarios/delete"):
+        return listing()
+    sc = next((s for s in scenarios if s["id"] == sid), None) if sid else scen_lib.match(str(data.get("text") or ""), scenarios)
+    if sc is None:
+        return {"ok": False, "error": "aucun scénario avec ce mot" if not sid else "scénario inconnu"}
+    if path == "/api/scenarios/create":
+        return {**scenario_create(sc, fresh=data.get("fresh") is True), "scenarios": [_scenario_view(s) for s in scen_lib.load(SCENARIOS_FILE)]}
+    if path == "/api/scenarios/use":
+        with scenario_lock:
+            sessions = _scen_sessions()
+            entry = sessions.get(sc["id"]) or {}
+            if not any(x.get("id") == data.get("session") for x in entry.get("list", [])):
+                return {"ok": False, "error": "cette session n'est pas à ce scénario"}
+            entry["current"] = data.get("session")
+            sessions[sc["id"]] = entry
+            _scen_sessions_save(sessions)
+        return listing()
+    if path == "/api/scenarios/launch":
+        # the report asks the super agent; any other scenario has its session made now if it has none, then the phone talks to it
+        if sc["kind"] == "report":
+            sent = agent_send(spoken=agent_lib.REPORT_REQUEST)
+            return {"ok": sent.get("ok") is True, "error": sent.get("error"), "scenario": scen_lib.public(sc), "created": False}
+        had = bool(_scen_sessions().get(sc["id"], {}).get("current"))
+        made = scenario_create(sc)
+        return {"ok": True, "created": not had, "creating": made.get("creating", False), "scenario": scen_lib.public(sc)}
+    if path == "/api/scenarios/say":
+        session = _scen_sessions().get(sc["id"], {}).get("current")
+        with scenario_lock:
+            creating = _scen_run(sc["id"])["creating"]
+        if creating or not session:
+            return {"ok": False, "pending": True, "error": "la session du scénario se crée : un instant"}
+        threading.Thread(target=_scenario_send, args=(session, scen_lib.user_turn(sc, str(data.get("text") or ""))), daemon=True).start()
+        return {"ok": True}
+    if path == "/api/scenarios/said":
+        with scenario_lock:
+            run = _scen_run(sc["id"])
+            items, run["said"] = list(run["said"]), []
+            return {"ok": True, "says": items, "creating": run["creating"], "error": run["error"]}
+    return {"ok": False, "error": "?"}
 
 
 def external_api(path, body):
@@ -4771,6 +4848,9 @@ def _relay_event(event):
         _cloud_check_seen()
     elif title == "aiwa-ext":
         _external_said(event.get("message"))
+    elif title == "aiwa-scenario":
+        _scenario_said(event.get("message"))
+        _cloud_check_seen()
     elif title == "aiwa-ask":
         _ask_set(event.get("message"), event.get("id"))
         _cloud_check_seen()
@@ -5035,7 +5115,7 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(stock_api(self.path, body))
         elif self.path in ("/api/external/open", "/api/external/config"):
             self.reply_json(external_api(self.path, body))
-        elif self.path in ("/api/scenarios/save", "/api/scenarios/delete", "/api/scenarios/end", "/api/scenarios/launch", "/api/scenarios/say"):
+        elif self.path in ("/api/scenarios/save", "/api/scenarios/delete", "/api/scenarios/create", "/api/scenarios/use", "/api/scenarios/launch", "/api/scenarios/say", "/api/scenarios/said"):
             self.reply_json(scenario_api(self.path, body))
         elif self.path == "/api/media_delete":
             try:

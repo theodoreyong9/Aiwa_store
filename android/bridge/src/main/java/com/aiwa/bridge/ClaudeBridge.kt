@@ -41,12 +41,14 @@ data class FilmJob(val ok: Boolean, val error: String, val id: String, val state
 data class StockClip(val id: String, val title: String, val duration: Int, val author: String, val licence: String, val source: String, val raw: String)
 data class StockSaved(val id: String, val title: String, val author: String, val saved: String, val savedError: String)
 data class ExternalStatus(val open: Boolean, val configured: Boolean, val url: String, val inbox: List<String>, val error: String? = null)
-/** A scenario: a prompt under a launch word; `kind` is "double" (a temporary double of the person, spoken to in parallel) or "report" (asks the super agent for the report). `words` are the special words of that conversation. */
+/** A scenario: a prompt under a launch word; `kind` is "double" (a super agent of its own, a cloud session, the double of the person) or "report" (asks the super agent for the report). `words` are the special words of that conversation. */
 data class ScenarioWord(val word: String, val does: String)
-data class Scenario(val id: String, val name: String, val word: String, val kind: String, val prompt: String, val speak: String, val words: List<ScenarioWord>)
-data class ScenarioList(val scenarios: List<Scenario>, val running: List<String>, val error: String? = null)
-/** What the double answers: `say` is spoken aloud (empty = it keeps quiet), `note` is only shown. */
-data class ScenarioReply(val ok: Boolean, val say: String, val note: String, val error: String? = null)
+data class ScenarioSession(val id: String, val title: String, val current: Boolean)
+data class Scenario(val id: String, val name: String, val word: String, val kind: String, val prompt: String, val speak: String, val words: List<ScenarioWord>,
+                    val session: String? = null, val creating: Boolean = false, val error: String? = null, val sessions: List<ScenarioSession> = emptyList())
+data class ScenarioList(val scenarios: List<Scenario>, val error: String? = null)
+/** What the session of a scenario said since the last look: `say` is spoken aloud, `note` is only shown. */
+data class ScenarioSay(val say: String, val note: String)
 data class StockStatus(val pexels: Boolean, val pixabay: Boolean, val clips: List<StockSaved>)
 
 /** Before saving a film in GitHub: the repository in use, whether it is public, whether gh is connected. */

@@ -595,25 +595,35 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         scenarioListOf(filmPost("/api/scenarios/save", JSONObject().put("id", sc.id).put("name", sc.name).put("word", sc.word).put("kind", sc.kind).put("prompt", sc.prompt).put("speak", sc.speak).put("words", words)))
     } catch (e: Exception) { null }
     fun scenarioDelete(id: String): ScenarioList? = try { scenarioListOf(filmPost("/api/scenarios/delete", JSONObject().put("id", id))) } catch (e: Exception) { null }
-    /** The launch word was heard in `text`: the scenario and whether its double was just created (null when no scenario has that word, or the brain is too old). */
-    fun scenarioLaunch(text: String): Pair<Scenario, Boolean>? = try {
-        val j = filmPost("/api/scenarios/launch", JSONObject().put("text", text))
+    /** Makes the session of the scenario (a new one with `fresh`); the list says whether it is being made. */
+    fun scenarioCreate(id: String, fresh: Boolean = false): ScenarioList? = try { scenarioListOf(filmPost("/api/scenarios/create", JSONObject().put("id", id).put("fresh", fresh))) } catch (e: Exception) { null }
+    fun scenarioUse(id: String, session: String): ScenarioList? = try { scenarioListOf(filmPost("/api/scenarios/use", JSONObject().put("id", id).put("session", session))) } catch (e: Exception) { null }
+    /** The launch word was heard in `text` (or the scenario is chosen by `id`): the scenario, and whether its session had to be made (null when none matches, or the brain is too old). */
+    fun scenarioLaunch(text: String = "", id: String = ""): Pair<Scenario, Boolean>? = try {
+        val j = filmPost("/api/scenarios/launch", JSONObject().put("text", text).put("id", id))
         if (!j.optBoolean("ok", false)) null else scenarioOf(j.getJSONObject("scenario")) to j.optBoolean("created", false)
     } catch (e: Exception) { null }
-    fun scenarioSay(id: String, text: String): ScenarioReply = try {
+    /** What is said is handed to the session of the scenario; null when it left, else why not (« la session se crée » while it is being made). */
+    fun scenarioSay(id: String, text: String): String? = try {
         val j = filmPost("/api/scenarios/say", JSONObject().put("id", id).put("text", text))
-        ScenarioReply(j.optBoolean("ok", false), j.optString("say"), j.optString("note"), if (j.optBoolean("ok", false)) null else j.optString("error", "?"))
-    } catch (e: Exception) { ScenarioReply(false, "", "", e.message ?: "?") }
-    fun scenarioEnd(id: String) { try { filmPost("/api/scenarios/end", JSONObject().put("id", id)) } catch (e: Exception) { } }
+        if (j.optBoolean("ok", false)) null else j.optString("error", "?")
+    } catch (e: Exception) { e.message ?: "?" }
+    /** What the session said since the last look (taken: said once). */
+    fun scenarioSaid(id: String): List<ScenarioSay> = try {
+        val a = filmPost("/api/scenarios/said", JSONObject().put("id", id)).optJSONArray("says")
+        if (a == null) emptyList() else (0 until a.length()).map { val x = a.getJSONObject(it); ScenarioSay(x.optString("say"), x.optString("note")) }
+    } catch (e: Exception) { emptyList() }
     private fun scenarioOf(j: JSONObject): Scenario {
         val a = j.optJSONArray("words")
+        val ss = j.optJSONArray("sessions")
         return Scenario(j.optString("id"), j.optString("name"), j.optString("word"), j.optString("kind", "double"), j.optString("prompt"), j.optString("speak"),
-            if (a == null) emptyList() else (0 until a.length()).map { val w = a.getJSONObject(it); ScenarioWord(w.optString("word"), w.optString("does")) })
+            if (a == null) emptyList() else (0 until a.length()).map { val w = a.getJSONObject(it); ScenarioWord(w.optString("word"), w.optString("does")) },
+            if (j.isNull("session")) null else j.optString("session"), j.optBoolean("creating"), if (j.isNull("error")) null else j.optString("error"),
+            if (ss == null) emptyList() else (0 until ss.length()).map { val x = ss.getJSONObject(it); ScenarioSession(x.optString("id"), x.optString("title"), x.optBoolean("current")) })
     }
     private fun scenarioListOf(j: JSONObject): ScenarioList {
         val a = j.optJSONArray("scenarios")
-        val r = j.optJSONArray("running")
-        return ScenarioList(if (a == null) emptyList() else (0 until a.length()).map { scenarioOf(a.getJSONObject(it)) }, if (r == null) emptyList() else (0 until r.length()).map { r.getString(it) }, if (j.optBoolean("ok", true)) null else j.optString("error"))
+        return ScenarioList(if (a == null) emptyList() else (0 until a.length()).map { scenarioOf(a.getJSONObject(it)) }, if (j.optBoolean("ok", true)) null else j.optString("error"))
     }
     fun stockStatus(): StockStatus? = try {
         val j = JSONObject(getText("/api/stock/status"))

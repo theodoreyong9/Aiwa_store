@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -162,10 +163,14 @@ class WakeWordService : Service() {
         }
 
         /** From a visible screen: opens the second listening (the liaison agent); the first one is paused while it is open. Starts the service if needed. */
-        fun openAgentMode(context: Context) {
+        /** The scenario to talk to as soon as the super agent's listening is open (chosen on the scenario's screen). */
+        @Volatile private var pendingScenario: com.aiwa.bridge.Scenario? = null
+
+        fun openAgentMode(context: Context, scenario: com.aiwa.bridge.Scenario? = null) {
             // The button opens ONLY the second listening: the switch of the permanent listening is not touched (it is the one switch of that wish)
+            pendingScenario = scenario
             val running = instance
-            if (running != null) { running.openAgent(); return }
+            if (running != null) { running.openAgent(); if (scenario != null) running.main.post { if (running.agentMode) running.beginScenario(scenario) }; return }
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 toastOnMain(context, "Écoute permanente : la permission du micro manque.")
                 return
@@ -238,6 +243,7 @@ class WakeWordService : Service() {
     // Scenarios: the launch words known (read when the super agent opens), and the scenario whose double is being talked to (everything said goes to it until « fin du scénario »)
     private var scenarioWords: List<com.aiwa.bridge.Scenario> = emptyList()
     private var activeScenario: com.aiwa.bridge.Scenario? = null
+    private var scenarioPoll: Job? = null
     private var agentWatch: Job? = null
     // The question of Claude that was read aloud and waits for its spoken answer, and the one already read (a question is read once; the next one only comes after this one was answered).
     private var answeringAsk: com.aiwa.bridge.AskInfo? = null
@@ -330,6 +336,7 @@ class WakeWordService : Service() {
                 agentBusy = false
                 agentListen()
                 maybeSpeakAgent()
+                pendingScenario?.let { beginScenario(it); pendingScenario = null }
                 CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
             }
         }
@@ -350,7 +357,7 @@ class WakeWordService : Service() {
         agentMode = false
         agentListener?.stop()
         agentListener = null
-        activeScenario?.let { sc -> scope.launch { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioEnd(sc.id) } } }
+        scenarioPoll?.cancel()
         activeScenario = null
         answeringAsk = null
         draftOffered = false
@@ -444,31 +451,51 @@ class WakeWordService : Service() {
         return w.isNotEmpty() && " $plain ".contains(" $w ")
     }
 
-    /** A launch word was heard: the first time the brain creates the double (its session is kept afterwards); the « report » kind asks the super agent instead. */
+    /** A launch word was heard: the brain makes the scenario's session if it has none (a super agent of its own), the report kind asks the super agent instead. */
     private suspend fun launchScenario(text: String) {
-        val launched = try { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioLaunch(text) } } catch (err: Exception) { null }
+        val launched = try { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioLaunch(text = text) } } catch (err: Exception) { null }
         if (launched == null) { Speaker.speakNatural(applicationContext, "Je n'ai pas pu lancer ce scénario : le cerveau ne répond pas, ou il est trop ancien."); return }
         val (sc, created) = launched
         if (sc.kind == "report") { say("Rapport demandé au super agent"); Speaker.speakNatural(applicationContext, "Je demande le rapport."); return }
-        activeScenario = sc
-        say("Scénario « " + sc.name + " » : " + (if (created) "double créé" else "double repris") + ". Dis « fin du scénario » pour le fermer.")
+        beginScenario(sc, created)
         Speaker.speakNatural(applicationContext, "Scénario " + sc.name + (if (created) " lancé." else " repris."))
     }
 
-    /** Everything said goes to the double. It speaks only when the scenario says so (its `say`); the rest is a note, shown in the notification. */
+    /** From now on everything said goes to the scenario's session, and what it says is read aloud as it comes (the brain keeps it until the phone takes it). */
+    private fun beginScenario(sc: com.aiwa.bridge.Scenario, created: Boolean = false) {
+        activeScenario = sc
+        say("Scénario « " + sc.name + " » : " + (if (created) "session créée" else "session reprise") + ". Dis « fin du scénario » pour le fermer.")
+        scenarioPoll?.cancel()
+        scenarioPoll = scope.launch {
+            while (isActive && activeScenario?.id == sc.id) {
+                delay(1_500)
+                val says = try { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioSaid(sc.id) } } catch (err: Exception) { emptyList() }
+                for (x in says) {
+                    if (x.note.isNotBlank()) say(sc.name + " (note) : " + x.note)
+                    if (x.say.isNotBlank()) {
+                        say(sc.name + " : " + x.say)
+                        agentListener?.stop(); agentListener = null       // the phone must not hear itself
+                        Speaker.speakNatural(applicationContext, x.say)
+                        if (agentMode && !agentBusy) agentListen()
+                    }
+                }
+            }
+        }
+    }
+
+    /** Everything said goes to the session of the scenario; it answers through the relay, and the loop above reads the answer aloud. */
     private suspend fun scenarioTurn(text: String, plain: String) {
         val sc = activeScenario ?: return
         if (Regex("""\b(?:fin|ferme|termine|quitte|arrete)\s+(?:du\s+|le\s+|ce\s+)?scenario\b""").containsMatchIn(plain)) {
-            withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioEnd(sc.id) }
+            scenarioPoll?.cancel()
             activeScenario = null
             say("Scénario « " + sc.name + " » fermé")
             Speaker.speakNatural(applicationContext, "Scénario fermé.")
             return
         }
-        val reply = try { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioSay(sc.id, text) } } catch (err: Exception) { null }
-        if (reply == null || !reply.ok) { say("Scénario « " + sc.name + " » : " + (reply?.error ?: "pas de réponse")); return }
-        if (reply.note.isNotBlank()) say(sc.name + " (note) : " + reply.note)
-        if (reply.say.isNotBlank()) { say(sc.name + " : " + reply.say); Speaker.speakNatural(applicationContext, reply.say) }
+        val error = try { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioSay(sc.id, text) } } catch (err: Exception) { err.message ?: "?" }
+        if (error != null) { say("Scénario « " + sc.name + " » : " + error); return }
+        say(sc.name + " ← " + text.trim())
     }
 
     // A command is kept, sentence after sentence, until the send word. Nothing is spoken meanwhile; the summary comes with the repository.

@@ -1,5 +1,6 @@
 """Scenarios: launch words, special words inside a scenario, the double's reply, and the brain's routes (no network, no real Claude)."""
 import json
+import time
 import sys
 import tempfile
 import unittest
@@ -27,13 +28,15 @@ class ScenarioLogic(unittest.TestCase):
 
     def test_special_words_are_tagged_for_the_double(self):
         s = sc.DEFAULTS[0]
-        self.assertTrue(sc.user_turn(s, "Alors, scène").startswith("[mot spécial : scène]"))
-        self.assertEqual(sc.user_turn(s, "il parle du budget"), "il parle du budget")
-        self.assertIn("ta position", sc.system(s))
+        self.assertIn("[mot spécial : scène]", sc.user_turn(s, "Alors, scène"))
+        self.assertNotIn("mot spécial", sc.user_turn(s, "il parle du budget"))
 
-    def test_reply_is_json_or_a_silent_note(self):
-        self.assertEqual(sc.parse_reply('ok {"say": "Voilà.", "note": "n"}'), {"say": "Voilà.", "note": "n"})
-        self.assertEqual(sc.parse_reply("du texte libre")["say"], "")
+    def test_the_charter_gives_the_prompt_the_words_and_the_reply_command(self):
+        text = sc.charter(sc.DEFAULTS[0], "https://ntfy.sh/x")
+        self.assertIn("ta position", text)
+        self.assertIn("Title: aiwa-scenario", text)
+        self.assertIn('"scenario":"entretien"', text)
+        self.assertIn("Tu ne parles à voix haute que quand je dis", text)
 
     def test_same_launch_word_twice_is_refused(self):
         items, _s, err = sc.upsert([dict(d) for d in sc.DEFAULTS], {"name": "Autre", "word": "le rapport", "prompt": "p"})
@@ -42,30 +45,50 @@ class ScenarioLogic(unittest.TestCase):
 
 class ScenarioRoutes(unittest.TestCase):
     def setUp(self):
-        server.scenario_sessions.clear()
-        patch = unittest.mock.patch.object(server, "SCENARIOS_FILE", TMP / "scenarios.json")
-        patch.start()
-        self.addCleanup(patch.stop)
-        (TMP / "scenarios.json").unlink(missing_ok=True)
+        server.scenario_run.clear()
+        for name in ("SCENARIOS_FILE", "SCEN_SESSIONS_FILE"):
+            patch = unittest.mock.patch.object(server, name, TMP / (name + ".json"))
+            patch.start()
+            self.addCleanup(patch.stop)
+            (TMP / (name + ".json")).unlink(missing_ok=True)
 
     def call(self, path, **data):
         return server.scenario_api(path, json.dumps(data))
 
-    def test_create_launch_once_then_talk(self):
-        saved = self.call("/api/scenarios/save", name="Cours", word="mode cours", prompt="Résume le cours.", words=[{"word": "résumé", "does": "résume"}])
-        self.assertTrue(saved["ok"])
-        first = self.call("/api/scenarios/launch", text="lance mode cours")
-        self.assertTrue(first["created"])
-        self.assertFalse(self.call("/api/scenarios/launch", text="mode cours")["created"])
-        with unittest.mock.patch.object(server, "_scenario_ask", return_value='{"say": "Noté.", "note": ""}') as ask:
-            said = self.call("/api/scenarios/say", id="cours", text="un résumé")
-        self.assertEqual(said["say"], "Noté.")
-        self.assertTrue(ask.call_args[0][1][-1]["content"].startswith("[mot spécial : résumé]"))
-        self.assertEqual(self.call("/api/scenarios/end", id="cours")["running"], [])
+    def test_launch_makes_the_session_once_and_the_phone_talks_to_it(self):
+        self.assertTrue(self.call("/api/scenarios/save", name="Cours", word="mode cours", prompt="Résume le cours.", words=[{"word": "résumé", "does": "résume"}])["ok"])
+        sent = []
+        with unittest.mock.patch.object(server, "cloud_send", return_value={"ok": True, "session_id": "session_ABC"}) as cs, \
+                unittest.mock.patch.object(server, "_queue_followup", side_effect=lambda s, t: sent.append((s, t)) or {"ok": True}):
+            first = self.call("/api/scenarios/launch", text="lance mode cours")
+            self.assertTrue(first["created"])
+            for _ in range(100):
+                if server._scen_sessions().get("cours", {}).get("current"):
+                    break
+                time.sleep(0.02)
+            self.assertEqual(server._scen_sessions()["cours"]["current"], "session_ABC")
+            self.assertIn("Title: aiwa-scenario", cs.call_args[0][0])
+            self.assertFalse(self.call("/api/scenarios/launch", id="cours")["created"])
+            self.assertEqual(cs.call_count, 1)
+            self.assertTrue(self.call("/api/scenarios/say", id="cours", text="un résumé")["ok"])
+            for _ in range(100):
+                if sent:
+                    break
+                time.sleep(0.02)
+        self.assertEqual(sent[0][0], "session_ABC")
+        self.assertIn("[mot spécial : résumé]", sent[0][1])
 
-    def test_say_without_launch_is_refused(self):
+    def test_say_while_the_session_is_being_made_waits(self):
         self.call("/api/scenarios/save", name="Cours", word="mode cours", prompt="p")
-        self.assertFalse(self.call("/api/scenarios/say", id="cours", text="a")["ok"])
+        self.assertTrue(self.call("/api/scenarios/say", id="cours", text="a")["pending"])
+
+    def test_what_the_session_says_through_the_relay_is_taken_once(self):
+        self.call("/api/scenarios/save", name="Cours", word="mode cours", prompt="p")
+        self.assertTrue(server._scenario_said(json.dumps({"scenario": "cours", "say": "Voilà.", "note": "n"})))
+        self.assertFalse(server._scenario_said(json.dumps({"scenario": "inconnu", "say": "x"})))
+        got = self.call("/api/scenarios/said", id="cours")
+        self.assertEqual(got["says"][0]["say"], "Voilà.")
+        self.assertEqual(self.call("/api/scenarios/said", id="cours")["says"], [])
 
     def test_report_asks_the_super_agent(self):
         with unittest.mock.patch.object(server, "agent_send", return_value={"ok": True}) as send:

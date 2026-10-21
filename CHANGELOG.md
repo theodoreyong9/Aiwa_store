@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Scenarios are super agents** (brain 168): the double of a scenario is no longer a conversation kept in the brain's memory but a real cloud session of its own, like the liaison agent. It is made the first time (button « Créer la session » on the scenario's screen, or « Lancer le scénario », or the launch word said aloud), gets the prompt, the special words and the rules as its first message (`aiwa_scenarios.charter`), and answers only through the relay (title `aiwa-scenario`, `{scenario, say, note}`): the phone reads the `say` aloud as it comes (it polls `/api/scenarios/said` every 1.5 s) and shows the `note`. What the phone hears goes to it as « [Aiwa — le téléphone a entendu] … » (with `[mot spécial : …]` when one was said). « Changer de session » lists the sessions of the scenario (the one in use is ticked; « Nouvelle session » makes another one and keeps the others). The report scenario is unchanged. Slower than the direct way (the relay), and subject to its quota. Not tried on a phone.
+
 - **The natural voice installs on the phone's Debian** (brain 167): `pip install sherpa-onnx` failed with « returned non-zero exit status 1 » and no reason. The Python of that Linux refuses installs outside a virtualenv (PEP 668, « externally-managed-environment »): the install is now retried with `--break-system-packages` (same for the `anthropic` package), and the error shows pip's own last words instead of the bare exit status. Cause not confirmed on the phone: if the message that now shows is another one, it says which.
 
 - **« Scénarios ▾ » in the Projet pill**: the sheet that opens from the « Projet » pill of the widget now has a Scénarios button (the same screen as in the settings).
