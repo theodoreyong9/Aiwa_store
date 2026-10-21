@@ -7,10 +7,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 import bpy, mathutils
 import kit
 
-ph = kit.args('ph', '/tmp/ph'); N = kit.args('frames', 240, int)
-kit.reset(transparent=False)
+ph = kit.args('ph', '/tmp/ph'); FPS = kit.args('fps', 12, int); N = kit.args('frames', 240, int)
+kit.reset(transparent=False, fps=FPS)
 s = bpy.context.scene
-kit.hdri(os.path.join(ph, 'ph-lythwood_lounge', 'lythwood_lounge_2k.hdr'), strength=0.9, rotation=math.radians(kit.args('rot', 200, float)), visible=True)
+kit.hdri(os.path.join(ph, 'ph-lythwood_lounge', 'lythwood_lounge_2k.hdr'), strength=kit.args('exposure', 0.6, float), rotation=math.radians(kit.args('rot', 200, float)), visible=True)
 def load(asset, gltf, height=None, loc=(0, 0, 0), yaw=0.0):
     return kit.import_asset(os.path.join(ph, asset, gltf), height=height, location=loc, yaw=yaw)
 # the low table in front of the sofa (the model is a table: set at 0.45 m)
@@ -21,17 +21,19 @@ plant = load('ph-potted_plant_04', 'potted_plant_04_2k.gltf', height=0.22, loc=(
 lamp = load('ph-industrial_pipe_lamp', 'industrial_pipe_lamp_2k.gltf', height=0.45, loc=(1.55, -0.2, 0.0), yaw=math.radians(35))
 # the phone lies on the table, screen up (the kit's phone stands with its screen toward -Y: laid back flat)
 phone = kit.phone(kit.args('phone'), frames=N, width=0.0715, height=0.1470, depth=0.0082, corner=0.011, location=(0, 0, 0))
-phone.rotation_euler = (math.radians(90), 0, math.radians(-18)); phone.location = (0.28, -1.12, TZ + 0.005)
+phone.rotation_euler = (math.radians(-90), 0, math.radians(-18)); phone.location = (0.04, -1.40, TZ + 0.006)
 # the TV: a slim box on a low unit, 1.3 m wide, its screen an image sequence (emission)
 bpy.ops.mesh.primitive_cube_add(size=1); tvb = bpy.context.active_object; tvb.name = 'tv-body'; tvb.scale = (1.12, 0.035, 0.64); tvb.location = (0.0, 2.5, 0.88)
 tvb.data.materials.append(kit.material('tv-body', '#0b0b10', metallic=0.6, rough=0.3))
 bpy.ops.mesh.primitive_cube_add(size=1); unit = bpy.context.active_object; unit.name = 'tv-unit'; unit.scale = (1.5, 0.38, 0.38); unit.location = (0.0, 2.5, 0.19)
-unit.data.materials.append(kit.material('unit', '#3a2a20', metallic=0.0, rough=0.55))
+unit.data.materials.append(kit.material('unit', '#26262c', metallic=0.1, rough=0.45))
+bpy.ops.mesh.primitive_cube_add(size=1); top = bpy.context.active_object; top.name = 'tv-unit-top'; top.scale = (1.52, 0.40, 0.03); top.location = (0.0, 2.5, 0.395)
+top.data.materials.append(kit.material('unit-top', '#4a3a2e', metallic=0.0, rough=0.35))
 bpy.ops.mesh.primitive_plane_add(size=1); scr = bpy.context.active_object; scr.name = 'tv-screen'; scr.rotation_euler = (math.radians(90), 0, 0); scr.scale = (1.09, 0.615, 1.0); scr.location = (0.0, 2.481, 0.88)
 sm = bpy.data.materials.new('tv-screen'); sm.use_nodes = True; nt = sm.node_tree; nt.nodes.clear()
 tex = nt.nodes.new('ShaderNodeTexImage'); first = kit.args('tv') % 1 if '%' in kit.args('tv', '') else kit.args('tv')
 img = bpy.data.images.load(first); img.source = 'SEQUENCE'; tex.image = img; tex.image_user.frame_duration = N; tex.image_user.frame_start = 0; tex.image_user.use_auto_refresh = True
-em = nt.nodes.new('ShaderNodeEmission'); em.inputs['Strength'].default_value = 3.2; out = nt.nodes.new('ShaderNodeOutputMaterial')
+em = nt.nodes.new('ShaderNodeEmission'); em.inputs['Strength'].default_value = kit.args('tvlight', 6.0, float); out = nt.nodes.new('ShaderNodeOutputMaterial')
 nt.links.new(tex.outputs['Color'], em.inputs['Color']); nt.links.new(em.outputs[0], out.inputs['Surface']); scr.data.materials.append(sm)
 # a floor that only catches shadows: the objects stand on the HDRI's floor (contact shadows, no floating)
 bpy.ops.mesh.primitive_plane_add(size=40, location=(0, 0, 0)); fl = bpy.context.active_object; fl.name = 'floor'; fl.is_shadow_catcher = True
@@ -63,16 +65,34 @@ bpy.ops.object.camera_add(); cam = bpy.context.active_object; s.camera = cam
 cam.data.lens = 24; cam.data.dof.use_dof = True; cam.data.dof.aperture_fstop = 2.0
 focus = bpy.data.objects.new('focus', None); bpy.context.collection.objects.link(focus); cam.data.dof.focus_object = focus
 tc = cam.constraints.new('TRACK_TO'); tc.target = focus; tc.track_axis = 'TRACK_NEGATIVE_Z'; tc.up_axis = 'UP_Y'
-LOOK = {'tv': (0.0, 2.5, 0.88), 'phone': (0.28, -1.12, TZ), 'room': (-0.6, 2.5, 1.45)}
-CUES = kit.args('cues', '0:room,60:tv,120:phone,200:tv').split(',')
-keys = [(int(c.split(':')[0]), LOOK[c.split(':')[1]]) for c in CUES]
+LOOK = {'tv': (0.0, 2.5, 0.88), 'phone': (0.04, -1.40, TZ), 'room': (-0.6, 2.5, 1.45)}
+CUES = kit.args('cues', '0:room,5:tv,10:phone,16:tv').split(',')
+keys = [(float(c.split(':')[0]) * FPS, LOOK[c.split(':')[1]]) for c in CUES]
 def look(i):
     for (a, pa), (b, pb) in zip(keys, keys[1:]):
         if i <= b:
             u = (i - a) / max(1, b - a); u = u * u * (3 - 2 * u); return [pa[k] + (pb[k] - pa[k]) * u for k in range(3)]
     return list(keys[-1][1])
 for i in range(N):
-    breathe = 0.006 * math.sin(i * 0.11)
-    cam.location = (0.0 + 0.004 * math.sin(i * 0.07), -2.2, 1.05 + breathe); cam.keyframe_insert('location', frame=i)
+    breathe = 0.006 * math.sin(i / FPS * 1.3)
+    cam.location = (0.0 + 0.004 * math.sin(i / FPS * 0.8), -2.2, 1.05 + breathe); cam.keyframe_insert('location', frame=i)
     focus.location = look(i); focus.keyframe_insert('location', frame=i)
-kit.render(kit.args('out', '/tmp/rfp/s'), frames=N)
+    d = math.dist(focus.location, (0, -2.2, 1.05)); near = max(0.0, min(1.0, (3.0 - d) / 1.2))       # 0 far (TV, room) .. 1 the phone
+    cam.data.lens = 24 + 44 * near * near * (3 - 2 * near); cam.data.keyframe_insert('lens', frame=i)
+OUT = kit.args('out', '/tmp/rfp/s'); still = kit.args('still', None, int)
+skip = kit.args('skip', '')       # a:b — the frames NOT rendered (the film that plays on the TV is laid over one plate instead: see make.sh)
+a, b = (int(x) for x in skip.split(':')) if skip else (0, 0)
+os.makedirs(OUT, exist_ok=True); s.frame_start, s.frame_end = 0, N - 1
+if still is not None:
+    s.frame_set(still); s.render.filepath = os.path.join(OUT, '%05d.png' % still); bpy.ops.render.render(write_still=True)
+    # where the four corners of the TV screen fall in the picture (0..1, origin top left): the film is warped onto them
+    from bpy_extras.object_utils import world_to_camera_view
+    pts = [scr.matrix_world @ mathutils.Vector(v) for v in ((-.5, -.5, 0), (.5, -.5, 0), (.5, .5, 0), (-.5, .5, 0))]
+    c = [world_to_camera_view(s, cam, p) for p in pts]
+    import json; json.dump([[round(q.x, 5), round(1 - q.y, 5)] for q in c], open(os.path.join(OUT, 'tv-corners.json'), 'w'))
+else:
+    for f in range(N):
+        if a <= f < b: continue
+        path = os.path.join(OUT, '%05d.png' % f)
+        if os.path.exists(path) and os.path.getsize(path) > 0 and not os.path.exists(path + '.part'): continue
+        open(path + '.part', 'w').close(); s.frame_set(f); s.render.filepath = path; bpy.ops.render.render(write_still=True); os.remove(path + '.part')
