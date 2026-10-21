@@ -8,5 +8,6 @@ D=docs/videos/roger-fp; R=/tmp/rfp; mkdir -p $R/tvs $R/phs
 node $D/screens.js
 # 2) the 3D room (Cycles, CPU, 960x540, 8 samples); the frames of the film playing on the TV (540..1198) are not rendered: they are laid over one plate (step 3)
 /tmp/bpyenv/bin/python $D/scene.py -- --ph /tmp/ph --out $R/s --tv "$R/tvs/%04d.png" --phone "$R/phs/%04d.png" --frames 1464 --fps 12 --width 960 --height 540 --samples 8 --exposure 0.45 --cues "$(cat $D/cues.txt)" --skip 540:1198
-# 3) the plate: the room with the TV dark, one still, and where the four corners of the screen fall (tv-corners.json)
+# (then the eyes lean in to the TV: the frames 540..570 and 1170..1198 are rendered with --zoom "45:24,47.2:90,97.6:90,99.8:24" --only 540:570,1170:1198)
+# 3) the plate: the room with the TV dark at 90 mm, one still (--still 700 --tvlight 0 --samples 96 --zoom ...), and where the four corners of the screen fall (tv-corners.json)
 # 4) the picture: 12 -> 24 a second (minterpolate), the TV film warped on the plate for 45..99.8 s, the captions layer (caps.js) over all, the sound, check

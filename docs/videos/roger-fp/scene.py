@@ -73,14 +73,25 @@ def look(i):
         if i <= b:
             u = (i - a) / max(1, b - a); u = u * u * (3 - 2 * u); return [pa[k] + (pb[k] - pa[k]) * u for k in range(3)]
     return list(keys[-1][1])
+# the eyes lean in to the film that plays on the TV: lens keys « seconds:lens » (smooth between two keys, nothing outside the first and the last)
+ZK = [(float(k.split(':')[0]), float(k.split(':')[1])) for k in kit.args('zoom', '').split(',') if k]
+def zoom(t):
+    if not ZK or t < ZK[0][0] or t > ZK[-1][0]: return None
+    for (a, la), (b, lb) in zip(ZK, ZK[1:]):
+        if t <= b:
+            u = (t - a) / max(1e-6, b - a); u = u * u * (3 - 2 * u); return la + (lb - la) * u
+    return ZK[-1][1]
 for i in range(N):
     breathe = 0.006 * math.sin(i / FPS * 1.3)
     cam.location = (0.0 + 0.004 * math.sin(i / FPS * 0.8), -2.2, 1.05 + breathe); cam.keyframe_insert('location', frame=i)
     focus.location = look(i); focus.keyframe_insert('location', frame=i)
     d = math.dist(focus.location, (0, -2.2, 1.05)); near = max(0.0, min(1.0, (3.0 - d) / 1.2))       # 0 far (TV, room) .. 1 the phone
-    cam.data.lens = 24 + 44 * near * near * (3 - 2 * near); cam.data.keyframe_insert('lens', frame=i)
+    lens = 24 + 44 * near * near * (3 - 2 * near)
+    z = zoom(i / FPS)
+    if z is not None: lens = z
+    cam.data.lens = lens; cam.data.keyframe_insert('lens', frame=i)
 OUT = kit.args('out', '/tmp/rfp/s'); still = kit.args('still', None, int)
-skip = kit.args('skip', '')       # a:b — the frames NOT rendered (the film that plays on the TV is laid over one plate instead: see make.sh)
+skip = kit.args('skip', ''); only = [tuple(int(x) for x in r.split(':')) for r in kit.args('only', '').split(',') if r]       # a:b — the frames NOT rendered (the film that plays on the TV is laid over one plate instead: see make.sh)
 a, b = (int(x) for x in skip.split(':')) if skip else (0, 0)
 os.makedirs(OUT, exist_ok=True); s.frame_start, s.frame_end = 0, N - 1
 if still is not None:
@@ -93,6 +104,7 @@ if still is not None:
 else:
     for f in range(N):
         if a <= f < b: continue
+        if only and not any(x <= f < y for x, y in only): continue
         path = os.path.join(OUT, '%05d.png' % f)
         if os.path.exists(path) and os.path.getsize(path) > 0 and not os.path.exists(path + '.part'): continue
         open(path + '.part', 'w').close(); s.frame_set(f); s.render.filepath = path; bpy.ops.render.render(write_still=True); os.remove(path + '.part')

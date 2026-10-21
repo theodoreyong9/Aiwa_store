@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Roger in the first person (122 s, 16:9)** (`docs/videos/roger-fp/`: `scene.py`, `screens.html`, `caps.html`, `make.sh`, cues; the film itself is not in the repository): Roger's eyes on a sofa, in a real room — the HDRI « lythwood_lounge » (Poly Haven, CC0) seen by the camera — with a low table, a plant, a notebook and a lamp (Poly Haven, CC0), the phone of the kit lying on the table and a flat TV made up for the film (said); Cycles on the CPU at 960×540, 12 images a second brought to 24; the screens (TV and phone) are drawn by a page and laid on the 3D objects as image sequences; while the Aiwa v25 + MCP film plays on the TV (55 s) the eyes lean in (90 mm) and the film is warped onto ONE plate of the room. It is an illustration, never a recording. Weak points: the TV console still looks stuck on the picture, Roger's knees are two cylinders, no hands. Looked at in stills and contact sheets, not watched in motion.
+
 - **The question of Claude is the « Projet » pill of the widget** (app only): while Claude waits for an answer, the pill of row 1 turns red and reads « Question de Claude ▸ » (a tap opens the question), then goes back to the project once answered; the round question button of the bottom row is gone. Only compiled by CI.
 
 - **The permanent-listening switch of the widget shows an ear instead of a microphone** (app only): the 🎤 icon at the right of the robot is now an ear (`ic_ear`), since the robot is the one that takes a command and the switch only listens for the wake word. With the permanent listening on, the ear takes the whole place of the robot (a wide green pill, one tap closes it), as the robot does over the ear when it is open. Only compiled by CI.
