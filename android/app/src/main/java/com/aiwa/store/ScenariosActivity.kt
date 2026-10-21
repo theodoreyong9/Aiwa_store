@@ -107,7 +107,7 @@ class ScenarioEditActivity : ComponentActivity() {
                     }, style = MaterialTheme.typography.bodySmall)
                     if (cur?.session == null) OutlinedButton(onClick = { scope.launch { current = withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioCreate(id) }?.scenarios?.firstOrNull { it.id == id } ?: current } },
                         enabled = cur?.creating != true, modifier = Modifier.fillMaxWidth()) { Text("Créer la session") }
-                    else OutlinedButton(onClick = { startActivity(Intent(this@ScenarioEditActivity, ScenarioSessionsActivity::class.java).putExtra("id", id)); finish() }, modifier = Modifier.fillMaxWidth()) { Text("Changer de session") }
+                    OutlinedButton(onClick = { startActivity(Intent(this@ScenarioEditActivity, ScenarioSessionsActivity::class.java).putExtra("id", id)); finish() }, modifier = Modifier.fillMaxWidth()) { Text(if (cur?.session == null) "Choisir une session" else "Changer de session") }
                     Button(onClick = {
                         scope.launch {
                             val launched = withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioLaunch(id = id) }
@@ -139,6 +139,13 @@ class ScenarioSessionsActivity : ComponentActivity() {
                 add(PickerEntry("Nouvelle session", false, button = true) { scope.launch { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioCreate(id, fresh = true) }; back() } })
                 s.sessions.forEach { x ->
                     add(PickerEntry(x.title, x.current, lines = 2) { scope.launch { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioUse(id, x.id) }; back() } })
+                }
+                // her other sessions: choosing one sends it the scenario (its prompt and rules), and it becomes the scenario's session
+                val mine = s.sessions.map { it.id }.toSet()
+                val others = AiwaRepository.state.value.cloudSessions.filter { it.id !in mine }
+                if (others.isNotEmpty()) add(PickerEntry("Envoyer le scénario à une session connue", false, header = true) { })
+                others.forEach { c ->
+                    add(PickerEntry(c.title.take(60), false, lines = 2) { scope.launch { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioUse(id, c.id) }; back() } })
                 }
             }
             PickerSheet(entries) { back() }

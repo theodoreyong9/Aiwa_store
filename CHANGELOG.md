@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **A scenario can be sent to any known session** (brain 168): on the scenario's screen, « Choisir une session » (« Changer de session » once there is one) lists « Nouvelle session », the scenario's own sessions, and all the other sessions the person has; choosing a known one sends it the scenario (its prompt, special words and rules, with the reply command) and it becomes the scenario's session.
+
 - **The « Projet » pill asks first: Projet or Scénario**: its sheet opens on two buttons; « Projet » shows what it showed (session, repository, pairs), « Scénario » opens the scenarios (the single « Scénarios ▾ » button added before is gone).
 
 - **Scenarios are super agents** (brain 168): the double of a scenario is no longer a conversation kept in the brain's memory but a real cloud session of its own, like the liaison agent. It is made the first time (button « Créer la session » on the scenario's screen, or « Lancer le scénario », or the launch word said aloud), gets the prompt, the special words and the rules as its first message (`aiwa_scenarios.charter`), and answers only through the relay (title `aiwa-scenario`, `{scenario, say, note}`): the phone reads the `say` aloud as it comes (it polls `/api/scenarios/said` every 1.5 s) and shows the `note`. What the phone hears goes to it as « [Aiwa — le téléphone a entendu] … » (with `[mot spécial : …]` when one was said). « Changer de session » lists the sessions of the scenario (the one in use is ticked; « Nouvelle session » makes another one and keeps the others). The report scenario is unchanged. Slower than the direct way (the relay), and subject to its quota. Not tried on a phone.

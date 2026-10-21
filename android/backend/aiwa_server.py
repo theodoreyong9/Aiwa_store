@@ -4775,11 +4775,18 @@ def scenario_api(path, body):
         with scenario_lock:
             sessions = _scen_sessions()
             entry = sessions.get(sc["id"]) or {}
-            if not any(x.get("id") == data.get("session") for x in entry.get("list", [])):
-                return {"ok": False, "error": "cette session n'est pas à ce scénario"}
-            entry["current"] = data.get("session")
+            target = data.get("session")
+            known = any(x.get("id") == target for x in entry.get("list", []))
+            if not known:
+                # a session the person already has (any of her sessions): the scenario is sent to it, and it becomes the scenario's session
+                if not CLOUD_ID_RE.fullmatch(str(target or "")) or not any(e.get("id") == target for e in _load_cloud_sessions()):
+                    return {"ok": False, "error": "session inconnue"}
+                entry["list"] = [{"id": target, "ts": int(time.time())}] + entry.get("list", [])[:9]
+            entry["current"] = target
             sessions[sc["id"]] = entry
             _scen_sessions_save(sessions)
+        if not known:
+            threading.Thread(target=_scenario_send, args=(target, scen_lib.charter(sc, _loops_relay_url())), daemon=True).start()
         return listing()
     if path == "/api/scenarios/launch":
         # the report asks the super agent; any other scenario has its session made now if it has none, then the phone talks to it
