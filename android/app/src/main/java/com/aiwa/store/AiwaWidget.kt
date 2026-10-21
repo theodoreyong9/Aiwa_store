@@ -531,7 +531,7 @@ private fun LightContent(state: AiwaState) {
             if (permanentOn || !agentOn) {
             Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(
-                icon = R.drawable.ic_mic,
+                icon = R.drawable.ic_ear,
                 description = if (state.listening) "Écoute permanente : active, toucher pour la couper" else "Écoute permanente : coupée, toucher pour l'activer",
                 background = if (state.listening) green else pill, action = actionStartActivity<ListenToggleActivity>(), diameter = chipH.dp,
             )
