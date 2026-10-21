@@ -1,6 +1,5 @@
 # v25 + MCP: the film of v25, with a passage added INSIDE its engine (same constellations, camera, threads, bloom, captions), after « Et te pousse à créer. » and before « Et vote. »:
-# « Et ouvre-le aux autres agents. / Une porte MCP. / ChatGPT peut déjà lui écrire. / Toi, tu décides. » Four pages of one sculpture that evolves (your agent, the agents outside, the MCP ring,
-# a message through the ring, the validation). Everything after is moved later by the length of the passage. Run from the repository root: python3 docs/videos/aiwa-v25-mcp/build.py
+# « Et ouvre-le aux autres agents. / Une porte MCP. » Two pages of one sculpture that evolves (your agent and the agents outside, then the MCP ring). Everything after is moved later by the length of the passage. Run from the repository root: python3 docs/videos/aiwa-v25-mcp/build.py
 import json,re
 src=open('docs/videos/aiwa-v25/video.html').read()
 def sub(a,b,count=1):
@@ -13,10 +12,8 @@ total=float(re.search(r"const TOTAL=([0-9.]+);",src).group(1))
 i=[k for k,x in enumerate(scn) if x['o']=='sa2'][0]
 base=scn[i+1]['t']                      # where « Et vote. » began
 new=[dict(t=0,d=38,o='mcp0',c='Et ouvre-le aux *autres agents*.',v=1.75),
-     dict(t=0,d=39,o='mcp1',c='Une porte *MCP*.',v=1.45),
-     dict(t=0,d=40,o='mcp2',c='*ChatGPT* peut déjà lui écrire.',v=2.1),
-     dict(t=0,d=40,o='mcp3',c='Toi, tu *décides*.',v=1.45)]
-gaps=[2.0,1.75,2.35,1.9]               # time from the start of a page to the start of the next (voice + breath)
+     dict(t=0,d=39,o='mcp1',c='Une porte *MCP*.',v=1.45)]
+gaps=[2.0,2.0]               # time from the start of a page to the start of the next (voice + breath)
 t=base
 for p,g in zip(new,gaps):
     p['t']=round(t,3);t+=g
@@ -31,18 +28,14 @@ shapes=r'''
 SC.push(c=>{c.lineWidth=8;circ(c,960,420,62,1);[[480,250],[1440,230],[520,600],[1400,610]].forEach(([x,y])=>{circ(c,x,y,34,1);ln(c,x,y,960,420)})});
 // 39: the door: the MCP ring around the agent, the threads stop at it
 SC.push(c=>{c.lineWidth=8;circ(c,960,420,62,1);circ(c,960,420,235,0);[[480,250],[1440,230],[520,600],[1400,610]].forEach(([x,y])=>{circ(c,x,y,34,1);const a=Math.atan2(y-420,x-960);ln(c,x,y,960+Math.cos(a)*235,420+Math.sin(a)*235)})});
-// 40: a message goes through the ring to the agent, and the person validates (a tick under the ring)
-SC.push(c=>{c.lineWidth=8;circ(c,960,420,62,1);c.lineWidth=14;circ(c,960,420,235,0);c.lineWidth=8;[[480,250],[1440,230],[520,600],[1400,610]].forEach(([x,y],q)=>{circ(c,x,y,34,1);const a=Math.atan2(y-420,x-960);ln(c,x,y,960+Math.cos(a)*235,420+Math.sin(a)*235)});
- c.lineWidth=10;arrow(c,740,330,880,385);c.lineWidth=12;c.lineCap='round';c.beginPath();c.moveTo(900,740);c.lineTo(950,790);c.lineTo(1040,690);c.stroke()});
 const SCALL=SC.slice();'''
 sub("const SCALL=SC.slice();",shapes.strip()[0:0]+shapes)
 # 3) the group: the four pages are ONE sculpture, filmed by one move (yaw, pitch, distance at the start of each page, then when the camera leaves)
-sub(" {a:ix('w0'),b:ix('w4')"," {a:ix('mcp0'),b:ix('mcp3'),keys:[[-.5,.1,1.3],[-.2,.12,1.15],[.2,-.05,1.1],[.5,.05,1.08],[.75,0,1.2]]},\n {a:ix('w0'),b:ix('w4')")
+sub(" {a:ix('w0'),b:ix('w4')"," {a:ix('mcp0'),b:ix('mcp1'),keys:[[-.5,.1,1.3],[-.1,.12,1.15],[.3,0,1.2]]},\n {a:ix('w0'),b:ix('w4')")
 # 4) the labels of the four pages (the other pages' own style: mono, light, the vermilion for the new thing)
-labels=r''' case 'mcp0':case 'mcp1':case 'mcp2':case 'mcp3':{const o_=SCN[k].o;
-  L('TON AGENT',960,520,.2,{sz:24});L('CHATGPT',480,185,.4,{sz:24,c:o_==='mcp2'?VERM:ink});L('CLAUDE',1440,165,.55,{sz:24});L('AGENT',520,665,.7,{sz:24});L('AGENT',1400,675,.85,{sz:24});
-  if(o_!=='mcp0')L('MCP',960,150,.15,{sz:34,c:VERM});
-  if(o_==='mcp3')L('VALIDATION SUR TON TÉLÉPHONE',960,840,.3,{sz:26,c:VERM});break}
+labels=r''' case 'mcp0':case 'mcp1':{const o_=SCN[k].o;
+  L('TON AGENT',960,520,.2,{sz:24});L('CHATGPT',480,185,.4,{sz:24});L('CLAUDE',1440,165,.55,{sz:24});L('AGENT',520,665,.7,{sz:24});L('AGENT',1400,675,.85,{sz:24});
+  if(o_!=='mcp0')L('MCP',960,150,.15,{sz:34,c:VERM});break}
 '''
 sub(" case 't0':case 't1':case 't2':case 't3':case 't4':case 't5':{",labels+" case 't0':case 't1':case 't2':case 't3':case 't4':case 't5':{")
 sub('<title>Aiwa v25</title>','<title>Aiwa v25 + MCP</title>')
@@ -52,7 +45,7 @@ json.dump(dict(scn=scn,total=total),open('docs/videos/aiwa-v25-mcp/sched.json','
 # the voice: the cues of v25, the four lines of the new passage, the rest moved later
 cues=json.load(open('docs/videos/aiwa-v25/cues.json'))
 out=[c for c in cues if c['at']<base-0.01]
-new_cues=[("Et ouvre-le aux autres agents.",0),("Une porte M C P.",1),("ChatGPT peut déjà lui écrire.",2),("Toi, tu décides.",3)]
+new_cues=[("Et ouvre-le aux autres agents.",0),("Une porte M C P.",1)]
 for text,q in new_cues:out.append({"at":new[q]['t']+0.02,"text":text})
 out+= [{"at":round(c['at']+delta,3),"text":c['text']} for c in cues if c['at']>=base-0.01]
 json.dump(out,open('docs/videos/aiwa-v25-mcp/cues.json','w'),ensure_ascii=False)
