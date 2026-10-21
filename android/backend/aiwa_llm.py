@@ -77,7 +77,8 @@ class Llm:
 
     def _install(self):
         try:
-            subprocess.run([sys.executable, "-m", "pip", "install", "-q", "anthropic"], check=True, capture_output=True, timeout=900)
+            from aiwa_voice import pip_install
+            pip_install("anthropic", timeout=900)
             self.error = None
         except Exception as err:
             detail = getattr(err, "stderr", b"") or b""

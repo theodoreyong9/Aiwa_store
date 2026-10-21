@@ -38,6 +38,18 @@ def to_wav(samples, rate):
     return out.getvalue()
 
 
+def pip_install(package, timeout=1500):
+    """pip install of one package. The Linux of the phone is a Debian whose Python refuses installs outside a virtualenv (« externally-managed-environment », PEP 668): then once more with
+    --break-system-packages, the package going where the app's own Python looks for it. Raises with pip's own last words when it fails."""
+    base = [sys.executable, "-m", "pip", "install", "-q", "--no-input", package]
+    done = subprocess.run(base, capture_output=True, text=True, timeout=timeout)
+    if done.returncode != 0 and "externally-managed" in (done.stderr or ""):
+        done = subprocess.run(base + ["--break-system-packages"], capture_output=True, text=True, timeout=timeout)
+    if done.returncode != 0:
+        tail = " ".join((done.stderr or done.stdout or "").split())[-300:]
+        raise RuntimeError("pip " + package + " : " + (tail or f"code {done.returncode}"))
+
+
 class Voice:
     """state: none (not installed) / installing / ready / error."""
 
@@ -67,7 +79,7 @@ class Voice:
     def _install(self):
         try:
             if not self._library():
-                subprocess.run([sys.executable, "-m", "pip", "install", "-q", "sherpa-onnx"], check=True, capture_output=True, timeout=1500)
+                pip_install("sherpa-onnx")
             if not model_present(self.home):
                 target = os.path.dirname(model_dir(self.home))
                 os.makedirs(target, exist_ok=True)
@@ -83,8 +95,7 @@ class Voice:
                 raise RuntimeError("installation incomplète")
             self.state = "ready"
         except Exception as err:
-            detail = getattr(err, "stderr", b"") or b""
-            self.state, self.error = "error", (str(err) + " " + detail.decode("utf-8", "replace")[-200:]).strip()
+            self.state, self.error = "error", str(err)[-400:]
             print("natural voice: installation failed: " + self.error, flush=True)
 
     def say(self, text):

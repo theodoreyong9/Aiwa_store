@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **The natural voice installs on the phone's Debian** (brain 167): `pip install sherpa-onnx` failed with « returned non-zero exit status 1 » and no reason. The Python of that Linux refuses installs outside a virtualenv (PEP 668, « externally-managed-environment »): the install is now retried with `--break-system-packages` (same for the `anthropic` package), and the error shows pip's own last words instead of the bare exit status. Cause not confirmed on the phone: if the message that now shows is another one, it says which.
+
 - **« Scénarios ▾ » in the Projet pill**: the sheet that opens from the « Projet » pill of the widget now has a Scénarios button (the same screen as in the settings).
 
 - **Roger in the first person, version 3 (work in progress)** (`docs/videos/roger-fp/`): no more black blink in the first seconds; more time on the phone and less on the still TV; the eyes drift all the time and more while Roger speaks (`compose.py`: crop of an enlarged picture, smooth to less than a pixel), with a slow push in and out during the film; `capture.js` renamed `capture.cjs` (the repository is an ES module). The film itself is not in the repository.

@@ -1,4 +1,4 @@
-import os, sys, tempfile, unittest, wave, io
+import os, sys, tempfile, unittest, unittest.mock, wave, io
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import aiwa_voice as v
 
@@ -22,3 +22,25 @@ class VoiceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PipInstallTests(unittest.TestCase):
+    def test_retries_with_break_system_packages_when_the_python_is_externally_managed(self):
+        import subprocess
+        calls = []
+
+        def fake(cmd, **kw):
+            calls.append(cmd)
+            if "--break-system-packages" in cmd:
+                return subprocess.CompletedProcess(cmd, 0, "", "")
+            return subprocess.CompletedProcess(cmd, 1, "", "error: externally-managed-environment")
+        with unittest.mock.patch.object(v.subprocess, "run", fake):
+            v.pip_install("sherpa-onnx")
+        self.assertEqual(len(calls), 2)
+
+    def test_failure_carries_pips_own_words(self):
+        import subprocess
+        with unittest.mock.patch.object(v.subprocess, "run", lambda cmd, **kw: subprocess.CompletedProcess(cmd, 1, "", "ERROR: no matching distribution")):
+            with self.assertRaises(RuntimeError) as ctx:
+                v.pip_install("sherpa-onnx")
+        self.assertIn("no matching distribution", str(ctx.exception))
