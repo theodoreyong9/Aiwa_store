@@ -62,7 +62,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 164
+BACKEND_VERSION = 165
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4572,7 +4572,7 @@ def _external_reply(to, text):
 EXTERNAL_FILE = APP_DIR / "external.json"      # the Worker's address and the person's key: owner-only, never in a repository
 EXTERNAL_HOST_RE = re.compile(r"https://[a-z0-9-]+(?:\.[a-z0-9-]+)*\.workers\.dev")
 EXTERNAL_KEY_RE = re.compile(r"[A-Za-z0-9_-]{16,128}")
-EXTERNAL_POLL = 30
+EXTERNAL_POLL = 60
 
 
 def _external_config():

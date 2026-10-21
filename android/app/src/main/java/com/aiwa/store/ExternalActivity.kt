@@ -41,7 +41,7 @@ class ExternalActivity : ComponentActivity() {
                 add(PickerEntry(if (st.configured) "Worker : ${st.url} (toucher pour changer l'adresse ou la clé)" else "Indiquer l'adresse du Worker et ma clé", false, lines = 3, button = true) {
                     startActivity(Intent(this@ExternalActivity, ExternalConfigActivity::class.java)); finish()
                 })
-                add(PickerEntry("Mode d'emploi : sur Cloudflare, crée un Worker avec le code de docs/mcp/worker.js, associe-lui un espace KV nommé INBOX (Settings → Bindings) et un secret MCP_KEY (une clé longue de ton choix). Donne à l'autre agent l'adresse https://ton-worker.workers.dev/<MCP_KEY>/mcp, et indique ici l'adresse du Worker et la même clé : le téléphone vient chercher les messages toutes les 30 secondes.", false, lines = 8) { })
+                add(PickerEntry("Mode d'emploi : sur Cloudflare, crée un Worker avec le code de docs/mcp/worker.js, associe-lui un espace KV nommé INBOX (Settings → Bindings) et un secret MCP_KEY (une clé longue de ton choix). Donne à l'autre agent l'adresse https://ton-worker.workers.dev/<MCP_KEY>/mcp, et indique ici l'adresse du Worker et la même clé : le téléphone vient chercher les messages toutes les minutes.", false, lines = 8) { })
                 add(PickerEntry("Ce qui arrive est écrit dans la session de ton super agent comme une information, jamais exécuté. Pour répondre, dis-lui « réponds à ChatGPT : … » : l'autre agent lira ta réponse au prochain passage.", false, lines = 3) { })
                 if (st.inbox.isNotEmpty()) add(PickerEntry("Derniers messages (leur texte est dans la session de l'agent)", false, header = true) { })
                 st.inbox.forEach { add(PickerEntry(it, false, lines = 3) { }) }

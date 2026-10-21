@@ -73,8 +73,7 @@ export default {
       if (!text) return rpc(id, { isError: true, content: [{ type: "text", text: "Empty message." }] });
       if (!env.INBOX) return rpc(id, { isError: true, content: [{ type: "text", text: "The door is not set up: no KV binding named INBOX." }] });
       try {
-        const now = Date.now();
-        await env.INBOX.put("m:" + String(now).padStart(15, "0") + ":" + crypto.randomUUID().slice(0, 8), JSON.stringify({ who: from, text, ts: Math.floor(now / 1000) }), { expirationTtl: 86400 });
+        await push(env, "in", { who: from, text, ts: Math.floor(Date.now() / 1000) });
       } catch (err) {
         return rpc(id, { isError: true, content: [{ type: "text", text: "The message could not be stored: " + String(err).slice(0, 120) }] });
       }
@@ -86,18 +85,31 @@ export default {
   },
 };
 
-// The phone fetches what is waiting; what it takes is removed, so that a message is told once.
+// Storage: ONE key per direction (« in »: messages for the person, « out »: the person's replies), each a JSON list kept 24 h. Only reads and writes: no `list` operation
+// (the free plan allows 1 000 of them a day and 100 000 reads); a poll that finds nothing writes nothing.
+const KEEP = 24 * 3600, MAX = 50;
+async function load(env, key) {
+  let items = [];
+  try { items = (await env.INBOX.get(key, "json")) || []; } catch { items = []; }
+  const now = Math.floor(Date.now() / 1000);
+  return Array.isArray(items) ? items.filter((m) => m && now - (m.ts || 0) < KEEP) : [];
+}
+async function push(env, key, item) {
+  const items = await load(env, key);
+  items.push(item);
+  await env.INBOX.put(key, JSON.stringify(items.slice(-MAX)), { expirationTtl: KEEP });
+}
+async function take(env, key) {
+  const items = await load(env, key);
+  if (items.length) await env.INBOX.put(key, "[]", { expirationTtl: KEEP });       // what is taken is removed: a message is told once
+  return items;
+}
+
+// The phone fetches what is waiting.
 async function inbox(request, env) {
   if (request.method !== "GET") return new Response("method not allowed", { status: 405 });
   if (!env.INBOX) return json({ messages: [] });
-  const listed = await env.INBOX.list({ prefix: "m:", limit: 20 });
-  const messages = [];
-  for (const key of listed.keys) {
-    const raw = await env.INBOX.get(key.name);
-    await env.INBOX.delete(key.name);
-    try { messages.push(JSON.parse(raw)); } catch { /* a damaged entry is dropped */ }
-  }
-  return json({ messages });
+  return json({ messages: await take(env, "in") });
 }
 
 // The person's reply, left by the phone: it waits for the agent to read it (an agent cannot be called, it has to come and look).
@@ -109,19 +121,11 @@ async function reply(request, env) {
   const text = String((body && body.text) || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 600);
   const to = String((body && body.to) || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 40);
   if (!text) return json({ ok: false });
-  const now = Date.now();
-  await env.INBOX.put("r:" + String(now).padStart(15, "0") + ":" + crypto.randomUUID().slice(0, 8), JSON.stringify({ to, text, ts: Math.floor(now / 1000) }), { expirationTtl: 86400 });
+  await push(env, "out", { to, text, ts: Math.floor(Date.now() / 1000) });
   return json({ ok: true });
 }
 
 async function takeReplies(env) {
   if (!env.INBOX) return [];
-  const listed = await env.INBOX.list({ prefix: "r:", limit: 20 });
-  const out = [];
-  for (const key of listed.keys) {
-    const raw = await env.INBOX.get(key.name);
-    await env.INBOX.delete(key.name);
-    try { out.push(JSON.parse(raw)); } catch { /* dropped */ }
-  }
-  return out;
+  return take(env, "out");
 }
