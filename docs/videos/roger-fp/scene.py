@@ -22,14 +22,15 @@ lamp = load('ph-industrial_pipe_lamp', 'industrial_pipe_lamp_2k.gltf', height=0.
 # the phone lies on the table, screen up (the kit's phone stands with its screen toward -Y: laid back flat)
 phone = kit.phone(kit.args('phone'), frames=N, width=0.0715, height=0.1470, depth=0.0082, corner=0.011, location=(0, 0, 0))
 phone.rotation_euler = (math.radians(-90), 0, math.radians(-18)); phone.location = (0.04, -1.40, TZ + 0.006)
-# the TV: a slim box on a low unit, 1.3 m wide, its screen an image sequence (emission)
-bpy.ops.mesh.primitive_cube_add(size=1); tvb = bpy.context.active_object; tvb.name = 'tv-body'; tvb.scale = (1.12, 0.035, 0.64); tvb.location = (0.0, 2.5, 0.88)
+# the TV: a slim panel on a foot (a plate on the floor and a neck), 1.12 m wide, its screen an image sequence (emission)
+TVZ = 0.72
+bpy.ops.mesh.primitive_cube_add(size=1); tvb = bpy.context.active_object; tvb.name = 'tv-body'; tvb.scale = (1.12, 0.035, 0.64); tvb.location = (0.0, 2.5, TVZ)
 tvb.data.materials.append(kit.material('tv-body', '#0b0b10', metallic=0.6, rough=0.3))
-bpy.ops.mesh.primitive_cube_add(size=1); unit = bpy.context.active_object; unit.name = 'tv-unit'; unit.scale = (1.5, 0.38, 0.38); unit.location = (0.0, 2.5, 0.19)
-unit.data.materials.append(kit.material('unit', '#26262c', metallic=0.1, rough=0.45))
-bpy.ops.mesh.primitive_cube_add(size=1); top = bpy.context.active_object; top.name = 'tv-unit-top'; top.scale = (1.52, 0.40, 0.03); top.location = (0.0, 2.5, 0.395)
-top.data.materials.append(kit.material('unit-top', '#4a3a2e', metallic=0.0, rough=0.35))
-bpy.ops.mesh.primitive_plane_add(size=1); scr = bpy.context.active_object; scr.name = 'tv-screen'; scr.rotation_euler = (math.radians(90), 0, 0); scr.scale = (1.09, 0.615, 1.0); scr.location = (0.0, 2.481, 0.88)
+bpy.ops.mesh.primitive_cube_add(size=1); neck = bpy.context.active_object; neck.name = 'tv-neck'; neck.scale = (0.09, 0.05, 0.40); neck.location = (0.0, 2.52, 0.22)
+neck.data.materials.append(kit.material('tv-foot', '#15151b', metallic=0.7, rough=0.3))
+bpy.ops.mesh.primitive_cube_add(size=1); foot = bpy.context.active_object; foot.name = 'tv-foot'; foot.scale = (0.58, 0.26, 0.022); foot.location = (0.0, 2.52, 0.011)
+foot.data.materials.append(kit.material('tv-foot2', '#15151b', metallic=0.7, rough=0.3))
+bpy.ops.mesh.primitive_plane_add(size=1); scr = bpy.context.active_object; scr.name = 'tv-screen'; scr.rotation_euler = (math.radians(90), 0, 0); scr.scale = (1.09, 0.615, 1.0); scr.location = (0.0, 2.481, TVZ)
 sm = bpy.data.materials.new('tv-screen'); sm.use_nodes = True; nt = sm.node_tree; nt.nodes.clear()
 tex = nt.nodes.new('ShaderNodeTexImage'); first = kit.args('tv') % 1 if '%' in kit.args('tv', '') else kit.args('tv')
 img = bpy.data.images.load(first); img.source = 'SEQUENCE'; tex.image = img; tex.image_user.frame_duration = N; tex.image_user.frame_start = 0; tex.image_user.use_auto_refresh = True
@@ -51,10 +52,10 @@ def blob(x, y, w, d, a=0.75):
     n.links.new(cr.outputs['Color'], inv.inputs[1]); n.links.new(inv.outputs[0], mu.inputs[0]); n.links.new(mu.outputs[0], mx.inputs['Fac'])
     n.links.new(tr.outputs[0], mx.inputs[1]); n.links.new(bl.outputs[0], mx.inputs[2]); n.links.new(mx.outputs[0], out.inputs['Surface'])
     b.data.materials.append(m)
-blob(0.0, 2.5, 2.1, 0.9); blob(1.55, -0.2, 0.7, 0.7, 0.6); blob(0.25, -1.1, 2.2, 1.3, 0.5)
+blob(0.0, 2.52, 0.85, 0.5, 0.8); blob(1.55, -0.2, 0.7, 0.7, 0.6); blob(0.25, -1.1, 2.2, 1.3, 0.5)
 # the practical lights: the lamp (warm) and the spill of the TV on the table
 bpy.ops.object.light_add(type='POINT', location=(1.5, -0.15, 0.55)); l = bpy.context.active_object; l.data.energy = 90; l.data.color = (1.0, 0.76, 0.5); l.data.shadow_soft_size = 0.08
-bpy.ops.object.light_add(type='AREA', location=(0.0, 1.2, 0.95)); tvl = bpy.context.active_object; tvl.data.energy = 60; tvl.data.size = 1.2; tvl.data.color = (0.55, 0.7, 1.0)
+bpy.ops.object.light_add(type='AREA', location=(0.0, 1.2, 0.8)); tvl = bpy.context.active_object; tvl.data.energy = 60; tvl.data.size = 1.2; tvl.data.color = (0.55, 0.7, 1.0)
 tvl.rotation_euler = (math.radians(90 + 25), 0, 0)
 # Roger's knees at the bottom of the frame: he is there
 for sx in (-0.14, 0.14):
@@ -65,14 +66,19 @@ bpy.ops.object.camera_add(); cam = bpy.context.active_object; s.camera = cam
 cam.data.lens = 24; cam.data.dof.use_dof = True; cam.data.dof.aperture_fstop = 2.0
 focus = bpy.data.objects.new('focus', None); bpy.context.collection.objects.link(focus); cam.data.dof.focus_object = focus
 tc = cam.constraints.new('TRACK_TO'); tc.target = focus; tc.track_axis = 'TRACK_NEGATIVE_Z'; tc.up_axis = 'UP_Y'
-LOOK = {'tv': (0.0, 2.5, 0.88), 'phone': (0.04, -1.40, TZ), 'room': (-0.6, 2.5, 1.45)}
+LOOK = {'tv': (0.0, 2.5, TVZ), 'phone': (0.04, -1.40, TZ), 'room': (-0.6, 2.5, 1.45)}
+LENS = {'tv': 56.0, 'phone': 68.0, 'room': 24.0}      # the eyes: wide on the room, narrower on what they read
 CUES = kit.args('cues', '0:room,5:tv,10:phone,16:tv').split(',')
-keys = [(float(c.split(':')[0]) * FPS, LOOK[c.split(':')[1]]) for c in CUES]
+keys = [(float(c.split(':')[0]) * FPS, c.split(':')[1]) for c in CUES]
 def look(i):
+    """(where the eyes look, the lens) at frame i: both glide from one cue to the next (a smooth step)."""
     for (a, pa), (b, pb) in zip(keys, keys[1:]):
         if i <= b:
-            u = (i - a) / max(1, b - a); u = u * u * (3 - 2 * u); return [pa[k] + (pb[k] - pa[k]) * u for k in range(3)]
-    return list(keys[-1][1])
+            u = (i - a) / max(1, b - a); u = u * u * (3 - 2 * u)
+            A, B = LOOK[pa], LOOK[pb]
+            return [A[k] + (B[k] - A[k]) * u for k in range(3)], LENS[pa] + (LENS[pb] - LENS[pa]) * u
+    return list(LOOK[keys[-1][1]]), LENS[keys[-1][1]]
+
 # the eyes lean in to the film that plays on the TV: lens keys « seconds:lens » (smooth between two keys, nothing outside the first and the last)
 ZK = [(float(k.split(':')[0]), float(k.split(':')[1])) for k in kit.args('zoom', '').split(',') if k]
 def zoom(t):
@@ -84,9 +90,8 @@ def zoom(t):
 for i in range(N):
     breathe = 0.006 * math.sin(i / FPS * 1.3)
     cam.location = (0.0 + 0.004 * math.sin(i / FPS * 0.8), -2.2, 1.05 + breathe); cam.keyframe_insert('location', frame=i)
-    focus.location = look(i); focus.keyframe_insert('location', frame=i)
-    d = math.dist(focus.location, (0, -2.2, 1.05)); near = max(0.0, min(1.0, (3.0 - d) / 1.2))       # 0 far (TV, room) .. 1 the phone
-    lens = 24 + 44 * near * near * (3 - 2 * near)
+    loc, lens = look(i)
+    focus.location = loc; focus.keyframe_insert('location', frame=i)
     z = zoom(i / FPS)
     if z is not None: lens = z
     cam.data.lens = lens; cam.data.keyframe_insert('lens', frame=i)
