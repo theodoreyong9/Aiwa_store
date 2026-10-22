@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **The update button no longer comes back after the install** (`.github/workflows/android.yml`): every push that touched `android/` rebuilt and republished the rolling release `android-latest` under a new commit, including the « Merge main » commits that change no file and the brain-only commits (`android/backend`, which is not in the APK and updates itself): the phone had just installed the same code and found a « newer » build. Now the brain is out of the trigger, and a build whose files (git tree) are those of the one already published is not published again (the release notes carry `Tree: <hash>`). Not seen on a phone: if the button still comes back with nothing new pushed, the cause is another.
+
 - **Widget, first row**: Wallet, Store and the settings at the top left (the settings at the left of the loop), then the loop button (plain, green while a pair works: no longer blue), then the « Projet » pill, now blue. Kotlin only compiled by the CI; not seen on a phone.
 
 - **A scenario is its own master** (brain 170 and the app): launching it is the agreement, so what its double sends to the sessions (`send`) goes at once, and what it asks the phone to do (`do`: the pills, open a production, cast, a connector) is applied at once, without the question; a connector still opens the app with the text filled in, the person touches « envoyer » (Android's rule). « Stop scénario » (as well as « fin du scénario ») tells the double to stop and closes the scenario; while a scenario is open the super agent only watches (it does not read the questions of the sessions aloud, it speaks again after). No journal and no cap, as asked. Not tried on a phone; a double made before this keeps its old consigne.
