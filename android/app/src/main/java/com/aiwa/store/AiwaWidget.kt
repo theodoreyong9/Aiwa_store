@@ -449,7 +449,7 @@ private fun LightContent(state: AiwaState) {
     // Until Aiwa has been allowed to start its backend (once), the robot is the red « Autoriser Aiwa » button
     val needsSetup = !hasTermuxPermission(context)
 
-    // Three rows: (1) settings · Wallet · Store · loop · project (blue), (2) campaign · docs · video · page · app, (3) Claude · + · robot · ear · question · update (the last two, side by side at the right, only when there is one)
+    // Three rows: (1) Wallet · Store · settings · loop · project (blue), (2) campaign · docs · video · page · app, (3) Claude · + · robot · ear · question · update (the last two, side by side at the right, only when there is one)
     Column(
         modifier = GlanceModifier.fillMaxSize()
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
@@ -458,16 +458,16 @@ private fun LightContent(state: AiwaState) {
         // ---- row 1 ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             val rounds = 2
-            // at the top left: the settings, Wallet and Store (each of the last two opens its own page of the web app, alone: no tabs, no browser bar)
+            // at the top left: Wallet and Store (each opens its own page of the web app, alone: no tabs, no browser bar), then the settings, at the left of the loop
+            Chip("Wallet", pill, fg, actionStartIntent(storePageIntent(context, "wallet", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+            Spacer(GlanceModifier.width(GAP.dp))
+            Chip("Store", pill, fg, actionStartIntent(storePageIntent(context, "store", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+            Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(
                 icon = R.drawable.ic_settings,
                 description = "Réglages : modèle, push, voix, mots, mises à jour…",
                 background = pill, action = actionStartActivity<SettingsActivity>(), diameter = chipH.dp,
             )
-            Spacer(GlanceModifier.width(GAP.dp))
-            Chip("Wallet", pill, fg, actionStartIntent(storePageIntent(context, "wallet", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
-            Spacer(GlanceModifier.width(GAP.dp))
-            Chip("Store", pill, fg, actionStartIntent(storePageIntent(context, "store", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
             Spacer(GlanceModifier.width(GAP.dp))
             // the loop: plain, green while a pair works
             RoundButton(

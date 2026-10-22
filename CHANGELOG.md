@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Widget, first row**: settings, Wallet and Store at the top left, then the loop button (plain, green while a pair works: no longer blue), then the « Projet » pill, now blue. Kotlin only compiled by the CI; not seen on a phone.
+- **Widget, first row**: Wallet, Store and the settings at the top left (the settings at the left of the loop), then the loop button (plain, green while a pair works: no longer blue), then the « Projet » pill, now blue. Kotlin only compiled by the CI; not seen on a phone.
 
 - **A scenario is its own master** (brain 170 and the app): launching it is the agreement, so what its double sends to the sessions (`send`) goes at once, and what it asks the phone to do (`do`: the pills, open a production, cast, a connector) is applied at once, without the question; a connector still opens the app with the text filled in, the person touches « envoyer » (Android's rule). « Stop scénario » (as well as « fin du scénario ») tells the double to stop and closes the scenario; while a scenario is open the super agent only watches (it does not read the questions of the sessions aloud, it speaks again after). No journal and no cap, as asked. Not tried on a phone; a double made before this keeps its old consigne.
 
