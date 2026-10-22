@@ -66,8 +66,9 @@ bpy.ops.object.camera_add(); cam = bpy.context.active_object; s.camera = cam
 cam.data.lens = 24; cam.data.dof.use_dof = True; cam.data.dof.aperture_fstop = 2.0
 focus = bpy.data.objects.new('focus', None); bpy.context.collection.objects.link(focus); cam.data.dof.focus_object = focus
 tc = cam.constraints.new('TRACK_TO'); tc.target = focus; tc.track_axis = 'TRACK_NEGATIVE_Z'; tc.up_axis = 'UP_Y'
-LOOK = {'tv': (0.0, 2.5, TVZ), 'phone': (0.04, -1.40, TZ), 'room': (-0.6, 2.5, 1.45)}
-LENS = {'tv': 56.0, 'phone': 68.0, 'room': 24.0}      # the eyes: wide on the room, narrower on what they read
+HELD = (0.02, -1.74, 1.0)             # where the phone is in the hand of Roger: 0.45 m in front of his eyes
+LOOK = {'tv': (0.0, 2.5, TVZ), 'tv90': (0.0, 2.5, TVZ), 'phone': (0.04, -1.40, TZ), 'room': (-0.6, 2.5, 1.45), 'held': HELD}
+LENS = {'tv': 56.0, 'tv90': 90.0, 'phone': 68.0, 'room': 24.0, 'held': 52.0}      # the eyes: wide on the room, narrower on what they read
 CUES = kit.args('cues', '0:room,5:tv,10:phone,16:tv').split(',')
 keys = [(float(c.split(':')[0]) * FPS, c.split(':')[1]) for c in CUES]
 def look(i):
@@ -87,11 +88,26 @@ def zoom(t):
         if t <= b:
             u = (t - a) / max(1e-6, b - a); u = u * u * (3 - 2 * u); return la + (lb - la) * u
     return ZK[-1][1]
+# the phone is taken from the table (--pick « from:to » seconds): it rises in an arc to the hand and stays there, its screen toward the eyes (no hands are made: they are not seen)
+PK = [float(x) for x in kit.args('pick', '').split(':') if x]
+T_LOC, T_ROT = (0.04, -1.40, TZ + 0.006), (math.radians(-90), 0, math.radians(-18))
+H_ROT = (math.radians(float(kit.args('hold_tilt', -12))), 0, 0)
+def pick(t):
+    if not PK or t <= PK[0]: return T_LOC, T_ROT
+    u = min(1.0, (t - PK[0]) / max(1e-6, PK[1] - PK[0])); u = u * u * (3 - 2 * u)
+    loc = [T_LOC[k] + (HELD[k] - T_LOC[k]) * u for k in range(3)]; loc[2] += 0.12 * math.sin(math.pi * u)
+    rot = [T_ROT[k] + (H_ROT[k] - T_ROT[k]) * u for k in range(3)]
+    if u >= 1.0:       # held: a slight tremor of the hand
+        loc[0] += 0.0015 * math.sin(t * 1.9); loc[2] += 0.0015 * math.sin(t * 2.3 + 1); rot[0] += 0.004 * math.sin(t * 1.4)
+    return loc, rot
 for i in range(N):
     breathe = 0.006 * math.sin(i / FPS * 1.3)
     cam.location = (0.0 + 0.004 * math.sin(i / FPS * 0.8), -2.2, 1.05 + breathe); cam.keyframe_insert('location', frame=i)
     loc, lens = look(i)
     focus.location = loc; focus.keyframe_insert('location', frame=i)
+    if PK:
+        loc, rot = pick(i / FPS); phone.location = loc; phone.rotation_euler = rot
+        phone.keyframe_insert('location', frame=i); phone.keyframe_insert('rotation_euler', frame=i)
     z = zoom(i / FPS)
     if z is not None: lens = z
     cam.data.lens = lens; cam.data.keyframe_insert('lens', frame=i)
@@ -106,6 +122,10 @@ if still is not None:
     pts = [scr.matrix_world @ mathutils.Vector(v) for v in ((-.5, -.5, 0), (.5, -.5, 0), (.5, .5, 0), (-.5, .5, 0))]
     c = [world_to_camera_view(s, cam, p) for p in pts]
     import json; json.dump([[round(q.x, 5), round(1 - q.y, 5)] for q in c], open(os.path.join(OUT, 'tv-corners.json'), 'w'))
+    # and the screen of the phone (its front face), in the order top left, top right, bottom right, bottom left of the picture drawn on it
+    W_, H_, D_ = 0.0715, 0.1470, 0.0082
+    pc = [world_to_camera_view(s, cam, phone.matrix_world @ mathutils.Vector(v)) for v in ((-W_ / 2, -D_ / 2, H_ / 2), (W_ / 2, -D_ / 2, H_ / 2), (W_ / 2, -D_ / 2, -H_ / 2), (-W_ / 2, -D_ / 2, -H_ / 2))]
+    json.dump([[round(q.x, 5), round(1 - q.y, 5)] for q in pc], open(os.path.join(OUT, 'phone-corners.json'), 'w'))
 else:
     for f in range(N):
         if a <= f < b: continue

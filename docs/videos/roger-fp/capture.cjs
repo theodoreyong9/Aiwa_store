@@ -14,7 +14,11 @@ const R=process.env.R||"/tmp/r2";const T=require('./timeline.json');
   await p.evaluate(()=>{document.getElementById('phone').style.display='none'});
   const tv=await p.$('#tv');
   for(const [a,z] of (process.env.RANGES||'27:33.4,38.8:44.2,105.5:110.6,121.2:126').split(',').map(r=>r.split(':').map(Number))){for(let i=Math.round(a*24);i<Math.round(z*24);i++){await p.evaluate(t=>render(t),i/24);await tv.screenshot({path:`${R}/tv24/${String(i).padStart(5,'0')}.png`});}}
- } else if(mode==='caps'){
+ } else if(mode==='ph24'){        // the phone alone, 24 a second, for the stretches laid over the plate of the phone (PHRANGES, in seconds)
+  const p=await b.newPage({viewport:{width:1920,height:1300}});await p.goto('file://'+__dirname+'/screens.html');
+  await p.evaluate(()=>{document.getElementById('tv').style.display='none'});
+  const ps=await p.$('#ps');
+  for(const [a,z] of (process.env.PHRANGES||'').split(',').filter(Boolean).map(r=>r.split(':').map(Number))){for(let i=Math.round(a*24);i<Math.round(z*24);i++){await p.evaluate(t=>render(t),i/24);await ps.screenshot({path:`${R}/ph24/${String(i).padStart(5,'0')}.png`});}} } else if(mode==='caps'){
   const p=await b.newPage({viewport:{width:1920,height:1080}});await p.goto('file://'+__dirname+'/screens.html?mode=caps');
   const N=Math.round(T.EV.total*24);
   for(let i=+(process.env.FROM||0);i<Math.min(N,+(process.env.TO||N));i++){await p.evaluate(t=>render(t),i/24);await p.screenshot({path:`${R}/caps/${String(i).padStart(5,'0')}.png`,omitBackground:true});}
