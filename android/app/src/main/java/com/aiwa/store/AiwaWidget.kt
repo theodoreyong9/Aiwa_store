@@ -449,7 +449,7 @@ private fun LightContent(state: AiwaState) {
     // Until Aiwa has been allowed to start its backend (once), the robot is the red « Autoriser Aiwa » button
     val needsSetup = !hasTermuxPermission(context)
 
-    // Three rows: (1) Wallet · Store · settings · loop · project (blue), (2) campaign · docs · video · page · app, (3) Claude · + · robot · ear · question · update (the last two, side by side at the right, only when there is one)
+    // Three rows: (1) Wallet · Store · settings · loop · project (blue), (2) campaign · docs · video · page · app, (3) ear · + · robot · Claude · question · update (the last two, side by side at the right, only when there is one)
     Column(
         modifier = GlanceModifier.fillMaxSize()
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
@@ -497,23 +497,22 @@ private fun LightContent(state: AiwaState) {
                 )
             }
         }
-        // ---- row 3: Claude (bottom left), the +, the robot (the super agent) and the ear; at the right, side by side and only when there is one: the question of Claude, the update ----
+        // ---- row 3: the ear (bottom left), the +, the robot (the super agent) and Claude; at the right, side by side and only when there is one: the question of Claude, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
-            if (state.cloudSessionId != null) {
+            val permanentOn = state.listening && !needsSetup
+            // The switch of the permanent listening, at the left: green when it listens, grey when it is closed (it is closed at each installation and update). Hidden while the robot is open or while the
+            // permanent listening is on (the ear then takes the place of the robot)
+            if (!permanentOn && !agentOn) {
                 RoundButton(
-                    icon = R.drawable.ic_claude,
-                    description = if (state.waiting) "Claude attend ta réponse : ouvrir" else "Ouvrir la conversation dans Claude",
-                    background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
-                    action = actionStartActivity<OpenClaudeActivity>(),
-                    diameter = chipH.dp,
+                    icon = R.drawable.ic_ear,
+                    description = if (state.listening) "Écoute permanente : active, toucher pour la couper" else "Écoute permanente : coupée, toucher pour l'activer",
+                    background = if (state.listening) green else pill, action = actionStartActivity<ListenToggleActivity>(), diameter = chipH.dp,
                 )
                 Spacer(GlanceModifier.width(GAP.dp))
             }
             RoundButton(icon = R.drawable.ic_plus, description = if (state.attachments > 0) "${state.attachments} pièce(s) jointe(s) en attente : ajouter ou retirer" else "Ajouter : un document ou un média", background = if (state.attachments > 0) green else pill, action = actionStartActivity<PlusMenuActivity>(), diameter = chipH.dp)
             Spacer(GlanceModifier.width(GAP.dp))
             // One listening at a time on screen: the permanent listening on hides the robot (the wake word opens the agent, the switch stays to close everything); the robot open alone hides the switch.
-            val permanentOn = state.listening && !needsSetup
             if (permanentOn) Box(
                 // the permanent listening on: the ear takes the whole place of the robot (green), one tap closes it
                 modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(green).cornerRadius(((rowH - 2f) / 2).dp).clickable(actionStartActivity<ListenToggleActivity>()),
@@ -528,14 +527,16 @@ private fun LightContent(state: AiwaState) {
                 if (needsSetup) Text("Autoriser Aiwa", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                 else Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = if (agentOn) "Super agent : il écoute, fermer" else "Parler au super agent", modifier = GlanceModifier.size(20.dp))
             }
-            // The switch of the permanent listening, at the right of the robot: green when it listens, grey when it is closed (it is closed at each installation and update)
-            if (!permanentOn && !agentOn) {
-            Spacer(GlanceModifier.width(GAP.dp))
-            RoundButton(
-                icon = R.drawable.ic_ear,
-                description = if (state.listening) "Écoute permanente : active, toucher pour la couper" else "Écoute permanente : coupée, toucher pour l'activer",
-                background = if (state.listening) green else pill, action = actionStartActivity<ListenToggleActivity>(), diameter = chipH.dp,
-            )
+            // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
+            if (state.cloudSessionId != null) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(
+                    icon = R.drawable.ic_claude,
+                    description = if (state.waiting) "Claude attend ta réponse : ouvrir" else "Ouvrir la conversation dans Claude",
+                    background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
+                    action = actionStartActivity<OpenClaudeActivity>(),
+                    diameter = chipH.dp,
+                )
             }
             // At the bottom right, side by side: the question of Claude (red, a tap answers it) and the update (only while a newer build is downloaded: a tap opens the installer)
             if (asking) {

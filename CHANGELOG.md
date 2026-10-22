@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Widget, third row**: the ear (permanent listening switch) and Claude swap places: the ear at the bottom left (hidden, as before, while the robot is open or the permanent listening is on: the ear then takes the robot's place), Claude at the right of the robot. Kotlin only compiled by the CI; not seen on a phone.
+
 - **The update button no longer comes back after the install** (`.github/workflows/android.yml`): every push that touched `android/` rebuilt and republished the rolling release `android-latest` under a new commit, including the « Merge main » commits that change no file and the brain-only commits (`android/backend`, which is not in the APK and updates itself): the phone had just installed the same code and found a « newer » build. Now the brain is out of the trigger, and a build whose files (git tree) are those of the one already published is not published again (the release notes carry `Tree: <hash>`). Not seen on a phone: if the button still comes back with nothing new pushed, the cause is another.
 
 - **Widget, first row**: Wallet, Store and the settings at the top left (the settings at the left of the loop), then the loop button (plain, green while a pair works: no longer blue), then the « Projet » pill, now blue. Kotlin only compiled by the CI; not seen on a phone.
