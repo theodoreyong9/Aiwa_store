@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **A session made by Aiwa may subscribe to a pull request without a permission prompt** (brain 170): `subscribe_pr_activity` and `unsubscribe_pr_activity` join `add_repo` in the tools allowed from the start. A scenario that says « surveille la pull request X et préviens-moi » can then wake on its events (comments, CI, reviews) and answer through the relay. Checked: the tool works in an ordinary cloud session (subscribe then unsubscribe on a closed pull request of this repository); NOT checked: that a session made by the phone has it (the account's sessions do name the remote tools `mcp__claude-code-remote__…`).
+
 - **The report checks the workflows of the person's repositories** (brain 170, `aiwa_ci.py`): for the repositories Aiwa can read, the latest run of each workflow; when it failed, the step that failed, whether it looks like the infrastructure (an install, a download: can be run again) or a real problem (a test, a build), and whether it already failed after a rerun (then it is not a chance). Added to the point only when the report is asked (the « Rapport » scenario or the report button), cached ten minutes, no token. Tried against this repository: it found the failure below.
 - **CI: the `test` job is pinned to `ubuntu-24.04`** (and the design catalog sync): `ubuntu-latest` now points to Ubuntu 26.04, where Playwright 1.56.1 refuses to install Chromium (« does not support chromium on ubuntu26.04-x64 »), so every run failed at that step, rerun or not.
 

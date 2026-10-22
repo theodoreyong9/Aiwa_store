@@ -2291,7 +2291,7 @@ class AllowedToolsTests(unittest.TestCase):
         self.assertEqual(args[0], "--allowedTools")
         self.assertIn("mcp__Claude_Code_Remote__add_repo", args[1].split(","))
         # only what attaching a repository needs: no other tool of that server, no shell
-        self.assertEqual(set(args[1].split(",")), {f"mcp__{server}__{tool}" for server in ("claude-code-remote", "Claude_Code_Remote") for tool in ("add_repo", "register_repo_root")},
+        self.assertEqual(set(args[1].split(",")), {f"mcp__{server}__{tool}" for server in ("claude-code-remote", "Claude_Code_Remote") for tool in ("add_repo", "register_repo_root", "subscribe_pr_activity", "unsubscribe_pr_activity")},
                          "both spellings of the two tools (the session says hyphens, the local CLI underscores), and nothing else")
         self.assertIn("mcp__claude-code-remote__add_repo", args[1].split(","), "the spelling the cloud sessions use: without it the question « Add Repo » came back every time")
 

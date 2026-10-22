@@ -1481,7 +1481,7 @@ def _rename_session(session_id, title):
 CLOUD_ALLOWED_TOOLS = [
     f"mcp__{server}__{tool}"
     for server in ("claude-code-remote", "Claude_Code_Remote")
-    for tool in ("add_repo", "register_repo_root")
+    for tool in ("add_repo", "register_repo_root", "subscribe_pr_activity", "unsubscribe_pr_activity")      # the last two: a scenario that watches a pull request must not stop on a permission prompt
 ]
 CLOUD_ALLOWED_TOOLS_ARGS = ["--allowedTools", ",".join(CLOUD_ALLOWED_TOOLS)]
 
