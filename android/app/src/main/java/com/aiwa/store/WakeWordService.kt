@@ -477,6 +477,11 @@ class WakeWordService : Service() {
             while (isActive && activeScenario?.id == sc.id) {
                 delay(1_500)
                 val says = try { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioSaid(sc.id) } } catch (err: Exception) { emptyList() }
+                if (says.any { it.did }) {
+                    // what the scenario asked the phone to do (open, cast, a connector): the brain marked it; the state is read again, then it is applied at once
+                    try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }
+                    if (AiwaRepository.state.value.agent?.command?.auto == true) applyAgentCommand(auto = true)
+                }
                 for (x in says) {
                     if (x.note.isNotBlank()) say(sc.name + " (note) : " + x.note)
                     if (x.say.isNotBlank()) {
@@ -493,7 +498,9 @@ class WakeWordService : Service() {
     /** Everything said goes to the session of the scenario; it answers through the relay, and the loop above reads the answer aloud. */
     private suspend fun scenarioTurn(text: String, plain: String) {
         val sc = activeScenario ?: return
-        if (Regex("""\b(?:fin|ferme|termine|quitte|arrete)\s+(?:du\s+|le\s+|ce\s+)?scenario\b""").containsMatchIn(plain)) {
+        if (Regex("""\b(?:fin|ferme|termine|quitte|arrete|stop)\s+(?:du\s+|le\s+|ce\s+)?scenario\b""").containsMatchIn(plain)) {
+            // the double is told to stop, then the scenario closes and the super agent goes back to being the one that is spoken to
+            try { withContext(Dispatchers.IO) { LocalClaudeBridge().scenarioSay(sc.id, "stop scénario : arrête tout ce que tu fais et ne lance plus rien") } } catch (err: Exception) { }
             scenarioPoll?.cancel()
             activeScenario = null
             say("Scénario « " + sc.name + " » fermé")
@@ -628,7 +635,7 @@ class WakeWordService : Service() {
     }
 
     // « Vas-y, fais-le »: the settings the agent asked for (model, push, repository, session…) are read back and applied by the same code as the spoken instructions, after « c'est bon vas-y ».
-    private suspend fun applyAgentCommand() {
+    private suspend fun applyAgentCommand(auto: Boolean = false) {
         val command = AiwaRepository.state.value.agent?.command ?: return
         val connector = command.connector
         if (connector != null && !ConnectorSettings.enabled(applicationContext, connector.kind)) {
@@ -639,7 +646,8 @@ class WakeWordService : Service() {
             return
         }
         say(command.readBack)
-        if (!askAloud(applicationContext, command.readBack) { Speaker.speakNatural(applicationContext, it) }) {
+        // a scenario is its own master (launching it was the agreement): what it asks is applied without the question; the person still touches « send » in the app a connector opens
+        if (!auto && !askAloud(applicationContext, command.readBack) { Speaker.speakNatural(applicationContext, it) }) {
             toastOnMain(applicationContext, "Pas confirmé : rien n'est appliqué. Les réglages attendent.")
             Speaker.speakNatural(applicationContext, "Pas appliqué. Les réglages attendent.")
             return
@@ -649,7 +657,7 @@ class WakeWordService : Service() {
         command.open?.let { openProduction(applicationContext, it) }
         connector?.let { if (!runConnector(applicationContext, it)) toastOnMain(applicationContext, "${ConnectorSettings.label(it.kind)} : aucune application n'a pu s'ouvrir.") }
         agentCall("cancel", mapOf("id" to command.id))   // applied: it must not be applied twice
-        Speaker.speakNatural(applicationContext, "C'est fait.")
+        if (!auto) Speaker.speakNatural(applicationContext, "C'est fait.")
         try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }
     }
 
@@ -683,7 +691,7 @@ class WakeWordService : Service() {
     // What the agent says is said only while its listening is open, and never over the person: the listening lets go, the phone speaks, the backend is told, the listening returns.
     private fun maybeSpeakAgent() {
         // The agent no longer speaks on its own. What is read aloud: the question of a session, simply, once, and the next one only after this one was answered.
-        if (!agentMode || agentBusy || paused || answeringAsk != null) return
+        if (!agentMode || agentBusy || paused || answeringAsk != null || activeScenario != null) return      // during a scenario the super agent only watches: it speaks again when the scenario is closed
         val ask = AiwaRepository.state.value.ask ?: return
         if (ask.id == askRead) return
         askRead = ask.id

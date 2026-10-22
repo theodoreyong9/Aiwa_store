@@ -108,7 +108,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
                     a.optJSONObject("proposal")?.let { AgentProposal(it.optString("id"), it.optString("session"), it.optString("session_title"), it.optString("message"), it.optString("read_back")) },
                     a.optString("voice", "none"),
                     a.optJSONObject("command")?.let { c -> AgentCommand(c.optString("id"), c.optString("read_back"), c.optString("instruction"), c.optJSONObject("cast")?.let { k -> AgentCast(k.optString("tv"), k.optBoolean("wait", false)) }, c.optString("open").takeIf { it.isNotBlank() && it != "null" },
-                        c.optJSONObject("connector")?.let { k -> AgentConnector(k.optString("kind"), k.optString("to"), k.optString("subject"), k.optString("body"), k.optString("start")) }) },
+                        c.optJSONObject("connector")?.let { k -> AgentConnector(k.optString("kind"), k.optString("to"), k.optString("subject"), k.optString("body"), k.optString("start")) }, c.optBoolean("auto", false)) },
                     a.optString("llm", "none"),
                     a.str("repo"),
                     a.optJSONArray("history")?.let { h -> (0 until h.length()).mapNotNull { i -> h.optJSONObject(i)?.let { o -> AgentOld(o.optString("id"), o.str("repo"), o.optString("title", "Ancien agent")) } } } ?: emptyList(),
@@ -615,7 +615,7 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
     /** What the session said since the last look (taken: said once). */
     fun scenarioSaid(id: String): List<ScenarioSay> = try {
         val a = filmPost("/api/scenarios/said", JSONObject().put("id", id)).optJSONArray("says")
-        if (a == null) emptyList() else (0 until a.length()).map { val x = a.getJSONObject(it); ScenarioSay(x.optString("say"), x.optString("note")) }
+        if (a == null) emptyList() else (0 until a.length()).map { val x = a.getJSONObject(it); ScenarioSay(x.optString("say"), x.optString("note"), x.optBoolean("do", false)) }
     } catch (e: Exception) { emptyList() }
     private fun scenarioOf(j: JSONObject): Scenario {
         val a = j.optJSONArray("words")

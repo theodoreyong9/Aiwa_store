@@ -20,7 +20,7 @@ data class AgentProposal(val id: String, val session: String, val sessionTitle: 
 data class AgentCast(val tv: String, val wait: Boolean)
 /** A request to a connector (kind: mail, agenda, sms, appel): plain data for an app of the phone, which the person confirms and then sends/calls/saves herself. */
 data class AgentConnector(val kind: String, val to: String = "", val subject: String = "", val body: String = "", val start: String = "")
-data class AgentCommand(val id: String, val readBack: String, val instruction: String, val cast: AgentCast? = null, val open: String? = null, val connector: AgentConnector? = null)
+data class AgentCommand(val id: String, val readBack: String, val instruction: String, val cast: AgentCast? = null, val open: String? = null, val connector: AgentConnector? = null, val auto: Boolean = false)
 data class AgentInfo(val enabled: Boolean, val session: String?, val interval: Int, val creating: Boolean, val error: String?, val say: AgentSay?, val proposal: AgentProposal?, val voice: String = "none", val command: AgentCommand? = null, val llm: String = "none", val repo: String? = null, val history: List<AgentOld> = emptyList(), val voiceError: String? = null)
 /** An agent put aside: it can be taken back. */
 data class AgentOld(val id: String, val repo: String?, val title: String)
@@ -48,7 +48,7 @@ data class Scenario(val id: String, val name: String, val word: String, val kind
                     val session: String? = null, val creating: Boolean = false, val error: String? = null, val sessions: List<ScenarioSession> = emptyList())
 data class ScenarioList(val scenarios: List<Scenario>, val error: String? = null)
 /** What the session of a scenario said since the last look: `say` is spoken aloud, `note` is only shown. */
-data class ScenarioSay(val say: String, val note: String)
+data class ScenarioSay(val say: String, val note: String, val did: Boolean = false)
 /** The person's way of speaking as the brain learned it (counts only): `note` is what the agent is told, empty while there is not enough yet. */
 data class StyleStatus(val enabled: Boolean, val count: Int, val ready: Boolean, val note: String)
 data class StockStatus(val pexels: Boolean, val pixabay: Boolean, val clips: List<StockSaved>)

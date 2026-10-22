@@ -3903,7 +3903,7 @@ def agent_snapshot():
         command = dict(agent["command"]) if agent["command"] else None
     if command:
         spoken, instruction = agent_lib.command_phrases(command["items"], lambda sid: (_session_entry(sid) or {}).get("title") or sid)
-        command = {"id": command["id"], "read_back": spoken, "instruction": instruction, "cast": command["items"].get("cast"), "open": command["items"].get("open"), "connector": command["items"].get("connector")}
+        command = {"id": command["id"], "read_back": spoken, "instruction": instruction, "cast": command["items"].get("cast"), "open": command["items"].get("open"), "connector": command["items"].get("connector"), "auto": command.get("auto") is True}
     out["command"] = command
     return out
 
@@ -4772,13 +4772,25 @@ def _scenario_said(raw):
         return False
     say, note = " ".join(str(data.get("say") or "").split())[:scen_lib.SAY_MAX], " ".join(str(data.get("note") or "").split())[:scen_lib.NOTE_MAX]
     # what it proposes for the other sessions (`send`, `do`) goes the way the super agent's proposals go: read back by the phone, confirmed by the person, never sent by itself
+    # A scenario is its own master: launching it was the person's agreement, so what it sends to the sessions goes at once, and what it asks the phone to do (open, cast, a connector) is applied at once.
+    did = False
     if data.get("send") or data.get("do"):
         _agent_said(json.dumps({"send": data.get("send") or [], "do": data.get("do") or {}}))
+        if data.get("send"):
+            with agent_lock:
+                proposal = dict(agent["proposal"]) if agent["proposal"] else None
+            if proposal:
+                threading.Thread(target=agent_confirm, args=(proposal["id"],), daemon=True).start()
+        if data.get("do"):
+            with agent_lock:
+                if agent["command"]:
+                    agent["command"]["auto"] = True
+                    did = True
     if not say and not note:
         return bool(data.get("send") or data.get("do"))
     with scenario_lock:
         items = _scen_run(data["scenario"])["said"]
-        items.append({"id": f"{int(time.time() * 1000)}", "say": say, "note": note, "ts": int(time.time())})
+        items.append({"id": f"{int(time.time() * 1000)}", "say": say, "note": note, "ts": int(time.time()), "do": did})
         del items[:-20]
     return True
 

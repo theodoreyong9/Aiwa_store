@@ -91,6 +91,27 @@ class ScenarioRoutes(unittest.TestCase):
         self.assertIn("Title: aiwa-scenario", scen_lib_charter())
         self.assertIn('"send"', scen_lib_charter())
 
+    def test_what_a_scenario_sends_goes_at_once_and_what_it_does_is_marked_for_the_phone(self):
+        self.call("/api/scenarios/save", name="Cours", word="mode cours", prompt="p")
+
+        def fake_said(raw):
+            server.agent["proposal"] = {"id": "p1", "session": "session_ABC", "message": "x"}
+            server.agent["command"] = {"id": "c1", "items": {"open": "documents"}}
+            return True
+        confirmed = []
+        with unittest.mock.patch.object(server, "_agent_said", side_effect=fake_said), unittest.mock.patch.object(server, "agent_confirm", side_effect=lambda i: confirmed.append(i) or {"ok": True}):
+            server._scenario_said(json.dumps({"scenario": "cours", "say": "ok", "send": [{"session": "session_ABC", "message": "x"}], "do": {"open": "documents"}}))
+            for _ in range(100):
+                if confirmed:
+                    break
+                time.sleep(0.02)
+        self.assertEqual(confirmed, ["p1"])
+        self.assertTrue(server.agent["command"]["auto"])
+        self.assertTrue(self.call("/api/scenarios/said", id="cours")["says"][0]["do"])
+        server.agent["proposal"] = server.agent["command"] = None
+        self.assertIn('"cast"', scen_lib_charter())
+        self.assertIn('"connector"', scen_lib_charter())
+
     def test_say_while_the_session_is_being_made_waits(self):
         self.call("/api/scenarios/save", name="Cours", word="mode cours", prompt="p")
         self.assertTrue(self.call("/api/scenarios/say", id="cours", text="a")["pending"])
