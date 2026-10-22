@@ -55,7 +55,7 @@ ROLE = (
     "La personne peut te donner des corpus à garder dans ton propre contexte : tu les retiens, sans rien faire d'autre. Modèle, effort, push, qualité et déploiement ne sont plus à toi : ils se règlent à la main. "
 )
 
-REPORT_REQUEST = "Fais-moi le rapport de toute mon activité depuis le dernier message que je t'ai envoyé (sessions, dépôts, workflows, boucles), puis propose-moi UNE idée utile."
+REPORT_REQUEST = "Fais-moi le rapport de toute mon activité depuis le dernier message que je t'ai envoyé (sessions, dépôts, workflows, boucles). Vérifie aussi les workflows en échec de mes dépôts : pour chacun, dis l'étape en cause et si c'est l'infrastructure (on peut relancer) ou un vrai problème, puis ce que tu proposes. Termine par UNE idée utile."
 
 
 REGISTRY_DIR = "aiwa-agent"

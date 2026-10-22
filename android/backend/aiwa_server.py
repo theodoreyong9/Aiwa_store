@@ -54,6 +54,7 @@ import aiwa_film as film_lib
 import aiwa_stock as stock_lib
 import aiwa_scenarios as scen_lib
 import aiwa_style as style_lib
+import aiwa_ci as ci_lib
 
 
 def _ts():
@@ -64,7 +65,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 169
+BACKEND_VERSION = 170
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -3366,7 +3367,37 @@ def _agent_save():
         pass
 
 
-def _agent_digest():
+ci_report = {"at": 0.0, "text": ""}
+CI_REPORT_TTL = 600
+
+
+def _workflow_digest():
+    """For the report: the workflows that failed in the person's repositories (the latest run of each), the step that failed and whether it looks like the infrastructure. Cached ten minutes
+    (the requests have no token: Aiwa never asks for one)."""
+    if time.time() - ci_report["at"] < CI_REPORT_TTL and ci_report["text"]:
+        return ci_report["text"]
+    _index_load()
+    with lock:
+        wanted = [r for r in [current_repo] if r]
+    with index_lock:
+        wanted += [r for r, e in sorted(index_store.items(), key=lambda kv: -kv[1].get("at", 0)) if e.get("readable")]
+    repos, items, skipped = [], [], []
+    for r in wanted:
+        if r not in repos and github.REPO_RE.fullmatch(r):
+            repos.append(r)
+    for repo in repos[:8]:
+        try:
+            runs = _github_json(f"https://api.github.com/repos/{repo}/actions/runs?per_page=10")
+            for f in ci_lib.latest_failures(runs)[:3]:
+                job, step = ci_lib.failed_step(_github_json(f"https://api.github.com/repos/{repo}/actions/runs/{f['id']}/jobs"))
+                items.append({**f, "repo": repo, "job": job, "step": step, "kind": ci_lib.kind(step, job)})
+        except GithubUnavailable:
+            skipped.append(repo)
+    ci_report.update(at=time.time(), text="\n\n" + ci_lib.digest(items, skipped))
+    return ci_report["text"]
+
+
+def _agent_digest(with_ci=False):
     """The point: (text, signature) from what is known of the sessions (and, for their branch, what GitHub says), the loops and the questions."""
     entries = [e for e in _load_cloud_sessions() if e.get("id") and e.get("id") != agent["session"]][:agent_lib.DIGEST_MAX_SESSIONS]
     with lock:
@@ -3394,12 +3425,12 @@ def _agent_digest():
                  "direct": push_main, "deploy": deploy_mode, "quality": video_quality}
     text, sig = agent_lib.digest(sessions, loops, asks, current_id=in_use, pills=pills)
     _index_refresh_async()
-    return text + _index_digest(), sig
+    return text + _index_digest() + (_workflow_digest() if with_ci else ""), sig
 
 
 def _agent_direct(spoken=None):
     """The agent answers through the person's own API key: one call, no cloud session and no relay. Falls back on the session when the call fails."""
-    text, sig = _agent_digest()
+    text, sig = _agent_digest(with_ci=spoken == agent_lib.REPORT_REQUEST)
     with agent_lock:
         own = agent["session"]
         history = list(agent_chat[-8:])
@@ -3434,7 +3465,7 @@ def agent_send(spoken=None, direct=True):
         session = agent["session"]
     if not session:
         return {"ok": False, "error": "pas d'agent : crée-le d'abord"}
-    text, sig = _agent_digest()
+    text, sig = _agent_digest(with_ci=spoken == agent_lib.REPORT_REQUEST)
     with agent_lock:
         told = list(agent.get("decisions", []))
     if spoken and spoken != agent_lib.REPORT_REQUEST and not spoken.startswith("[Aiwa"):
