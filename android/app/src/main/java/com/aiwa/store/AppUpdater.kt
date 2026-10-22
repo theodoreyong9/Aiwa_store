@@ -36,7 +36,9 @@ object AppUpdater {
     private fun latestFromWeb(): Pair<String, String>? = try {
         val page = get("https://github.com/theodoreyong9/Aiwa_store/releases/tag/android-latest").inputStream.bufferedReader().use { it.readText() }
         val sha = Regex("/commit/([0-9a-f]{40})").find(page)?.groupValues?.get(1)
-        if (sha == null || !page.contains("/releases/download/android-latest/Aiwa_store.apk")) null
+        // GitHub no longer writes the list of files into this page (it loads it apart), so the link to the APK is no longer looked for in it: the address of the rolling release never changes,
+        // and what proves that the release exists is its page and the commit it points to. (Looking for the link made this return null every time, and the phone fell back on the API and its limit.)
+        if (sha == null) null
         else sha to "https://github.com/theodoreyong9/Aiwa_store/releases/download/android-latest/Aiwa_store.apk"
     } catch (e: Exception) { null }
 
