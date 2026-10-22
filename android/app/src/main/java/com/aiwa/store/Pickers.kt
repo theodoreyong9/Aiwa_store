@@ -825,9 +825,13 @@ class ConnectorsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         wakeAiwa(applicationContext)
         setContent {
-            val entries = ConnectorSettings.KINDS.map { (kind, label) ->
-                val on = ConnectorSettings.enabled(applicationContext, kind)
-                PickerEntry(if (on) "✓  $label : actif" else "$label : coupé", false, lines = 1) { ConnectorSettings.set(applicationContext, kind, !on); finish() }
+            var tick by remember { mutableStateOf(0) }       // the list stays open and shows the change at once
+            val entries = buildList {
+                add(PickerEntry("Disponibles pour les campagnes : des messages pré-remplis. L'agent prépare, tu relis et tu confirmes, puis c'est toi qui envoies depuis l'appli.", false, header = true, lines = 4) { })
+                ConnectorSettings.KINDS.forEach { (kind, label) ->
+                    val on = tick >= 0 && ConnectorSettings.enabled(applicationContext, kind)
+                    add(PickerEntry(if (on) "✓  $label : disponible" else "$label : coupé", false, lines = 1) { ConnectorSettings.set(applicationContext, kind, !on); tick++ })
+                }
             }
             PickerSheet(entries) { finish() }
         }

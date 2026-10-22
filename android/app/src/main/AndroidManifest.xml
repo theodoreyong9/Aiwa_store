@@ -44,6 +44,8 @@
     <!-- Android 13+ shows no notification without it — and the lock-screen card
          (KeepAliveService.kt) is one. Asked once, when the app is opened. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The bubble over the other apps that shows what the person says to the super agent as it is understood (asked once; without it the notification carries the conversation) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- The always-on listening for "instruction" (WakeWordService.kt): off until the person turns it on. The CPU is held while it listens. -->

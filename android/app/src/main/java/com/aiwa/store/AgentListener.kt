@@ -20,6 +20,8 @@ class AgentListener(
     context: Context, private val onQuiet: () -> Unit = {}, private val quietMs: Long = QUIET_MS,
     /** How long a silence the recognizer waits before it decides the person is done (the conversation asks for less), and whether a QUESTION that stopped changing is taken as done at once. */
     private val completeSilenceMs: Long = 2000L, private val possiblySilenceMs: Long = 1500L, private val earlyQuestion: Boolean = false,
+    /** The words understood so far, while the person is still speaking (to be shown as they come). */
+    private val onPartial: (String) -> Unit = {},
     private val onHeard: (String) -> Unit,
 ) : RecognitionListener {
     private val appContext = context.applicationContext
@@ -84,6 +86,7 @@ class AgentListener(
     override fun onPartialResults(partialResults: Bundle) {
         val partial = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() } ?: return
         lastPartial = partial
+        onPartial(partial)
         // A question whose words stopped changing for a moment is taken as said, without waiting for the recognizer's own end of speech
         if (earlyQuestion) {
             main.removeCallbacks(early)

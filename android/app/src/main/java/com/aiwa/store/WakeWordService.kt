@@ -169,6 +169,7 @@ class WakeWordService : Service() {
         fun openAgentMode(context: Context, scenario: com.aiwa.bridge.Scenario? = null) {
             // The button opens ONLY the second listening: the switch of the permanent listening is not touched (it is the one switch of that wish)
             pendingScenario = scenario
+            LiveBubble.askOnce(context)
             val running = instance
             if (running != null) { running.openAgent(); if (scenario != null) running.main.post { if (running.agentMode) running.beginScenario(scenario) }; return }
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -244,6 +245,10 @@ class WakeWordService : Service() {
     private var scenarioWords: List<com.aiwa.bridge.Scenario> = emptyList()
     private var activeScenario: com.aiwa.bridge.Scenario? = null
     private var scenarioPoll: Job? = null
+    // The conversation shown in the notification (readable on the lock screen) and in the bubble: the last sentences, and what the person is saying right now
+    private val convo = ArrayDeque<Pair<Boolean, String>>()
+    private var livePartial = ""
+    private var lastLiveAt = 0L
     private var agentWatch: Job? = null
     // The question of Claude that was read aloud and waits for its spoken answer, and the one already read (a question is read once; the next one only comes after this one was answered).
     private var answeringAsk: com.aiwa.bridge.AskInfo? = null
@@ -359,6 +364,7 @@ class WakeWordService : Service() {
         agentListener = null
         scenarioPoll?.cancel()
         activeScenario = null
+        convo.clear(); livePartial = ""; LiveBubble.hide()
         answeringAsk = null
         draftOffered = false
         keepPending()
@@ -386,6 +392,7 @@ class WakeWordService : Service() {
         agentListener = AgentListener(
             this, onQuiet = { main.post { if (activeScenario != null) { agentListener?.stop(); agentListener = null; agentListen() } else standbyAgent() } }, quietMs = if (fluid) ConversationSettings.QUIET_MS else AgentListener.QUIET_MS,
             completeSilenceMs = if (fluid) 900L else 2000L, possiblySilenceMs = if (fluid) 600L else 1500L, earlyQuestion = fluid,
+            onPartial = { p -> main.post { if (agentMode) live(p) } },
         ) { text -> main.post { heardForAgent(text) } }.also { it.start() }
     }
 
@@ -787,7 +794,35 @@ class WakeWordService : Service() {
     }
 
     private fun say(text: String) {
+        if (agentMode) {
+            val mine = text.startsWith("Toi : ") || text.contains(" ← ")
+            val body = if (text.startsWith("Toi : ")) text.removePrefix("Toi : ") else if (mine) text.substringAfter(" ← ") else text.substringAfter(" : ", text)
+            convo.addLast(mine to body)
+            while (convo.size > 6) convo.removeFirst()
+            livePartial = ""
+            LiveBubble.said(this, mine, body)
+        }
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification(text))
+    }
+
+    /** What the person is saying, as it is understood: in the bubble at once, in the notification a few times a second at most. */
+    private fun live(partial: String) {
+        livePartial = partial
+        LiveBubble.partial(this, partial)
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastLiveAt > 500) { lastLiveAt = now; getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification("")) }
+    }
+
+    /** In the agent's listening, the notification is the conversation (it shows on the lock screen); otherwise it is the usual line. */
+    @Suppress("DEPRECATION")
+    private fun conversationStyle(text: String): Notification.Style {
+        if (!agentMode || (convo.isEmpty() && livePartial.isBlank())) return Notification.BigTextStyle().bigText(text)
+        val style = Notification.MessagingStyle("Toi").setConversationTitle("Super agent")
+        val now = System.currentTimeMillis()
+        val me: CharSequence? = null
+        convo.forEach { (mine, body) -> val who: CharSequence? = if (mine) me else "Agent"; style.addMessage(body, now, who) }
+        if (livePartial.isNotBlank()) style.addMessage("$livePartial …", now, me)
+        return style
     }
 
     private fun notification(text: String): Notification {
@@ -799,8 +834,8 @@ class WakeWordService : Service() {
         val stop = PendingIntent.getService(this, 3, Intent(this, WakeWordService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         return Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("Aiwa écoute")
-            .setContentText(text)
-            .setStyle(Notification.BigTextStyle().bigText(text))
+            .setContentText(if (agentMode && convo.isNotEmpty()) convo.last().second else text)
+            .setStyle(conversationStyle(text))
             .setSmallIcon(R.drawable.ic_store)
             .setContentIntent(open)
             .addAction(Notification.Action.Builder(Icon.createWithResource(this, R.drawable.ic_store), "Arrêter", stop).build())
