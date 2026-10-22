@@ -4771,8 +4771,11 @@ def _scenario_said(raw):
     if not isinstance(data, dict) or not any(s["id"] == data.get("scenario") for s in scen_lib.load(SCENARIOS_FILE)):
         return False
     say, note = " ".join(str(data.get("say") or "").split())[:scen_lib.SAY_MAX], " ".join(str(data.get("note") or "").split())[:scen_lib.NOTE_MAX]
+    # what it proposes for the other sessions (`send`, `do`) goes the way the super agent's proposals go: read back by the phone, confirmed by the person, never sent by itself
+    if data.get("send") or data.get("do"):
+        _agent_said(json.dumps({"send": data.get("send") or [], "do": data.get("do") or {}}))
     if not say and not note:
-        return False
+        return bool(data.get("send") or data.get("do"))
     with scenario_lock:
         items = _scen_run(data["scenario"])["said"]
         items.append({"id": f"{int(time.time() * 1000)}", "say": say, "note": note, "ts": int(time.time())})
@@ -4845,7 +4848,8 @@ def scenario_api(path, body):
             creating = _scen_run(sc["id"])["creating"]
         if creating or not session:
             return {"ok": False, "pending": True, "error": "la session du scénario se crée : un instant"}
-        threading.Thread(target=_scenario_send, args=(session, scen_lib.user_turn(sc, str(data.get("text") or ""))), daemon=True).start()
+        listed = "\n".join(f"- {str(e.get('title') or e['id'])[:50]} [{e['id']}]" for e in _load_cloud_sessions() if e.get("id") and e.get("id") != session)[:6 * 90]
+        threading.Thread(target=_scenario_send, args=(session, scen_lib.user_turn(sc, str(data.get("text") or ""), listed)), daemon=True).start()
         return {"ok": True}
     if path == "/api/scenarios/said":
         with scenario_lock:

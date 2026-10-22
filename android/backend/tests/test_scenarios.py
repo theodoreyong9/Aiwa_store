@@ -43,6 +43,10 @@ class ScenarioLogic(unittest.TestCase):
         self.assertIn("déjà pris", err)
 
 
+def scen_lib_charter():
+    return sc.charter(sc.DEFAULTS[0], "https://ntfy.sh/x")
+
+
 class ScenarioRoutes(unittest.TestCase):
     def setUp(self):
         server.scenario_run.clear()
@@ -77,6 +81,15 @@ class ScenarioRoutes(unittest.TestCase):
                 time.sleep(0.02)
         self.assertEqual(sent[0][0], "session_ABC")
         self.assertIn("[mot spécial : résumé]", sent[0][1])
+
+    def test_a_scenario_can_propose_a_message_for_another_session_like_the_super_agent(self):
+        self.call("/api/scenarios/save", name="Cours", word="mode cours", prompt="p")
+        with unittest.mock.patch.object(server, "_agent_said", return_value=True) as said:
+            ok = server._scenario_said(json.dumps({"scenario": "cours", "say": "", "note": "", "send": [{"session": "session_ABC", "message": "Fais le compte rendu"}]}))
+        self.assertTrue(ok)
+        self.assertIn("session_ABC", said.call_args[0][0])
+        self.assertIn("Title: aiwa-scenario", scen_lib_charter())
+        self.assertIn('"send"', scen_lib_charter())
 
     def test_say_while_the_session_is_being_made_waits(self):
         self.call("/api/scenarios/save", name="Cours", word="mode cours", prompt="p")

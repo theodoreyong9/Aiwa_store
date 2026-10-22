@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **A scenario's double can propose messages to other sessions, like the super agent** (brain 170): its reply command now takes `send` (a message for a work session) and `do` (a setting or an opening) besides `say` and `note`; the brain hands them to the same proposal mechanism as the super agent's (the phone reads them back, the person confirms, nothing leaves by itself), and each message to the double carries the list of the sessions it may name. The double stays an intermediary: it produces nothing itself. A double made before this keeps its old consigne (say and note only): the new charter reaches a scenario's session when it is made, or when a known session is chosen for it.
+
 - **Widget layout**: the settings button moves to the top left (first of row 1), the update and the question of Claude go to the bottom right, side by side (only when there is one: the question as a red « Question ▸ » chip, the update as the green round button); the « Projet » pill is only the project again (it no longer turns into the question). Kotlin only compiled by the CI; not seen on a phone.
 
 - **A session made by Aiwa may subscribe to a pull request without a permission prompt** (brain 170): `subscribe_pr_activity` and `unsubscribe_pr_activity` join `add_repo` in the tools allowed from the start. A scenario that says « surveille la pull request X et préviens-moi » can then wake on its events (comments, CI, reviews) and answer through the relay. Checked: the tool works in an ordinary cloud session (subscribe then unsubscribe on a closed pull request of this repository); NOT checked: that a session made by the phone has it (the account's sessions do name the remote tools `mcp__claude-code-remote__…`).

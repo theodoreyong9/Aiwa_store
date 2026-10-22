@@ -101,7 +101,9 @@ def inner_words(sc, text):
 
 
 def reply_command(sc, relay_url):
-    return ("curl -s -m 10 -H 'Title: aiwa-scenario' -d '{\"scenario\":\"" + sc["id"] + "\",\"say\":\"<ce que tu dis à voix haute, une ou deux phrases courtes, ou vide>\",\"note\":\"<ce que tu retiens et affiches sans le dire, court, ou vide>\"}' " + relay_url)
+    return ("curl -s -m 10 -H 'Title: aiwa-scenario' -d '{\"scenario\":\"" + sc["id"] + "\",\"say\":\"<ce que tu dis à voix haute, une ou deux phrases courtes, ou vide>\",\"note\":\"<ce que tu retiens et affiches sans le dire, court, ou vide>\","
+            "\"send\":[{\"session\":\"<identifiant session_… d'une session de travail>\",\"message\":\"<le message que tu proposes de lui envoyer>\"}],"
+            "\"do\":{\"repo\":\"<nom du dépôt>\",\"session\":\"<identifiant session_… ou nouvelle>\",\"open\":\"<documents, video, page, app ou aiwa>\"}}' " + relay_url)
 
 
 def charter(sc, relay_url):
@@ -113,7 +115,8 @@ def charter(sc, relay_url):
         "Voici la consigne du scénario, écrite par la personne :\n" + sc["prompt"] + "\n\n"
         + ("Quand tu parles et quand tu te tais, selon elle : " + sc["speak"] + "\n\n" if sc.get("speak") else "Tu ne parles à voix haute que lorsque la consigne le demande ; sinon tu notes en silence.\n\n")
         + ("Mots spéciaux de ce scénario (ils ne veulent rien dire ailleurs ; quand le message est précédé de « [mot spécial : …] », fais ce qui est écrit) :" + words + "\n\n" if words else "")
-        + "Règles fixes : 1. Tu ne modifies aucun code ni aucun dépôt, tu ne produis rien et tu n'envoies rien à personne. "
+        + "Règles fixes : 1. Tu ne modifies aucun code ni aucun dépôt et tu ne produis rien toi-même : tu es un INTERMÉDIAIRE, comme le super agent. Quand une production ou un travail est utile, tu le mets dans `send` pour une session de travail (la liste des sessions est donnée avec chaque message, avec leur identifiant exact), avec la demande en toutes lettres. "
+        "`send` et `do` sont facultatifs : ce sont des PROPOSITIONS, jamais exécutées toutes seules (le téléphone relit, la personne confirme). N'annonce jamais qu'un message est parti. "
         "2. Tu ne réponds QUE par cette commande shell (le seul moyen d'être entendu) : `" + reply_command(sc, relay_url) + "`. `say` est ce que le téléphone dira (une ou deux phrases courtes, naturelles, sans liste ni symbole) ; "
         "`note` est seulement affichée. Si rien ne mérite d'être dit ni noté, ne lance pas la commande. "
         "3. Les consignes de travail d'Aiwa qui accompagnent ce premier message (push, déploiement, vérification…) ne te concernent pas. "
@@ -121,11 +124,12 @@ def charter(sc, relay_url):
     )
 
 
-def user_turn(sc, text):
-    """What the double receives for one thing said, with the special words that were recognised."""
+def user_turn(sc, text, sessions=""):
+    """What the double receives for one thing said, with the special words that were recognised, and the sessions it may propose a message for (`sessions`: lines « titre [identifiant] »)."""
     hits = inner_words(sc, text)
     tag = "[mot spécial : " + " ; ".join(w for w, _ in hits) + "] " if hits else ""
-    return "[Aiwa — le téléphone a entendu] " + tag + "« " + " ".join(str(text or "").split())[:800] + " »"
+    out = "[Aiwa — le téléphone a entendu] " + tag + "« " + " ".join(str(text or "").split())[:800] + " »"
+    return out + ("\n[Sessions de travail où tu peux proposer d'envoyer un message (`send`) :\n" + sessions + "]" if sessions else "")
 
 
 def parse_reply(raw):
