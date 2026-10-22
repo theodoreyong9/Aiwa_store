@@ -36,6 +36,10 @@ class CiReportTests(unittest.TestCase):
         self.assertIn("me/private", text)
         self.assertIn("Aucun workflow en échec", ci.digest([]))
 
+    def test_a_failure_that_comes_back_after_a_rerun_is_not_a_chance(self):
+        item = {"repo": "me/app", "workflow": "CI", "branch": "clean", "sha": "abcdef1", "age_min": 5, "job": "test", "step": "Run playwright install", "kind": "infra", "attempt": 2}
+        self.assertIn("déjà échoué après relance", ci.digest([item]))
+
     def test_the_report_request_asks_for_it(self):
         import aiwa_agent
         self.assertIn("workflows en échec", aiwa_agent.REPORT_REQUEST)

@@ -41,7 +41,7 @@ def latest_failures(runs, now=None):
             age = max(0, int((now - time.mktime(time.strptime(made, "%Y-%m-%dT%H:%M:%SZ")) + time.timezone) // 60))
         except ValueError:
             age = None
-        out.append({"workflow": str(run.get("name") or "?"), "branch": str(run.get("head_branch") or "?"), "sha": str(run.get("head_sha") or "")[:7], "id": run.get("id"), "age_min": age})
+        out.append({"workflow": str(run.get("name") or "?"), "branch": str(run.get("head_branch") or "?"), "sha": str(run.get("head_sha") or "")[:7], "id": run.get("id"), "age_min": age, "attempt": int(run.get("run_attempt") or 1)})
     return out
 
 
@@ -52,6 +52,8 @@ def digest(items, skipped=()):
         age = it.get("age_min")
         when = "" if age is None else (f", il y a {age} min" if age < 120 else f", il y a {age // 60} h")
         why = "probablement l'infrastructure (relançable)" if it.get("kind") == "infra" else "probablement un vrai problème (test ou build)"
+        if it.get("kind") == "infra" and (it.get("attempt") or 1) > 1:
+            why = "l'infrastructure, mais ça a déjà échoué après relance : ce n'est pas un hasard (l'environnement a peut-être changé, par exemple la version du système du runner)"
         step = f"étape « {it['step']} » du job « {it['job']} »" if it.get("step") else (f"job « {it['job']} »" if it.get("job") else "étape inconnue")
         lines.append(f"- {it['repo']} : {it['workflow']} sur {it['branch']} (commit {it['sha']}{when}) : {step} ; {why}")
     head = "Workflows en échec (dernier verdict de chaque workflow) :" if lines else "Aucun workflow en échec dans tes dépôts lisibles."

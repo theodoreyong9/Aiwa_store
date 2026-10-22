@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **The report checks the workflows of the person's repositories** (brain 170, `aiwa_ci.py`): for the repositories Aiwa can read, the latest run of each workflow; when it failed, the step that failed, whether it looks like the infrastructure (an install, a download: can be run again) or a real problem (a test, a build), and whether it already failed after a rerun (then it is not a chance). Added to the point only when the report is asked (the « Rapport » scenario or the report button), cached ten minutes, no token. Tried against this repository: it found the failure below.
+- **CI: the `test` job is pinned to `ubuntu-24.04`** (and the design catalog sync): `ubuntu-latest` now points to Ubuntu 26.04, where Playwright 1.56.1 refuses to install Chromium (« does not support chromium on ubuntu26.04-x64 »), so every run failed at that step, rerun or not.
+
 - **The conversation with the super agent, live and on the lock screen**: while the agent listens, (1) a bubble over the other apps shows what the person says AS IT IS UNDERSTOOD (the recognizer's partial results, which were already requested and only used to spot a question early), then the agent's answer for a few seconds; it needs the permission « afficher par-dessus les autres applis », asked once when the agent is opened from the widget (refused or not given: nothing is drawn); (2) the notification of the listening becomes a conversation (Android messaging style: the last sentences of both, and the words being said), public on the lock screen (the phone's own setting for sensitive notifications can still hide the content). Not tried on a phone.
 - **Connectors screen**: it says what the list is (what is available for the campaigns: pre-filled messages, the person reads, confirms and sends), stays open when a line is touched and shows the change at once.
 
