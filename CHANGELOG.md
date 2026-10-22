@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Widget layout**: the settings button moves to the top left (first of row 1), the update and the question of Claude go to the bottom right, side by side (only when there is one: the question as a red « Question ▸ » chip, the update as the green round button); the « Projet » pill is only the project again (it no longer turns into the question). Kotlin only compiled by the CI; not seen on a phone.
+
 - **A session made by Aiwa may subscribe to a pull request without a permission prompt** (brain 170): `subscribe_pr_activity` and `unsubscribe_pr_activity` join `add_repo` in the tools allowed from the start. A scenario that says « surveille la pull request X et préviens-moi » can then wake on its events (comments, CI, reviews) and answer through the relay. Checked: the tool works in an ordinary cloud session (subscribe then unsubscribe on a closed pull request of this repository); NOT checked: that a session made by the phone has it (the account's sessions do name the remote tools `mcp__claude-code-remote__…`).
 
 - **The report checks the workflows of the person's repositories** (brain 170, `aiwa_ci.py`): for the repositories Aiwa can read, the latest run of each workflow; when it failed, the step that failed, whether it looks like the infrastructure (an install, a download: can be run again) or a real problem (a test, a build), and whether it already failed after a rerun (then it is not a chance). Added to the point only when the report is asked (the « Rapport » scenario or the report button), cached ten minutes, no token. Tried against this repository: it found the failure below.

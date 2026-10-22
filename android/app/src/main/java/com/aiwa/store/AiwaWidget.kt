@@ -445,10 +445,11 @@ private fun LightContent(state: AiwaState) {
     val fs = context.resources.configuration.fontScale
     val agentOn = state.agent?.enabled == true
     val agentNeeds = state.agent?.let { it.say != null || it.proposal != null || it.command != null } == true
+    val asking = state.ask != null       // a question of Claude waits: its button is at the bottom right (row 3)
     // Until Aiwa has been allowed to start its backend (once), the robot is the red « Autoriser Aiwa » button
     val needsSetup = !hasTermuxPermission(context)
 
-    // Three rows: (1) update · loop · project · session · repository, (2) campaign · docs · video · page · app, (3) settings · + · robot · Claude · question
+    // Three rows: (1) settings · loop · project · Wallet · Store, (2) campaign · docs · video · page · app, (3) Claude · + · robot · ear · question · update (the last two, side by side at the right, only when there is one)
     Column(
         modifier = GlanceModifier.fillMaxSize()
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
@@ -456,12 +457,14 @@ private fun LightContent(state: AiwaState) {
     ) {
         // ---- row 1 ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            val rounds = 1 + (if (state.appUpdateReady) 1 else 0)
-            // only while a newer build is downloaded (a tap opens the installer)
-            if (state.appUpdateReady) {
-                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
-                Spacer(GlanceModifier.width(GAP.dp))
-            }
+            val rounds = 2
+            // the settings, at the top left
+            RoundButton(
+                icon = R.drawable.ic_settings,
+                description = "Réglages : modèle, push, voix, mots, mises à jour…",
+                background = pill, action = actionStartActivity<SettingsActivity>(), diameter = chipH.dp,
+            )
+            Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(
                 icon = R.drawable.ic_loop,
                 description = if (loopOn) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
@@ -470,12 +473,10 @@ private fun LightContent(state: AiwaState) {
             Spacer(GlanceModifier.width(GAP.dp))
             // « Projet »: the session and the repository are chosen inside it (red when one of them is missing or needs something)
             val projectBad = !allMode && (state.repo == null || bandInfo(state, 200f).title.endsWith("▸"))
-            // A question of Claude waits: the pill itself becomes the question (red, a tap answers it), then goes back to the project once it is answered
-            val asking = state.ask != null
             Chip(
-                if (asking) "Question de Claude ▸" else if (allMode) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", avail - rounds * (chipH + GAP) - GAP * 3 - 2 * 54f - 24f, fs) + " ▾",
-                if (asking) alertRed else if (allMode) green else if (locked) PILL_DIM else if (projectBad) alertRed else pill, if (asking) fg else if (locked) TEXT_DIM else fg,
-                if (asking) actionStartActivity<AskActivity>() else lockable(locked, actionStartActivity<ProjectPickerActivity>()),
+                if (allMode) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", avail - rounds * (chipH + GAP) - GAP * 3 - 2 * 54f - 24f, fs) + " ▾",
+                if (allMode) green else if (locked) PILL_DIM else if (projectBad) alertRed else pill, if (locked) TEXT_DIM else fg,
+                lockable(locked, actionStartActivity<ProjectPickerActivity>()),
                 GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
             )
             // Wallet and Store: each opens its own page of the web app, alone (no tabs, no browser bar)
@@ -496,7 +497,7 @@ private fun LightContent(state: AiwaState) {
                 )
             }
         }
-        // ---- row 3: Claude (bottom left), the settings, the +, the robot (the super agent) and the ear; the question of Claude is the « Projet » pill of row 1 while it waits ----
+        // ---- row 3: Claude (bottom left), the +, the robot (the super agent) and the ear; at the right, side by side and only when there is one: the question of Claude, the update ----
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
             if (state.cloudSessionId != null) {
@@ -509,12 +510,6 @@ private fun LightContent(state: AiwaState) {
                 )
                 Spacer(GlanceModifier.width(GAP.dp))
             }
-            RoundButton(
-                icon = R.drawable.ic_settings,
-                description = "Réglages : modèle, push, voix, mots, mises à jour…",
-                background = pill, action = actionStartActivity<SettingsActivity>(), diameter = chipH.dp,
-            )
-            Spacer(GlanceModifier.width(GAP.dp))
             RoundButton(icon = R.drawable.ic_plus, description = if (state.attachments > 0) "${state.attachments} pièce(s) jointe(s) en attente : ajouter ou retirer" else "Ajouter : un document ou un média", background = if (state.attachments > 0) green else pill, action = actionStartActivity<PlusMenuActivity>(), diameter = chipH.dp)
             Spacer(GlanceModifier.width(GAP.dp))
             // One listening at a time on screen: the permanent listening on hides the robot (the wake word opens the agent, the switch stays to close everything); the robot open alone hides the switch.
@@ -541,6 +536,15 @@ private fun LightContent(state: AiwaState) {
                 description = if (state.listening) "Écoute permanente : active, toucher pour la couper" else "Écoute permanente : coupée, toucher pour l'activer",
                 background = if (state.listening) green else pill, action = actionStartActivity<ListenToggleActivity>(), diameter = chipH.dp,
             )
+            }
+            // At the bottom right, side by side: the question of Claude (red, a tap answers it) and the update (only while a newer build is downloaded: a tap opens the installer)
+            if (asking) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                Chip("Question ▸", alertRed, fg, actionStartActivity<AskActivity>(), GlanceModifier.width(76.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+            }
+            if (state.appUpdateReady) {
+                Spacer(GlanceModifier.width(GAP.dp))
+                RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
             }
         }
     }
