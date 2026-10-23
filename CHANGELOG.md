@@ -7,6 +7,7 @@
 - The fast widget in « verre coloré »: a blue-violet card, translucent buttons, a dark bar around the three tabs with the open one in light.
 - Every redraw of the widget now goes to the fast one (the old Glance layout no longer comes back over it when a tab is tapped).
 - Menus, lists and windows take the glass look of the widget: blue-violet gradient, translucent chips, a light edge, a pale periwinkle accent instead of the orange.
+- The menus are redrawn with care: a title bar (back arrow and close), rows as glass cards with a title and a small line under it, real switches for the on/off settings, chevrons for the sub-menus, sections in Réglages, filled buttons for actions.
 - The list of projects opens INSIDE the widget (the tabs give way to three rows with a pager and « Retour »): a tap on a project applies it, « Tous » toggles; the session, repository and naming stay in the window behind « ⚙ ». Other lists will follow.
 - The Build buttons of the fast widget say what they are (Super agent, Écoute, Ajouter) next to their icon.
 - **The widget in tabs**: the first third holds Domaine, Files and Build (with the question and the update always in view); the two thirds below are the buttons of the open tab (Domaine: project, loops, settings, wallet; Files: the four kinds, campaign, store; Build: robot, Claude, ear, +). A dot says what works in a tab, red what needs you; the super agent opens the tab of the button it touches.

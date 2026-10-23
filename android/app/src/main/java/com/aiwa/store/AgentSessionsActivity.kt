@@ -41,7 +41,7 @@ class AgentSessionsActivity : ComponentActivity() {
                 }
                 if (agent.history.isEmpty()) add(PickerEntry("Pas d'ancienne session pour l'instant : elles apparaissent ici quand tu en commences une nouvelle.", false, lines = 2) { })
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Super agent") { finish() }
         }
     }
 

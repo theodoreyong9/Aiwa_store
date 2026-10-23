@@ -58,7 +58,7 @@ import kotlinx.coroutines.withContext
 
 // header: a section title, not something to tap. lines: how many lines the label may take.
 // side: a second, small button at the end of the row (a repository's page on GitHub, for instance) with its own action.
-class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val side2: String? = null, val onSide2: () -> Unit = {}, val side3: String? = null, val onSide3: () -> Unit = {}, val button: Boolean = false, val onClick: () -> Unit)
+class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val side2: String? = null, val onSide2: () -> Unit = {}, val side3: String? = null, val onSide3: () -> Unit = {}, val button: Boolean = false, val sub: String? = null, val chevron: Boolean = false, val toggle: Boolean? = null, val onClick: () -> Unit)
 
 // The look of the sheets: dark whatever the phone's theme (it opens over the home screen, like the widget), compact rows, one accent.
 // The glass look of the widget (blue to violet, translucent chips, a fine light edge) for every menu, list and window
@@ -91,8 +91,35 @@ internal fun DarkSheetTheme(content: @Composable () -> Unit) {
     )
 }
 
+/** The words of a row: a legacy label « ✓  Titre : état — détail » becomes a title, a small line under it and, for a switch, its state. */
+private class RowText(val title: String, val sub: String?, val toggle: Boolean?)
+
+private fun rowText(entry: PickerEntry): RowText {
+    if (entry.sub != null || entry.toggle != null) return RowText(entry.label, entry.sub, entry.toggle)
+    val raw = entry.label
+    val on = raw.startsWith("✓")
+    val text = raw.removePrefix("✓").trim()
+    val off = Regex("^(.*?) : (coupée?|désactivée?)(.*)$").find(text)
+    if (on || off != null) {
+        val title = (off?.groupValues?.get(1) ?: text.substringBefore(" : ")).trim()
+        val rest = (off?.groupValues?.get(3) ?: text.substringAfter(" : ", "")).trim()
+        val detail = rest.removePrefix("active").removePrefix("actif").trim().trimStart('—', '-', '(').trimEnd(')').trim()
+        return RowText(title, detail.ifBlank { null }, on)
+    }
+    val cut = Regex(" : | — ").find(text)
+    return if (cut != null && entry.lines < 3) RowText(text.substring(0, cut.range.first).trim(), text.substring(cut.range.last + 1).trim().ifBlank { null }, null) else RowText(text, null, null)
+}
+
 @Composable
-internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQuery: (String) -> Unit = {}, onDismiss: () -> Unit) {
+private fun SheetSwitch(on: Boolean) {
+    Box(
+        Modifier.size(width = 42.dp, height = 24.dp).background(if (on) Color(0xFF2E9E6D) else Color(0x33FFFFFF), RoundedCornerShape(12.dp)).border(1.dp, if (on) Color(0xFF52B089) else SheetLine, RoundedCornerShape(12.dp)).padding(2.dp),
+        contentAlignment = if (on) Alignment.CenterEnd else Alignment.CenterStart,
+    ) { Box(Modifier.size(18.dp).background(Color.White, RoundedCornerShape(9.dp))) }
+}
+
+@Composable
+internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQuery: (String) -> Unit = {}, title: String? = null, onBack: (() -> Unit)? = null, onDismiss: () -> Unit) {
     DarkSheetTheme {
         Box(
             Modifier.fillMaxSize()
@@ -101,88 +128,85 @@ internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQu
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(24.dp),
                 color = Color.Transparent,
                 border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().heightIn(max = 560.dp).background(SheetBrush, RoundedCornerShape(22.dp))
+                modifier = Modifier.padding(horizontal = 14.dp).fillMaxWidth().heightIn(max = 600.dp).background(SheetBrush, RoundedCornerShape(24.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column {
-                    // the handle: the sheet is a sheet, and it goes away with a tap outside it
-                    Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), contentAlignment = Alignment.Center) {
-                        Box(Modifier.size(width = 32.dp, height = 3.dp).background(Color(0x44FFFFFF), RoundedCornerShape(2.dp)))
+                    // the head: a back arrow when the menu is a step of another one, the title, and the close
+                    Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (onBack != null) Text("‹", color = SheetText, fontSize = 20.sp, modifier = Modifier.padding(end = 8.dp).background(SheetChip, RoundedCornerShape(14.dp)).border(1.dp, SheetLine, RoundedCornerShape(14.dp)).clickable { onBack() }.padding(horizontal = 12.dp, vertical = 2.dp))
+                        Text(title ?: "", color = SheetText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = if (onBack == null) 4.dp else 0.dp))
+                        Text("✕", color = SheetText, fontSize = 13.sp, modifier = Modifier.background(SheetChip, RoundedCornerShape(14.dp)).border(1.dp, SheetLine, RoundedCornerShape(14.dp)).clickable { onDismiss() }.padding(horizontal = 11.dp, vertical = 6.dp))
                     }
                     if (query != null) {
-                        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp).background(SheetChip, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 9.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).background(SheetChip, RoundedCornerShape(14.dp)).border(1.dp, SheetLine, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("⌕", color = SheetDim, fontSize = 16.sp, modifier = Modifier.padding(end = 8.dp))
                             androidx.compose.foundation.text.BasicTextField(
                                 value = query, onValueChange = onQuery, singleLine = true,
                                 textStyle = androidx.compose.ui.text.TextStyle(color = SheetText, fontSize = 14.sp),
                                 cursorBrush = androidx.compose.ui.graphics.SolidColor(Accent),
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.weight(1f),
                                 decorationBox = { inner -> if (query.isEmpty()) Text("Rechercher, ou coller propriétaire/nom", color = SheetDim, fontSize = 14.sp); inner() },
                             )
                         }
                     }
-                    LazyColumn(Modifier.padding(horizontal = 8.dp).padding(bottom = 12.dp)) {
+                    LazyColumn(Modifier.padding(horizontal = 12.dp).padding(bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(entries) { entry ->
                             if (entry.header) {
                                 Text(
                                     text = entry.label.uppercase(),
-                                    color = Accent,
+                                    color = SheetDim,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     letterSpacing = 1.6.sp,
-                                    modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 3.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 12.dp, bottom = 0.dp),
                                 )
-                            } else {
-                                if (entry.button) {
-                                    // An ACTION (not an item of the list below it): a bordered button
-                                    Box(
-                                        Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 3.dp)
-                                            .background(Accent.copy(alpha = 0.10f), RoundedCornerShape(12.dp))
-                                            .border(1.dp, Accent.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
-                                            .clickable { entry.onClick() }.padding(vertical = 10.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) { Text(entry.label, color = Accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) }
-                                    return@items
-                                }
-                                val shape = RoundedCornerShape(12.dp)
-                                val info = !entry.active && entry.side == null && entry.lines >= 3          // a sentence that explains, not a choice
-                                Row(
-                                    Modifier.fillMaxWidth().padding(vertical = 1.dp)
-                                        .background(if (entry.active) Accent.copy(alpha = 0.16f) else Color.Transparent, shape)
-                                        .clickable { entry.onClick() },
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    if (entry.active) Box(Modifier.padding(start = 6.dp).size(width = 3.dp, height = 18.dp).background(Accent, RoundedCornerShape(2.dp)))
+                                return@items
+                            }
+                            if (entry.button) {
+                                // An ACTION (not an item of the list around it): a filled glass button
+                                Box(
+                                    Modifier.fillMaxWidth()
+                                        .background(Color(0x40FFFFFF), RoundedCornerShape(16.dp))
+                                        .border(1.dp, Color(0x80FFFFFF), RoundedCornerShape(16.dp))
+                                        .clickable { entry.onClick() }.padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) { Text(entry.label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) }
+                                return@items
+                            }
+                            val text = rowText(entry)
+                            val info = !entry.active && entry.side == null && entry.lines >= 3 && text.toggle == null && !entry.chevron      // a sentence that explains, not a choice
+                            if (info) {
+                                Text(entry.label, color = SheetDim, fontSize = 12.sp, lineHeight = 16.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp))
+                                return@items
+                            }
+                            val shape = RoundedCornerShape(16.dp)
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .background(if (entry.active) Color(0x47FFFFFF) else SheetChip, shape)
+                                    .border(1.dp, if (entry.active) Color(0x99FFFFFF) else SheetLine, shape)
+                                    .clickable { entry.onClick() }.padding(horizontal = 14.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.weight(1f)) {
                                     Text(
-                                        text = entry.label,
-                                        fontSize = if (info) 12.sp else 14.sp,
-                                        lineHeight = if (info) 16.sp else 18.sp,
-                                        color = if (entry.active) Color.White else if (info) SheetDim else SheetText,
-                                        fontWeight = if (entry.active) FontWeight.SemiBold else FontWeight.Normal,
+                                        text = text.title,
+                                        fontSize = 14.sp, lineHeight = 18.sp,
+                                        color = SheetText,
+                                        fontWeight = if (entry.active) FontWeight.SemiBold else FontWeight.Medium,
                                         maxLines = entry.lines,
-                                        modifier = Modifier.weight(1f).padding(start = if (entry.active) 8.dp else 14.dp, end = 8.dp, top = 9.dp, bottom = 9.dp),
                                     )
-                                    if (entry.side3 != null) {
-                                        Text(
-                                            text = entry.side3, color = SheetText, fontSize = 12.sp,
-                                            modifier = Modifier.padding(end = 4.dp).background(SheetChip, RoundedCornerShape(10.dp)).clickable { entry.onSide3() }.padding(horizontal = 10.dp, vertical = 5.dp),
-                                        )
-                                    }
-                                    if (entry.side2 != null) {
-                                        Text(
-                                            text = entry.side2, color = SheetText, fontSize = 12.sp,
-                                            modifier = Modifier.padding(end = 4.dp).background(SheetChip, RoundedCornerShape(10.dp)).clickable { entry.onSide2() }.padding(horizontal = 10.dp, vertical = 5.dp),
-                                        )
-                                    }
-                                    if (entry.side != null) {
-                                        Text(
-                                            text = entry.side, color = if (entry.side == "★") Accent else SheetText, fontSize = 12.sp,
-                                            modifier = Modifier.padding(end = 8.dp).background(SheetChip, RoundedCornerShape(10.dp)).clickable { entry.onSide() }.padding(horizontal = 10.dp, vertical = 5.dp),
-                                        )
-                                    }
+                                    if (text.sub != null) Text(text.sub, color = SheetDim, fontSize = 11.5.sp, lineHeight = 15.sp, maxLines = 3, modifier = Modifier.padding(top = 2.dp))
                                 }
+                                if (entry.side3 != null) Text(entry.side3, color = SheetText, fontSize = 12.sp, modifier = Modifier.padding(start = 6.dp).background(SheetChip, RoundedCornerShape(10.dp)).border(1.dp, SheetLine, RoundedCornerShape(10.dp)).clickable { entry.onSide3() }.padding(horizontal = 10.dp, vertical = 5.dp))
+                                if (entry.side2 != null) Text(entry.side2, color = SheetText, fontSize = 12.sp, modifier = Modifier.padding(start = 6.dp).background(SheetChip, RoundedCornerShape(10.dp)).border(1.dp, SheetLine, RoundedCornerShape(10.dp)).clickable { entry.onSide2() }.padding(horizontal = 10.dp, vertical = 5.dp))
+                                if (entry.side != null) Text(entry.side, color = SheetText, fontSize = 12.sp, modifier = Modifier.padding(start = 6.dp).background(SheetChip, RoundedCornerShape(10.dp)).border(1.dp, SheetLine, RoundedCornerShape(10.dp)).clickable { entry.onSide() }.padding(horizontal = 10.dp, vertical = 5.dp))
+                                if (text.toggle != null) Box(Modifier.padding(start = 10.dp)) { SheetSwitch(text.toggle) }
+                                else if (entry.chevron) Text("›", color = SheetDim, fontSize = 20.sp, modifier = Modifier.padding(start = 10.dp))
+                                else if (entry.active) Text("●", color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(start = 10.dp))
                             }
                         }
                     }
@@ -221,7 +245,7 @@ class SessionPickerActivity : ComponentActivity() {
                     add(PickerEntry(c.title.take(60), c.id == state.cloudSessionId, side = "✎", onSide = { renameSession(c.id, c.title) }) { pickCloud(c.id) })
                 }
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Sessions") { finish() }
         }
     }
 
@@ -295,7 +319,7 @@ class ModelPickerActivity : ComponentActivity() {
                     add(PickerEntry(choice.label, choice.id == state.effort) { pickEffort(choice.id) })
                 }
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Modèle et effort") { finish() }
         }
     }
 
@@ -365,7 +389,7 @@ class RepoPickerActivity : ComponentActivity() {
                 // it shows the real state and offers Connect or Disconnect accordingly.
                 add(PickerEntry("🔗  Connexion GitHub de Claude : connecter, changer, déconnecter ↗", false) { openPage(CLAUDE_CONNECTORS_URL) })
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Dépôts") { finish() }
         }
     }
 
@@ -770,6 +794,7 @@ class SettingsActivity : ComponentActivity() {
             // the switch is the person's wish; "listening" is whether the service is running (after a restart of the phone it is not, until the app is opened)
             val wanted = ListenSettings.enabled(this) || state.listening
             val entries = buildList {
+                add(PickerEntry("Voix et écoute", false, header = true) { })
                 run {
                     // ONE switch, on by default: the natural voice and the fluid conversation go together
                     val voiceState = state.agent?.voice ?: "none"
@@ -797,27 +822,32 @@ class SettingsActivity : ComponentActivity() {
                     })
                 }
                 add(PickerEntry(if (wanted) "✓  Écoute du réveil : active" else "Écoute du réveil : coupée", false, lines = 1) { toggle(); finish() })
-                add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
+                add(PickerEntry("Envoi", false, header = true) { })
+                add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2, chevron = true) { open(ModelPickerActivity::class.java) })
                 if (state.repo != null) {
                     add(PickerEntry(if (state.pushMain) "Push : direct sur main" else "Push : sur une branche", false, lines = 1) { togglePush(state.pushMain) })
                 }
-                add(PickerEntry("Super agent", false, lines = 1) { open(AgentSessionsActivity::class.java) })
-                add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }}", false, lines = 1) { open(LlmKeyActivity::class.java) })
-                add(PickerEntry("Connecteurs : ${ConnectorSettings.KINDS.filter { ConnectorSettings.enabled(applicationContext, it.first) }.joinToString(", ") { it.second }.ifEmpty { "aucun" }}", false, lines = 1) { open(ConnectorsActivity::class.java) })
-                add(PickerEntry("Film de moi : clé fal, ma voix, plafond", false, lines = 1) { open(FilmSettingsActivity::class.java) })
-                add(PickerEntry("Banques de vidéos libres : clés Pexels et Pixabay, recherche", false, lines = 2) { open(StockSettingsActivity::class.java) })
-                add(PickerEntry("Agents externes : une porte pour ChatGPT et d'autres (MCP)", false, lines = 2) { open(ExternalActivity::class.java) })
-                add(PickerEntry("Scénarios : un mot lance un double de moi, ou le rapport", false, lines = 2) { open(ScenariosActivity::class.java) })
-                add(PickerEntry("Ma façon de parler : l'agent me répond comme je parle", false, lines = 2) { open(StyleActivity::class.java) })
-                add(PickerEntry("Mes mots", false, lines = 1) { open(RecognitionsActivity::class.java) })
-                add(PickerEntry("État d'Aiwa", false, lines = 1) { open(HealthActivity::class.java) })
+                add(PickerEntry("Agent et IA", false, header = true) { })
+                add(PickerEntry("Super agent", false, lines = 1, chevron = true) { open(AgentSessionsActivity::class.java) })
+                add(PickerEntry("Clé Anthropic : ${when (state.agent?.llm) { "ready" -> "en place"; "installing" -> "installation…"; "error" -> "problème"; else -> "absente" }}", false, lines = 1, chevron = true) { open(LlmKeyActivity::class.java) })
+                add(PickerEntry("Connecteurs : ${ConnectorSettings.KINDS.filter { ConnectorSettings.enabled(applicationContext, it.first) }.joinToString(", ") { it.second }.ifEmpty { "aucun" }}", false, lines = 1, chevron = true) { open(ConnectorsActivity::class.java) })
+                add(PickerEntry("Contenus", false, header = true) { })
+                add(PickerEntry("Film de moi : clé fal, ma voix, plafond", false, lines = 1, chevron = true) { open(FilmSettingsActivity::class.java) })
+                add(PickerEntry("Banques de vidéos libres : clés Pexels et Pixabay, recherche", false, lines = 2, chevron = true) { open(StockSettingsActivity::class.java) })
+                add(PickerEntry("Agents externes : une porte pour ChatGPT et d'autres (MCP)", false, lines = 2, chevron = true) { open(ExternalActivity::class.java) })
+                add(PickerEntry("Parole et scénarios", false, header = true) { })
+                add(PickerEntry("Scénarios : un mot lance un double de moi, ou le rapport", false, lines = 2, chevron = true) { open(ScenariosActivity::class.java) })
+                add(PickerEntry("Ma façon de parler : l'agent me répond comme je parle", false, lines = 2, chevron = true) { open(StyleActivity::class.java) })
+                add(PickerEntry("Mes mots", false, lines = 1, chevron = true) { open(RecognitionsActivity::class.java) })
+                add(PickerEntry("Aiwa", false, header = true) { })
+                add(PickerEntry("État d'Aiwa", false, lines = 1, chevron = true) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
                 add(PickerEntry("Version : appli ${AppUpdater.installedVersion(applicationContext) ?: "?"} · cerveau ${AiwaRepository.state.value.backendVersion.takeIf { it > 0 } ?: "?"}${AiwaRepository.state.value.backendUpdatedAt.takeIf { it > 0 }?.let { " (mis à jour le " + java.text.SimpleDateFormat("dd/MM à HH:mm", java.util.Locale.FRANCE).format(java.util.Date(it * 1000)) + ")" } ?: ""}${if (AppUpdater.readyFile(applicationContext) != null) " · mise à jour téléchargée" else ""}", false, lines = 2) { })
                 add(PickerEntry(if (ReadySettings.enabled(applicationContext)) "✓  « C'est prêt » à voix haute" else "« C'est prêt » à voix haute : coupé", false, lines = 1) {
                     ReadySettings.set(applicationContext, !ReadySettings.enabled(applicationContext)); finish()
                 })
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Réglages") { finish() }
         }
     }
 
@@ -960,7 +990,7 @@ class ProjectPickerActivity : ComponentActivity() {
                         onSide = { Projects.remove(applicationContext, p.name); projects = Projects.all(applicationContext) }) { pick(p) })
                 }
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = if (chosen) "Projet" else "Que veux-tu lancer ?", onBack = if (chosen) ({ chosen = false }) else null) { finish() }
         }
     }
 

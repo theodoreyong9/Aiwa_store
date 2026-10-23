@@ -57,7 +57,7 @@ class AllActivity : ComponentActivity() {
                     }
                 }
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Tous les projets") { finish() }
         }
     }
 }

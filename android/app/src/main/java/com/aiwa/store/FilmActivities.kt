@@ -111,7 +111,7 @@ class FilmSettingsActivity : ComponentActivity() {
                 })
                 add(PickerEntry("Un film coûte environ ${dollars(st.perMinute)} la minute. Facturé par fal.ai sur ton compte, jamais par Aiwa.", false, lines = 3) { })
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Film de moi") { finish() }
         }
     }
 }

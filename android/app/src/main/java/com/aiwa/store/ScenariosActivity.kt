@@ -44,7 +44,7 @@ class ScenariosActivity : ComponentActivity() {
                 }
                 add(PickerEntry("Nouveau scénario", false, button = true) { startActivity(Intent(this@ScenariosActivity, ScenarioEditActivity::class.java)); finish() })
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Scénarios") { finish() }
         }
     }
 }

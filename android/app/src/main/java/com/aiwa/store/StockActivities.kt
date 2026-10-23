@@ -78,7 +78,7 @@ class StockSettingsActivity : ComponentActivity() {
                 add(PickerEntry("Clé Pixabay : ${if (st.pixabay) "en place" else "absente"}", false, lines = 1, button = true) { startActivity(Intent(this@StockSettingsActivity, StockKeyActivity::class.java).putExtra("source", "pixabay")); finish() })
                 add(PickerEntry("Les clés sont gratuites (compte sur pexels.com/api ou pixabay.com/api/docs). Elles restent dans Termux, jamais dans un dépôt.", false, lines = 3) { })
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Banques de vidéos") { finish() }
         }
     }
 }

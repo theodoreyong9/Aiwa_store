@@ -46,7 +46,7 @@ class ExternalActivity : ComponentActivity() {
                 if (st.inbox.isNotEmpty()) add(PickerEntry("Derniers messages (leur texte est dans la session de l'agent)", false, header = true) { })
                 st.inbox.forEach { add(PickerEntry(it, false, lines = 3) { }) }
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Agents externes") { finish() }
         }
     }
 }

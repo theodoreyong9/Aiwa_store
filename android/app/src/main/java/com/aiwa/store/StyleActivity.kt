@@ -34,7 +34,7 @@ class StyleActivity : ComponentActivity() {
                 add(PickerEntry(if (st.ready) st.note else "Pas encore assez : ${st.count} phrases comptées sur 8.", false, lines = 8) { })
                 add(PickerEntry("Tout effacer", false, button = true) { scope.launch { status = withContext(Dispatchers.IO) { LocalClaudeBridge().styleClear() } } })
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Ma façon de parler") { finish() }
         }
     }
 }

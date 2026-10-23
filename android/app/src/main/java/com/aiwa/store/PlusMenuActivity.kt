@@ -65,7 +65,7 @@ class PlusMenuActivity : ComponentActivity() {
                 add(PickerEntry("Document\nun fichier joint au prochain message", false) { attach(arrayOf("*/*")) })
                 add(PickerEntry("Média\nphoto, vidéo ou son, joint au prochain message", false) { attach(arrayOf("image/*", "video/*", "audio/*")) })
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Ajouter") { finish() }
         }
     }
 

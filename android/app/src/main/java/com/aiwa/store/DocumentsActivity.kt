@@ -34,7 +34,7 @@ class DocumentsActivity : ComponentActivity() {
                     })
                 }
             }
-            PickerSheet(entries) { finish() }
+            PickerSheet(entries, title = "Documents") { finish() }
         }
     }
 }
