@@ -114,6 +114,23 @@ private fun rowText(entry: PickerEntry): RowText {
     return if (cut != null && entry.lines < 3) RowText(text.substring(0, cut.range.first).trim(), text.substring(cut.range.last + 1).trim().ifBlank { null }, null) else RowText(text, null, null)
 }
 
+/** The buttons of the windows: glass, a light edge, the same everywhere (the filled one for the main action, the lighter one for the others). */
+@Composable
+internal fun GlassButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.material3.ButtonDefaults.ContentPadding, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) =
+    androidx.compose.material3.Button(
+        onClick = onClick, modifier = modifier, enabled = enabled, shape = RoundedCornerShape(14.dp), contentPadding = contentPadding,
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0x59FFFFFF), contentColor = Color.White, disabledContainerColor = Color(0x14FFFFFF), disabledContentColor = SheetDim),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassEdge), content = content,
+    )
+
+@Composable
+internal fun GlassOutlinedButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.material3.ButtonDefaults.ContentPadding, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) =
+    androidx.compose.material3.Button(
+        onClick = onClick, modifier = modifier, enabled = enabled, shape = RoundedCornerShape(14.dp), contentPadding = contentPadding,
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0x1FFFFFFF), contentColor = SheetText, disabledContainerColor = Color(0x0DFFFFFF), disabledContentColor = SheetDim),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassEdge), content = content,
+    )
+
 @Composable
 private fun SheetSwitch(on: Boolean) {
     Box(

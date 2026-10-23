@@ -154,8 +154,8 @@ private fun LoopsWindow(onClose: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                shape = RoundedCornerShape(20.dp), tonalElevation = 6.dp,
-                modifier = Modifier.padding(16.dp).fillMaxWidth()
+                shape = RoundedCornerShape(24.dp), color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
+                modifier = Modifier.padding(16.dp).fillMaxWidth().background(SheetBrush, RoundedCornerShape(24.dp)).background(GlassSheen, RoundedCornerShape(24.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -173,40 +173,40 @@ private fun LoopsWindow(onClose: () -> Unit) {
                         // Number of round trips, then the critic
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Allers-retours : ${current.limit}", modifier = Modifier.weight(1f))
-                            OutlinedButton(onClick = { act("limit", mapOf("limit" to (maxOf(1, current.limit - 1)).toString())) }, enabled = !busy) { Text("−") }
-                            OutlinedButton(onClick = { act("limit", mapOf("limit" to (minOf(50, current.limit + 1)).toString())) }, enabled = !busy) { Text("+") }
+                            GlassOutlinedButton(onClick = { act("limit", mapOf("limit" to (maxOf(1, current.limit - 1)).toString())) }, enabled = !busy) { Text("−") }
+                            GlassOutlinedButton(onClick = { act("limit", mapOf("limit" to (minOf(50, current.limit + 1)).toString())) }, enabled = !busy) { Text("+") }
                         }
-                        Button(onClick = { createCritic() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Créer le critique") }
+                        GlassButton(onClick = { createCritic() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Créer le critique") }
                     } else {
                         Text("Critique : ${pair.criticTitle}", style = MaterialTheme.typography.titleSmall, maxLines = 1)
                         Text(stateLabel(pair), style = MaterialTheme.typography.bodySmall)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (pair.state == "running") {
-                                Button(onClick = { act("stop", mapOf("id" to pair.id), "Boucle arrêtée.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Arrêter") }
+                                GlassButton(onClick = { act("stop", mapOf("id" to pair.id), "Boucle arrêtée.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Arrêter") }
                             } else if (pair.state == "idle") {
-                                Button(onClick = { act("start", mapOf("id" to pair.id), "Boucle démarrée : parle maintenant à la production.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Démarrer") }
+                                GlassButton(onClick = { act("start", mapOf("id" to pair.id), "Boucle démarrée : parle maintenant à la production.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Démarrer") }
                             } else {
-                                Button(onClick = { act("relaunch", mapOf("id" to pair.id), "Boucle relancée.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Relancer") }
+                                GlassButton(onClick = { act("relaunch", mapOf("id" to pair.id), "Boucle relancée.") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Relancer") }
                             }
-                            if (pair.state != "running") OutlinedButton(onClick = { act("delete", mapOf("id" to pair.id)) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Supprimer") }
+                            if (pair.state != "running") GlassOutlinedButton(onClick = { act("delete", mapOf("id" to pair.id)) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Supprimer") }
                         }
                         // ONE companion for the critic, among the sessions that are critics too
                         if (link != null) {
                             Text("Compagnon : " + (if (link.sender == pair.critic) link.receiverTitle else link.senderTitle) + " · " + linkLabel(link), style = MaterialTheme.typography.bodySmall)
-                            OutlinedButton(onClick = { act(if (link.state == "accepted" || link.state == "proposed") "link_stop" else "link_delete", mapOf("id" to link.id)) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                            GlassOutlinedButton(onClick = { act(if (link.state == "accepted" || link.state == "proposed") "link_stop" else "link_delete", mapOf("id" to link.id)) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                                 Text(if (link.state == "accepted" || link.state == "proposed") "Retirer le compagnon" else "Supprimer")
                             }
                         } else if (!picking) {
-                            OutlinedButton(onClick = { picking = true }, enabled = !busy && current.critics.any { it.id != pair.critic }, modifier = Modifier.fillMaxWidth()) { Text("Compagnon du critique") }
+                            GlassOutlinedButton(onClick = { picking = true }, enabled = !busy && current.critics.any { it.id != pair.critic }, modifier = Modifier.fillMaxWidth()) { Text("Compagnon du critique") }
                             if (current.critics.none { it.id != pair.critic }) Text("Aucune autre session n'est critique : il n'y a personne à choisir.", style = MaterialTheme.typography.bodySmall)
                         } else {
                             current.critics.filter { it.id != pair.critic }.forEach { c ->
-                                OutlinedButton(onClick = { picking = false; act("link_create", mapOf("sender" to pair.critic, "receiver" to c.id, "opening" to "Salut, qu'est-ce que tu fais ? J'ai envie de t'aider."), "Invitation envoyée.") }, modifier = Modifier.fillMaxWidth()) { Text(c.title, maxLines = 1) }
+                                GlassOutlinedButton(onClick = { picking = false; act("link_create", mapOf("sender" to pair.critic, "receiver" to c.id, "opening" to "Salut, qu'est-ce que tu fais ? J'ai envie de t'aider."), "Invitation envoyée.") }, modifier = Modifier.fillMaxWidth()) { Text(c.title, maxLines = 1) }
                             }
-                            OutlinedButton(onClick = { picking = false }, modifier = Modifier.fillMaxWidth()) { Text("Annuler") }
+                            GlassOutlinedButton(onClick = { picking = false }, modifier = Modifier.fillMaxWidth()) { Text("Annuler") }
                         }
                     }
-                    OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
+                    GlassOutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
                 }
             }
         }
@@ -315,8 +315,8 @@ private fun LoopsGraph(pairs: List<LoopPair>, links: List<LoopLink> = emptyList(
         nodes.forEach { (id, title) ->
             val at = position[id] ?: return@forEach
             Surface(
-                shape = RoundedCornerShape(10.dp), tonalElevation = 4.dp,
-                modifier = Modifier.width(nodeW).height(nodeH).offset { IntOffset((at.x - nodeWPx / 2f).roundToInt(), (at.y - nodeHPx / 2f).roundToInt()) },
+                shape = RoundedCornerShape(12.dp), color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, GlassEdge),
+                modifier = Modifier.width(nodeW).height(nodeH).background(GlassBody, RoundedCornerShape(12.dp)).offset { IntOffset((at.x - nodeWPx / 2f).roundToInt(), (at.y - nodeHPx / 2f).roundToInt()) },
             ) {
                 Box(Modifier.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) { Text(title, style = MaterialTheme.typography.labelSmall, maxLines = 2) }
             }

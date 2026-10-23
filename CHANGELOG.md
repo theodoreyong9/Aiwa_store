@@ -10,6 +10,7 @@
 - The menus are redrawn with care: a title bar (back arrow and close), rows as glass cards with a title and a small line under it, real switches for the on/off settings, chevrons for the sub-menus, sections in Réglages, filled buttons for actions.
 - A real glass look: a sheen on the upper half and a brighter edge on top (widget and cards), and the home screen blurred behind the menus (Android 12 and later).
 - The thin white line on top of the widget buttons is gone, and the project list is back in its own window (with « Scénario »): the menus stay outside the widget.
+- The windows of the campaign and the loops take the same glass: glass buttons, cards with a light edge, the gradient and the sheen on the window.
 - The Build buttons of the fast widget say what they are (Super agent, Écoute, Ajouter) next to their icon.
 - **The widget in tabs**: the first third holds Domaine, Files and Build (with the question and the update always in view); the two thirds below are the buttons of the open tab (Domaine: project, loops, settings, wallet; Files: the four kinds, campaign, store; Build: robot, Claude, ear, +). A dot says what works in a tab, red what needs you; the super agent opens the tab of the button it touches.
 - The super agent can touch every button of the widget with `open` (wallet, store, réglages, boucles, campagne, question, claude, plus, mise à jour, projet, écoute, robot), as a tap would; a Wallet payment is never validated by it (brain 174).

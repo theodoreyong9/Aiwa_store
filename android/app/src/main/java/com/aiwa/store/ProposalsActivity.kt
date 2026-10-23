@@ -176,7 +176,7 @@ fun proposalChangeRequest(campaign: String, id: String, name: String, change: St
 private fun ModeButtons(context: Context, p: Proposal) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf("Docs" to p.docsUrl, "Vidéo" to p.videoUrl, "Page" to p.demoUrl, "App" to p.appUrl, "Aiwa" to p.aiwaUrl).filter { it.second.isNotBlank() }.forEach { (label, url) ->
-            OutlinedButton(onClick = { openUrl(context, url) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text(label, style = MaterialTheme.typography.labelSmall) }
+            GlassOutlinedButton(onClick = { openUrl(context, url) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text(label, style = MaterialTheme.typography.labelSmall) }
         }
     }
 }
@@ -268,8 +268,8 @@ private fun ProposalsWindow(onClose: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                shape = RoundedCornerShape(18.dp), color = SheetBg, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                modifier = Modifier.padding(12.dp).fillMaxWidth()
+                shape = RoundedCornerShape(22.dp), color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
+                modifier = Modifier.padding(12.dp).fillMaxWidth().background(SheetBrush, RoundedCornerShape(22.dp)).background(GlassSheen, RoundedCornerShape(22.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column(Modifier.padding(14.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -279,12 +279,12 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                     val pending = (repo ?: state.repo)?.let { r -> PendingCampaigns.list(context, r).filter { p -> list.none { it.slug == p.first } } } ?: emptyList()
                     if (list.size + pending.size > 1) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         list.forEach { c ->
-                            if (tab == c.slug) Button(onClick = { tab = c.slug }) { Text(c.name.ifBlank { c.slug }, maxLines = 1) }
-                            else OutlinedButton(onClick = { tab = c.slug }) { Text(c.name.ifBlank { c.slug }, maxLines = 1) }
+                            if (tab == c.slug) GlassButton(onClick = { tab = c.slug }) { Text(c.name.ifBlank { c.slug }, maxLines = 1) }
+                            else GlassOutlinedButton(onClick = { tab = c.slug }) { Text(c.name.ifBlank { c.slug }, maxLines = 1) }
                         }
                         pending.forEach { (slug, label) ->
-                            if (tab == slug) Button(onClick = { tab = slug }) { Text("$label …", maxLines = 1) }
-                            else OutlinedButton(onClick = { tab = slug }) { Text("$label …", maxLines = 1) }
+                            if (tab == slug) GlassButton(onClick = { tab = slug }) { Text("$label …", maxLines = 1) }
+                            else GlassOutlinedButton(onClick = { tab = slug }) { Text("$label …", maxLines = 1) }
                         }
                     }
                     stamp.value
@@ -310,25 +310,25 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                 if (group.isNotEmpty()) {
                                     Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                                     group.forEach { p ->
-                                        Surface(shape = RoundedCornerShape(12.dp), color = SheetChip, modifier = Modifier.fillMaxWidth()) {
+                                        Surface(shape = RoundedCornerShape(16.dp), color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, GlassEdge), modifier = Modifier.fillMaxWidth().background(GlassBody, RoundedCornerShape(16.dp))) {
                                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                                 ModeButtons(context, p)
                                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                     Text(p.name.ifBlank { p.id }, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f), maxLines = 2)
-                                                    OutlinedButton(onClick = {
+                                                    GlassOutlinedButton(onClick = {
                                                         editing = p; editText = ""
                                                         try {
                                                             speech.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                                                                 .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR").putExtra(RecognizerIntent.EXTRA_PROMPT, "Dicte la modification pour " + p.name.ifBlank { p.id }))
                                                         } catch (err: Exception) { toastOnMain(context, "La reconnaissance vocale n'est pas disponible : écris la modification.") }
                                                     }) { Text("🎙") }
-                                                    if (isTest) OutlinedButton(onClick = {
+                                                    if (isTest) GlassOutlinedButton(onClick = {
                                                         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, previewText(p, true))
                                                         try { context.startActivity(Intent.createChooser(send, "Partager").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (err: Exception) { toastOnMain(context, "Partage impossible.") }
                                                     }) { Text("Share") }
                                                     else {
                                                         val done = marked(context, repo ?: "", p.id, "opened")
-                                                        Button(onClick = { preview = p }, enabled = preview == null) { Text(if (done) "↗ Reprendre" else "↗ Partager") }
+                                                        GlassButton(onClick = { preview = p }, enabled = preview == null) { Text(if (done) "↗ Reprendre" else "↗ Partager") }
                                                     }
                                                 }
                                                 if (p.reasons.isNotBlank() && !isTest) Text(p.reasons, style = MaterialTheme.typography.bodySmall, maxLines = 2)
@@ -339,7 +339,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                             }
                         }
                     }
-                    OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
+                    GlassOutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Fermer") }
                 }
             }
         }
@@ -351,7 +351,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(value = editText, onValueChange = { editText = it.take(1500) }, label = { Text("Ce qu'il faut changer") }, minLines = 3, maxLines = 8, modifier = Modifier.fillMaxWidth())
-                        OutlinedButton(onClick = {
+                        GlassOutlinedButton(onClick = {
                             try {
                                 speech.launch(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                                     .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR").putExtra(RecognizerIntent.EXTRA_PROMPT, "Dicte la suite"))
