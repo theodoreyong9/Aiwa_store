@@ -76,10 +76,16 @@ object FastWidget {
         return PendingIntent.getBroadcast(context, code, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
+    /** A button of the widget is a column (icon above, label under): the colour and the tap are on the column, the words on its label. */
+    private val LABEL = mapOf(R.id.fw_tab_domain to R.id.fw_tab_domain_t, R.id.fw_tab_files to R.id.fw_tab_files_t, R.id.fw_tab_build to R.id.fw_tab_build_t, R.id.fw_question to R.id.fw_question_t,
+        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_wallet to R.id.fw_wallet_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_store to R.id.fw_store_t,
+        R.id.fw_k0 to R.id.fw_k0_t, R.id.fw_k1 to R.id.fw_k1_t, R.id.fw_k2 to R.id.fw_k2_t, R.id.fw_k3 to R.id.fw_k3_t)
+
     private fun RemoteViews.chip(id: Int, text: String?, color: String, textColor: Int = TEXT, click: PendingIntent? = null, bold: Boolean = false) {
-        if (text != null) setTextViewText(id, if (bold) android.text.SpannableString(text).also { it.setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, it.length, 0) } else text)
+        val label = LABEL[id] ?: id
+        if (text != null) setTextViewText(label, if (bold) android.text.SpannableString(text).also { it.setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, it.length, 0) } else text)
         setInt(id, "setBackgroundResource", BG.getValue(color))
-        setTextColor(id, textColor)
+        setTextColor(label, textColor)
         if (click != null) setOnClickPendingIntent(id, click)
     }
 
@@ -124,7 +130,7 @@ object FastWidget {
         kindIds.forEachIndexed { i, id ->
             val kind = kinds.getOrNull(i)
             v.setViewVisibility(id, if (kind == null) android.view.View.GONE else android.view.View.VISIBLE)
-            if (kind != null) v.setTextViewCompoundDrawables(id, 0, when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; else -> R.drawable.fw_i_app }, 0, 0)
+            if (kind != null) v.setImageViewResource(intArrayOf(R.id.fw_k0_i, R.id.fw_k1_i, R.id.fw_k2_i, R.id.fw_k3_i)[i], when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; else -> R.drawable.fw_i_app })
             if (kind != null) v.chip(id, kind.word, if (kind.found) "green" else "dim", if (kind.found) TEXT else TEXT_DIM, broadcast(context, 10 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")), bold = kind.current)
         }
         v.chip(R.id.fw_campaign, "Campagne", "blue", click = activity(context, 14, ProposalsActivity::class.java))
