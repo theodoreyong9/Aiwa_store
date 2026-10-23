@@ -15,10 +15,41 @@ import kotlinx.coroutines.launch
  * The widget in plain views (RemoteViews): the same three tabs as the Glance one, but a tap on a tab only turns a ViewFlipper and recolours the tabs, with no recomposition and no
  * trip through Glance, which made the switch slow. The state is read from AiwaRepository and drawn again whenever it changes (see AiwaApp); the buttons open the same screens.
  */
+/** A row of a list shown INSIDE the widget: what it says, whether it is the current one, and what a tap does. */
+internal class ListRow(val label: String, val active: Boolean, val run: suspend (Context) -> Unit)
+
+/** The lists shown inside the widget (the tabs give way to a page of three rows with a pager): for now the projects. */
+object FastLists {
+    @Volatile var current: String? = null
+    @Volatile var offset = 0
+    const val PAGE = 3
+
+    fun title(): String = when (current) { "projects" -> "Projets"; else -> "" }
+
+    internal fun rows(context: Context, state: AiwaState): List<ListRow> = when (current) {
+        "projects" -> {
+            val all = Projects.isAll(context)
+            val session = state.cloudSessionId ?: "new"
+            buildList {
+                add(ListRow("⚙ Session, dépôt, nom ▸", false) { c -> c.startActivity(Intent(c, ProjectPickerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) })
+                add(ListRow(if (all) "Tous : activé" else "Tous", all) { c -> Projects.setAll(c, !all) })
+                Projects.all(context).forEach { p -> add(ListRow(p.name, !all && p.repo == state.repo && p.session == session) { c -> applyProject(c, LocalClaudeBridge(), p) }) }
+            }
+        }
+        else -> emptyList()
+    }
+
+    fun signature(context: Context): String = if (current == null) "" else current + offset + Projects.all(context).joinToString { it.name }
+}
+
 object FastWidget {
     const val ACTION_TAB = "com.aiwa.store.FW_TAB"
     const val ACTION_KIND = "com.aiwa.store.FW_KIND"
     const val ACTION_BUSY = "com.aiwa.store.FW_BUSY"
+    const val ACTION_LIST = "com.aiwa.store.FW_LIST"
+    const val ACTION_BACK = "com.aiwa.store.FW_BACK"
+    const val ACTION_PAGE = "com.aiwa.store.FW_PAGE"
+    const val ACTION_ROW = "com.aiwa.store.FW_ROW"
     private var lastSignature = ""
     /** How each tab looks when it is NOT the open one (its text and colour, from the last full drawing): a tap on a tab only needs these, not the state. */
     private val tabText = mutableMapOf("domain" to "Domaine", "files" to "Files", "build" to "Build")
@@ -57,7 +88,7 @@ object FastWidget {
         val kinds = lightKinds(state, context).filter { it.mode != "aiwa" }
         val signature = listOf(tab, state.repo, state.cloudSessionId, state.status, state.waiting, state.silenceMinutes, state.loopPair, state.listening, state.agent?.enabled, state.agent?.say != null, state.agent?.proposal != null,
             state.agent?.command != null, state.ask != null, state.appUpdateReady, state.attachments, Projects.isAll(context), Projects.nameOf(context, state.repo, state.cloudSessionId), hasTermuxPermission(context),
-            kinds.map { it.word + it.found + it.current }).joinToString("|")
+            kinds.map { it.word + it.found + it.current }, FastLists.signature(context)).joinToString("|")
         if (!force && signature == lastSignature) return
         lastSignature = signature
         val views = build(context, state, tab, kinds)
@@ -115,7 +146,7 @@ object FastWidget {
         val projectBad = !allMode && (state.repo == null || (accessNotice(state, 1) != null || state.backend == "missing" || state.claudeLogin == "needed"))
         val projectLabel = if (allMode) "Tous" else (Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet") + " ▾"
         v.chip(R.id.fw_project, projectLabel, if (allMode) "green" else if (locked) "dim" else if (projectBad) "red" else "blue", if (locked) TEXT_DIM else TEXT,
-            if (locked) broadcast(context, 6, ACTION_BUSY) else activity(context, 6, ProjectPickerActivity::class.java))
+            if (locked) broadcast(context, 6, ACTION_BUSY) else broadcast(context, 6, ACTION_LIST, "id" to "projects"))
         v.chip(R.id.fw_loops, if (loopOn) "Boucle ${state.loopPair}" else "Boucles", if (loopOn) "green" else "pill", click = activity(context, 7, LoopsActivity::class.java))
         v.chip(R.id.fw_settings, "Réglages", "pill", click = activity(context, 8, SettingsActivity::class.java))
         v.chip(R.id.fw_wallet, "Wallet", "pill", click = activity(context, 9, storePageIntent(context, "wallet", state.repo)))
@@ -151,6 +182,25 @@ object FastWidget {
         v.setViewVisibility(R.id.fw_ear, if (!permanentOn && !agentOn) android.view.View.VISIBLE else android.view.View.GONE)
         v.box(R.id.fw_ear, if (state.listening) "green" else "pill", activity(context, 18, ListenToggleActivity::class.java))
         v.box(R.id.fw_plus, if (state.attachments > 0) "green" else "pill", activity(context, 19, PlusMenuActivity::class.java))
+        // ---- a list open inside the widget: the tabs give way to it (the page of the flipper after the three tabs) ----
+        if (FastLists.current != null) {
+            val rows = FastLists.rows(context, state)
+            val offset = FastLists.offset.coerceIn(0, maxOf(0, rows.size - 1) / FastLists.PAGE * FastLists.PAGE)
+            v.setViewVisibility(R.id.fw_top, android.view.View.GONE)
+            v.setDisplayedChild(R.id.fw_flipper, 3)
+            v.chip(R.id.fw_back, "‹ Retour", "pill", click = broadcast(context, 30, ACTION_BACK))
+            v.chip(R.id.fw_list_title, FastLists.title() + (if (rows.size > FastLists.PAGE) "  ${offset / FastLists.PAGE + 1}/${(rows.size + FastLists.PAGE - 1) / FastLists.PAGE}" else ""), "taboff", TAB_OFF_TEXT)
+            val paged = rows.size > FastLists.PAGE
+            v.setViewVisibility(R.id.fw_prev, if (paged) android.view.View.VISIBLE else android.view.View.GONE)
+            v.setViewVisibility(R.id.fw_next, if (paged) android.view.View.VISIBLE else android.view.View.GONE)
+            v.chip(R.id.fw_prev, null, if (offset > 0) "pill" else "dim", if (offset > 0) TEXT else TEXT_DIM, broadcast(context, 31, ACTION_PAGE, "d" to "-1"))
+            v.chip(R.id.fw_next, null, if (offset + FastLists.PAGE < rows.size) "pill" else "dim", if (offset + FastLists.PAGE < rows.size) TEXT else TEXT_DIM, broadcast(context, 32, ACTION_PAGE, "d" to "1"))
+            intArrayOf(R.id.fw_row0, R.id.fw_row1, R.id.fw_row2).forEachIndexed { i, id ->
+                val row = rows.getOrNull(offset + i)
+                v.setViewVisibility(id, if (row == null) android.view.View.INVISIBLE else android.view.View.VISIBLE)
+                if (row != null) v.chip(id, row.label, if (row.active) "blue" else "pill", click = broadcast(context, 33 + i, ACTION_ROW, "i" to (offset + i).toString()), bold = row.active)
+            }
+        } else v.setViewVisibility(R.id.fw_top, android.view.View.VISIBLE)
         return v
     }
 }
@@ -169,6 +219,25 @@ class AiwaWidgetReceiver : AppWidgetProvider() {
                 FastWidget.switchTab(context, intent.getStringExtra("tab") ?: return)
             }
             FastWidget.ACTION_BUSY -> tellBusy(context, toast = true)
+            FastWidget.ACTION_LIST -> { FastLists.current = intent.getStringExtra("id"); FastLists.offset = 0; FastWidget.render(context, force = true) }
+            FastWidget.ACTION_BACK -> { FastLists.current = null; FastWidget.render(context, force = true) }
+            FastWidget.ACTION_PAGE -> {
+                FastLists.offset = maxOf(0, FastLists.offset + (intent.getStringExtra("d")?.toIntOrNull() ?: 0) * FastLists.PAGE)
+                FastWidget.render(context, force = true)
+            }
+            FastWidget.ACTION_ROW -> {
+                val index = intent.getStringExtra("i")?.toIntOrNull() ?: return
+                val pending = goAsync()
+                CoroutineScope(Dispatchers.Default).launch {
+                    try {
+                        FastLists.rows(context, AiwaRepository.state.value).getOrNull(index)?.let { row ->
+                            FastLists.current = null      // the list closes on the choice, the widget shows the result
+                            FastWidget.render(context, force = true)
+                            row.run(context.applicationContext)
+                        }
+                    } finally { FastWidget.render(context, force = true); pending.finish() }
+                }
+            }
             FastWidget.ACTION_KIND -> {
                 val mode = intent.getStringExtra("mode") ?: return
                 val found = intent.getStringExtra("found") == "1"
