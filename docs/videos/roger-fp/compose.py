@@ -37,6 +37,8 @@ def piece(i, sg, last):
     n = f1 - f0 + (0 if last else D)
     dur = n / FPS
     out = os.path.join(W, f'seg{i:02d}.mp4')
+    if os.path.exists(out + '.ok'):      # restartable: a piece that was finished (its .ok marker is written after it) is not made again
+        return out
     x264 = ['-c:v', 'libx264', '-crf', '14', '-pix_fmt', 'yuv420p', '-r', str(FPS), '-t', f'{dur:.5f}']
     if k == 's':
         g0 = f0 // 2
@@ -86,6 +88,7 @@ for i, sg in enumerate(SEG):
     last = i == len(SEG) - 1
     print('piece', i, sg['k'], sg['a'], sg['b'], flush=True)
     files.append(piece(i, sg, last))
+    open(files[-1] + '.ok', 'w').write('1')
 
 # the joints: main_i = [D .. len) of piece i (the first one from 0), the crossfade = the tail of i over the head of i + 1
 G, names = [], []
