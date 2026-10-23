@@ -43,7 +43,7 @@ object FastWidget {
     private val BG = mapOf("pill" to R.drawable.fw_pill, "blue" to R.drawable.fw_blue, "green" to R.drawable.fw_green, "red" to R.drawable.fw_red, "dim" to R.drawable.fw_dim, "tabon" to R.drawable.fw_tabon, "taboff" to R.drawable.fw_taboff, "orange" to R.drawable.fw_orange)
     private const val TEXT = 0xFFF0F0F5.toInt()
     private const val TEXT_DIM = 0xFF828290.toInt()
-    private const val TAB_ON_TEXT = 0xFF1C2250.toInt()
+    private const val TAB_ON_TEXT = 0xFFFFFFFF.toInt()
     private const val TAB_OFF_TEXT = 0xFFCFD3FF.toInt()
 
     fun ids(context: Context): IntArray = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, AiwaWidgetReceiver::class.java))
@@ -78,7 +78,7 @@ object FastWidget {
 
     /** A button of the widget is a column (icon above, label under): the colour and the tap are on the column, the words on its label. */
     private val LABEL = mapOf(R.id.fw_tab_domain to R.id.fw_tab_domain_t, R.id.fw_tab_files to R.id.fw_tab_files_t, R.id.fw_tab_build to R.id.fw_tab_build_t, R.id.fw_question to R.id.fw_question_t,
-        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_wallet to R.id.fw_wallet_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_store to R.id.fw_store_t,
+        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_wallet to R.id.fw_wallet_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_store to R.id.fw_store_t, R.id.fw_scenario to R.id.fw_scenario_t,
         R.id.fw_k0 to R.id.fw_k0_t, R.id.fw_k1 to R.id.fw_k1_t, R.id.fw_k2 to R.id.fw_k2_t, R.id.fw_k3 to R.id.fw_k3_t)
 
     private fun RemoteViews.chip(id: Int, text: String?, color: String, textColor: Int = TEXT, click: PendingIntent? = null, bold: Boolean = false) {
@@ -135,6 +135,7 @@ object FastWidget {
         }
         v.chip(R.id.fw_campaign, "Campagne", "blue", click = activity(context, 14, ProposalsActivity::class.java))
         v.chip(R.id.fw_store, "Store", "pill", click = activity(context, 15, storePageIntent(context, "store", state.repo)))
+        v.chip(R.id.fw_scenario, "Scénario", "pill", click = activity(context, 20, ScenariosActivity::class.java))
         // ---- Build: the robot (the permanent listening on puts the ear in its place), Claude, the ear and the + ----
         if (permanentOn) {
             v.box(R.id.fw_robot, "green", activity(context, 16, ListenToggleActivity::class.java))

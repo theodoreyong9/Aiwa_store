@@ -14,6 +14,7 @@
 - New line icons for every button of the widget (tabs, project, loops, settings, wallet, store, campaign, the four kinds, robot, Claude, ear, +, update, question), bigger text, and a taller default size (two cells high).
 - The icons sit above the words (a little smaller, 20 dp), and the default height of the widget is a little taller.
 - The icon and the word of each button are one close column (the gap between them was the height of the button).
+- In the widget, Projet and Scénario are two separate buttons at the left of Store (Files), Campagne goes to Domaine, and the open tab is a soft light glass with white words instead of a white block.
 - The Build buttons of the fast widget say what they are (Super agent, Écoute, Ajouter) next to their icon.
 - **The widget in tabs**: the first third holds Domaine, Files and Build (with the question and the update always in view); the two thirds below are the buttons of the open tab (Domaine: project, loops, settings, wallet; Files: the four kinds, campaign, store; Build: robot, Claude, ear, +). A dot says what works in a tab, red what needs you; the super agent opens the tab of the button it touches.
 - The super agent can touch every button of the widget with `open` (wallet, store, réglages, boucles, campagne, question, claude, plus, mise à jour, projet, écoute, robot), as a tap would; a Wallet payment is never validated by it (brain 174).
