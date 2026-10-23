@@ -90,30 +90,35 @@ for i, sg in enumerate(SEG):
     files.append(piece(i, sg, last))
     open(files[-1] + '.ok', 'w').write('1')
 
-# the joints: main_i = [D .. len) of piece i (the first one from 0), the crossfade = the tail of i over the head of i + 1
-G, names = [], []
+# the joints, in separate small encodes (one big filter graph over 35 inputs filled the memory and was killed): main_i = [D .. len) of piece i (the first one from 0), the crossfade x_i = the tail of i
+# over the head of i + 1; they are joined with the concat demuxer (no new encode), then ONE pass draws the sway, the captions and the sound
+X264 = ['-c:v', 'libx264', '-crf', '12', '-pix_fmt', 'yuv420p', '-r', str(FPS)]
+NORM = 'setpts=PTS-STARTPTS,fps=24,settb=1/24,setsar=1,format=yuv420p'
+parts = []
 for i, sg in enumerate(SEG):
     ln = sg['f1'] - sg['f0']; last = i == len(SEG) - 1
     s0 = 0 if i == 0 else D
-    G.append(f"[{i}:v]trim=start_frame={s0}:end_frame={ln},setpts=PTS-STARTPTS,fps=24,settb=1/24,setsar=1,format=yuv420p[m{i}];")
-    names.append(f'[m{i}]')
+    m = os.path.join(W, f'm{i:02d}.mp4')
+    if not os.path.exists(m + '.ok'):
+        run(['ffmpeg', '-loglevel', 'error', '-y', '-i', files[i], '-vf', f'trim=start_frame={s0}:end_frame={ln},{NORM}'] + X264 + [m]); open(m + '.ok', 'w').write('1')
+    parts.append(m)
     if not last:
-        G.append(f"[{i}:v]trim=start_frame={ln}:end_frame={ln + D},setpts=PTS-STARTPTS,fps=24,settb=1/24,setsar=1,format=yuv420p[a{i}];")
-        G.append(f"[{i + 1}:v]trim=start_frame=0:end_frame={D},setpts=PTS-STARTPTS,fps=24,settb=1/24,setsar=1,format=yuv420p[c{i}];")
-        G.append(f"[a{i}][c{i}]xfade=transition=fade:duration={(D - 1) / FPS:.4f}:offset=0[x{i}];")
-        names.append(f'[x{i}]')
+        x = os.path.join(W, f'x{i:02d}.mp4')
+        if not os.path.exists(x + '.ok'):
+            run(['ffmpeg', '-loglevel', 'error', '-y', '-i', files[i], '-i', files[i + 1], '-filter_complex',
+                 f"[0:v]trim=start_frame={ln}:end_frame={ln + D},{NORM}[a];[1:v]trim=start_frame=0:end_frame={D},{NORM}[c];[a][c]xfade=transition=fade:duration={(D - 1) / FPS:.4f}:offset=0,format=yuv420p[x]",
+                 '-map', '[x]'] + X264 + [x]); open(x + '.ok', 'w').write('1')
+        parts.append(x)
+    print('joint', i, flush=True)
+open(os.path.join(W, 'parts.txt'), 'w').write(''.join(f"file '{f}'\n" for f in parts))
+base = os.path.join(W, 'base.mp4')
+run(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', os.path.join(W, 'parts.txt'), '-c', 'copy', base])
 gate = '+'.join(f"clip((t-{s})/0.25,0,1)*clip(({e}-t)/0.5,0,1)" for k, (s, e) in T['T'].items() if k.startswith('R'))
 g = f"min(1,{gate})"
 X = f"96+(9+18*{g})*sin(2*PI*t*0.17)+(3+9*{g})*sin(2*PI*t*0.61+1)"
 Y = f"54+(5+8*{g})*sin(2*PI*t*0.23+2)+(2+6*{g})*sin(2*PI*t*0.97)"
-n = len(files)
-G.append(''.join(names) + f"concat=n={len(names)}:v=1:a=0[base];")
-G.append(f"[base]scale=4032:2268:flags=bicubic,crop=3840:2160:'2*({X})':'2*({Y})',scale=1920:1080:flags=lanczos,format=yuv420p[sw];")
-G.append(f"[sw][{n}:v]overlay=0:0:format=auto,format=yuv420p[vout]")
-cmd = ['ffmpeg', '-loglevel', 'error', '-y']
-for f in files:
-    cmd += ['-i', f]
-cmd += ['-framerate', '24', '-i', f'{R}/caps/%05d.png', '-i', a.audio, '-filter_complex', ''.join(G), '-map', '[vout]', '-map', f'{n + 1}:a', '-t', f'{TOTAL / FPS:.4f}',
-        '-c:v', 'libx264', '-crf', '16', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', a.out]
+cmd = ['ffmpeg', '-loglevel', 'error', '-y', '-i', base, '-framerate', '24', '-i', f'{R}/caps/%05d.png', '-i', a.audio, '-filter_complex',
+       f"[0:v]scale=4032:2268:flags=bicubic,crop=3840:2160:'2*({X})':'2*({Y})',scale=1920:1080:flags=lanczos,format=yuv420p[sw];[sw][1:v]overlay=0:0:format=auto,format=yuv420p[vout]",
+       '-map', '[vout]', '-map', '2:a', '-t', f'{TOTAL / FPS:.4f}', '-c:v', 'libx264', '-crf', '16', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', a.out]
 run(cmd)
 print('done', a.out)
