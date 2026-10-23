@@ -4,7 +4,7 @@
 
 - **The widget is now in plain views**: the same tabs, but a tap on a tab only turns a page instead of recomposing the whole widget, so it is fast; the widget already on the screen becomes the fast one with the update.
 - The tab tap of the widget is now a partial update (only the page and two tabs change, the state is not read) sent as a foreground broadcast, and the redrawing runs off the main thread.
-- A finer look for the fast widget: gradient chips with a light edge, a deeper card, small icons in the text buttons, a medium weight for the text.
+- The fast widget in « verre coloré »: a blue-violet card, translucent buttons, a dark bar around the three tabs with the open one in light.
 - The Build buttons of the fast widget say what they are (Super agent, Écoute, Ajouter) next to their icon.
 - **The widget in tabs**: the first third holds Domaine, Files and Build (with the question and the update always in view); the two thirds below are the buttons of the open tab (Domaine: project, loops, settings, wallet; Files: the four kinds, campaign, store; Build: robot, Claude, ear, +). A dot says what works in a tab, red what needs you; the super agent opens the tab of the button it touches.
 - The super agent can touch every button of the widget with `open` (wallet, store, réglages, boucles, campagne, question, claude, plus, mise à jour, projet, écoute, robot), as a tap would; a Wallet payment is never validated by it (brain 174).

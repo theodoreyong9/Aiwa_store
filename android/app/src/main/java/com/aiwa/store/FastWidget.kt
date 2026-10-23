@@ -22,7 +22,7 @@ object FastWidget {
     private var lastSignature = ""
     /** How each tab looks when it is NOT the open one (its text and colour, from the last full drawing): a tap on a tab only needs these, not the state. */
     private val tabText = mutableMapOf("domain" to "Domaine", "files" to "Files", "build" to "Build")
-    private val tabColor = mutableMapOf("domain" to "pill", "files" to "pill", "build" to "pill")
+    private val tabColor = mutableMapOf("domain" to "taboff", "files" to "taboff", "build" to "taboff")
     private val tabView = mapOf("domain" to R.id.fw_tab_domain, "files" to R.id.fw_tab_files, "build" to R.id.fw_tab_build)
     private val tabPage = mapOf("domain" to 0, "files" to 1, "build" to 2)
 
@@ -34,15 +34,17 @@ object FastWidget {
         if (ids.isEmpty()) return
         val v = RemoteViews(context.packageName, R.layout.fast_widget)
         v.setDisplayedChild(R.id.fw_flipper, tabPage[tab] ?: 2)
-        if (before != tab) v.chip(tabView.getValue(before), tabText.getValue(before), tabColor.getValue(before))
-        v.chip(tabView.getValue(tab), tabText.getValue(tab), "blue", bold = true)
+        if (before != tab) v.chip(tabView.getValue(before), tabText.getValue(before), tabColor.getValue(before), TAB_OFF_TEXT)
+        v.chip(tabView.getValue(tab), tabText.getValue(tab), "tabon", TAB_ON_TEXT, bold = true)
         try { AppWidgetManager.getInstance(context).partiallyUpdateAppWidget(ids, v) } catch (err: Exception) { render(context, force = true) }
         lastSignature = ""      // the next full drawing is not skipped
     }
 
-    private val BG = mapOf("pill" to R.drawable.fw_pill, "blue" to R.drawable.fw_blue, "green" to R.drawable.fw_green, "red" to R.drawable.fw_red, "dim" to R.drawable.fw_dim, "orange" to R.drawable.fw_orange)
+    private val BG = mapOf("pill" to R.drawable.fw_pill, "blue" to R.drawable.fw_blue, "green" to R.drawable.fw_green, "red" to R.drawable.fw_red, "dim" to R.drawable.fw_dim, "tabon" to R.drawable.fw_tabon, "taboff" to R.drawable.fw_taboff, "orange" to R.drawable.fw_orange)
     private const val TEXT = 0xFFF0F0F5.toInt()
     private const val TEXT_DIM = 0xFF828290.toInt()
+    private const val TAB_ON_TEXT = 0xFF1C2250.toInt()
+    private const val TAB_OFF_TEXT = 0xFFCFD3FF.toInt()
 
     fun ids(context: Context): IntArray = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, AiwaWidgetReceiver::class.java))
 
@@ -98,11 +100,11 @@ object FastWidget {
         v.setInt(R.id.fw_root, "setBackgroundResource", if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg)
         // ---- the tabs; the question and the update stay in view whatever the tab ----
         val buildBusy = agentOn || permanentOn
-        tabText["domain"] = "Domaine" + (if (loopOn) " ●" else ""); tabColor["domain"] = if (loopOn) "green" else "pill"
-        tabText["files"] = "Files"; tabColor["files"] = "pill"
-        tabText["build"] = "Build" + (if (buildBusy) " ●" else ""); tabColor["build"] = if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else if (buildBusy) "green" else "pill"
+        tabText["domain"] = "Domaine" + (if (loopOn) " ●" else ""); tabColor["domain"] = if (loopOn) "green" else "taboff"
+        tabText["files"] = "Files"; tabColor["files"] = "taboff"
+        tabText["build"] = "Build" + (if (buildBusy) " ●" else ""); tabColor["build"] = if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else if (buildBusy) "green" else "taboff"
         listOf("domain", "files", "build").forEachIndexed { i, name ->
-            v.chip(tabView.getValue(name), tabText.getValue(name), if (tab == name) "blue" else tabColor.getValue(name), click = broadcast(context, 1 + i, ACTION_TAB, "tab" to name), bold = tab == name)
+            v.chip(tabView.getValue(name), tabText.getValue(name), if (tab == name) "tabon" else tabColor.getValue(name), if (tab == name) TAB_ON_TEXT else TAB_OFF_TEXT, click = broadcast(context, 1 + i, ACTION_TAB, "tab" to name), bold = tab == name)
         }
         v.setViewVisibility(R.id.fw_question, if (state.ask != null) android.view.View.VISIBLE else android.view.View.GONE)
         v.chip(R.id.fw_question, null, "red", click = activity(context, 4, AskActivity::class.java))
