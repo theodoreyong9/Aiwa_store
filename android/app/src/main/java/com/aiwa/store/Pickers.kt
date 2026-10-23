@@ -61,12 +61,14 @@ import kotlinx.coroutines.withContext
 class PickerEntry(val label: String, val active: Boolean, val header: Boolean = false, val lines: Int = 2, val side: String? = null, val onSide: () -> Unit = {}, val side2: String? = null, val onSide2: () -> Unit = {}, val side3: String? = null, val onSide3: () -> Unit = {}, val button: Boolean = false, val onClick: () -> Unit)
 
 // The look of the sheets: dark whatever the phone's theme (it opens over the home screen, like the widget), compact rows, one accent.
-internal val SheetBg = Color(0xFF14141A)
-internal val SheetLine = Color(0x1FFFFFFF)
-internal val SheetText = Color(0xFFE9E7F1)
-internal val SheetDim = Color(0xFF9694A6)
-internal val SheetChip = Color(0xFF24242E)
-internal val Accent = Color(0xFFFF4B1F)
+// The glass look of the widget (blue to violet, translucent chips, a fine light edge) for every menu, list and window
+internal val SheetBg = Color(0xFF1F2352)
+internal val SheetBrush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF1D2F66), Color(0xFF3A2275), Color(0xFF6A2C8A)))
+internal val SheetLine = Color(0x47FFFFFF)
+internal val SheetText = Color(0xFFF4F4FF)
+internal val SheetDim = Color(0xFFC3C6F0)
+internal val SheetChip = Color(0x2EFFFFFF)
+internal val Accent = Color(0xFFB8C4FF)
 
 /** The sheets are dark whatever the phone's theme. */
 @Composable
@@ -82,8 +84,8 @@ internal fun DarkSheetTheme(content: @Composable () -> Unit) {
             labelMedium = androidx.compose.ui.text.TextStyle(fontSize = 11.sp, letterSpacing = 1.sp),
         ),
         colorScheme = androidx.compose.material3.darkColorScheme(
-            primary = Accent, onPrimary = Color.White, surface = SheetBg, onSurface = SheetText, surfaceVariant = SheetChip, onSurfaceVariant = SheetDim,
-            outline = Color(0x55FFFFFF), primaryContainer = Color(0xFF3A1F17), onPrimaryContainer = Color.White,
+            primary = Accent, onPrimary = Color(0xFF1C2250), background = SheetBg, onBackground = SheetText, surface = SheetBg, onSurface = SheetText, surfaceVariant = SheetChip, onSurfaceVariant = SheetDim,
+            outline = Color(0x55FFFFFF), primaryContainer = Color(0x33FFFFFF), onPrimaryContainer = Color.White,
         ),
         content = content,
     )
@@ -100,9 +102,9 @@ internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQu
         ) {
             Surface(
                 shape = RoundedCornerShape(22.dp),
-                color = SheetBg,
+                color = Color.Transparent,
                 border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().heightIn(max = 560.dp)
+                modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().heightIn(max = 560.dp).background(SheetBrush, RoundedCornerShape(22.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column {

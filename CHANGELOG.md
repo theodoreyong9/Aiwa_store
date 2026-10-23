@@ -6,6 +6,7 @@
 - The tab tap of the widget is now a partial update (only the page and two tabs change, the state is not read) sent as a foreground broadcast, and the redrawing runs off the main thread.
 - The fast widget in « verre coloré »: a blue-violet card, translucent buttons, a dark bar around the three tabs with the open one in light.
 - Every redraw of the widget now goes to the fast one (the old Glance layout no longer comes back over it when a tab is tapped).
+- Menus, lists and windows take the glass look of the widget: blue-violet gradient, translucent chips, a light edge, a pale periwinkle accent instead of the orange.
 - The Build buttons of the fast widget say what they are (Super agent, Écoute, Ajouter) next to their icon.
 - **The widget in tabs**: the first third holds Domaine, Files and Build (with the question and the update always in view); the two thirds below are the buttons of the open tab (Domaine: project, loops, settings, wallet; Files: the four kinds, campaign, store; Build: robot, Claude, ear, +). A dot says what works in a tab, red what needs you; the super agent opens the tab of the button it touches.
 - The super agent can touch every button of the widget with `open` (wallet, store, réglages, boucles, campagne, question, claude, plus, mise à jour, projet, écoute, robot), as a tap would; a Wallet payment is never validated by it (brain 174).
