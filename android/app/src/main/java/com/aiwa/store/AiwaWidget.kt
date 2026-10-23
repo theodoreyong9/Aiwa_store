@@ -220,7 +220,7 @@ private fun Content(state: AiwaState) {
 }
 
 // What the top of the widget says (the session and what is going on) and what a tap on it opens: the fix for what is wrong, else the sessions. Shared by both shapes.
-private class BandInfo(val title: String, val statusText: String, val statusColor: ColorProvider, val statusBold: Boolean, val action: Action)
+internal class BandInfo(val title: String, val statusText: String, val statusColor: ColorProvider, val statusBold: Boolean, val action: Action)
 
 // The four rows have a name, top to bottom: Activité, Domaine, Agence, Spécialiste. The name is in a small column of its own at the left of the row, NOT in the chips.
 private const val ROW_NAME_W = 56f
@@ -231,7 +231,7 @@ private const val ROW_SPECIALIST = "Spécialiste"
 
 
 @Composable
-private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
+internal fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
     val fg = rgb(android.graphics.Color.rgb(240, 240, 245))
     val subtle = rgb(android.graphics.Color.rgb(160, 160, 174))
     val warm = rgb(android.graphics.Color.rgb(232, 150, 124))
@@ -385,9 +385,9 @@ suspend fun selectAiwaMode(context: Context, mode: String) {
 // ================================================================================================
 
 /** One of the five small buttons above the session and the repository: Docs, Vidéo, Page, App, Aiwa. */
-private class LightKind(val mode: String, val word: String, val found: Boolean, val current: Boolean)
+internal class LightKind(val mode: String, val word: String, val found: Boolean, val current: Boolean)
 
-private fun lightKinds(state: AiwaState, context: Context): List<LightKind> {
+internal fun lightKinds(state: AiwaState, context: Context): List<LightKind> {
     val hasSite = state.repo != null && state.siteUrl != null
     val tab = aiwaTab(state)
     val sub = mediaSub(state)

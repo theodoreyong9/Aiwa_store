@@ -1,3 +1,4 @@
+@file:OptIn(kotlinx.coroutines.FlowPreview::class)
 package com.aiwa.store
 import android.app.Application
 import android.appwidget.AppWidgetManager
@@ -5,6 +6,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 
 /**
@@ -57,6 +61,15 @@ class AiwaApp : Application() {
         wakeAiwa(this)
         // The names of the « Projet » button: if the app was reinstalled they are gone here, and the brain still has them (it may take a moment to be up)
         val app = this
+        // The fast widget (plain views) is drawn again whenever the state changes, and the productions of the repository are read when it changes
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            AiwaRepository.state.sample(300).collect { FastWidget.render(app) }
+        }
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            AiwaRepository.state.map { it.repo }.distinctUntilChanged().collect { repo ->
+                if (FastWidget.ids(app).isNotEmpty()) { runCatching { Productions.refresh(app, repo) }; FastWidget.render(app, force = true) }
+            }
+        }
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             repeat(6) {
                 Projects.restoreFromBrain(app)

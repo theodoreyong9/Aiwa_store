@@ -368,6 +368,10 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/dictation_widget_info" />
         </receiver>
+        <receiver android:name=".FastWidgetReceiver" android:exported="true" android:label="Aiwa (rapide)">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/fast_widget_info" />
+        </receiver>
         <service android:name=".KeepAliveService" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Garde Aiwa actif pour que le micro du widget reste instantane" />
