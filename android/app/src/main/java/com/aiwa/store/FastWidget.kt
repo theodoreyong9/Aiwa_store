@@ -124,7 +124,7 @@ object FastWidget {
         kindIds.forEachIndexed { i, id ->
             val kind = kinds.getOrNull(i)
             v.setViewVisibility(id, if (kind == null) android.view.View.GONE else android.view.View.VISIBLE)
-            if (kind != null) v.setTextViewCompoundDrawables(id, when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; else -> R.drawable.fw_i_app }, 0, 0, 0)
+            if (kind != null) v.setTextViewCompoundDrawables(id, 0, when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; else -> R.drawable.fw_i_app }, 0, 0)
             if (kind != null) v.chip(id, kind.word, if (kind.found) "green" else "dim", if (kind.found) TEXT else TEXT_DIM, broadcast(context, 10 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")), bold = kind.current)
         }
         v.chip(R.id.fw_campaign, "Campagne", "blue", click = activity(context, 14, ProposalsActivity::class.java))
