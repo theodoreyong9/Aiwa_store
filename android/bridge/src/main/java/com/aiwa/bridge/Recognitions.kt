@@ -24,6 +24,8 @@ object Recognitions {
         Slot("validation", "Validation", listOf("c'est bien ça"), "Ce que tu dis pour confirmer : Aiwa te résume ce qu'il va envoyer (le dépôt et ta commande), et rien ne part avant.", MINE),
         Slot("stop", "Stop", listOf("stop la commande", "stop claude", "arrête claude"), "Arrête la production en cours et fait oublier à la dernière session le dernier commentaire.", MINE),
         Slot("eteins", "Éteins", listOf("éteins toi", "éteins"), "Éteint le super agent et l'écoute permanente.", MINE),
+        Slot("pause", "Pause", listOf("mets toi en pause"), "Met le super agent en pause : il ignore tout ce que tu dis jusqu'au mot de retour (un appel, une conversation à côté). « Stop » et « éteins » marchent toujours.", MINE),
+        Slot("retour", "Retour", listOf("t'es toujours là"), "Remet le super agent à l'écoute après une pause.", MINE),
         Slot("efface", "Efface", listOf("efface"), "Efface ce que tu as dit et qui n'est pas encore parti (la commande en cours et le message gardé).", MINE),
         Slot("resend", "Renvoi des instructions", listOf("renvoie les instructions"), "Renvoie à la session les instructions générales et celles des pastilles."),
         Slot("where", "T'es où là", listOf("t'es où là"), "Le téléphone lit à voix haute où en sont les pastilles du widget (dépôt, session, modèle, push…)."),
@@ -44,7 +46,7 @@ object Recognitions {
         val single = setOf("instruction", "session", "repo", "stop", "eteins")
         val words = plain.split(' ')
         if (slot in single && words.size != 1) return "Un seul mot pour cette reconnaissance."
-        if (slot !in setOf("validation", "stop", "eteins", "resend", "where", "report", "liaison", "envoi", "efface", "accomplissement", "dispo", "question", "veille", "ecoute") && words.size != 1) return "Un seul mot pour cette reconnaissance."
+        if (slot !in setOf("validation", "stop", "eteins", "resend", "where", "report", "liaison", "envoi", "efface", "pause", "retour", "accomplissement", "dispo", "question", "veille", "ecoute") && words.size != 1) return "Un seul mot pour cette reconnaissance."
         if (plain.length < 3) return "« $plain » est trop court : au moins 3 lettres."
         if (words.all { it in COMMON_WORDS }) return "« $plain » est un mot trop courant : il se déclencherait dans toutes les phrases."
         return null

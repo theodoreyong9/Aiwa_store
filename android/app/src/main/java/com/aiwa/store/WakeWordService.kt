@@ -256,6 +256,7 @@ class WakeWordService : Service() {
     private var activeScenario: com.aiwa.bridge.Scenario? = null
     private var scenarioPoll: Job? = null
     private var liveWatch: Job? = null
+    private var listenPause = false       // « mets-toi en pause »: everything said is ignored until « t'es toujours là » (« stop » and « éteins » still work)
     // The conversation shown in the notification (readable on the lock screen) and in the bubble: the last sentences, and what the person is saying right now
     private val convo = ArrayDeque<Pair<Boolean, String>>()
     private var livePartial = ""
@@ -374,6 +375,7 @@ class WakeWordService : Service() {
         agentMode = false
         agentListener?.stop()
         agentListener = null
+        listenPause = false
         stopLiveWatch()
         scenarioPoll?.cancel()
         activeScenario = null
@@ -403,9 +405,9 @@ class WakeWordService : Service() {
         if (!agentMode || paused || agentListener != null) return
         val fluid = ConversationSettings.fluid(this)
         agentListener = AgentListener(
-            this, onQuiet = { main.post { if (activeScenario != null) { agentListener?.stop(); agentListener = null; agentListen() } else standbyAgent() } }, quietMs = if (fluid) ConversationSettings.QUIET_MS else AgentListener.QUIET_MS,
+            this, onQuiet = { main.post { if (activeScenario != null || listenPause) { agentListener?.stop(); agentListener = null; agentListen() } else standbyAgent() } }, quietMs = if (fluid) ConversationSettings.QUIET_MS else AgentListener.QUIET_MS,
             completeSilenceMs = if (fluid) 900L else 2000L, possiblySilenceMs = if (fluid) 600L else 1500L, earlyQuestion = fluid,
-            onPartial = { p -> main.post { if (agentMode) live(p) } },
+            onPartial = { p -> main.post { if (agentMode && !listenPause) live(p) } },
         ) { text -> main.post { heardForAgent(text) } }.also { it.start() }
     }
 
@@ -429,6 +431,19 @@ class WakeWordService : Service() {
                     } else say("Stop non confirmé : rien n'est arrêté.")
                 }
                 MANUAL_REGEX.containsMatchIn(plain) -> { agentBusy = false; closeAgent(); return@launch }
+                // pause: the agent only waits for the word of return
+                !listenPause && com.aiwa.bridge.VoiceVocabulary.phraseHeard("pause", plain) -> {
+                    listenPause = true; livePartial = ""; LiveBubble.hide()
+                    say("En pause : dis « " + Vocabulary.spoken(applicationContext, "retour") + " » pour reprendre")
+                    Speaker.speakNatural(applicationContext, "En pause.")
+                }
+                listenPause -> {
+                    if (com.aiwa.bridge.VoiceVocabulary.phraseHeard("retour", plain)) {
+                        listenPause = false
+                        say("De retour")
+                        Speaker.speakNatural(applicationContext, "Je suis là.")
+                    }
+                }
                 // « efface »: what was said and has not left (the command being made, the message kept) is dropped
                 ERASE_REGEX.matches(plain) || com.aiwa.bridge.VoiceVocabulary.phraseHeard("efface", plain) -> {
                     pendingCommand.clear()

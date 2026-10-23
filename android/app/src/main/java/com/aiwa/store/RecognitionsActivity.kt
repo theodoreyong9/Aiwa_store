@@ -60,7 +60,7 @@ class RecognitionsActivity : ComponentActivity() {
 
 // What each recognition can be changed by: said to the small model (the wake-level words) and/or written (the words read in text)
 private val BY_VOICE = setOf("agent", "liaison", "instruction", "stop", "eteins", "resend", "where")
-private val BY_WRITING = setOf("instruction", "session", "repo", "validation", "stop", "eteins", "resend", "where", "report", "envoi", "efface", "accomplissement", "dispo", "question", "veille", "ecoute")
+private val BY_WRITING = setOf("instruction", "session", "repo", "validation", "stop", "eteins", "resend", "where", "report", "envoi", "efface", "pause", "retour", "accomplissement", "dispo", "question", "veille", "ecoute")
 
 @Composable
 private fun RecognitionsWindow(back: Int, onClose: () -> Unit) {
@@ -105,8 +105,8 @@ private fun RecognitionsWindow(back: Int, onClose: () -> Unit) {
                                         Vocabulary.changed(context); stamp++
                                     }, contentPadding = PaddingValues(horizontal = 8.dp)) { Text("↺") }
                                 }
-                                // Only the wake word can be limited to the owner's voice
-                                if (slot.id == "agent") {
+                                // Only the wake word can be limited to the owner's voice (it sits under « Réveil », the visible one: the old « agent » entry is hidden)
+                                if (slot.id == "liaison") {
                                     val hasPrint = VoiceLock.print(context) != null
                                     val on = VoiceLock.enabled(context) && hasPrint
                                     Row(verticalAlignment = Alignment.CenterVertically) {
