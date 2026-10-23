@@ -25,7 +25,7 @@ object FastWidget {
     private const val TEXT = 0xFFF0F0F5.toInt()
     private const val TEXT_DIM = 0xFF828290.toInt()
 
-    fun ids(context: Context): IntArray = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, FastWidgetReceiver::class.java))
+    fun ids(context: Context): IntArray = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, AiwaWidgetReceiver::class.java))
 
     /** Draws the widget again from the current state; `force` also when nothing visible changed (a tap on a tab, a new widget). */
     fun render(context: Context, force: Boolean = false) {
@@ -49,7 +49,7 @@ object FastWidget {
     private fun activity(context: Context, code: Int, cls: Class<*>): PendingIntent = activity(context, code, Intent(context, cls))
 
     private fun broadcast(context: Context, code: Int, action: String, vararg extras: Pair<String, String>): PendingIntent {
-        val intent = Intent(context, FastWidgetReceiver::class.java).setAction(action)
+        val intent = Intent(context, AiwaWidgetReceiver::class.java).setAction(action)
         extras.forEach { intent.putExtra(it.first, it.second) }
         return PendingIntent.getBroadcast(context, code, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
@@ -125,7 +125,7 @@ object FastWidget {
     }
 }
 
-class FastWidgetReceiver : AppWidgetProvider() {
+class AiwaWidgetReceiver : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         wakeAiwa(context)
         FastWidget.render(context, force = true)
