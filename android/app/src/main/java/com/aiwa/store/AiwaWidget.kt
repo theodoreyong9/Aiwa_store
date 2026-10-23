@@ -57,6 +57,12 @@ import kotlinx.coroutines.flow.sample
 // small floating picker window (Pickers.kt): a widget cannot draw an overlay
 // dropdown.
 class AiwaWidget : GlanceAppWidget() {
+    /**
+     * The widget on the screen is the one in plain views (FastWidget), no longer a Glance one. Every `AiwaWidget().updateAll(context)` of the app lands here (a member wins over the
+     * extension of the same name) and draws the fast widget: Glance would have drawn its old layout back over it, with the slow switch of tabs.
+     */
+    suspend fun updateAll(context: Context) = FastWidget.render(context)
+
     // Exact: the composition learns the real size (LocalSize), so the
     // GitHub row only shows when there is room for it.
     override val sizeMode: SizeMode = SizeMode.Exact
