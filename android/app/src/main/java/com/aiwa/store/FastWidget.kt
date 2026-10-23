@@ -130,14 +130,20 @@ object FastWidget {
         if (permanentOn) {
             v.box(R.id.fw_robot, "green", activity(context, 16, ListenToggleActivity::class.java))
             v.setImageViewResource(R.id.fw_robot_icon, R.drawable.ic_ear)
+            v.setTextViewText(R.id.fw_robot_label, "Écoute permanente")
             v.setViewVisibility(R.id.fw_robot_icon, android.view.View.VISIBLE)
             v.setViewVisibility(R.id.fw_robot_text, android.view.View.GONE)
+            v.setViewVisibility(R.id.fw_robot_label, android.view.View.VISIBLE)
         } else {
             v.box(R.id.fw_robot, if (needsSetup || agentNeeds) "red" else if (agentOn) "green" else "pill", if (needsSetup) activity(context, 16, SetupActivity::class.java) else activity(context, 16, AgentToggleActivity::class.java))
             v.setImageViewResource(R.id.fw_robot_icon, R.drawable.ic_agent)
+            v.setTextViewText(R.id.fw_robot_label, if (agentNeeds) "Il a quelque chose à dire" else if (agentOn) "Super agent · à l'écoute" else "Super agent")
             v.setViewVisibility(R.id.fw_robot_icon, if (needsSetup) android.view.View.GONE else android.view.View.VISIBLE)
             v.setViewVisibility(R.id.fw_robot_text, if (needsSetup) android.view.View.VISIBLE else android.view.View.GONE)
+            v.setViewVisibility(R.id.fw_robot_label, if (needsSetup) android.view.View.GONE else android.view.View.VISIBLE)
         }
+        v.setTextViewText(R.id.fw_ear_label, if (state.listening) "Écoute active" else "Écoute")
+        v.setTextViewText(R.id.fw_plus_label, if (state.attachments > 0) "${state.attachments} jointe(s)" else "Ajouter")
         v.setViewVisibility(R.id.fw_claude, if (state.cloudSessionId != null) android.view.View.VISIBLE else android.view.View.GONE)
         v.box(R.id.fw_claude, if (state.waiting || state.silenceMinutes > 0) "red" else "orange", activity(context, 17, OpenClaudeActivity::class.java))
         v.setViewVisibility(R.id.fw_ear, if (!permanentOn && !agentOn) android.view.View.VISIBLE else android.view.View.GONE)
