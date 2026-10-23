@@ -68,6 +68,10 @@ internal val SheetLine = Color(0x47FFFFFF)
 internal val SheetText = Color(0xFFF4F4FF)
 internal val SheetDim = Color(0xFFC3C6F0)
 internal val SheetChip = Color(0x2EFFFFFF)
+/** The glass of a card: a body lighter at the top, and an edge brighter at the top than at the bottom. */
+internal val GlassBody = androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0x42FFFFFF), Color(0x14FFFFFF)))
+internal val GlassEdge = androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0x99FFFFFF), Color(0x1FFFFFFF)))
+internal val GlassSheen = androidx.compose.ui.graphics.Brush.verticalGradient(0f to Color(0x2EFFFFFF), 0.35f to Color(0x00FFFFFF))
 internal val Accent = Color(0xFFB8C4FF)
 
 /** The sheets are dark whatever the phone's theme. */
@@ -120,6 +124,18 @@ private fun SheetSwitch(on: Boolean) {
 
 @Composable
 internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQuery: (String) -> Unit = {}, title: String? = null, onBack: (() -> Unit)? = null, onDismiss: () -> Unit) {
+    // The glass: what is behind the window (the home screen) is blurred (Android 12 and later, where the phone allows it)
+    val hostView = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.SideEffect {
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            var c: android.content.Context? = hostView.context
+            while (c is android.content.ContextWrapper && c !is android.app.Activity) c = c.baseContext
+            (c as? android.app.Activity)?.window?.let { w ->
+                w.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                val a = w.attributes; a.blurBehindRadius = 40; w.attributes = a
+            }
+        }
+    }
     DarkSheetTheme {
         Box(
             Modifier.fillMaxSize()
@@ -131,7 +147,7 @@ internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQu
                 shape = RoundedCornerShape(24.dp),
                 color = Color.Transparent,
                 border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                modifier = Modifier.padding(horizontal = 14.dp).fillMaxWidth().heightIn(max = 600.dp).background(SheetBrush, RoundedCornerShape(24.dp))
+                modifier = Modifier.padding(horizontal = 14.dp).fillMaxWidth().heightIn(max = 600.dp).background(SheetBrush, RoundedCornerShape(24.dp)).background(GlassSheen, RoundedCornerShape(24.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column {
@@ -186,8 +202,8 @@ internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQu
                             val shape = RoundedCornerShape(16.dp)
                             Row(
                                 Modifier.fillMaxWidth()
-                                    .background(if (entry.active) Color(0x47FFFFFF) else SheetChip, shape)
-                                    .border(1.dp, if (entry.active) Color(0x99FFFFFF) else SheetLine, shape)
+                                    .background(GlassBody, shape).background(if (entry.active) Color(0x33FFFFFF) else Color.Transparent, shape)
+                                    .border(1.dp, GlassEdge, shape)
                                     .clickable { entry.onClick() }.padding(horizontal = 14.dp, vertical = 11.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
