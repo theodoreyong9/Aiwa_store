@@ -66,7 +66,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 172
+BACKEND_VERSION = 173
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -2518,7 +2518,11 @@ VIDEO_STORE = Path.home() / ".aiwa_videos.json"    # the last list that GitHub g
 
 
 class GithubUnavailable(Exception):
-    """GitHub did not answer (network, rate limit): not the same as 'there is nothing there'."""
+    """GitHub did not answer (network, rate limit): not the same as 'there is nothing there'. `limited`: it is the limit of requests without a token."""
+
+    def __init__(self, message="", limited=False):
+        super().__init__(message)
+        self.limited = limited
 
 
 _etags = {}    # url -> (etag, answer): a 304 does not count against GitHub's hourly limit for requests without a token
@@ -2545,7 +2549,7 @@ def _github_json(url):
             _etags.pop(url, None)
             return None
         print(f"[{_ts()}] github {url.split('github.com')[-1]}: HTTP {err.code}", flush=True)
-        raise GithubUnavailable(f"HTTP {err.code}")
+        raise GithubUnavailable(f"HTTP {err.code}", limited=err.code in (403, 429))
     except (OSError, ValueError) as err:
         print(f"[{_ts()}] github {url.split('github.com')[-1]}: {err}", flush=True)
         raise GithubUnavailable(str(err))
@@ -4964,14 +4968,19 @@ def live_stream(text, emit):
     return {"ok": bool(said or actions), "do": did}
 
 
-def _live_progress_once():
-    """One look at the branch of the session in use (its latest commit, its latest workflow): what changed since the last look becomes a sentence for the person (kept for the phone to take)."""
+def _live_sessions():
+    """The sessions to follow: the one in use first, then the most recent others (three in all), with a repository and a branch; never the agent's own."""
+    with agent_lock:
+        own = agent["session"]
     with lock:
-        entry = _session_entry(current_cloud) if current_cloud else {}
-        repo = entry.get("repo") or current_repo
-    work = entry.get("work")
-    if not repo or not work or not github.REPO_RE.fullmatch(repo):
-        return
+        current = current_cloud
+    entries = [e for e in _load_cloud_sessions() if e.get("id") and e.get("id") != own and e.get("repo") and e.get("work") and github.REPO_RE.fullmatch(str(e.get("repo")))]
+    entries.sort(key=lambda e: e["id"] != current)
+    return entries[:3], current
+
+
+def _live_look(repo, work, label):
+    """One look at a branch (its latest commit and workflow): what changed since the last look becomes a sentence for the person, kept for the phone to take."""
     now = {"sha": None, "message": "", "ci": None}
     commits = _github_json(f"https://api.github.com/repos/{repo}/commits?sha={urllib.parse.quote(work, safe='')}&per_page=1")
     if isinstance(commits, list) and commits:
@@ -4984,19 +4993,47 @@ def _live_progress_once():
     with live_lock:
         prev = live["snap"].get((repo, work))
         live["snap"][(repo, work)] = now
-        for sentence in live_lib.progress(prev, now):
+        for sentence in live_lib.progress(prev, now, label):
             live["events"].append(sentence)
             live["recent"] = (live["recent"] + [sentence])[-8:]
 
 
+def _live_progress_once(tick=0):
+    """The session in use is looked at every minute, one of the two other recent ones each minute in turn (the requests are conditional: an unchanged branch does not count in GitHub's limit). When the
+    limit is reached the person is told once, and told again when it is over."""
+    entries, current = _live_sessions()
+    if not entries:
+        return
+    others = entries[1:] if entries[0]["id"] == current else entries
+    chosen = ([entries[0]] if entries[0]["id"] == current else []) + (others[tick % len(others):][:1] if others else [])
+    try:
+        for e in chosen:
+            label = "" if e["id"] == current else "Sur la session « " + str(e.get("title") or e["id"])[:40] + " » : "
+            _live_look(e["repo"], e["work"], label)
+        with live_lock:
+            if live.get("limited"):
+                live["limited"] = False
+                live["events"].append(live_lib.BACK)
+    except GithubUnavailable as err:
+        if err.limited:
+            with live_lock:
+                if not live.get("limited"):
+                    live["limited"] = True
+                    live["events"].append(live_lib.LIMITED)
+        else:
+            raise
+
+
 def _live_progress_loop():
     time.sleep(60)
+    tick = 0
     while True:
         try:
             with live_lock:
                 on = live["on"]
             if on:
-                _live_progress_once()
+                _live_progress_once(tick)
+                tick += 1
         except GithubUnavailable:
             pass
         except Exception as err:

@@ -39,6 +39,35 @@ class LiveLogic(unittest.TestCase):
         self.assertEqual(live.progress({"sha": "a", "ci": "success"}, {"sha": "a", "ci": "success"}), [])
 
 
+class LiveSessions(unittest.TestCase):
+    def setUp(self):
+        server.live.update(on=True, events=[], recent=[], snap={}, limited=False)
+
+    def test_the_other_sessions_are_named_in_what_is_said(self):
+        out = live.progress({"sha": "a"}, {"sha": "b", "message": "Ajoute la page"}, "Sur la session « Blog » : ")
+        self.assertEqual(out, ["Sur la session « Blog » : nouveau commit : Ajoute la page."])
+
+    def test_the_limit_of_github_is_told_once_and_the_end_of_it_too(self):
+        entries = [{"id": "session_A", "repo": "me/app", "work": "claude/a", "title": "A"}]
+        limit = server.GithubUnavailable("HTTP 403", limited=True)
+        with unittest.mock.patch.object(server, "_live_sessions", return_value=(entries, "session_A")):
+            with unittest.mock.patch.object(server, "_github_json", side_effect=limit):
+                server._live_progress_once(0)
+                server._live_progress_once(1)
+            self.assertEqual(server.live["events"], [live.LIMITED])
+            with unittest.mock.patch.object(server, "_github_json", return_value=[]):
+                server._live_progress_once(2)
+        self.assertEqual(server.live["events"], [live.LIMITED, live.BACK])
+
+    def test_the_session_in_use_is_looked_at_every_minute_and_the_others_in_turn(self):
+        entries = [{"id": "session_A", "repo": "me/a", "work": "w1", "title": "A"}, {"id": "session_B", "repo": "me/b", "work": "w2", "title": "B"}, {"id": "session_C", "repo": "me/c", "work": "w3", "title": "C"}]
+        looked = []
+        with unittest.mock.patch.object(server, "_live_sessions", return_value=(entries, "session_A")), unittest.mock.patch.object(server, "_live_look", lambda repo, work, label: looked.append(repo)):
+            server._live_progress_once(0)
+            server._live_progress_once(1)
+        self.assertEqual(looked, ["me/a", "me/b", "me/a", "me/c"])
+
+
 class LiveTurn(unittest.TestCase):
     def test_a_turn_says_the_sentences_then_sends_what_it_was_asked_at_once(self):
         said, confirmed = [], []

@@ -89,8 +89,13 @@ def system(digest, events=""):
     )
 
 
-def progress(prev, now):
-    """The sentences to say about what changed between two looks at a repository. `prev`/`now`: {"sha", "message", "ci"} (ci: success / failure / running / None). Nothing on the first look (prev empty)."""
+LIMITED = "GitHub limite mes vérifications : je ne vois plus l'avancement de tes sessions pendant quelques minutes."
+BACK = "Je suis de nouveau l'avancement de tes sessions."
+
+
+def progress(prev, now, label=""):
+    """The sentences to say about what changed between two looks at a repository. `prev`/`now`: {"sha", "message", "ci"} (ci: success / failure / running / None). Nothing on the first look (prev empty).
+    `label` begins each sentence for a session other than the one in use (« Sur la session X : »)."""
     if not prev:
         return []
     out = []
@@ -99,4 +104,4 @@ def progress(prev, now):
         out.append("Nouveau commit" + (" : " + msg if msg else "") + ".")
     if now.get("ci") and now.get("ci") != prev.get("ci"):
         out.append({"success": "Le workflow est réussi.", "failure": "Le workflow a échoué.", "running": "Un workflow tourne."}.get(now["ci"], ""))
-    return [x for x in out if x]
+    return [(label + x[0].lower() + x[1:] if label else x) for x in out if x]
