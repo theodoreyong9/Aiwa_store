@@ -110,7 +110,7 @@ object FastWidget {
         v.box(R.id.fw_update, "green", activity(context, 5, InstallUpdateActivity::class.java))
         v.setDisplayedChild(R.id.fw_flipper, when (tab) { "domain" -> 0; "files" -> 1; else -> 2 })
         // ---- Domaine ----
-        val projectBad = !allMode && (state.repo == null || bandInfo(state, 200f).title.endsWith("▸"))
+        val projectBad = !allMode && (state.repo == null || (accessNotice(state, 1) != null || state.backend == "missing" || state.claudeLogin == "needed"))
         val projectLabel = if (allMode) "Tous" else (Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet") + " ▾"
         v.chip(R.id.fw_project, projectLabel, if (allMode) "green" else if (locked) "dim" else if (projectBad) "red" else "blue", if (locked) TEXT_DIM else TEXT,
             if (locked) broadcast(context, 6, ACTION_BUSY) else activity(context, 6, ProjectPickerActivity::class.java))
