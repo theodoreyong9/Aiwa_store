@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The widget in tabs**: the first third holds Domaine, Files and Build (with the question and the update always in view); the two thirds below are the buttons of the open tab (Domaine: project, loops, settings, wallet; Files: the four kinds, campaign, store; Build: robot, Claude, ear, +). A dot says what works in a tab, red what needs you; the super agent opens the tab of the button it touches.
 - The super agent can touch every button of the widget with `open` (wallet, store, réglages, boucles, campagne, question, claude, plus, mise à jour, projet, écoute, robot), as a tap would; a Wallet payment is never validated by it (brain 174).
 - **Pause of the super agent, and « Seulement ma voix » is visible again**: two words in « Mes mots » (written, changeable): « mets-toi en pause » and « t'es toujours là ». Paused, the super agent ignores everything said (no answer, no live bubble, it does not go back to sleep) until the word of return; « stop » and « éteins » still work, and it says « En pause » / « Je suis là ». The « Seulement ma voix » checkbox (the voice print that limits the wake word to the owner) hung under the old « Réveil (ancien) » entry, which is hidden since the wake word became one: it could not be reached. It now sits under « Réveil ». Kotlin only compiled by the CI; not seen on a phone.
 

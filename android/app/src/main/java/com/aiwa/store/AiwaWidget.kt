@@ -320,6 +320,29 @@ private fun bandInfo(state: AiwaState, titleRoom: Float): BandInfo {
 // are in the list of the « contexte » button. A tap on a mode IS the deploy selector (Média and Vidéo only change what is shown).
 // ================================================================================================
 
+private val TAB_KEY = ActionParameters.Key<String>("aiwa-tab")
+
+/** Which tab of the widget is open (domain, files or build): kept by the phone, changed by a tap on a tab and by the super agent when it touches a button of another tab. */
+object WidgetTab {
+    private const val FILE = "aiwa_widget_tab"
+    fun get(context: Context): String = try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("tab", "build") ?: "build" } catch (err: Exception) { "build" }
+    fun set(context: Context, tab: String) { try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString("tab", tab).apply() } catch (err: Exception) { } }
+    /** The tab that holds the button the super agent touched (null: the button is on no tab). */
+    fun of(button: String): String? = when (button) {
+        "project", "loops", "settings", "wallet" -> "domain"
+        "documents", "video", "pages", "android", "aiwa", "campaign", "store" -> "files"
+        "claude", "agent", "plus", "listen" -> "build"
+        else -> null
+    }
+}
+
+class PickTabCallback : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        WidgetTab.set(context, parameters[TAB_KEY] ?: return)
+        AiwaWidget().updateAll(context)
+    }
+}
+
 private val MODE_KEY = ActionParameters.Key<String>("aiwa-mode")
 
 /** The modes of the selector that belong to the Média tab (the Vidéo one is no mode: only a view). */
@@ -399,6 +422,7 @@ class PickKindCallback : ActionCallback {
 /** Opens what the repository produced of one kind (« documents », « video », « pages », « android », « aiwa »): the same for the tap on one of the five and for the super agent (« ouvre ma vidéo »). */
 /** The other buttons of the widget, for the super agent: the very screen a tap on the button opens (the toggles of the ear and of the robot too). A Wallet payment is never validated from here: the screen only opens. */
 fun openWidgetButton(app: Context, name: String): Boolean {
+    WidgetTab.of(name)?.let { WidgetTab.set(app, it); kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch { AiwaWidget().updateAll(app) } }
     val repo = AiwaRepository.state.value.repo
     val intent = when (name) {
         "wallet", "store" -> storePageIntent(app, name, repo)
@@ -420,6 +444,7 @@ fun openWidgetButton(app: Context, name: String): Boolean {
 
 suspend fun openProduction(app: Context, mode: String, found: Boolean? = null) {
     if (openWidgetButton(app, mode)) return
+    WidgetTab.of(mode)?.let { WidgetTab.set(app, it); runCatching { AiwaWidget().updateAll(app) } }
     val state = AiwaRepository.state.value
     val repo = state.repo
     val kind = if (mode == "pages") "page" else if (mode == "android") "apk" else mode
@@ -477,90 +502,23 @@ private fun LightContent(state: AiwaState) {
             .background(ImageProvider(if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg))
             .padding(horizontal = 10.dp, vertical = 4.dp),
     ) {
-        // ---- row 1 ----
+        // ---- the first third: the tabs (Domaine · Files · Build) and, only when there is one, the question of Claude and the update; the two thirds below are the buttons of the chosen tab ----
+        val tabNow = WidgetTab.get(context)
+        val permanentOn = state.listening && !needsSetup
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            val rounds = 2
-            // at the top left: Wallet and Store (each opens its own page of the web app, alone: no tabs, no browser bar), then the settings, at the left of the loop
-            Chip("Wallet", pill, fg, actionStartIntent(storePageIntent(context, "wallet", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+            // a tab whose button needs something is red, one whose button works is green (a dot), so that nothing hides behind a tab
+            val domainLabel = "Domaine" + (if (loopOn) " ●" else "")
+            val buildBusy = agentOn || permanentOn
+            val buildLabel = "Build" + (if (buildBusy) " ●" else "")
+            val domainColor = if (tabNow == "domain") blue else if (loopOn) green else pill
+            val filesColor = if (tabNow == "files") blue else pill
+            val buildColor = if (tabNow == "build") blue else if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) alertRed else if (buildBusy) green else pill
+            Chip(domainLabel, domainColor, fg, actionRunCallback<PickTabCallback>(actionParametersOf(TAB_KEY to "domain")), GlanceModifier.defaultWeight(), bold = tabNow == "domain", height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
             Spacer(GlanceModifier.width(GAP.dp))
-            Chip("Store", pill, fg, actionStartIntent(storePageIntent(context, "store", state.repo)), GlanceModifier.width(54.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+            Chip("Files", filesColor, fg, actionRunCallback<PickTabCallback>(actionParametersOf(TAB_KEY to "files")), GlanceModifier.defaultWeight(), bold = tabNow == "files", height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
             Spacer(GlanceModifier.width(GAP.dp))
-            RoundButton(
-                icon = R.drawable.ic_settings,
-                description = "Réglages : modèle, push, voix, mots, mises à jour…",
-                background = pill, action = actionStartActivity<SettingsActivity>(), diameter = chipH.dp,
-            )
-            Spacer(GlanceModifier.width(GAP.dp))
-            // the loop: plain, green while a pair works
-            RoundButton(
-                icon = R.drawable.ic_loop,
-                description = if (loopOn) "Boucle ${state.loopPair} en cours : voir, arrêter ou revenir en arrière" else "Boucles builder / critique",
-                background = if (loopOn) green else pill, action = actionStartActivity<LoopsActivity>(), diameter = chipH.dp,
-            )
-            Spacer(GlanceModifier.width(GAP.dp))
-            // « Projet », in blue: the session and the repository are chosen inside it (red when one of them is missing or needs something)
-            val projectBad = !allMode && (state.repo == null || bandInfo(state, 200f).title.endsWith("▸"))
-            Chip(
-                if (allMode) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", avail - rounds * (chipH + GAP) - GAP * 3 - 2 * 54f - 24f, fs) + " ▾",
-                if (allMode) green else if (locked) PILL_DIM else if (projectBad) alertRed else blue, if (locked) TEXT_DIM else fg,
-                lockable(locked, actionStartActivity<ProjectPickerActivity>()),
-                GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
-            )
-        }
-        // ---- row 2: the campaign, then the kinds (grey until the repository holds one, coloured once it does) ----
-        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            RoundButton(icon = R.drawable.ic_proposals, description = "Campagne : les propositions à valider", background = blue, action = actionStartActivity<ProposalsActivity>(), diameter = modeH.dp)
-            lightKinds(state, context).filter { it.mode != "aiwa" }.forEach { kind ->
-                Spacer(GlanceModifier.width(4.dp))
-                Chip(
-                    kind.word, if (kind.found) green else PILL_DIM, if (kind.found) fg else TEXT_DIM,
-                    actionRunCallback<PickKindCallback>(actionParametersOf(MODE_KEY to kind.mode, KIND_FOUND_KEY to (if (kind.found) "1" else "0"))),
-                    GlanceModifier.defaultWeight(), bold = kind.current, height = modeH.dp, textSize = 10.sp, hPad = 2.dp,
-                )
-            }
-        }
-        // ---- row 3: the ear (bottom left), the +, the robot (the super agent) and Claude; at the right, side by side and only when there is one: the question of Claude, the update ----
-        Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-            val permanentOn = state.listening && !needsSetup
-            // The switch of the permanent listening, at the left: green when it listens, grey when it is closed (it is closed at each installation and update). Hidden while the robot is open or while the
-            // permanent listening is on (the ear then takes the place of the robot)
-            if (!permanentOn && !agentOn) {
-                RoundButton(
-                    icon = R.drawable.ic_ear,
-                    description = if (state.listening) "Écoute permanente : active, toucher pour la couper" else "Écoute permanente : coupée, toucher pour l'activer",
-                    background = if (state.listening) green else pill, action = actionStartActivity<ListenToggleActivity>(), diameter = chipH.dp,
-                )
-                Spacer(GlanceModifier.width(GAP.dp))
-            }
-            RoundButton(icon = R.drawable.ic_plus, description = if (state.attachments > 0) "${state.attachments} pièce(s) jointe(s) en attente : ajouter ou retirer" else "Ajouter : un document ou un média", background = if (state.attachments > 0) green else pill, action = actionStartActivity<PlusMenuActivity>(), diameter = chipH.dp)
-            Spacer(GlanceModifier.width(GAP.dp))
-            // One listening at a time on screen: the permanent listening on hides the robot (the wake word opens the agent, the switch stays to close everything); the robot open alone hides the switch.
-            if (permanentOn) Box(
-                // the permanent listening on: the ear takes the whole place of the robot (green), one tap closes it
-                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(green).cornerRadius(((rowH - 2f) / 2).dp).clickable(actionStartActivity<ListenToggleActivity>()),
-                contentAlignment = Alignment.Center,
-            ) { Image(provider = ImageProvider(R.drawable.ic_ear), contentDescription = "Écoute permanente : active, toucher pour la couper", modifier = GlanceModifier.size(20.dp)) } else
-            Box(
-                modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (needsSetup || agentNeeds) alertRed else if (agentOn) green else pill).cornerRadius(((rowH - 2f) / 2).dp)
-                    .clickable(if (needsSetup) actionStartActivity<SetupActivity>() else actionStartActivity<AgentToggleActivity>()),
-                contentAlignment = Alignment.Center,
-            ) {
-                // only the robot head (the colour says the state: grey off, green listening, red something to say); the words stay only for the permission to give
-                if (needsSetup) Text("Autoriser Aiwa", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-                else Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = if (agentOn) "Super agent : il écoute, fermer" else "Parler au super agent", modifier = GlanceModifier.size(20.dp))
-            }
-            // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
-            if (state.cloudSessionId != null) {
-                Spacer(GlanceModifier.width(GAP.dp))
-                RoundButton(
-                    icon = R.drawable.ic_claude,
-                    description = if (state.waiting) "Claude attend ta réponse : ouvrir" else "Ouvrir la conversation dans Claude",
-                    background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
-                    action = actionStartActivity<OpenClaudeActivity>(),
-                    diameter = chipH.dp,
-                )
-            }
-            // At the bottom right, side by side: the question of Claude (red, a tap answers it) and the update (only while a newer build is downloaded: a tap opens the installer)
+            Chip(buildLabel, buildColor, fg, actionRunCallback<PickTabCallback>(actionParametersOf(TAB_KEY to "build")), GlanceModifier.defaultWeight(), bold = tabNow == "build", height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+            // always in view, whatever the tab: the question of Claude (red, a tap answers it) and the update (only while a newer build is downloaded: a tap opens the installer)
             if (asking) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 Chip("Question ▸", alertRed, fg, actionStartActivity<AskActivity>(), GlanceModifier.width(76.dp), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
@@ -568,6 +526,86 @@ private fun LightContent(state: AiwaState) {
             if (state.appUpdateReady) {
                 Spacer(GlanceModifier.width(GAP.dp))
                 RoundButton(icon = R.drawable.ic_update, description = "Mise à jour d'Aiwa prête : installer", background = green, action = actionStartActivity<InstallUpdateActivity>(), diameter = chipH.dp)
+            }
+        }
+        when (tabNow) {
+            "domain" -> {
+                // the project (blue; red when the session or the repository is missing or needs something), then the loops, the settings and the wallet
+                Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                    val projectBad = !allMode && (state.repo == null || bandInfo(state, 200f).title.endsWith("▸"))
+                    Chip(
+                        if (allMode) "Tous" else fitLabel(Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet", avail - 30f, fs) + " ▾",
+                        if (allMode) green else if (locked) PILL_DIM else if (projectBad) alertRed else blue, if (locked) TEXT_DIM else fg,
+                        lockable(locked, actionStartActivity<ProjectPickerActivity>()),
+                        GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 6.dp,
+                    )
+                }
+                Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                    Chip(if (loopOn) "Boucle ${state.loopPair}" else "Boucles", if (loopOn) green else pill, fg, actionStartActivity<LoopsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+                    Spacer(GlanceModifier.width(GAP.dp))
+                    Chip("Réglages", pill, fg, actionStartActivity<SettingsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+                    Spacer(GlanceModifier.width(GAP.dp))
+                    Chip("Wallet", pill, fg, actionStartIntent(storePageIntent(context, "wallet", state.repo)), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+                }
+            }
+            "files" -> {
+                // the four kinds (grey until the repository holds one, coloured once it does), then the campaign and the store
+                Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                    lightKinds(state, context).filter { it.mode != "aiwa" }.forEachIndexed { i, kind ->
+                        if (i > 0) Spacer(GlanceModifier.width(4.dp))
+                        Chip(
+                            kind.word, if (kind.found) green else PILL_DIM, if (kind.found) fg else TEXT_DIM,
+                            actionRunCallback<PickKindCallback>(actionParametersOf(MODE_KEY to kind.mode, KIND_FOUND_KEY to (if (kind.found) "1" else "0"))),
+                            GlanceModifier.defaultWeight(), bold = kind.current, height = modeH.dp, textSize = 10.sp, hPad = 2.dp,
+                        )
+                    }
+                }
+                Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                    Chip("Campagne", blue, fg, actionStartActivity<ProposalsActivity>(), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+                    Spacer(GlanceModifier.width(GAP.dp))
+                    Chip("Store", pill, fg, actionStartIntent(storePageIntent(context, "store", state.repo)), GlanceModifier.defaultWeight(), height = chipH.dp, textSize = 11.sp, hPad = 4.dp)
+                }
+            }
+            else -> {
+                // the robot (the super agent) and Claude; below, the ear and the +
+                Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                    // One listening at a time on screen: the permanent listening on hides the robot (the wake word opens the agent, the switch stays to close everything); the robot open alone hides the switch.
+                    if (permanentOn) Box(
+                        modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(green).cornerRadius(((rowH - 2f) / 2).dp).clickable(actionStartActivity<ListenToggleActivity>()),
+                        contentAlignment = Alignment.Center,
+                    ) { Image(provider = ImageProvider(R.drawable.ic_ear), contentDescription = "Écoute permanente : active, toucher pour la couper", modifier = GlanceModifier.size(20.dp)) } else
+                    Box(
+                        modifier = GlanceModifier.defaultWeight().height((rowH - 2f).dp).background(if (needsSetup || agentNeeds) alertRed else if (agentOn) green else pill).cornerRadius(((rowH - 2f) / 2).dp)
+                            .clickable(if (needsSetup) actionStartActivity<SetupActivity>() else actionStartActivity<AgentToggleActivity>()),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (needsSetup) Text("Autoriser Aiwa", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                        else Image(provider = ImageProvider(R.drawable.ic_agent), contentDescription = if (agentOn) "Super agent : il écoute, fermer" else "Parler au super agent", modifier = GlanceModifier.size(20.dp))
+                    }
+                    // Only once there is a conversation to open: with « new session » chosen, the first message (said or typed) makes it, and the button appears
+                    if (state.cloudSessionId != null) {
+                        Spacer(GlanceModifier.width(GAP.dp))
+                        RoundButton(
+                            icon = R.drawable.ic_claude,
+                            description = if (state.waiting) "Claude attend ta réponse : ouvrir" else "Ouvrir la conversation dans Claude",
+                            background = if (state.waiting || state.silenceMinutes > 0) alertRed else claudeOrange,
+                            action = actionStartActivity<OpenClaudeActivity>(),
+                            diameter = chipH.dp,
+                        )
+                    }
+                }
+                Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                    // The switch of the permanent listening: green when it listens, grey when it is closed (it is closed at each installation and update). Hidden while the robot is open or while the permanent listening is on (the ear then takes the place of the robot)
+                    if (!permanentOn && !agentOn) {
+                        RoundButton(
+                            icon = R.drawable.ic_ear,
+                            description = if (state.listening) "Écoute permanente : active, toucher pour la couper" else "Écoute permanente : coupée, toucher pour l'activer",
+                            background = if (state.listening) green else pill, action = actionStartActivity<ListenToggleActivity>(), diameter = chipH.dp,
+                        )
+                        Spacer(GlanceModifier.width(GAP.dp))
+                    }
+            RoundButton(icon = R.drawable.ic_plus, description = if (state.attachments > 0) "${state.attachments} pièce(s) jointe(s) en attente : ajouter ou retirer" else "Ajouter : un document ou un média", background = if (state.attachments > 0) green else pill, action = actionStartActivity<PlusMenuActivity>(), diameter = chipH.dp)
+                }
             }
         }
     }
