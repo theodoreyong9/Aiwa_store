@@ -62,7 +62,7 @@ class AiwaApp : Application() {
         // The names of the « Projet » button: if the app was reinstalled they are gone here, and the brain still has them (it may take a moment to be up)
         val app = this
         // The fast widget (plain views) is drawn again whenever the state changes, and the productions of the repository are read when it changes
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
             AiwaRepository.state.sample(300).collect { FastWidget.render(app) }
         }
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {

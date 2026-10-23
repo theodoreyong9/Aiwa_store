@@ -20,6 +20,25 @@ object FastWidget {
     const val ACTION_KIND = "com.aiwa.store.FW_KIND"
     const val ACTION_BUSY = "com.aiwa.store.FW_BUSY"
     private var lastSignature = ""
+    /** How each tab looks when it is NOT the open one (its text and colour, from the last full drawing): a tap on a tab only needs these, not the state. */
+    private val tabText = mutableMapOf("domain" to "Domaine", "files" to "Files", "build" to "Build")
+    private val tabColor = mutableMapOf("domain" to "pill", "files" to "pill", "build" to "pill")
+    private val tabView = mapOf("domain" to R.id.fw_tab_domain, "files" to R.id.fw_tab_files, "build" to R.id.fw_tab_build)
+    private val tabPage = mapOf("domain" to 0, "files" to 1, "build" to 2)
+
+    /** The tap on a tab: ONLY the page of the flipper and the two tabs concerned change, with a partial update; nothing of the state is read, nothing is rebuilt. */
+    fun switchTab(context: Context, tab: String) {
+        val before = WidgetTab.get(context)
+        WidgetTab.set(context, tab)
+        val ids = ids(context)
+        if (ids.isEmpty()) return
+        val v = RemoteViews(context.packageName, R.layout.fast_widget)
+        v.setDisplayedChild(R.id.fw_flipper, tabPage[tab] ?: 2)
+        if (before != tab) v.chip(tabView.getValue(before), tabText.getValue(before), tabColor.getValue(before))
+        v.chip(tabView.getValue(tab), tabText.getValue(tab), "blue", bold = true)
+        try { AppWidgetManager.getInstance(context).partiallyUpdateAppWidget(ids, v) } catch (err: Exception) { render(context, force = true) }
+        lastSignature = ""      // the next full drawing is not skipped
+    }
 
     private val BG = mapOf("pill" to R.drawable.fw_pill, "blue" to R.drawable.fw_blue, "green" to R.drawable.fw_green, "red" to R.drawable.fw_red, "dim" to R.drawable.fw_dim, "orange" to R.drawable.fw_orange)
     private const val TEXT = 0xFFF0F0F5.toInt()
@@ -49,7 +68,8 @@ object FastWidget {
     private fun activity(context: Context, code: Int, cls: Class<*>): PendingIntent = activity(context, code, Intent(context, cls))
 
     private fun broadcast(context: Context, code: Int, action: String, vararg extras: Pair<String, String>): PendingIntent {
-        val intent = Intent(context, AiwaWidgetReceiver::class.java).setAction(action)
+        // FLAG_RECEIVER_FOREGROUND: the tap goes to the front of the queue of broadcasts, it does not wait behind the others
+        val intent = Intent(context, AiwaWidgetReceiver::class.java).setAction(action).addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
         extras.forEach { intent.putExtra(it.first, it.second) }
         return PendingIntent.getBroadcast(context, code, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
@@ -78,10 +98,12 @@ object FastWidget {
         v.setInt(R.id.fw_root, "setBackgroundResource", if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg)
         // ---- the tabs; the question and the update stay in view whatever the tab ----
         val buildBusy = agentOn || permanentOn
-        v.chip(R.id.fw_tab_domain, "Domaine" + (if (loopOn) " ●" else ""), if (tab == "domain") "blue" else if (loopOn) "green" else "pill", click = broadcast(context, 1, ACTION_TAB, "tab" to "domain"), bold = tab == "domain")
-        v.chip(R.id.fw_tab_files, "Files", if (tab == "files") "blue" else "pill", click = broadcast(context, 2, ACTION_TAB, "tab" to "files"), bold = tab == "files")
-        v.chip(R.id.fw_tab_build, "Build" + (if (buildBusy) " ●" else ""),
-            if (tab == "build") "blue" else if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else if (buildBusy) "green" else "pill", click = broadcast(context, 3, ACTION_TAB, "tab" to "build"), bold = tab == "build")
+        tabText["domain"] = "Domaine" + (if (loopOn) " ●" else ""); tabColor["domain"] = if (loopOn) "green" else "pill"
+        tabText["files"] = "Files"; tabColor["files"] = "pill"
+        tabText["build"] = "Build" + (if (buildBusy) " ●" else ""); tabColor["build"] = if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else if (buildBusy) "green" else "pill"
+        listOf("domain", "files", "build").forEachIndexed { i, name ->
+            v.chip(tabView.getValue(name), tabText.getValue(name), if (tab == name) "blue" else tabColor.getValue(name), click = broadcast(context, 1 + i, ACTION_TAB, "tab" to name), bold = tab == name)
+        }
         v.setViewVisibility(R.id.fw_question, if (state.ask != null) android.view.View.VISIBLE else android.view.View.GONE)
         v.chip(R.id.fw_question, null, "red", click = activity(context, 4, AskActivity::class.java))
         v.setViewVisibility(R.id.fw_update, if (state.appUpdateReady) android.view.View.VISIBLE else android.view.View.GONE)
@@ -136,8 +158,7 @@ class AiwaWidgetReceiver : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             FastWidget.ACTION_TAB -> {
-                WidgetTab.set(context, intent.getStringExtra("tab") ?: return)
-                FastWidget.render(context, force = true)
+                FastWidget.switchTab(context, intent.getStringExtra("tab") ?: return)
             }
             FastWidget.ACTION_BUSY -> tellBusy(context, toast = true)
             FastWidget.ACTION_KIND -> {
