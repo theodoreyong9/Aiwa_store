@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The widget's campaign button (« Propositions et gestion »): an envelope. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="14dp" android:height="14dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M4,6 H20 A2,2 0 0 1 22,8 V16 A2,2 0 0 1 20,18 H4 A2,2 0 0 1 2,16 V8 A2,2 0 0 1 4,6 Z M3,8 L12,13.5 L21,8" android:strokeColor="#FFFFFF" android:strokeWidth="1.8" android:strokeLineJoin="round" android:strokeLineCap="round" />
+</vector>

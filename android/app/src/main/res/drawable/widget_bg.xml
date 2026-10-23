@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The widget's card: a dark vertical gradient with a fine light edge. -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <gradient android:angle="270" android:startColor="#26262E" android:endColor="#16161B" />
-    <corners android:radius="26dp" />
-    <stroke android:width="1dp" android:color="#3A3A46" />
-</shape>
+<!-- The widget's card: a deep vertical gradient, a fine light edge on top that fades down. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><shape android:shape="rectangle"><gradient android:angle="270" android:startColor="#2A2A33" android:endColor="#121217" /><corners android:radius="26dp" /></shape></item>
+    <item><shape android:shape="rectangle"><gradient android:angle="270" android:startColor="#00000000" android:endColor="#00000000" /><corners android:radius="26dp" /><stroke android:width="1dp" android:color="#44444F" /></shape></item>
+</layer-list>
