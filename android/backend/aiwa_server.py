@@ -65,7 +65,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 170
+BACKEND_VERSION = 171
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1119,6 +1119,14 @@ _FILE_NOTE = (
 )
 
 
+# A session lives in a container that stops when nothing happens in it: a long job (a render, a campaign) that runs in the background stops with it, and nobody is told.
+_LONG_WORK_NOTE = (
+    "- Travail long : quand tu lances un calcul qui dure (un rendu de plusieurs minutes, une campagne), programme tout de suite un contrôle avec l'outil `send_later` (toutes les 20 minutes) : "
+    "à chaque réveil, regarde (`ps`) si ton calcul tourne encore, relance-le s'il s'est arrêté (le conteneur s'arrête quand il ne s'y passe rien ; ce qui est déjà fait est gardé), "
+    "reprogramme le contrôle suivant tant que ce n'est pas fini, annule-le (`delete_trigger`) quand c'est fini, et dis-le-moi en une phrase. Ne me dérange pas quand il n'y a rien de nouveau."
+)
+
+
 def _compose(entry, repo, work, base, direct, origin=None, quality=None):
     """The instructions added to a message, and what was told (a hash per
     instruction, kept with the session). Everything goes with a session's
@@ -1135,7 +1143,7 @@ def _compose(entry, repo, work, base, direct, origin=None, quality=None):
     told = {key: hashlib.sha1(text.encode()).hexdigest()[:8] for key, text in lines}
     previous = (entry or {}).get("instr")
     if not isinstance(previous, dict) or not previous:
-        return "\n\n[Aiwa — consignes de cette conversation]\n" + "\n".join(f"- {text}" for _, text in lines) + "\n" + _FILE_NOTE, told
+        return "\n\n[Aiwa — consignes de cette conversation]\n" + "\n".join(f"- {text}" for _, text in lines) + "\n" + _FILE_NOTE + "\n" + _LONG_WORK_NOTE, told
     parts = [f"- {text}" for key, text in lines if previous.get(key) != told[key]]
     parts += [f"- Consigne retirée : {_INSTRUCTION_LABELS.get(key, key)}." for key in previous if key not in told]
     if not parts:
@@ -1481,7 +1489,7 @@ def _rename_session(session_id, title):
 CLOUD_ALLOWED_TOOLS = [
     f"mcp__{server}__{tool}"
     for server in ("claude-code-remote", "Claude_Code_Remote")
-    for tool in ("add_repo", "register_repo_root", "subscribe_pr_activity", "unsubscribe_pr_activity")      # the last two: a scenario that watches a pull request must not stop on a permission prompt
+    for tool in ("add_repo", "register_repo_root", "subscribe_pr_activity", "unsubscribe_pr_activity", "send_later", "delete_trigger")      # the last two: a scenario that watches a pull request must not stop on a permission prompt
 ]
 CLOUD_ALLOWED_TOOLS_ARGS = ["--allowedTools", ",".join(CLOUD_ALLOWED_TOOLS)]
 

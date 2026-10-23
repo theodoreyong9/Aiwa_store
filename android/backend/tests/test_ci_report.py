@@ -47,3 +47,11 @@ class CiReportTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LongWorkNoteTests(unittest.TestCase):
+    def test_the_sessions_are_told_to_check_their_long_jobs_and_may_use_the_reminder_tools(self):
+        import aiwa_server as srv
+        self.assertIn("send_later", srv._LONG_WORK_NOTE)
+        self.assertIn("delete_trigger", srv._LONG_WORK_NOTE)
+        self.assertIn("mcp__claude-code-remote__send_later", srv.CLOUD_ALLOWED_TOOLS)
