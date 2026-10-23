@@ -397,7 +397,29 @@ class PickKindCallback : ActionCallback {
 }
 
 /** Opens what the repository produced of one kind (« documents », « video », « pages », « android », « aiwa »): the same for the tap on one of the five and for the super agent (« ouvre ma vidéo »). */
+/** The other buttons of the widget, for the super agent: the very screen a tap on the button opens (the toggles of the ear and of the robot too). A Wallet payment is never validated from here: the screen only opens. */
+fun openWidgetButton(app: Context, name: String): Boolean {
+    val repo = AiwaRepository.state.value.repo
+    val intent = when (name) {
+        "wallet", "store" -> storePageIntent(app, name, repo)
+        "settings" -> Intent(app, SettingsActivity::class.java)
+        "loops" -> Intent(app, LoopsActivity::class.java)
+        "campaign" -> Intent(app, ProposalsActivity::class.java)
+        "question" -> Intent(app, AskActivity::class.java)
+        "claude" -> Intent(app, OpenClaudeActivity::class.java)
+        "plus" -> Intent(app, PlusMenuActivity::class.java)
+        "update" -> Intent(app, InstallUpdateActivity::class.java)
+        "project" -> Intent(app, ProjectPickerActivity::class.java)
+        "listen" -> Intent(app, ListenToggleActivity::class.java)
+        "agent" -> Intent(app, AgentToggleActivity::class.java)
+        else -> return false
+    }
+    app.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    return true
+}
+
 suspend fun openProduction(app: Context, mode: String, found: Boolean? = null) {
+    if (openWidgetButton(app, mode)) return
     val state = AiwaRepository.state.value
     val repo = state.repo
     val kind = if (mode == "pages") "page" else if (mode == "android") "apk" else mode

@@ -8,6 +8,11 @@ import aiwa_agent as A  # noqa: E402
 
 
 class Agent(unittest.TestCase):
+    def test_open_reaches_every_button_of_the_widget(self):
+        for word, kind in (("Wallet", "wallet"), ("réglages", "settings"), ("boucles", "loops"), ("mise à jour", "update"), ("écoute", "listen"), ("robot", "agent")):
+            self.assertEqual(A.parse_command({"open": word}, []), {"open": kind})
+            self.assertIn(kind, A.OPEN_SPOKEN)
+
     def test_charter_holds_the_fixed_rules(self):
         text = A.charter("http://relay/topic")
         for word in ("DONNÉE", "Aiwa-agent".lower() if False else "aiwa-agent", "vas-y, dis-lui", "Tu ne modifies aucun code", "http://relay/topic"):
