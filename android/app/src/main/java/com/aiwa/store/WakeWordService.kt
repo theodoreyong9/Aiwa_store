@@ -59,6 +59,13 @@ object ConversationSettings {
     const val QUIET_MS = 30_000L
 }
 
+/** « Création à la volée »: the super agent in a fluid conversation while the person builds: what is said goes to the agent without the send word, its orders leave without a relecture, the progress is told. Off by default. */
+object CreationSettings {
+    private const val PREFS = "aiwa_listen"
+    fun enabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("creation", false)
+    fun set(context: Context, on: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("creation", on).apply() }
+}
+
 /** The wake word the person chose (WakeWordEnrollActivity): a name for the screen, and the spellings the engine heard (com.aiwa.bridge.WakeWords). Empty = only the words of origin. */
 object WakeWordSettings {
     private const val PREFS = "aiwa_listen"
@@ -115,6 +122,9 @@ private val WHERE_REGEX = Regex("""\b(?:tu\s+es|tes|t\s+es)\s+ou\s+la\b""")
 private val REPORT_REGEX = Regex("""\brapport\b|\bfais\s+(?:le|ton)\s+point\b""")
 private val ERASE_REGEX = Regex("""efface(?:\s+(?:tout|ca|le|la|ce|message|commande))*""")
 private val OFF_REGEX = Regex("""\beteins\b""")
+// « mode création » / « fin du mode création » (already plain: lowercase, no accent)
+private val CREATION_ON_REGEX = Regex("""\bmode\s+creation\b""")
+private val CREATION_OFF_REGEX = Regex("""\b(?:fin|ferme|quitte|arrete|stop)\s+(?:du\s+|le\s+)?mode\s+creation\b""")
 private val STOP_AGENT_REGEX = Regex("""(?:stop|arrete)(?:\s+(?:l\s+|la\s+)?(?:super\s+)?(?:agent|claude|commande))?""")
 private val MANUAL_REGEX = Regex("""\b(?:repasse|reviens|retourne|passe)\s+(?:en|au)\s+(?:mode\s+)?manuel\b|\b(?:ferme|quitte)\s+(?:l\s+)?agent\b""")
 // What the phone says (its own light voice, at once) while the agent session thinks; it stops as soon as the real answer is there.
@@ -245,6 +255,7 @@ class WakeWordService : Service() {
     private var scenarioWords: List<com.aiwa.bridge.Scenario> = emptyList()
     private var activeScenario: com.aiwa.bridge.Scenario? = null
     private var scenarioPoll: Job? = null
+    private var liveWatch: Job? = null
     // The conversation shown in the notification (readable on the lock screen) and in the bubble: the last sentences, and what the person is saying right now
     private val convo = ArrayDeque<Pair<Boolean, String>>()
     private var livePartial = ""
@@ -342,6 +353,7 @@ class WakeWordService : Service() {
                 agentListen()
                 maybeSpeakAgent()
                 pendingScenario?.let { beginScenario(it); pendingScenario = null }
+                if (CreationSettings.enabled(applicationContext)) { startLiveWatch(); say("Création à la volée : les ordres partent sans validation") }
                 CoroutineScope(Dispatchers.Default).launch { AiwaWidget().updateAll(applicationContext) }
             }
         }
@@ -362,6 +374,7 @@ class WakeWordService : Service() {
         agentMode = false
         agentListener?.stop()
         agentListener = null
+        stopLiveWatch()
         scenarioPoll?.cancel()
         activeScenario = null
         convo.clear(); livePartial = ""; LiveBubble.hide()
@@ -442,6 +455,8 @@ class WakeWordService : Service() {
                     say(if (error == null) "Réponse envoyée : $reply" else "Réponse non partie : $error")
                     try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }
                 }
+                CREATION_OFF_REGEX.containsMatchIn(plain) -> { CreationSettings.set(applicationContext, false); stopLiveWatch(); say("Création à la volée : fin"); Speaker.speakNatural(applicationContext, "Fin du mode création.") }
+                CREATION_ON_REGEX.containsMatchIn(plain) -> { CreationSettings.set(applicationContext, true); startLiveWatch(); say("Création à la volée : les ordres partent sans validation"); Speaker.speakNatural(applicationContext, "Mode création. Je t'écoute, et je te dis où ça en est.") }
                 activeScenario != null -> scenarioTurn(text, plain)
                 pendingCommand.isEmpty() && scenarioWords.any { heardWord(it.word, plain) } -> launchScenario(text)
                 else -> {
@@ -521,6 +536,8 @@ class WakeWordService : Service() {
             if (PRODUCT_FILM_REGEX.containsMatchIn(said)) { filmByVoice(withoutSend(text).trim(), "product"); return }
             if (FILM_REGEX.containsMatchIn(said)) { filmByVoice(withoutSend(text).trim()); return }
         }
+        // Création à la volée: everything said goes to the agent at once, no send word
+        if (pendingCommand.isEmpty() && CreationSettings.enabled(this)) { liveTurn(withoutSend(text).trim().ifEmpty { text.trim() }); return }
         // Conversation fluide: a question said on its own (nothing waiting) is answered at once, without the send word
         if (pendingCommand.isEmpty() && ConversationSettings.fluid(this) && com.aiwa.bridge.isQuestion(withoutSend(text)) ) {
             answerQuestion(withoutSend(text).trim())
@@ -549,6 +566,67 @@ class WakeWordService : Service() {
         val agreed = askAloud(applicationContext, (when (kind) { "product" -> "Pour un film de ton produit"; "both" -> "Pour un film de toi avec ton produit"; else -> "Pour un film de toi" }) + ", j'utilise ta clé fal et tes photos. C'est facturé par fal, et je te montre le prix avant. Dis « $yes » pour continuer.") { Speaker.speakNatural(applicationContext, it) }
         if (!agreed) { Speaker.speakNatural(applicationContext, "D'accord, je laisse."); return }
         FilmActivity.open(applicationContext, direction, kind)
+    }
+
+    /** One turn of « Création à la volée »: the answer is read as it is written (the person may speak over it), and what it asked (messages to the sessions, a setting) was carried out by the brain. */
+    private suspend fun liveTurn(text: String) {
+        say("Toi : $text")
+        val thinking = scope.launch { delay(3_000); Speaker.speakAndWait(applicationContext, "Je regarde.") }
+        val sentences = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+        var heard = false
+        var did = false
+        val reader = scope.launch(Dispatchers.IO) {
+            try {
+                did = LocalClaudeBridge().liveStream(text) { sentence ->
+                    if (!heard) { heard = true; thinking.cancel() }
+                    say("Réponse : $sentence")
+                    sentences.trySend(sentence)
+                }
+            } finally { sentences.close() }
+        }
+        var bargedIn = false
+        Speaker.resetInterrupt()
+        val barge = BargeIn(this) { bargedIn = true; Speaker.interrupt(); sentences.close() }
+        barge.start()
+        try { Speaker.speakFlow(applicationContext, sentences) } finally { barge.stop() }
+        Speaker.resetInterrupt()
+        if (bargedIn) say("Coupé : je t'écoute") 
+        reader.join()
+        thinking.cancel()
+        if (!heard) Speaker.speakNatural(applicationContext, "Je n'ai pas pu répondre.")
+        if (did) {
+            // what the answer asked of the phone (the pills, open a production, cast, a connector): applied at once
+            try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }
+            if (AiwaRepository.state.value.agent?.command?.auto == true) applyAgentCommand(auto = true)
+        }
+    }
+
+    /** While the mode is on and the agent listens: the brain looks at the work (a new commit, a workflow) and the phone says what changed, in a short sentence, only when nobody is speaking. */
+    private fun startLiveWatch() {
+        liveWatch?.cancel()
+        liveWatch = scope.launch {
+            withContext(Dispatchers.IO) { LocalClaudeBridge().liveSet(true) }
+            while (isActive && agentMode && CreationSettings.enabled(applicationContext)) {
+                delay(10_000)
+                val events = try { withContext(Dispatchers.IO) { LocalClaudeBridge().liveEvents() } } catch (err: Exception) { emptyList() }
+                for (event in events) {
+                    // not over the person: while she speaks or the phone is busy, the sentence waits for the next look
+                    var waited = 0
+                    while ((agentBusy || livePartial.isNotBlank()) && waited < 30) { delay(1_000); waited++ }
+                    if (agentBusy || !agentMode) break
+                    say("Avancement : $event")
+                    agentListener?.stop(); agentListener = null
+                    Speaker.speakNatural(applicationContext, event)
+                    if (agentMode && !agentBusy) agentListen()
+                }
+            }
+        }
+    }
+
+    private fun stopLiveWatch() {
+        liveWatch?.cancel()
+        liveWatch = null
+        scope.launch { withContext(Dispatchers.IO) { LocalClaudeBridge().liveSet(false) } }
     }
 
     // A QUESTION is answered by the super agent itself, aloud (Claude, through the brain); it goes to no session. A COMMAND goes through the summary and the validation.
@@ -825,7 +903,7 @@ class WakeWordService : Service() {
     @Suppress("DEPRECATION")
     private fun conversationStyle(text: String): Notification.Style {
         if (!agentMode || (convo.isEmpty() && livePartial.isBlank())) return Notification.BigTextStyle().bigText(text)
-        val style = Notification.MessagingStyle("Toi").setConversationTitle("Super agent")
+        val style = Notification.MessagingStyle("Toi").setConversationTitle(if (CreationSettings.enabled(this)) "Super agent · création à la volée" else "Super agent")
         val now = System.currentTimeMillis()
         val me: CharSequence? = null
         convo.forEach { (mine, body) -> val who: CharSequence? = if (mine) me else "Agent"; style.addMessage(body, now, who) }

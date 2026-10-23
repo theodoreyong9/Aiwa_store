@@ -55,6 +55,7 @@ import aiwa_stock as stock_lib
 import aiwa_scenarios as scen_lib
 import aiwa_style as style_lib
 import aiwa_ci as ci_lib
+import aiwa_live as live_lib
 
 
 def _ts():
@@ -65,7 +66,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 171
+BACKEND_VERSION = 172
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4781,19 +4782,7 @@ def _scenario_said(raw):
     say, note = " ".join(str(data.get("say") or "").split())[:scen_lib.SAY_MAX], " ".join(str(data.get("note") or "").split())[:scen_lib.NOTE_MAX]
     # what it proposes for the other sessions (`send`, `do`) goes the way the super agent's proposals go: read back by the phone, confirmed by the person, never sent by itself
     # A scenario is its own master: launching it was the person's agreement, so what it sends to the sessions goes at once, and what it asks the phone to do (open, cast, a connector) is applied at once.
-    did = False
-    if data.get("send") or data.get("do"):
-        _agent_said(json.dumps({"send": data.get("send") or [], "do": data.get("do") or {}}))
-        if data.get("send"):
-            with agent_lock:
-                proposal = dict(agent["proposal"]) if agent["proposal"] else None
-            if proposal:
-                threading.Thread(target=agent_confirm, args=(proposal["id"],), daemon=True).start()
-        if data.get("do"):
-            with agent_lock:
-                if agent["command"]:
-                    agent["command"]["auto"] = True
-                    did = True
+    did = _run_agent_actions(data.get("send"), data.get("do"))
     if not say and not note:
         return bool(data.get("send") or data.get("do"))
     with scenario_lock:
@@ -4801,6 +4790,25 @@ def _scenario_said(raw):
         items.append({"id": f"{int(time.time() * 1000)}", "say": say, "note": note, "ts": int(time.time()), "do": did})
         del items[:-20]
     return True
+
+
+def _run_agent_actions(send, do):
+    """What a master (a scenario, the live mode) asks for goes at once, no relecture: the messages to the sessions (`send`) are sent, and what it asks the phone to do (`do`) is marked to be applied
+    without a question. True when something is for the phone to apply."""
+    if not (send or do):
+        return False
+    _agent_said(json.dumps({"send": send or [], "do": do or {}}))
+    if send:
+        with agent_lock:
+            proposal = dict(agent["proposal"]) if agent["proposal"] else None
+        if proposal:
+            threading.Thread(target=agent_confirm, args=(proposal["id"],), daemon=True).start()
+    if do:
+        with agent_lock:
+            if agent["command"]:
+                agent["command"]["auto"] = True
+                return True
+    return False
 
 
 def _scenario_send(session, text):
@@ -4877,6 +4885,139 @@ def scenario_api(path, body):
             items, run["said"] = list(run["said"]), []
             return {"ok": True, "says": items, "creating": run["creating"], "error": run["error"]}
     return {"ok": False, "error": "?"}
+
+
+# ---------- « Création à la volée »: the super agent in a fluid conversation while the person builds (no key: the Claude of the phone) ----------
+live = {"on": False, "events": [], "recent": [], "snap": {}}
+live_lock = threading.Lock()
+
+
+def _claude_stream(prompt, on_piece, timeout=90):
+    """The text of `claude -p` (the person's own login, no API key), handed to `on_piece` as it is written. The whole text, or None."""
+    try:
+        proc = subprocess.Popen(["claude", "-p", "--model", "haiku", "--output-format", "stream-json", "--include-partial-messages", "--verbose"],
+                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    killer = threading.Timer(timeout, proc.kill)
+    killer.start()
+    whole = ""
+    try:
+        proc.stdin.write(prompt)
+        proc.stdin.close()
+        for line in proc.stdout:
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            delta = ((event.get("event") or {}).get("delta") or {}) if event.get("type") == "stream_event" else {}
+            piece = delta.get("text") if delta.get("type") == "text_delta" else None
+            if piece:
+                whole += piece
+                on_piece(piece)
+            elif event.get("type") == "result" and not whole and isinstance(event.get("result"), str):
+                whole = event["result"]
+                on_piece(whole)
+        proc.wait(timeout=5)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass
+    finally:
+        killer.cancel()
+        try:
+            proc.kill()
+        except OSError:
+            pass
+    return whole or None
+
+
+def live_stream(text, emit):
+    """One turn of the live mode: the sentences to say go to `emit` as they are written, then the actions (messages to the sessions, things for the phone) are carried out at once.
+    {"ok", "do"}: `do` is true when the phone has something to apply."""
+    q = " ".join(str(text or "").split())[:600]
+    if not q:
+        return {"ok": False, "do": False}
+    style.observe(q)
+    digest, _sig = _agent_digest()
+    with live_lock:
+        events = "\n".join(live["recent"][-5:])
+    system = live_lib.system(digest, events) + ("\n\n" + style.note() if style.note() else "")
+    talk = _conversation_text()
+    prompt = system + ("\n\nLa conversation jusqu'ici (continue-la, sans te répéter) :\n" + talk if talk else "") + "\n\nLa personne dit : " + q
+    splitter, said = live_lib.Splitter(), []
+
+    def speak(sentences):
+        for sentence in sentences:
+            said.append(sentence)
+            emit(sentence)
+    full = None
+    if llm.state == "ready":
+        full = llm.ask(system, [{"role": "user", "content": q}], max_tokens=600)
+        if full:
+            speak(splitter.feed(full))
+    if not full:
+        full = _claude_stream(prompt, lambda piece: speak(splitter.feed(piece)))
+    last, actions = splitter.finish()
+    speak(last)
+    did = _run_agent_actions(actions.get("send"), actions.get("do"))
+    if said:
+        _conversation_add(q, " ".join(said))
+    return {"ok": bool(said or actions), "do": did}
+
+
+def _live_progress_once():
+    """One look at the branch of the session in use (its latest commit, its latest workflow): what changed since the last look becomes a sentence for the person (kept for the phone to take)."""
+    with lock:
+        entry = _session_entry(current_cloud) if current_cloud else {}
+        repo = entry.get("repo") or current_repo
+    work = entry.get("work")
+    if not repo or not work or not github.REPO_RE.fullmatch(repo):
+        return
+    now = {"sha": None, "message": "", "ci": None}
+    commits = _github_json(f"https://api.github.com/repos/{repo}/commits?sha={urllib.parse.quote(work, safe='')}&per_page=1")
+    if isinstance(commits, list) and commits:
+        now["sha"] = commits[0].get("sha")
+        now["message"] = str(((commits[0].get("commit") or {}).get("message") or "")).split("\n")[0]
+    runs = _github_json(f"https://api.github.com/repos/{repo}/actions/runs?branch={urllib.parse.quote(work, safe='')}&per_page=1")
+    run = ((runs or {}).get("workflow_runs") or [None])[0] if isinstance(runs, dict) else None
+    if run:
+        now["ci"] = "running" if run.get("status") != "completed" else ("success" if run.get("conclusion") == "success" else "failure")
+    with live_lock:
+        prev = live["snap"].get((repo, work))
+        live["snap"][(repo, work)] = now
+        for sentence in live_lib.progress(prev, now):
+            live["events"].append(sentence)
+            live["recent"] = (live["recent"] + [sentence])[-8:]
+
+
+def _live_progress_loop():
+    time.sleep(60)
+    while True:
+        try:
+            with live_lock:
+                on = live["on"]
+            if on:
+                _live_progress_once()
+        except GithubUnavailable:
+            pass
+        except Exception as err:
+            print(f"[{_ts()}] live progress: {err}", flush=True)
+        time.sleep(60)
+
+
+def live_api(path, body):
+    try:
+        data = json.loads(body) if body.strip() else {}
+    except ValueError:
+        data = {}
+    data = data if isinstance(data, dict) else {}
+    with live_lock:
+        if path == "/api/live/set":
+            live["on"] = data.get("on") is True
+            live["events"].clear()
+        if path == "/api/live/events":
+            items, live["events"] = list(live["events"]), []
+            return {"ok": True, "on": live["on"], "events": items}
+        return {"ok": True, "on": live["on"]}
 
 
 def external_api(path, body):
@@ -5129,6 +5270,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(external_api("/api/external/status", ""))
         elif self.path == "/api/scenarios":
             self.reply_json(scenario_api("/api/scenarios", ""))
+        elif self.path == "/api/live/events":
+            self.reply_json(live_api("/api/live/events", ""))
         elif self.path == "/api/style":
             self.reply_json({"ok": True, **style.status()})
         elif self.path == "/api/stock/status":
@@ -5191,6 +5334,28 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(stock_api(self.path, body))
         elif self.path in ("/api/external/open", "/api/external/config"):
             self.reply_json(external_api(self.path, body))
+        elif self.path == "/api/live/set":
+            self.reply_json(live_api("/api/live/set", body))
+        elif self.path == "/api/live_stream":
+            try:
+                data = json.loads(body) if body.strip() else {}
+            except ValueError:
+                data = {}
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+            def emit(sentence):
+                self.wfile.write((json.dumps({"s": sentence}) + "\n").encode())
+                self.wfile.flush()
+            try:
+                result = live_stream(data.get("text") if isinstance(data, dict) else "", emit)
+                self.wfile.write((json.dumps({"done": True, **result}) + "\n").encode())
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+            self.close_connection = True
         elif self.path in ("/api/style/set", "/api/style/clear"):
             try:
                 data = json.loads(body) if body.strip() else {}
@@ -5676,6 +5841,7 @@ if __name__ == "__main__":
     _agent_load()
     voice.install()        # the natural voice is installed by default, in the background (about 80 MB, once); the person only switches it on or off
     threading.Thread(target=_agent_loop, daemon=True).start()
+    threading.Thread(target=_live_progress_loop, daemon=True).start()
     threading.Thread(target=_agent_mailbox_loop, daemon=True).start()
     threading.Thread(target=_all_prewarm_loop, daemon=True).start()
     _login_state()  # looks the login up in the background, so the first status already knows

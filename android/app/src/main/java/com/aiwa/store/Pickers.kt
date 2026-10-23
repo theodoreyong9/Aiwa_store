@@ -788,6 +788,12 @@ class SettingsActivity : ComponentActivity() {
                         finish()
                     })
                 }
+                run {
+                    val creation = CreationSettings.enabled(applicationContext)
+                    add(PickerEntry(if (creation) "✓  Création à la volée : active — les ordres partent sans validation, l'avancement est raconté" else "Création à la volée : coupée (tu parles au super agent, qui relit et attend ta validation)", false, lines = 3) {
+                        CreationSettings.set(applicationContext, !creation); finish()
+                    })
+                }
                 add(PickerEntry(if (wanted) "✓  Écoute du réveil : active" else "Écoute du réveil : coupée", false, lines = 1) { toggle(); finish() })
                 add(PickerEntry("Modèle : ${modelLabel(state.model)} · effort : ${PillReference.effortLabel(state.effort)}", false, lines = 2) { open(ModelPickerActivity::class.java) })
                 if (state.repo != null) {

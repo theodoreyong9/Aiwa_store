@@ -589,6 +589,31 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         val a = j.optJSONArray("inbox")
         return ExternalStatus(j.optBoolean("open"), j.optBoolean("configured"), j.optString("url"), if (a == null) emptyList() else (0 until a.length()).map { val m = a.getJSONObject(it); m.optString("who") + " : " + m.optString("text") }, if (j.optBoolean("ok", true)) null else j.optString("error"))
     }
+    /** « Création à la volée »: what the person says is answered sentence by sentence (`onSentence`, called at once for each), and what the answer asked is carried out by the brain. True when the phone has something to apply (a `do`). Blocking. */
+    fun liveStream(text: String, onSentence: (String) -> Unit): Boolean = try {
+        val connection = URI("$baseUrl/api/live_stream").toURL().openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.doOutput = true
+        connection.readTimeout = 150_000
+        connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+        connection.outputStream.use { it.write(JSONObject().put("text", text).toString().toByteArray()) }
+        var did = false
+        connection.inputStream.bufferedReader().useLines { lines ->
+            for (line in lines) {
+                val json = try { JSONObject(line) } catch (e: Exception) { continue }
+                val sentence = json.optString("s")
+                if (sentence.isNotBlank()) onSentence(sentence)
+                if (json.optBoolean("done", false)) did = json.optBoolean("do", false)
+            }
+        }
+        did
+    } catch (e: Exception) { false }
+    fun liveSet(on: Boolean) { try { filmPost("/api/live/set", JSONObject().put("on", on)) } catch (e: Exception) { } }
+    /** What changed in the work since the last look (a new commit, a workflow): sentences to say, taken once. */
+    fun liveEvents(): List<String> = try {
+        val a = JSONObject(getText("/api/live/events")).optJSONArray("events")
+        if (a == null) emptyList() else (0 until a.length()).map { a.getString(it) }
+    } catch (e: Exception) { emptyList() }
     fun styleStatus(): StyleStatus? = try { styleOf(JSONObject(getText("/api/style"))) } catch (e: Exception) { null }
     fun styleSet(enabled: Boolean): StyleStatus? = try { styleOf(filmPost("/api/style/set", JSONObject().put("enabled", enabled))) } catch (e: Exception) { null }
     fun styleClear(): StyleStatus? = try { styleOf(filmPost("/api/style/clear", JSONObject())) } catch (e: Exception) { null }
