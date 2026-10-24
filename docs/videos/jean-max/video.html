@@ -43,17 +43,17 @@ i{font-family:FR;font-weight:400;color:#9db8ff}
 .term .ok{color:#52e0a0}.term .dim{color:#7c86b8}
 </style></head><body>
 <!--PLATES-->
-<div class="shot" id="sh1"><div class="world" id="w1"><img class="plate" src="file:///tmp/jean/plates/plate-B.png"><div class="proj" id="p1"></div><div id="fx1"></div></div></div>
-<div class="shot" id="sh2"><div class="world" id="w2"><img class="plate" src="file:///tmp/jean/plates/plate-C.png"><div class="proj" id="p2"></div><div id="fx2"></div></div>
+<div class="shot" id="sh1"><div class="world" id="w1"><img class="plate" src="file:///tmp/jean/prev/plate-B.png"><div class="proj" id="p1"></div><div id="fx1"></div></div></div>
+<div class="shot" id="sh2"><div class="world" id="w2"><img class="plate" src="file:///tmp/jean/prev/plate-C.png"><div class="proj" id="p2"></div><div id="fx2"></div></div>
   <div class="k" style="left:140px;top:130px" id="m1t">Manuelle</div><div class="k" style="right:140px;top:130px;text-align:right" id="m2t">Vocale</div></div>
-<div class="shot" id="sh3"><div class="world" id="w3"><img class="plate" src="file:///tmp/jean/plates/plate-A.png"><div class="proj" id="p3t"></div><div class="proj" id="p3p"></div></div></div>
+<div class="shot" id="sh3"><div class="world" id="w3"><img class="plate" src="file:///tmp/jean/prev/plate-A.png"><div class="proj" id="p3t"></div><div class="proj" id="p3p"></div></div></div>
 <div class="shot" id="sh4" style="background:radial-gradient(1200px 800px at 30% 20%,#1c2a63,transparent 60%),radial-gradient(1000px 700px at 80% 90%,#4a2070,transparent 60%),#070914"><div class="k" style="left:260px;top:100px">Un cerveau Linux</div>
   <div class="term" id="term"><div class="dots"><span style="background:#ff6b6b"></span><span style="background:#ffd166"></span><span style="background:#52b089"></span></div><div id="tl"></div></div>
   <svg id="br4" style="position:absolute;left:0;top:0" width="1920" height="1080"></svg></div>
 <div class="shot" id="sh5" style="background:radial-gradient(1200px 800px at 70% 20%,#1c2a63,transparent 60%),radial-gradient(1000px 700px at 10% 90%,#4a2070,transparent 60%),#070914"><div class="k" style="left:140px;top:110px">Sessions multiples</div><div id="grid5"></div></div>
-<div class="shot" id="sh6"><div class="world" id="w6"><img class="plate" src="file:///tmp/jean/plates/plate-B.png"><div class="proj" id="p6"></div></div>
+<div class="shot" id="sh6"><div class="world" id="w6"><img class="plate" src="file:///tmp/jean/prev/plate-B.png"><div class="proj" id="p6"></div></div>
   <div class="tag" id="t6" style="left:170px;top:150px;opacity:0">le super agent touche ses propres boutons</div></div>
-<div class="shot" id="sh7"><div class="world" id="w7"><img class="plate" src="file:///tmp/jean/plates/plate-D.png"><div class="proj" id="p7"></div></div>
+<div class="shot" id="sh7"><div class="world" id="w7"><img class="plate" src="file:///tmp/jean/prev/plate-D.png"><div class="proj" id="p7"></div></div>
   <div class="tag" id="t7" style="right:170px;top:150px;opacity:0">écran éteint</div></div>
 <div class="shot" id="sh8" style="background:radial-gradient(1400px 900px at 50% 40%,#202c70,transparent 60%),radial-gradient(1000px 700px at 90% 100%,#6a2c8a,transparent 60%),#05060d"><canvas id="cv8" width="1920" height="1080" style="position:absolute;left:0;top:0"></canvas>
   <div class="big" id="u1" style="left:0;right:0;top:300px;text-align:center;font-size:100px">Créativité <i>sans limite</i></div>
@@ -69,7 +69,7 @@ i{font-family:FR;font-weight:400;color:#9db8ff}
 <div class="cap" id="cap"></div>
 <script>
 const SCHED=[{"at": 0.9, "end": 3.42, "text": "J'ai créé une télécommande sur Android.", "key": "remote"}, {"at": 4.72, "end": 6.83, "text": "À la fois manuelle, et vocale.", "key": "modes"}, {"at": 8.23, "end": 11.0, "text": "Elle pilote mes comptes GitHub, et Claude Code.", "key": "accounts"}, {"at": 12.2, "end": 13.99, "text": "Grâce à un cerveau Linux.", "key": "brain"}, {"at": 16.99, "end": 19.46, "text": "Elle crée et gère des sessions multiples.", "key": "sessions"}, {"at": 22.06, "end": 24.46, "text": "Elle peut même utiliser sa propre télécommande.", "key": "self"}, {"at": 26.06, "end": 28.82, "text": "Même écran éteint, elle continue de créer avec toi.", "key": "dark"}, {"at": 30.42, "end": 36.91, "text": "Dans un univers de créativité sans limite, où tu gardes la propriété, et où la distribution existe sans permission.", "key": "universe"}, {"at": 38.11, "end": 41.13, "text": "Je m'appelle Jean, et ma passion, c'est le service client.", "key": "me"}, {"at": 41.63, "end": 45.25, "text": "Je suis extrêmement efficace : vibe builder, Nexthinker.", "key": "eff"}, {"at": 45.75, "end": 51.46, "text": "Et j'aimerais consacrer le développement du cerveau de mon projet à l'intégration Nexthink, et à sa commercialisation.", "key": "nex"}],TOTAL=55.26;
-const CORNERS={"A": {"phone": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.7], [0.4, 0.7]], "tv": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.6], [0.4, 0.6]]}, "B": {"phone": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.7], [0.4, 0.7]], "tv": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.6], [0.4, 0.6]]}, "C": {"phone": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.7], [0.4, 0.7]], "tv": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.6], [0.4, 0.6]]}, "D": {"phone": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.7], [0.4, 0.7]], "tv": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.6], [0.4, 0.6]]}};
+const CORNERS={"A": {"phone": [[0.84464, 0.87003], [0.87819, 0.8665], [0.92996, 0.91054], [0.89353, 0.9148]], "tv": [[0.20766, 0.39153], [0.40272, 0.39386], [0.40339, 0.57835], [0.20988, 0.59429]]}, "B": {"phone": [[0.41476, 0.14451], [0.63429, 0.17695], [0.60208, 0.92501], [0.34204, 0.87931]], "tv": [[0.43577, -4.27593], [1.31166, -4.30679], [1.13352, -2.87597], [0.44918, -2.92149]]}, "C": {"phone": [[0.39204, 0.10539], [0.60796, 0.10539], [0.60796, 0.89461], [0.39204, 0.89461]], "tv": [[11.67571, 84.12904], [-2.40698, 84.12904], [1.11576, -17.21453], [-1.86727, -17.21453]]}, "D": {"phone": [[0.43707, 0.35186], [0.64189, 0.36094], [0.65288, 0.78813], [0.38744, 0.77285]], "tv": [[-0.56141, -1.42261], [0.03932, -1.39019], [0.07713, -0.80694], [-0.46619, -0.78222]]}};
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),ramp=(t,a,b)=>clamp((t-a)/(b-a)),eo=x=>1-Math.pow(1-x,3),eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
 const $=id=>document.getElementById(id);
 const K=Object.fromEntries(SCHED.map(s=>[s.key,s]));

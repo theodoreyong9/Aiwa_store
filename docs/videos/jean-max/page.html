@@ -38,7 +38,7 @@ i{font-family:FR;font-weight:400;color:#9db8ff}
 .btn.v{background:linear-gradient(#9a6fc8,#7a58a8);border-color:#d3b4f4}.btn.g{background:linear-gradient(#3f8a86,#2f7470);border-color:#6fc3a3}
 .ring{position:absolute;border-radius:50%;border:6px solid #fff;opacity:0;pointer-events:none}
 .node{position:absolute;border-radius:30px;background:linear-gradient(#ffffff2e,#ffffff0d);border:2px solid #ffffff55;padding:28px 32px}
-.term{position:absolute;left:260px;top:170px;width:1400px;height:740px;border-radius:30px;background:#07081aee;border:2px solid #ffffff44;box-shadow:0 40px 100px #000a;font-family:monospace;font-size:31px;line-height:1.5;padding:70px 46px 30px;color:#cfe3ff;overflow:hidden}
+.term{position:absolute;left:260px;top:170px;width:1400px;height:740px;border-radius:30px;background:#07081aee;border:2px solid #ffffff44;box-shadow:0 40px 100px #000a;font-family:monospace;font-size:40px;line-height:1.5;padding:76px 50px 30px;color:#cfe3ff;overflow:hidden}
 .term .dots{position:absolute;left:30px;top:24px;display:flex;gap:12px}.term .dots span{width:18px;height:18px;border-radius:50%}
 .term .ok{color:#52e0a0}.term .dim{color:#7c86b8}
 </style></head><body>
@@ -81,8 +81,8 @@ function project(el,W,H,corners){el.style.width=W+'px';el.style.height=H+'px';el
 const mid=c=>[(c[0][0]+c[2][0])/2,(c[0][1]+c[2][1])/2];
 // ---- the camera: a shift and a scale of the whole plate (nothing moves in 3D: a screen never slides on its phone)
 function camera(world,t,a,b,from,to,drift=1){const u=eio(ramp(t,a,b)),z=from[0]+(to[0]-from[0])*u,fx=from[1]+(to[1]-from[1])*u,fy=from[2]+(to[2]-from[2])*u;
- const s=.75*z,dx=drift*(5*Math.sin(t*.55)+2*Math.sin(t*1.7)),dy=drift*(4*Math.cos(t*.47)+1.5*Math.sin(t*1.3));
- world.style.transform=`translate(${960-fx*PW*s+dx}px,${540-fy*PH*s+dy}px) scale(${s})`}
+ const s=.75*z,hx=960/(PW*s),hy=540/(PH*s),dx=drift*(5*Math.sin(t*.55)+2*Math.sin(t*1.7)),dy=drift*(4*Math.cos(t*.47)+1.5*Math.sin(t*1.3));
+ const cx=clamp(fx,hx+.004,1-hx-.004),cy=clamp(fy,hy+.004,1-hy-.004);world.style.transform=`translate(${960-cx*PW*s+dx}px,${540-cy*PH*s+dy}px) scale(${s})`}
 // ---- icons and the widget
 const IC={domain:'M12 3 L3 8 L12 13 L21 8 Z M3 12.5 L12 17.5 L21 12.5 M3 16.5 L12 21.5 L21 16.5',files:'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',build:'M8 8 L4 12 L8 16 M16 8 L20 12 L16 16 M13.5 5 L10.5 19',voir:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0.01 0z',loops:'M20 12a8 8 0 0 0-14-5.3L4 9 M4 4v5h5 M4 12a8 8 0 0 0 14 5.3L20 15 M20 20v-5h-5',campaign:'M21 3 L10 14 M21 3 L14 21 L10 14 L3 10 Z',settings:'M4 7h10 M18 7h2 M4 17h2 M10 17h10 M16 5v4 M8 15v4',wallet:'M5 6h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z M3 10h18 M16 14.5h2',docs:'M6 3h8l4 4v14H6z M14 3v4h4 M9 12h6 M9 16h6',media:'M12 3a9 9 0 1 0 0.01 0z M10 8.5 L16 12 L10 15.5 Z',app:'M9 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M11 18h2',page:'M12 3a9 9 0 1 0 0.01 0z M3 12h18 M12 3c3 3 3 15 0 18 M12 3c-3 3-3 15 0 18',contract:'M6 3h9l4 4v14H6z M15 3v4h4 M9 14l2.5 2.5L16 12',project:'M5 8h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2 M3 13h18',scenario:'M4 9h16v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z M4 9l2-5h3l-2 5 M9 9l2-5h3l-2 5 M14 9l2-5h3l-1 5',robot:'M7 8h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z M12 8V5 M9.5 13h0.01 M14.5 13h0.01 M9 18v2 M15 18v2',claude:'M12 3v18 M4.2 7.5l15.6 9 M19.8 7.5l-15.6 9',ear:'M7 9a5 5 0 0 1 10 0c0 3-3 4-3 7a2.5 2.5 0 0 1-5 0 M10 9a2 2 0 0 1 4 0',plus:'M12 5v14 M5 12h14'};
 const svg=n=>`<svg viewBox="0 0 24 24"><path d="${IC[n]}"/></svg>`;
@@ -115,10 +115,10 @@ function setup(){
  const g=$('grid5');const names=['Aiwa_store','site-web','film-noël','support-client','campagne','contrats'];
  g.innerHTML=names.map((n,i)=>`<div class="node" id="se${i}" style="left:${140+(i%3)*580}px;top:${250+Math.floor(i/3)*330}px;width:540px;height:290px"><div style="font-size:26px;letter-spacing:.2em;color:#9db8ff">SESSION ${i+1}</div><div style="font-size:48px;font-weight:700;margin:10px 0">${n}</div><div style="font-size:30px;color:#cfd3ff" id="ss${i}">…</div><div style="position:absolute;right:30px;top:30px;width:22px;height:22px;border-radius:50%;background:#52e0a0" id="sd${i}"></div></div>`).join('');
 }
-function tvScreen(){return `<div style="width:1920px;height:1080px;position:relative;background:radial-gradient(1200px 800px at 30% 20%,#1c2a63,transparent 60%),#05060d"><div style="position:absolute;left:120px;top:110px;font-size:46px;letter-spacing:.3em;color:#9db8ff">MES COMPTES</div>
- <div class="node" style="left:120px;top:260px;width:780px;height:420px"><div style="font-size:80px;font-weight:700">GitHub</div><div style="font-size:42px;color:#cfd3ff;margin-top:20px">dépôts · branches · releases</div><div style="font-size:44px;color:#52e0a0;margin-top:60px">● connecté</div></div>
- <div class="node" style="left:1020px;top:260px;width:780px;height:420px"><div style="font-size:80px;font-weight:700">Claude Code</div><div style="font-size:42px;color:#cfd3ff;margin-top:20px">sessions · agents · critique</div><div style="font-size:44px;color:#52e0a0;margin-top:60px">● connecté</div></div>
- <div style="position:absolute;left:120px;top:780px;font-size:56px;color:#fff">Une télécommande, deux comptes, <i>un seul geste</i>.</div></div>`}
+function tvScreen(){return `<div style="width:1920px;height:1080px;position:relative;background:radial-gradient(1200px 800px at 30% 20%,#1c2a63,transparent 60%),#05060d"><div style="position:absolute;left:120px;top:110px;font-size:60px;letter-spacing:.3em;color:#9db8ff">MES COMPTES</div>
+ <div class="node" style="left:120px;top:260px;width:780px;height:420px"><div style="font-size:110px;font-weight:700">GitHub</div><div style="font-size:54px;color:#cfd3ff;margin-top:20px">dépôts · branches · releases</div><div style="font-size:58px;color:#52e0a0;margin-top:60px">● connecté</div></div>
+ <div class="node" style="left:1020px;top:260px;width:780px;height:420px"><div style="font-size:110px;font-weight:700">Claude Code</div><div style="font-size:54px;color:#cfd3ff;margin-top:20px">sessions · agents · critique</div><div style="font-size:58px;color:#52e0a0;margin-top:60px">● connecté</div></div>
+ <div style="position:absolute;left:120px;top:780px;font-size:72px;color:#fff">Une télécommande, deux comptes, <i>un seul geste</i>.</div></div>`}
 // ---- the text of the terminal
 const TERM=[['$ ','termux — le cerveau','dim'],['$ ','aiwa-server --brain','' ],['','chargement du cerveau Linux… ','dim'],['','✓ relais · sessions · boucles · campagnes','ok'],['','✓ agent · voix · scénarios','ok'],['','✓ GitHub connecté · Claude Code connecté','ok'],['$ ','aiwa session new "film-noël"','' ],['','→ session créée','ok'],['$ ','aiwa session list','' ],['','6 sessions · 3 travaillent','dim']];
 function cosmos(t){const c=$('cv8'),x=c.getContext('2d');x.clearRect(0,0,1920,1080);const n=70;for(let i=0;i<n;i++){const a=i*2.399+t*.04*(i%5+1)*.3,r=120+((i*37)%820),px=960+Math.cos(a)*r*1.25,py=540+Math.sin(a)*r*.62,s=1+((i*13)%5)*.7;x.beginPath();x.arc(px,py,s,0,6.28);x.fillStyle=`rgba(157,184,255,${.35+.45*Math.abs(Math.sin(t*.8+i))})`;x.fill();if(i%3==0){const j=(i+7)%n,b=j*2.399+t*.04*(j%5+1)*.3,rr=120+((j*37)%820);x.beginPath();x.moveTo(px,py);x.lineTo(960+Math.cos(b)*rr*1.25,540+Math.sin(b)*rr*.62);x.strokeStyle='rgba(157,184,255,.13)';x.lineWidth=1;x.stroke()}}}
@@ -131,14 +131,14 @@ function render(t){
  S.forEach(([id,a,b],i)=>{$(id).style.opacity=(i==0?ramp(t,0,.6):ramp(t,a,a+.5))*(i==S.length-1?1:1-ramp(t,b-.1,b+.4))});
  const C=CORNERS,pB=mid(C.B.phone),pC=mid(C.C.phone),pD=mid(C.D.phone),tvA=mid(C.A.tv),phA=mid(C.A.phone);
  // 1: the remote on the table, a slow push-in
- camera($('w1'),t,0,K.modes.at,[1.0,pB[0]+.02,pB[1]-.02],[1.55,pB[0],pB[1]]);
+ camera($('w1'),t,0,K.modes.at,[1.0,pB[0],pB[1]],[1.14,pB[0],pB[1]]);
  // 2: from above: manual (taps) then vocal (rings of voice)
- camera($('w2'),t,K.modes.at-.25,K.accounts.at,[1.25,pC[0],pC[1]],[1.5,pC[0],pC[1]]);
+ camera($('w2'),t,K.modes.at-.25,K.accounts.at,[1.0,pC[0],pC[1]],[1.08,pC[0],pC[1]]);
  const m0=K.modes.at,w2=$('p2');let cur='build';[['domain',m0+.25],['files',m0+.6],['voir',m0+.95],['build',m0+1.3]].forEach(([n,a])=>{if(t>=a)cur=n});setTab(w2,cur);
  $('m1t').style.opacity=eo(ramp(t,m0,m0+.3))*(1-ramp(t,m0+1.5,m0+1.8));$('m2t').style.opacity=eo(ramp(t,m0+1.7,m0+2.0));
  voiceRings($('fx2'),t,m0+1.7,K.modes.end+.5,C.C.phone);
  // 3: the TV, a dolly toward the screen
- camera($('w3'),t,K.accounts.at-.25,K.brain.at,[1.0,.5,.55],[1.45,tvA[0],tvA[1]+.02]);
+ camera($('w3'),t,K.accounts.at-.25,K.brain.at,[1.0,.5,.5],[2.3,tvA[0],tvA[1]]);
  $('p3t').style.opacity=eo(ramp(t,K.accounts.at,K.accounts.at+.6));
  // 4: the brain, a terminal that types
  {const t0=K.brain.at,lines=TERM;let h='';let tt=t-t0-.2;let shown=0;for(let i=0;i<lines.length;i++){const [p,txt,cls]=lines[i];const start=i*.42;if(tt<start)break;const n=cls==''?Math.floor((tt-start)*38):txt.length;h+=`<div>${p}<span class="${cls}">${txt.slice(0,Math.max(0,n))}</span></div>`}
@@ -149,11 +149,11 @@ function render(t){
  for(let i=0;i<6;i++){const a=K.sessions.at+.3+i*.55,v=eo(ramp(t,a,a+.5)),e=$('se'+i);e.style.opacity=v;e.style.transform=`translateY(${(1-v)*50}px)`;
   $('ss'+i).textContent=t>a+1.2?(i%2?'en cours…':'terminé ✓'):'démarrage…';$('sd'+i).style.background=t>a+1.2&&i%2?'#ffd166':'#52e0a0'}
  // 6: the remote presses its own buttons
- camera($('w6'),t,K.self.at-.25,K.dark.at,[1.5,pB[0],pB[1]],[1.18,pB[0]+.02,pB[1]+.01]);
+ camera($('w6'),t,K.self.at-.25,K.dark.at,[1.35,pB[0],pB[1]],[1.1,pB[0],pB[1]]);
  {const s0=K.self.at,seq=[['domain',s0+.5],['files',s0+1.0],['build',s0+1.5],['voir',s0+2.0],['build',s0+2.5]];let cur='build';seq.forEach(([n,a])=>{if(t>=a)cur=n});setTab($('p6'),cur);
   $('t6').style.opacity=eo(ramp(t,s0+.2,s0+.8))*(1-ramp(t,K.dark.at-.9,K.dark.at-.3))}
  // 7: the screen is off, the notification glows
- camera($('w7'),t,K.dark.at-.25,K.universe.at,[1.2,pD[0],pD[1]],[1.6,pD[0],pD[1]]);
+ camera($('w7'),t,K.dark.at-.25,K.universe.at,[1.1,pD[0],pD[1]],[1.35,pD[0],pD[1]]);
  {const d0=K.dark.at;const g=eo(ramp(t,d0+.2,d0+1.2));$('p7').style.opacity=g;$('nt1').style.transform=`translateY(${(1-eo(ramp(t,d0+.6,d0+1.4)))*60}px)`;$('nt1').style.opacity=eo(ramp(t,d0+.6,d0+1.4));$('nt2').style.opacity=eo(ramp(t,d0+2.2,d0+3));
   $('t7').style.opacity=eo(ramp(t,d0+.3,d0+.9))*(1-ramp(t,K.universe.at-.8,K.universe.at-.3))}
  // 8: the universe
