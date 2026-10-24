@@ -40,7 +40,7 @@ object FastWidget {
         lastSignature = ""      // the next full drawing is not skipped
     }
 
-    private val BG = mapOf("pill" to R.drawable.fw_pill, "blue" to R.drawable.fw_blue, "green" to R.drawable.fw_green, "red" to R.drawable.fw_red, "dim" to R.drawable.fw_dim, "tabon" to R.drawable.fw_tabon, "taboff" to R.drawable.fw_taboff, "orange" to R.drawable.fw_orange)
+    private val BG = mapOf("pill" to R.drawable.fw_pill, "blue" to R.drawable.fw_blue, "green" to R.drawable.fw_green, "red" to R.drawable.fw_red, "dim" to R.drawable.fw_dim, "tabon" to R.drawable.fw_tabon, "violet" to R.drawable.fw_violet, "violetdim" to R.drawable.fw_violetdim, "taboff" to R.drawable.fw_taboff, "orange" to R.drawable.fw_orange)
     private const val TEXT = 0xFFF0F0F5.toInt()
     private const val TEXT_DIM = 0xFF828290.toInt()
     private const val TAB_ON_TEXT = 0xFFFFFFFF.toInt()
@@ -54,7 +54,7 @@ object FastWidget {
         if (ids.isEmpty()) return
         val state = AiwaRepository.state.value
         val tab = WidgetTab.get(context)
-        val kinds = lightKinds(state, context)
+        val kinds = lightKinds(state, context).sortedBy { listOf("documents", "video", "android", "pages", "aiwa").indexOf(it.mode) }
         val signature = listOf(tab, state.repo, state.cloudSessionId, state.status, state.waiting, state.silenceMinutes, state.loopPair, state.listening, state.agent?.enabled, state.agent?.say != null, state.agent?.proposal != null,
             state.agent?.command != null, state.ask != null, state.appUpdateReady, state.attachments, Projects.isAll(context), Projects.nameOf(context, state.repo, state.cloudSessionId), hasTermuxPermission(context),
             kinds.map { it.word + it.found + it.current }).joinToString("|")
@@ -131,7 +131,7 @@ object FastWidget {
             val kind = kinds.getOrNull(i)
             v.setViewVisibility(id, if (kind == null) android.view.View.GONE else android.view.View.VISIBLE)
             if (kind != null) v.setImageViewResource(intArrayOf(R.id.fw_k0_i, R.id.fw_k1_i, R.id.fw_k2_i, R.id.fw_k3_i, R.id.fw_k4_i)[i], when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; "android" -> R.drawable.fw_i_app; else -> R.drawable.fw_i_contract })
-            if (kind != null) v.chip(id, if (kind.mode == "aiwa") "Contrat" else kind.word, if (kind.found) "green" else "dim", if (kind.found) TEXT else TEXT_DIM, broadcast(context, 40 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")), bold = kind.current)
+            if (kind != null) v.chip(id, if (kind.mode == "aiwa") "Contrat" else kind.word, if (kind.mode == "pages" || kind.mode == "aiwa") (if (kind.found) "violet" else "violetdim") else if (kind.found) "green" else "dim", if (kind.found) TEXT else TEXT_DIM, broadcast(context, 40 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")), bold = kind.current)
         }
         v.chip(R.id.fw_campaign, "Campagne", "blue", click = activity(context, 14, ProposalsActivity::class.java))
         v.chip(R.id.fw_scenario, "Scénario", "pill", click = activity(context, 20, ScenariosActivity::class.java))
