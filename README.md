@@ -54,17 +54,19 @@ Si Termux ou le cerveau manque, le widget le dit et un appui copie la ligne. Cla
 
 ## 3. Le widget
 
-*Réglages → Forme du widget.* Un changement redessine le widget (un redessin à la fois ; un message dit si Aiwa lui-même est lent).
+Un seul widget, en vues Android classiques : un appui sur un onglet ne fait que tourner une page (rapide). Deux cellules de haut par défaut, étirable en hauteur. En haut, trois **onglets** ; la **question** de Claude (rouge, un appui y répond) et la **mise à jour** (↻, seulement quand une version est prête) restent toujours visibles. Un point sur un onglet dit ce qui travaille (une boucle, l'écoute) ; rouge quand quelque chose attend ta réponse.
 
-**Light** (défaut), de haut en bas :
+- **Domaine** : Boucles · Campagne, puis Réglages · Aiwa (l'application).
+- **Files** : Docs · Média · Page · App · Contrat (gris tant que le dépôt n'a rien de ce type, coloré sinon ; un appui l'ouvre), puis Projet ▾ (dépôt et session, ou *Tous*) · Scénario.
+- **Build** : le super agent (gris, vert quand il écoute, rouge s'il a quelque chose à dire) et Claude ; l'écoute permanente et le « + » (pièces jointes).
 
-1. **Session ▾ · ⎇ dépôt ▾**. *Une session appartient à un dépôt.*
-2. **Docs · Vidéo · Page · App · Aiwa** : **gris** tant que le dépôt n'a rien de ce type, **coloré** sinon ; un appui l'ouvre.
-3. **Dicter**, **Claude** (rouge si Claude attend ou se tait), **?** (question de Claude), **↻** (APK plus récent prêt, sinon absent).
-4. **Aiwa**, **super agent**, **Réglages**.
+Le **super agent** peut toucher à tous ces boutons avec `open` (comme un appui), sauf valider un paiement du Wallet ; il règle aussi les pastilles de session et de dépôt, envoie à la télévision et prépare un mail, un SMS, un rendez-vous, un appel ou un message (connecteurs : l'application s'ouvre pré-remplie, c'est toi qui envoies).
 
-**Réglages** : modèle, push, clé Anthropic, super agent (dont **détruire et recommencer**), *Mes mots*, état, version (appli, cerveau, **date de dernière mise à
-jour du cerveau**), commentaire pour le critique, « c'est prêt », « je suis disponible ? », écoute permanente, forme.
+Les menus, listes et fenêtres (Projet, Réglages, Boucles, Campagne…) ont le même style : verre bleu-violet, cartes avec titre et sous-ligne, interrupteurs, flou de l'écran d'accueil derrière (Android 12 et plus).
+
+**Réglages** (par sections) : *Voix et écoute* (conversation naturelle, **création à la volée**, écoute du réveil) · *Envoi* (modèle, effort, push) · *Agent et IA* (super agent, clé Anthropic, connecteurs) · *Contenus* (film de moi, banques de vidéos, agents externes) · *Parole et scénarios* (**scénarios**, **ma façon de parler**, *Mes mots*) · *Aiwa* (état, version de l'appli et du cerveau, « c'est prêt »).
+
+**Scénarios** : un mot lance un double de toi (une session à lui, un super agent) qui écoute, note, parle quand tu le demandes et agit (`send`, `do`) ; « stop scénario » l'arrête. **Création à la volée** : sans clé, tout ce que tu dis part tout de suite au super agent, qui raconte l'avancement des trois sessions les plus récentes ; « mets-toi en pause » / « t'es toujours là » le coupent et le réveillent.
 
 ## 4. Ce que Claude écrit, et où
 
@@ -218,7 +220,7 @@ le code, jamais exécuté).
 ```mermaid
 flowchart LR
   subgraph Phone["Ton téléphone Android"]
-    APK["APK Aiwa<br/>WebView (Store, wallet)<br/>widget Glance, fenêtres Compose<br/>voix: Vosk, TextToSpeech"]
+    APK["APK Aiwa<br/>WebView (Store, wallet)<br/>widget en vues Android, fenêtres Compose<br/>voix: Vosk, TextToSpeech"]
     Brain["Cerveau (Termux)<br/>aiwa_server.py 127.0.0.1:8787<br/>agent, boucles, LLM, GitHub, voix"]
   end
   subgraph Cloud["Cloud de Claude"]
@@ -298,7 +300,7 @@ sequenceDiagram
 ```mermaid
 flowchart TB
   subgraph app["android/app (Kotlin: Compose, Glance, services)"]
-    W1["Widget (Light)"]
+    W1["Widget (onglets)"]
     Win["Fenêtres: Vidéos, Campagnes, Boucles, Agent, Mes mots, Réglages"]
     Svc["KeepAliveService (boucle 10 s)<br/>WakeWordService (écoute Vosk)"]
     St["AiwaRepository (état) + BackendSync"]
