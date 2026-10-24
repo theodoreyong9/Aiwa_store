@@ -303,7 +303,7 @@ class SentAppTests(Base):
         text = dict(srv._instruction_lines(None, None, None, True))["deploy"]
         for wanted in ("-T nom.app.html", "Title: aiwa-app", f"{srv.NTFY_SERVER}/{srv.waiting_topic}", "Ne la pousse sur AUCUN dépôt",
                        # the app runs in an isolated frame: what that means for the file
-                       'sandbox="allow-scripts"', "512 Ko", "URL ABSOLUE", "localStorage", "store-app-example.html", "bouton ▦"):
+                       'sandbox="allow-scripts"', "512 Ko", "URL ABSOLUE", "localStorage", "store-app-example.html", "Files → Contrat"):
             self.assertIn(wanted, text)
         self.assertIn("raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/", text)
         for mode in ("none", "pages", "android"):

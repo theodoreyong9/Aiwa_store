@@ -66,7 +66,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 174
+BACKEND_VERSION = 175
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -722,7 +722,7 @@ def _proposals_line(repo):
         "« innovante » = cherche AUTRE CHOSE (références éloignées : traits, palette et ambiance différents) tout en respectant le brief, le format et les licences. Pour un canal sans dernier envoi, pars du brief. "
         "Consulte les registres du dépôt de référence (design : `design-research/src/cli.js search`, musique, objets) pour trouver ces références, compare avec les traits du dernier style, et note dans `style` de chaque proposition le style retenu et les ids des références, "
         "pour que le prochain envoi puisse s'en servir. Ne prétends pas avoir comparé ce que tu n'as pas lu. "
-        "Pousse sur la branche principale à chaque cible : je relis et j'envoie moi-même, une par une, depuis l'application (le bouton Campagne du widget : un onglet par campagne)."
+        "Pousse sur la branche principale à chaque cible : je relis et j'envoie moi-même, une par une, depuis l'application (widget : Domaine → Campagne, un onglet par campagne)."
     )
 
 
@@ -754,11 +754,11 @@ VIDEO_WORKFLOW_FILE = (
 
 
 def _video_rules():
-    """The way of working for a video, whatever its quality: all in one go, no question, no stop for the time it takes, and every stage pushed so that the Workflow button of the widget shows where it is."""
+    """The way of working for a video, whatever its quality: all in one go, no question, no stop for the time it takes, and every stage pushed so that Aiwa can show where it is."""
     return (
         " Façon de travailler, quelle que soit la qualité : fais TOUT d'un coup, sans t'arrêter ; ne me pose AUCUNE question pendant la vidéo (décide seul, écris tes hypothèses dans `brief.md`) ; "
         "le temps que ça prend n'est JAMAIS une raison de raccourcir, de sauter une étape ou de t'arrêter avant le rendu final ; "
-        "après CHAQUE étape terminée, commite et pousse ce qu'elle a produit (selon la consigne Push), pour que mon bouton Workflow montre où tu en es. "
+        "après CHAQUE étape terminée, commite et pousse ce qu'elle a produit (selon la consigne Push), pour qu'Aiwa montre où tu en es. "
         "Ajoute une fois `.github/workflows/aiwa-video.yml` avec exactement ce contenu (il tourne à chaque push qui touche `docs/` : il liste les étapes faites et contrôle chaque MP4) :\n`"
         + VIDEO_WORKFLOW_FILE + "`\n"
     )
@@ -979,7 +979,7 @@ def _instruction_lines(repo, work, base, direct, origin=None, quality=None):
             "si je ne le précise pas, dis en une phrase le format choisi et pourquoi. Écris chaque document dans le dossier `docs/` du dépôt en cours (c'est là que vivent les documents du projet), un fichier par document, "
             "avec un nom clair (en minuscules, tirets), et pousse-le avec la consigne Push. N'invente aucun fait, chiffre, nom ni date : ce que je ne t'ai pas donné, laisse-le marqué à compléter. "
             "Avant de dire que c'est fini, rouvre le fichier produit pour vérifier qu'il s'ouvre et que sa mise en page tient (un PDF converti en image par exemple). "
-            "L'appli ouvre ce dossier depuis le bouton Documents du widget.",
+            "L'appli ouvre ce dossier depuis le widget (Files → Docs).",
         ))
     if deploy == "store":
         # Not tied to a repository: an app is written, checked and sent to the phone, where the user reads it, tries it
@@ -998,9 +998,9 @@ def _instruction_lines(repo, work, base, direct, origin=None, quality=None):
             f"Exemple qui marche (lis-le en entier avant d'écrire) : {REFERENCE_RAW}/docs/store-app-example.html. "
             + (
                 "Place-la dans mon dépôt, sous `aiwa-apps/nom.app.html` (crée le dossier), sur la branche principale du dépôt (qui doit être public) : c'est là que vit l'app, dans MON GitHub, et je pourrai la modifier quand je veux. "
-                "Ajoute aussi, une fois, `.github/workflows/aiwa-app-check.yml` avec exactement ce contenu (il vérifie chaque app à chaque push ; le bouton GitHub Actions du widget le suit) :\n```\n" + APP_CHECK_WORKFLOW + "```\nIl n'y a pas de registre pour ça : le Store lit mon compte GitHub, sans wallet ni signature, et l'app apparaît dans sa bibliothèque (le bouton ▦ du widget ajoute mon compte à la liste du Store). "
+                "Ajoute aussi, une fois, `.github/workflows/aiwa-app-check.yml` avec exactement ce contenu (il vérifie chaque app à chaque push ; Aiwa suit ses résultats et te les rapporte) :\n```\n" + APP_CHECK_WORKFLOW + "```\nIl n'y a pas de registre pour ça : le Store lit mon compte GitHub, sans wallet ni signature, et l'app apparaît dans sa bibliothèque (le bouton ▦ du widget ajoute mon compte à la liste du Store). "
                 if repo else
-                "Ne la pousse sur AUCUN dépôt : je la relis, l'essaie et la publie moi-même depuis le Store (bouton ▦ du widget), avec mon identité. "
+                "Ne la pousse sur AUCUN dépôt : je la relis, l'essaie et la publie moi-même depuis le Store (widget : Files → Contrat), avec mon identité. "
             ) +
             "Quand elle est prête, vérifie-la (charge-la dans un navigateur headless : console sans erreur, rendu correct en mobile), puis envoie-la sur mon téléphone "
             f"avec cette commande, telle quelle : `curl -s -m 60 -T nom.app.html -H 'Filename: nom.app.html' -H 'Title: aiwa-app' {NTFY_SERVER}/{topic}` "
@@ -1688,7 +1688,7 @@ def cloud_send(text, command=False, session=None):
             return {"ok": True, "session_id": session_id, "url": result["url"]}
         if not repo:
             # Every session starts on a repository: there is no free conversation.
-            return {"ok": False, "error": "Choisis d'abord un dépôt (le bouton ⎇ du widget) : chaque session démarre sur un dépôt."}
+            return {"ok": False, "error": "Choisis d'abord un dépôt (widget : Files → Projet) : chaque session démarre sur un dépôt."}
         # The session starts on the chosen repository, which is only an address:
         # the directory is an empty stub whose origin is that repository, and the
         # cloud clones it itself, with Claude's own access (the user grants it at

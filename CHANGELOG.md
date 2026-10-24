@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The instructions every session receives (and docs/consignes, regenerated) name the buttons of the new widget (Domaine → Campagne, Files → Docs, Contrat, Projet) and no longer a Workflow or GitHub Actions button that is gone (brain 175).
+
 - **The widget is now in plain views**: the same tabs, but a tap on a tab only turns a page instead of recomposing the whole widget, so it is fast; the widget already on the screen becomes the fast one with the update.
 - The tab tap of the widget is now a partial update (only the page and two tabs change, the state is not read) sent as a foreground broadcast, and the redrawing runs off the main thread.
 - The fast widget in « verre coloré »: a blue-violet card, translucent buttons, a dark bar around the three tabs with the open one in light.
