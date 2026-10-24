@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: the buttons of the middle row of every tab have a much larger icon on the left side, leaning like the cell, with the word beside it. Not verified on a device.
+
 - Widget: Page and Contrat are yellow (not violet) when the repository has them.
 
 - Widget: the bottom buttons of every tab are icons only, and the bottom row is thinner (a third of the body).

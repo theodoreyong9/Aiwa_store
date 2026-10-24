@@ -131,7 +131,7 @@ object WidgetArt {
                 val poly = listOf(PointF(x0, bottom + 1.5f * unit), PointF(if (firstC) x0 else x0 + s2, top - 0.5f * unit), PointF(if (lastC) x1 else x1 + s2, top - 0.5f * unit), PointF(x1, bottom + 1.5f * unit))
                 cell(canvas, poly, btn.tone, btn.enabled, 6f * unit, unit, raised = false, seam = true)
                 val shift = (if (firstC) 0f else s2 / 2f) / 2f + (if (lastC) 0f else s2 / 2f) / 2f
-                content(context, canvas, RectF(x0 + shift, top, x1 + shift, bottom), btn.icon, if (btn.iconOnly) "" else btn.label, btn.enabled, unit, 255)
+                content(context, canvas, RectF(x0 + shift, top, x1 + shift, bottom), btn.icon, if (btn.iconOnly) "" else btn.label, btn.enabled, unit, 255, big = r == 0)
             }
         }
         // over everything: a band of light across the card (the glass catches a light), and a fine grain (matte glass, no flat gradients)
@@ -164,7 +164,8 @@ object WidgetArt {
     }
 
     /** The icon above the word (or beside it when the piece is low) in the middle of `box`. */
-    private fun content(context: Context, canvas: Canvas, box: RectF, iconRes: Int, label: String, enabled: Boolean, unit: Float, alpha0: Int) {
+    private fun content(context: Context, canvas: Canvas, box: RectF, iconRes: Int, label: String, enabled: Boolean, unit: Float, alpha0: Int, big: Boolean = false) {
+        if (big) { bigContent(context, canvas, box, iconRes, label, enabled, unit); return }
         val alpha = if (enabled) alpha0 else 120
         val text = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); textSize = 11f * unit; letterSpacing = 0.02f; color = withAlpha(0xFFF4F4FF.toInt(), alpha)
@@ -190,5 +191,30 @@ object WidgetArt {
             icon.setBounds((box.centerX() - size / 2f).toInt(), top.toInt(), (box.centerX() + size / 2f).toInt(), top.toInt() + size); icon.alpha = alpha; icon.draw(canvas)
             canvas.drawText(word, box.centerX() - textW / 2f, top + size + 1.5f * unit - text.ascent(), text)
         }
+    }
+
+    /** The cells of the middle row: a large icon on the left, leaning like the cell, and the word beside it (leaning too). */
+    private fun bigContent(context: Context, canvas: Canvas, box: RectF, iconRes: Int, label: String, enabled: Boolean, unit: Float) {
+        val alpha = if (enabled) 255 else 120
+        val text = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); textSize = 13f * unit; color = withAlpha(0xFFF4F4FF.toInt(), alpha)
+        }
+        val icon = if (iconRes != 0) ContextCompat.getDrawable(context, iconRes)?.mutate() else null
+        val size = minOf(box.height() * 0.66f, 40f * unit).toInt()
+        val pad = 12f * unit
+        canvas.save()
+        canvas.translate(0f, box.centerY()); canvas.skew(-0.22f, 0f); canvas.translate(0f, -box.centerY())     // the lean of the cell
+        if (icon != null) {
+            val word = if (label.isEmpty()) "" else TextUtils.ellipsize(label, text, (box.width() - pad * 2 - size - 6f * unit).coerceAtLeast(10f), TextUtils.TruncateAt.END).toString()
+            val textW = text.measureText(word)
+            val total = size + (if (word.isEmpty()) 0f else 8f * unit + textW)
+            val left = if (word.isEmpty()) box.centerX() - size / 2f else (box.left + pad).coerceAtMost(box.centerX() - total / 2f).coerceAtLeast(box.left + 6f * unit)
+            icon.setBounds(left.toInt(), (box.centerY() - size / 2f).toInt(), left.toInt() + size, (box.centerY() + size / 2f).toInt()); icon.alpha = alpha; icon.draw(canvas)
+            if (word.isNotEmpty()) canvas.drawText(word, left + size + 8f * unit, box.centerY() - (text.ascent() + text.descent()) / 2f, text)
+        } else {
+            val word = TextUtils.ellipsize(label, text, (box.width() - pad * 2).coerceAtLeast(10f), TextUtils.TruncateAt.END).toString()
+            canvas.drawText(word, box.centerX() - text.measureText(word) / 2f, box.centerY() - (text.ascent() + text.descent()) / 2f, text)
+        }
+        canvas.restore()
     }
 }
