@@ -94,7 +94,7 @@ object WidgetArt {
             val x0 = tx; val x1 = tx + span * tab.weight / total; tx = x1
             val top = if (i == active) 0f else tabH * 0.22f
             val sk = skew * (tabH - top) / tabH
-            tabShapes += listOf(PointF(x0, tabH + 1.5f * unit), PointF(if (i == 0) x0 else x0 + sk, top), PointF(if (i == tabs.size - 1) x1 else x1 + sk, top), PointF(x1, tabH + 1.5f * unit)) to top
+            tabShapes += listOf(PointF(x0, tabH + 1.5f * unit), PointF(x0 + sk, top), PointF(if (i == tabs.size - 1) x1 - sk else x1 + sk, top), PointF(x1, tabH + 1.5f * unit)) to top
         }
         val midBottom = tabH + (h - tabH) * (if (rows.size == 2) 10f / 15f else 1f)
         val card = Path().apply {
@@ -127,7 +127,7 @@ object WidgetArt {
             val (poly, top) = tabShapes[i]
             val tone = if (isOpen || tab.always) tab.tone else "grey"      // a tab is coloured only when it is open (or when it calls for attention)
             cell(canvas, poly, tone, true, 6f * unit, unit, raised = isOpen, seam = !isOpen)
-            val cx = (x0 + x1) / 2f + skew / 2f - (if (first) skew / 2f else 0f) - (if (last) skew / 2f else 0f)
+            val cx = (x0 + x1) / 2f + skew / 2f - (if (last) skew else 0f)
             content(context, canvas, RectF(cx - (x1 - x0) / 2f, top, cx + (x1 - x0) / 2f, tabH), tab.icon, "", true, unit, if (isOpen) 255 else 215)
             if (tab.dot) { val dr = 3.2f * unit; canvas.drawCircle(cx + 12f * unit, top + (tabH - top) / 2f - 9f * unit, dr, paint().apply { color = 0xCC52D6A0.toInt() }) }
         }
