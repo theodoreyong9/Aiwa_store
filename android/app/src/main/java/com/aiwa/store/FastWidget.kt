@@ -54,7 +54,7 @@ object FastWidget {
         if (ids.isEmpty()) return
         val state = AiwaRepository.state.value
         val tab = WidgetTab.get(context)
-        val kinds = lightKinds(state, context).filter { it.mode != "aiwa" }
+        val kinds = lightKinds(state, context)
         val signature = listOf(tab, state.repo, state.cloudSessionId, state.status, state.waiting, state.silenceMinutes, state.loopPair, state.listening, state.agent?.enabled, state.agent?.say != null, state.agent?.proposal != null,
             state.agent?.command != null, state.ask != null, state.appUpdateReady, state.attachments, Projects.isAll(context), Projects.nameOf(context, state.repo, state.cloudSessionId), hasTermuxPermission(context),
             kinds.map { it.word + it.found + it.current }).joinToString("|")
@@ -78,8 +78,8 @@ object FastWidget {
 
     /** A button of the widget is a column (icon above, label under): the colour and the tap are on the column, the words on its label. */
     private val LABEL = mapOf(R.id.fw_tab_domain to R.id.fw_tab_domain_t, R.id.fw_tab_files to R.id.fw_tab_files_t, R.id.fw_tab_build to R.id.fw_tab_build_t, R.id.fw_question to R.id.fw_question_t,
-        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_wallet to R.id.fw_wallet_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_store to R.id.fw_store_t, R.id.fw_scenario to R.id.fw_scenario_t,
-        R.id.fw_k0 to R.id.fw_k0_t, R.id.fw_k1 to R.id.fw_k1_t, R.id.fw_k2 to R.id.fw_k2_t, R.id.fw_k3 to R.id.fw_k3_t)
+        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_aiwa to R.id.fw_aiwa_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_scenario to R.id.fw_scenario_t,
+        R.id.fw_k0 to R.id.fw_k0_t, R.id.fw_k1 to R.id.fw_k1_t, R.id.fw_k2 to R.id.fw_k2_t, R.id.fw_k3 to R.id.fw_k3_t, R.id.fw_k4 to R.id.fw_k4_t)
 
     private fun RemoteViews.chip(id: Int, text: String?, color: String, textColor: Int = TEXT, click: PendingIntent? = null, bold: Boolean = false) {
         val label = LABEL[id] ?: id
@@ -124,17 +124,16 @@ object FastWidget {
             if (locked) broadcast(context, 6, ACTION_BUSY) else activity(context, 6, ProjectPickerActivity::class.java))
         v.chip(R.id.fw_loops, if (loopOn) "Boucle ${state.loopPair}" else "Boucles", if (loopOn) "green" else "pill", click = activity(context, 7, LoopsActivity::class.java))
         v.chip(R.id.fw_settings, "Réglages", "pill", click = activity(context, 8, SettingsActivity::class.java))
-        v.chip(R.id.fw_wallet, "Wallet", "pill", click = activity(context, 9, storePageIntent(context, "wallet", state.repo)))
+        v.chip(R.id.fw_aiwa, "Aiwa", "pill", click = activity(context, 9, Intent(context, StoreActivity::class.java)))
         // ---- Files ----
-        val kindIds = intArrayOf(R.id.fw_k0, R.id.fw_k1, R.id.fw_k2, R.id.fw_k3)
+        val kindIds = intArrayOf(R.id.fw_k0, R.id.fw_k1, R.id.fw_k2, R.id.fw_k3, R.id.fw_k4)
         kindIds.forEachIndexed { i, id ->
             val kind = kinds.getOrNull(i)
             v.setViewVisibility(id, if (kind == null) android.view.View.GONE else android.view.View.VISIBLE)
-            if (kind != null) v.setImageViewResource(intArrayOf(R.id.fw_k0_i, R.id.fw_k1_i, R.id.fw_k2_i, R.id.fw_k3_i)[i], when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; else -> R.drawable.fw_i_app })
-            if (kind != null) v.chip(id, kind.word, if (kind.found) "green" else "dim", if (kind.found) TEXT else TEXT_DIM, broadcast(context, 10 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")), bold = kind.current)
+            if (kind != null) v.setImageViewResource(intArrayOf(R.id.fw_k0_i, R.id.fw_k1_i, R.id.fw_k2_i, R.id.fw_k3_i, R.id.fw_k4_i)[i], when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; "android" -> R.drawable.fw_i_app; else -> R.drawable.fw_i_contract })
+            if (kind != null) v.chip(id, if (kind.mode == "aiwa") "Contrat" else kind.word, if (kind.found) "green" else "dim", if (kind.found) TEXT else TEXT_DIM, broadcast(context, 40 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")), bold = kind.current)
         }
         v.chip(R.id.fw_campaign, "Campagne", "blue", click = activity(context, 14, ProposalsActivity::class.java))
-        v.chip(R.id.fw_store, "Store", "pill", click = activity(context, 15, storePageIntent(context, "store", state.repo)))
         v.chip(R.id.fw_scenario, "Scénario", "pill", click = activity(context, 20, ScenariosActivity::class.java))
         // ---- Build: the robot (the permanent listening on puts the ear in its place), Claude, the ear and the + ----
         if (permanentOn) {
