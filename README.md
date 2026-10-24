@@ -54,7 +54,7 @@ Si Termux ou le cerveau manque, le widget le dit et un appui copie la ligne. Cla
 
 ## 3. Le widget
 
-Un seul widget, en vues Android classiques : un appui sur un onglet ne fait que tourner une page (rapide). Deux cellules de haut par défaut, étirable en hauteur. En haut, quatre **onglets** ; la **question** de Claude (rouge, un appui y répond) et la **mise à jour** (↻, seulement quand une version est prête) restent toujours visibles. Un point sur un onglet dit ce qui travaille (une boucle, l'écoute) ; rouge quand quelque chose attend ta réponse.
+Un seul widget, en vues Android classiques : un appui sur un onglet ne fait que tourner une page (rapide). Une cellule de haut par défaut (fin), étirable en hauteur. En haut, quatre **onglets** ; la **question** de Claude (rouge, un appui y répond) et la **mise à jour** (↻, seulement quand une version est prête) restent toujours visibles. Un point sur un onglet dit ce qui travaille (une boucle, l'écoute) ; rouge quand quelque chose attend ta réponse.
 
 - **Domaine** : Boucles · Wallet, puis Réglages · MCP (la porte des agents externes) · Cast TV (les télés trouvées, pour y envoyer une vidéo).
 - **Files** : Docs · Média · App · Page · Contrat (gris tant que le dépôt n'a rien de ce type, coloré sinon ; un appui l'ouvre), puis Projet ▾ (dépôt et session, ou *Tous*) · Campagnes.

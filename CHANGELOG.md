@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: thinner (one cell high by default instead of two; the middle row and the bottom row take less of it); Campagnes is as wide as Projet. A widget already on the screen keeps its height: pull it down to the size wanted, or remove it and add it again. Not verified on a device.
+
 - Widget: the colours of the buttons and tabs (and the dots) are translucent: the photo shows through. Not verified on a device.
 
 - Widget: the strip of the tabs and the last row are narrower than the middle row (7% in on each side), which gives the widget a stepped silhouette; Campagnes is wider (its word was cut). Not verified on a device.

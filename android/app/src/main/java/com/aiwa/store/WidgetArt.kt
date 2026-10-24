@@ -82,7 +82,7 @@ object WidgetArt {
         val canvas = Canvas(bmp)
         val w = widthPx.toFloat(); val h = heightPx.toFloat()
         val radius = 26f * unit
-        val tabH = h * 7f / 25f
+        val tabH = h * 7f / 22f
         val skew = tabH * 0.26f
         val total = tabs.sumOf { it.weight.toDouble() }.toFloat()
         // the tabs: slanted pieces (a closed one is lower than the open one); the card is the body under them PLUS the tabs, nothing around: the rest of the picture stays transparent
@@ -96,7 +96,7 @@ object WidgetArt {
             val sk = skew * (tabH - top) / tabH
             tabShapes += listOf(PointF(x0, tabH + 1.5f * unit), PointF(if (i == 0) x0 else x0 + sk, top), PointF(if (i == tabs.size - 1) x1 else x1 + sk, top), PointF(x1, tabH + 1.5f * unit)) to top
         }
-        val midBottom = tabH + (h - tabH) * (if (rows.size == 2) 12f / 18f else 1f)
+        val midBottom = tabH + (h - tabH) * (if (rows.size == 2) 10f / 15f else 1f)
         val card = Path().apply {
             if (rows.size == 2) {
                 addRoundRect(RectF(0f, tabH, w, midBottom), 9f * unit, 9f * unit, Path.Direction.CW)
@@ -133,7 +133,7 @@ object WidgetArt {
         }
         // the body: rows of cells that touch; the seams are slanted
         // the first row of the body (the middle of the widget) is the thickest; the tabs and the last row are thinner
-        val shares = if (rows.size == 2) listOf(12f, 6f) else List(rows.size) { 1f }
+        val shares = if (rows.size == 2) listOf(10f, 5f) else List(rows.size) { 1f }
         val sumShares = shares.sum()
         var rowTop = tabH
         rows.forEachIndexed { r, row ->
@@ -194,9 +194,9 @@ object WidgetArt {
         val textW = text.measureText(word)
         val textH = text.descent() - text.ascent()
         val icon = if (iconRes != 0) ContextCompat.getDrawable(context, iconRes)?.mutate() else null
-        val size = (20f * unit).toInt()
+        val size = minOf(20f * unit, box.height() * 0.62f).toInt()
         if (icon != null && label.isEmpty()) {          // the icon alone, a little larger
-            val big = (24f * unit).toInt()
+            val big = minOf(24f * unit, box.height() * 0.7f).toInt()
             icon.setBounds((box.centerX() - big / 2f).toInt(), (box.centerY() - big / 2f).toInt(), (box.centerX() + big / 2f).toInt(), (box.centerY() + big / 2f).toInt()); icon.alpha = alpha; icon.draw(canvas)
             return
         }

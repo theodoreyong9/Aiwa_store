@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ONE shape, thin: 4 cells wide, 1 cell high (it can be pulled taller: resizeMode vertical). The old text below said 2 cells high and not resizable. The
+<!-- ONE shape, thin: 4 cells wide, 1 cell high (thin; it can be pulled taller: resizeMode vertical). The
      widget draws four bands that share whatever height the launcher gives those
      two cells, so there is no empty strip and nothing to customise (asked for:
      "une seule forme, pas de personnalisation"). minWidth / minHeight are the
@@ -10,4 +10,4 @@
      android:configure: the launcher opens SetupActivity right after the widget is put on
      the screen, to ask the permissions once (Termux, notifications) — without opening
      the app; "configuration_optional" keeps the widget if that is dismissed. -->
-<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android" android:minWidth="250dp" android:minHeight="130dp" android:minResizeHeight="60dp" android:targetCellWidth="4" android:targetCellHeight="2" android:resizeMode="vertical" android:updatePeriodMillis="0" android:initialLayout="@layout/fast_widget" android:previewLayout="@layout/dictation_widget_preview" android:previewImage="@drawable/dictation_widget_preview" android:description="@string/widget_description" android:configure="com.aiwa.store.SetupActivity" android:widgetFeatures="configuration_optional" android:widgetCategory="home_screen|keyguard" android:initialKeyguardLayout="@layout/dictation_widget_placeholder" />
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android" android:minWidth="250dp" android:minHeight="70dp" android:minResizeHeight="50dp" android:targetCellWidth="4" android:targetCellHeight="1" android:resizeMode="vertical" android:updatePeriodMillis="0" android:initialLayout="@layout/fast_widget" android:previewLayout="@layout/dictation_widget_preview" android:previewImage="@drawable/dictation_widget_preview" android:description="@string/widget_description" android:configure="com.aiwa.store.SetupActivity" android:widgetFeatures="configuration_optional" android:widgetCategory="home_screen|keyguard" android:initialKeyguardLayout="@layout/dictation_widget_placeholder" />
