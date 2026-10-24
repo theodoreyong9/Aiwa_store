@@ -22,10 +22,10 @@ object FastWidget {
     const val ACTION_VOIR = "com.aiwa.store.FW_VOIR"
     private var lastSignature = ""
     /** How each tab looks when it is NOT the open one (its text and colour, from the last full drawing): a tap on a tab only needs these, not the state. */
-    private val tabText = mutableMapOf("domain" to "Domaine", "files" to "Files", "build" to "Build", "voir" to "Voir")
-    private val tabColor = mutableMapOf("domain" to "taboff", "files" to "taboff", "build" to "taboff", "voir" to "taboff")
-    private val tabView = mapOf("domain" to R.id.fw_tab_domain, "files" to R.id.fw_tab_files, "build" to R.id.fw_tab_build, "voir" to R.id.fw_tab_voir)
-    private val tabPage = mapOf("domain" to 0, "files" to 1, "build" to 2, "voir" to 3)
+    private val tabText = mutableMapOf("domain" to "Domaine", "files" to "Files", "build" to "Build", "voir" to "Voir", "papers" to "Papers")
+    private val tabColor = mutableMapOf("domain" to "taboff", "files" to "taboff", "build" to "taboff", "voir" to "taboff", "papers" to "taboff")
+    private val tabView = mapOf("domain" to R.id.fw_tab_domain, "files" to R.id.fw_tab_files, "build" to R.id.fw_tab_build, "voir" to R.id.fw_tab_voir, "papers" to R.id.fw_tab_papers)
+    private val tabPage = mapOf("domain" to 0, "files" to 1, "build" to 2, "voir" to 3, "papers" to 4)
 
     /** The tap on a tab: ONLY the page of the flipper and the two tabs concerned change, with a partial update; nothing of the state is read, nothing is rebuilt. */
     fun switchTab(context: Context, tab: String) {
@@ -79,7 +79,7 @@ object FastWidget {
 
     /** A button of the widget is a column (icon above, label under): the colour and the tap are on the column, the words on its label. */
     private val LABEL = mapOf(R.id.fw_tab_domain to R.id.fw_tab_domain_t, R.id.fw_tab_files to R.id.fw_tab_files_t, R.id.fw_tab_build to R.id.fw_tab_build_t, R.id.fw_question to R.id.fw_question_t,
-        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_wallet to R.id.fw_wallet_t, R.id.fw_tab_voir to R.id.fw_tab_voir_t, R.id.fw_voir_on to R.id.fw_voir_on_t, R.id.fw_v_link to R.id.fw_v_link_t, R.id.fw_v_near to R.id.fw_v_near_t, R.id.fw_v_qr to R.id.fw_v_qr_t, R.id.fw_v_fav to R.id.fw_v_fav_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_mcp to R.id.fw_mcp_t, R.id.fw_cast to R.id.fw_cast_t, R.id.fw_scenario to R.id.fw_scenario_t,
+        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_wallet to R.id.fw_wallet_t, R.id.fw_tab_voir to R.id.fw_tab_voir_t, R.id.fw_voir_on to R.id.fw_voir_on_t, R.id.fw_v_link to R.id.fw_v_link_t, R.id.fw_v_near to R.id.fw_v_near_t, R.id.fw_v_qr to R.id.fw_v_qr_t, R.id.fw_v_fav to R.id.fw_v_fav_t, R.id.fw_tab_papers to R.id.fw_tab_papers_t, R.id.fw_pa_film to R.id.fw_pa_film_t, R.id.fw_pa_src to R.id.fw_pa_src_t, R.id.fw_pa_yellow to R.id.fw_pa_yellow_t, R.id.fw_pa_plain to R.id.fw_pa_plain_t, R.id.fw_pa_value to R.id.fw_pa_value_t, R.id.fw_pa_slides to R.id.fw_pa_slides_t, R.id.fw_pa_plan to R.id.fw_pa_plan_t, R.id.fw_pa_biz to R.id.fw_pa_biz_t, R.id.fw_pa_soc to R.id.fw_pa_soc_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_mcp to R.id.fw_mcp_t, R.id.fw_cast to R.id.fw_cast_t, R.id.fw_scenario to R.id.fw_scenario_t,
         R.id.fw_k0 to R.id.fw_k0_t, R.id.fw_k1 to R.id.fw_k1_t, R.id.fw_k2 to R.id.fw_k2_t, R.id.fw_k3 to R.id.fw_k3_t, R.id.fw_k4 to R.id.fw_k4_t)
 
     private fun RemoteViews.chip(id: Int, text: String?, color: String, textColor: Int = TEXT, click: PendingIntent? = null, bold: Boolean = false) {
@@ -111,14 +111,14 @@ object FastWidget {
         tabText["files"] = "Files"; tabColor["files"] = "taboff"
         tabText["voir"] = "Voir" + (if (VoirSettings.on(context)) " ●" else ""); tabColor["voir"] = if (VoirSettings.on(context)) "green" else "taboff"
         tabText["build"] = "Build" + (if (buildBusy) " ●" else ""); tabColor["build"] = if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else if (buildBusy) "green" else "taboff"
-        listOf("domain", "files", "build", "voir").forEachIndexed { i, name ->
+        listOf("domain", "files", "build", "voir", "papers").forEachIndexed { i, name ->
             v.chip(tabView.getValue(name), tabText.getValue(name), if (tab == name) "tabon" else tabColor.getValue(name), if (tab == name) TAB_ON_TEXT else TAB_OFF_TEXT, click = broadcast(context, 1 + i, ACTION_TAB, "tab" to name), bold = tab == name)
         }
         v.setViewVisibility(R.id.fw_question, if (state.ask != null) android.view.View.VISIBLE else android.view.View.GONE)
         v.chip(R.id.fw_question, null, "red", click = activity(context, 4, AskActivity::class.java))
         v.setViewVisibility(R.id.fw_update, if (state.appUpdateReady) android.view.View.VISIBLE else android.view.View.GONE)
         v.box(R.id.fw_update, "green", activity(context, 5, InstallUpdateActivity::class.java))
-        v.setDisplayedChild(R.id.fw_flipper, when (tab) { "domain" -> 0; "files" -> 1; "voir" -> 3; else -> 2 })
+        v.setDisplayedChild(R.id.fw_flipper, when (tab) { "domain" -> 0; "files" -> 1; "voir" -> 3; "papers" -> 4; else -> 2 })
         // ---- Domaine ----
         val projectBad = !allMode && (state.repo == null || (accessNotice(state, 1) != null || state.backend == "missing" || state.claudeLogin == "needed"))
         val projectLabel = if (allMode) "Tous" else (Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet") + " ▾"
@@ -162,6 +162,13 @@ object FastWidget {
         v.setViewVisibility(R.id.fw_ear, if (!permanentOn && !agentOn) android.view.View.VISIBLE else android.view.View.GONE)
         v.box(R.id.fw_ear, if (state.listening) "green" else "pill", activity(context, 18, ListenToggleActivity::class.java))
         v.box(R.id.fw_plus, if (state.attachments > 0) "green" else "pill", activity(context, 19, PlusMenuActivity::class.java))
+        // ---- Papers: every link of the Papers tab of the app (the repository's documents), in the browser ----
+        listOf(R.id.fw_pa_film to "tree/main/docs/videos", R.id.fw_pa_src to "", R.id.fw_pa_yellow to "blob/main/docs/YELLOWPAPER.md", R.id.fw_pa_plain to "blob/main/docs/EXPLAINED.md",
+            R.id.fw_pa_value to "raw/main/docs/value-ontology.pdf", R.id.fw_pa_slides to "raw/main/docs/AIWA_carousel_16_pages_square_final.pdf", R.id.fw_pa_plan to "blob/main/docs/PLAN.md",
+            R.id.fw_pa_biz to "blob/main/docs/BUSINESS.md", R.id.fw_pa_soc to "blob/main/docs/VISION-SOCIETE-AUGMENTEE.md").forEachIndexed { i, (id, path) ->
+            val url = "https://github.com/theodoreyong9/Aiwa_store" + (if (path.isEmpty()) "" else "/$path")
+            v.chip(id, null, "pill", click = activity(context, 60 + i, Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))))
+        }
         // ---- Voir: visible or not, how far, and the window of the people near ----
         val voirOn = VoirSettings.on(context)
         v.chip(R.id.fw_voir_on, if (voirOn) "Visible" else "Caché", if (voirOn) "green" else "pill", click = broadcast(context, 50, ACTION_VOIR, "do" to "toggle"))
