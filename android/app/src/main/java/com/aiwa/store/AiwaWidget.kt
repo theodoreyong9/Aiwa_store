@@ -331,7 +331,7 @@ private val TAB_KEY = ActionParameters.Key<String>("aiwa-tab")
 /** Which tab of the widget is open (domain, files or build): kept by the phone, changed by a tap on a tab and by the super agent when it touches a button of another tab. */
 object WidgetTab {
     private const val FILE = "aiwa_widget_tab"
-    fun get(context: Context): String = try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("tab", "build") ?: "build" } catch (err: Exception) { "build" }
+    fun get(context: Context): String = try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("tab", "files") ?: "files" } catch (err: Exception) { "files" }
     fun set(context: Context, tab: String) { try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString("tab", tab).apply() } catch (err: Exception) { } }
     /** The tab that holds the button the super agent touched (null: the button is on no tab). */
     fun of(button: String): String? = when (button) {

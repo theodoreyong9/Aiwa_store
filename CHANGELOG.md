@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: it opens on Files by default (it still remembers the tab last used).
+
 - Widget: the outer corners of the strip of the tabs are cut (top left of Domaine, top right of the last tab). Not verified on a device.
 
 - Widget: thinner (one cell high by default instead of two; the middle row and the bottom row take less of it); Campagnes is as wide as Projet. A widget already on the screen keeps its height: pull it down to the size wanted, or remove it and add it again. Not verified on a device.
