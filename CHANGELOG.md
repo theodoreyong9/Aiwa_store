@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: the whole widget is now drawn as one picture per tab (card, slanted tabs, a mosaic of glass cells that touch, no gaps) under invisible touch zones; a tap on a tab still only turns two flippers. Not verified on a device (the CI compiles, the rendering must be judged on the phone).
+
 - Widget: a fifth tab, **Papers**, with one button for each link of the Papers tab of the app (the film, the source, the yellow paper, the plain words, the value paper, the carousel, the plan, the business model, the vision), opened in the browser.
 - The Build page of the widget is now DRAWN as a picture (a Canvas: glass bodies with a glow when active, a lit edge, icons and words), under invisible touch zones of the same proportions: a test of what drawing frees from the limits of widget views; the other pages follow if it pleases.
 - A new default scenario, **Candidature CV** (« scénario candidature »): you give your CV and the link of an ad; the double asks for what is missing, then runs the campaign through sessions (the cover letter, an application video in the first person, the CV set against the ad), invents nothing, and gives back the files and the link of the ad for you to send. Someone who already saved her scenarios gets it once (and can delete it) (brain 177).

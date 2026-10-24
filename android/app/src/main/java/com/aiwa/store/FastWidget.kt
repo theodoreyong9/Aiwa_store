@@ -12,8 +12,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * The widget in plain views (RemoteViews): the same three tabs as the Glance one, but a tap on a tab only turns a ViewFlipper and recolours the tabs, with no recomposition and no
- * trip through Glance, which made the switch slow. The state is read from AiwaRepository and drawn again whenever it changes (see AiwaApp); the buttons open the same screens.
+ * The widget: five pictures drawn by WidgetArt (one per tab, the card included) under invisible touch zones (res/layout/fast_widget.xml). A tap on a tab only turns the two ViewFlippers (a partial
+ * update): nothing is read, nothing is drawn again, so it is instant. The state is read from AiwaRepository and the pictures are drawn again whenever it changes (see AiwaApp).
  */
 object FastWidget {
     const val ACTION_TAB = "com.aiwa.store.FW_TAB"
@@ -21,35 +21,25 @@ object FastWidget {
     const val ACTION_BUSY = "com.aiwa.store.FW_BUSY"
     const val ACTION_VOIR = "com.aiwa.store.FW_VOIR"
     private var lastSignature = ""
-    /** How each tab looks when it is NOT the open one (its text and colour, from the last full drawing): a tap on a tab only needs these, not the state. */
-    private val tabText = mutableMapOf("domain" to "Domaine", "files" to "Files", "build" to "Build", "voir" to "Voir", "papers" to "Papers")
-    private val tabColor = mutableMapOf("domain" to "taboff", "files" to "taboff", "build" to "taboff", "voir" to "taboff", "papers" to "taboff")
-    private val tabView = mapOf("domain" to R.id.fw_tab_domain, "files" to R.id.fw_tab_files, "build" to R.id.fw_tab_build, "voir" to R.id.fw_tab_voir, "papers" to R.id.fw_tab_papers)
-    private val tabPage = mapOf("domain" to 0, "files" to 1, "build" to 5, "voir" to 3, "papers" to 4)
+    private val TABS = listOf("domain", "files", "build", "voir", "papers")
+    private val IMG = intArrayOf(R.id.fw_img0, R.id.fw_img1, R.id.fw_img2, R.id.fw_img3, R.id.fw_img4)
 
-    /** The tap on a tab: ONLY the page of the flipper and the two tabs concerned change, with a partial update; nothing of the state is read, nothing is rebuilt. */
+    /** The tap on a tab: ONLY the page of the two flippers changes, with a partial update. */
     fun switchTab(context: Context, tab: String) {
-        val before = WidgetTab.get(context)
         WidgetTab.set(context, tab)
         val ids = ids(context)
         if (ids.isEmpty()) return
         val v = RemoteViews(context.packageName, R.layout.fast_widget)
-        v.setDisplayedChild(R.id.fw_flipper, tabPage[tab] ?: 2)
-        if (before != tab) v.chip(tabView.getValue(before), tabText.getValue(before), tabColor.getValue(before), TAB_OFF_TEXT)
-        v.chip(tabView.getValue(tab), tabText.getValue(tab), "tabon", TAB_ON_TEXT, bold = true)
+        val page = TABS.indexOf(tab).coerceAtLeast(0)
+        v.setDisplayedChild(R.id.fw_img_flip, page)
+        v.setDisplayedChild(R.id.fw_zone_flip, page)
         try { AppWidgetManager.getInstance(context).partiallyUpdateAppWidget(ids, v) } catch (err: Exception) { render(context, force = true) }
         lastSignature = ""      // the next full drawing is not skipped
     }
 
-    private val BG = mapOf("pill" to R.drawable.fw_pill, "blue" to R.drawable.fw_blue, "green" to R.drawable.fw_green, "red" to R.drawable.fw_red, "dim" to R.drawable.fw_dim, "tabon" to R.drawable.fw_tabon, "violet" to R.drawable.fw_violet, "violetdim" to R.drawable.fw_violetdim, "taboff" to R.drawable.fw_taboff, "orange" to R.drawable.fw_orange)
-    private const val TEXT = 0xFFF0F0F5.toInt()
-    private const val TEXT_DIM = 0xFF828290.toInt()
-    private const val TAB_ON_TEXT = 0xFFFFFFFF.toInt()
-    private const val TAB_OFF_TEXT = 0xFFCFD3FF.toInt()
-
     fun ids(context: Context): IntArray = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, AiwaWidgetReceiver::class.java))
 
-    /** Draws the widget again from the current state; `force` also when nothing visible changed (a tap on a tab, a new widget). */
+    /** Draws the widget again from the current state; `force` also when nothing visible changed (a new widget, a new size). */
     fun render(context: Context, force: Boolean = false) {
         val ids = ids(context)
         if (ids.isEmpty()) return
@@ -61,7 +51,7 @@ object FastWidget {
             kinds.map { it.word + it.found + it.current }, VoirSettings.on(context), VoirSettings.radius(context)).joinToString("|")
         if (!force && signature == lastSignature) return
         lastSignature = signature
-        val views = build(context, state, tab, kinds)
+        val views = try { build(context, state, tab, kinds) } catch (err: Throwable) { return }
         try { AppWidgetManager.getInstance(context).updateAppWidget(ids, views) } catch (err: Exception) { }
     }
 
@@ -77,23 +67,10 @@ object FastWidget {
         return PendingIntent.getBroadcast(context, code, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
-    /** A button of the widget is a column (icon above, label under): the colour and the tap are on the column, the words on its label. */
-    private val LABEL = mapOf(R.id.fw_tab_domain to R.id.fw_tab_domain_t, R.id.fw_tab_files to R.id.fw_tab_files_t, R.id.fw_tab_build to R.id.fw_tab_build_t, R.id.fw_question to R.id.fw_question_t,
-        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_wallet to R.id.fw_wallet_t, R.id.fw_tab_voir to R.id.fw_tab_voir_t, R.id.fw_voir_on to R.id.fw_voir_on_t, R.id.fw_v_link to R.id.fw_v_link_t, R.id.fw_v_near to R.id.fw_v_near_t, R.id.fw_v_qr to R.id.fw_v_qr_t, R.id.fw_v_fav to R.id.fw_v_fav_t, R.id.fw_tab_papers to R.id.fw_tab_papers_t, R.id.fw_pa_film to R.id.fw_pa_film_t, R.id.fw_pa_src to R.id.fw_pa_src_t, R.id.fw_pa_yellow to R.id.fw_pa_yellow_t, R.id.fw_pa_plain to R.id.fw_pa_plain_t, R.id.fw_pa_value to R.id.fw_pa_value_t, R.id.fw_pa_slides to R.id.fw_pa_slides_t, R.id.fw_pa_plan to R.id.fw_pa_plan_t, R.id.fw_pa_biz to R.id.fw_pa_biz_t, R.id.fw_pa_soc to R.id.fw_pa_soc_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_mcp to R.id.fw_mcp_t, R.id.fw_cast to R.id.fw_cast_t, R.id.fw_scenario to R.id.fw_scenario_t,
-        R.id.fw_k0 to R.id.fw_k0_t, R.id.fw_k1 to R.id.fw_k1_t, R.id.fw_k2 to R.id.fw_k2_t, R.id.fw_k3 to R.id.fw_k3_t, R.id.fw_k4 to R.id.fw_k4_t)
+    /** One cell of a page: what is drawn, its share of the row, and what a tap does (none = nothing). */
+    private class Cell(val btn: WidgetArt.Btn, val weight: Float, val click: PendingIntent?)
 
-    private fun RemoteViews.chip(id: Int, text: String?, color: String, textColor: Int = TEXT, click: PendingIntent? = null, bold: Boolean = false) {
-        val label = LABEL[id] ?: id
-        if (text != null) setTextViewText(label, if (bold) android.text.SpannableString(text).also { it.setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, it.length, 0) } else text)
-        setInt(id, "setBackgroundResource", BG.getValue(color))
-        setTextColor(label, textColor)
-        if (click != null) setOnClickPendingIntent(id, click)
-    }
-
-    private fun RemoteViews.box(id: Int, color: String, click: PendingIntent) {
-        setInt(id, "setBackgroundResource", BG.getValue(color))
-        setOnClickPendingIntent(id, click)
-    }
+    private fun id(context: Context, name: String): Int = context.resources.getIdentifier(name, "id", context.packageName)
 
     private fun build(context: Context, state: AiwaState, tab: String, kinds: List<LightKind>): RemoteViews {
         val v = RemoteViews(context.packageName, R.layout.fast_widget)
@@ -104,116 +81,111 @@ object FastWidget {
         val agentNeeds = state.agent?.let { it.say != null || it.proposal != null || it.command != null } == true
         val needsSetup = !hasTermuxPermission(context)
         val permanentOn = state.listening && !needsSetup
-        v.setInt(R.id.fw_root, "setBackgroundResource", if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg)
-        // ---- the tabs; the question and the update stay in view whatever the tab ----
+        val voirOn = VoirSettings.on(context)
+        val alert = state.waiting
         val buildBusy = agentOn || permanentOn
-        tabText["domain"] = "Domaine" + (if (loopOn) " ●" else ""); tabColor["domain"] = if (loopOn) "green" else "taboff"
-        tabText["files"] = "Files"; tabColor["files"] = "taboff"
-        tabText["voir"] = "Voir" + (if (VoirSettings.on(context)) " ●" else ""); tabColor["voir"] = if (VoirSettings.on(context)) "green" else "taboff"
-        tabText["build"] = "Build" + (if (buildBusy) " ●" else ""); tabColor["build"] = if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else if (buildBusy) "green" else "taboff"
-        listOf("domain", "files", "build", "voir", "papers").forEachIndexed { i, name ->
-            v.chip(tabView.getValue(name), tabText.getValue(name), if (tab == name) "tabon" else tabColor.getValue(name), if (tab == name) TAB_ON_TEXT else TAB_OFF_TEXT, click = broadcast(context, 1 + i, ACTION_TAB, "tab" to name), bold = tab == name)
-        }
-        v.setViewVisibility(R.id.fw_question, if (state.ask != null) android.view.View.VISIBLE else android.view.View.GONE)
-        v.chip(R.id.fw_question, null, "red", click = activity(context, 4, AskActivity::class.java))
-        v.setViewVisibility(R.id.fw_update, if (state.appUpdateReady) android.view.View.VISIBLE else android.view.View.GONE)
-        v.box(R.id.fw_update, "green", activity(context, 5, InstallUpdateActivity::class.java))
-        v.setDisplayedChild(R.id.fw_flipper, when (tab) { "domain" -> 0; "files" -> 1; "voir" -> 3; "papers" -> 4; else -> 5 })
+        // ---- the tabs (the question and the update join the strip only when there is one) ----
+        val tabs = mutableListOf(
+            WidgetArt.Tab(R.drawable.fw_i_domain, "Domaine" + (if (loopOn) " ●" else ""), if (loopOn) "green" else "grey"),
+            WidgetArt.Tab(R.drawable.fw_i_files, "Files"),
+            WidgetArt.Tab(R.drawable.fw_i_build, "Build" + (if (buildBusy) " ●" else ""), if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else if (buildBusy) "green" else "grey"),
+            WidgetArt.Tab(R.drawable.fw_i_voir, "Voir" + (if (voirOn) " ●" else ""), if (voirOn) "green" else "grey"),
+            WidgetArt.Tab(R.drawable.fw_i_papers, "Papers"))
+        val ask = state.ask != null
+        val upd = state.appUpdateReady
+        if (ask) tabs += WidgetArt.Tab(R.drawable.fw_i_question, "Question", "red")
+        if (upd) tabs += WidgetArt.Tab(R.drawable.fw_i_update, "Mise à jour", "green")
+        TABS.forEachIndexed { i, name -> v.setOnClickPendingIntent(id(context, "t_$name"), broadcast(context, 1 + i, ACTION_TAB, "tab" to name)) }
+        v.setViewVisibility(R.id.t_ask, if (ask) android.view.View.VISIBLE else android.view.View.GONE)
+        v.setViewVisibility(R.id.t_upd, if (upd) android.view.View.VISIBLE else android.view.View.GONE)
+        v.setOnClickPendingIntent(R.id.t_ask, activity(context, 4, AskActivity::class.java))
+        v.setOnClickPendingIntent(R.id.t_upd, activity(context, 5, InstallUpdateActivity::class.java))
         // ---- Domaine ----
         val projectBad = !allMode && (state.repo == null || (accessNotice(state, 1) != null || state.backend == "missing" || state.claudeLogin == "needed"))
         val projectLabel = if (allMode) "Tous" else (Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet") + " ▾"
-        v.chip(R.id.fw_project, projectLabel, if (allMode) "green" else if (locked) "dim" else if (projectBad) "red" else "blue", if (locked) TEXT_DIM else TEXT,
-            if (locked) broadcast(context, 6, ACTION_BUSY) else activity(context, 6, ProjectPickerActivity::class.java))
-        v.chip(R.id.fw_loops, if (loopOn) "Boucle ${state.loopPair}" else "Boucles", if (loopOn) "green" else "pill", click = activity(context, 7, LoopsActivity::class.java))
-        v.chip(R.id.fw_settings, "Réglages", "pill", click = activity(context, 8, SettingsActivity::class.java))
-        v.chip(R.id.fw_wallet, "Wallet", "pill", click = activity(context, 9, storePageIntent(context, "wallet", state.repo)))
-        // ---- Files ----
-        val kindIds = intArrayOf(R.id.fw_k0, R.id.fw_k1, R.id.fw_k2, R.id.fw_k3, R.id.fw_k4)
-        kindIds.forEachIndexed { i, id ->
-            val kind = kinds.getOrNull(i)
-            v.setViewVisibility(id, if (kind == null) android.view.View.GONE else android.view.View.VISIBLE)
-            if (kind != null) v.setImageViewResource(intArrayOf(R.id.fw_k0_i, R.id.fw_k1_i, R.id.fw_k2_i, R.id.fw_k3_i, R.id.fw_k4_i)[i], when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; "android" -> R.drawable.fw_i_app; else -> R.drawable.fw_i_contract })
-            if (kind != null) v.chip(id, if (kind.mode == "aiwa") "Contrat" else kind.word, if (kind.mode == "pages" || kind.mode == "aiwa") (if (kind.found) "violet" else "violetdim") else if (kind.found) "green" else "dim", if (kind.found) TEXT else TEXT_DIM, broadcast(context, 40 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")), bold = kind.current)
+        val project = WidgetArt.Btn(R.drawable.fw_i_project, projectLabel, if (allMode) "green" else if (projectBad) "red" else "blue", enabled = !locked)
+        val projectTap = if (locked) broadcast(context, 6, ACTION_BUSY) else activity(context, 6, ProjectPickerActivity::class.java)
+        val domain = listOf(
+            listOf(Cell(project, 2f, projectTap), Cell(WidgetArt.Btn(R.drawable.fw_i_loops, if (loopOn) "Boucle ${state.loopPair}" else "Boucles", if (loopOn) "green" else "grey"), 1f, activity(context, 7, LoopsActivity::class.java))),
+            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_settings, "Réglages"), 1f, activity(context, 8, SettingsActivity::class.java)),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_wallet, "Wallet"), 1f, activity(context, 9, storePageIntent(context, "wallet", state.repo))),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_mcp, "MCP"), 1f, activity(context, 21, ExternalActivity::class.java)),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_cast, "Cast TV"), 1f, activity(context, 22, CastActivity::class.java))))
+        // ---- Files: the project and the campaigns, then one cell per kind of file found ----
+        val kindCells = kinds.take(5).mapIndexed { i, kind ->
+            val icon = when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; "android" -> R.drawable.fw_i_app; else -> R.drawable.fw_i_contract }
+            val tone = if (kind.mode == "pages" || kind.mode == "aiwa") "violet" else if (kind.found) "green" else "grey"
+            Cell(WidgetArt.Btn(icon, if (kind.mode == "aiwa") "Contrat" else kind.word, tone, enabled = kind.found || kind.mode == "pages" || kind.mode == "aiwa"), 1f,
+                broadcast(context, 40 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")))
+        }.ifEmpty { listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_files, "Aucun fichier", enabled = false), 1f, null)) }
+        val files = listOf(
+            listOf(Cell(project, 2f, projectTap), Cell(WidgetArt.Btn(R.drawable.fw_i_campaign, "Campagnes", "blue"), 1f, activity(context, 14, ProposalsActivity::class.java))),
+            kindCells)
+        // ---- Build: the robot (the permanent listening on puts the ear in its place), Claude, then the ear, the + and the scenarios ----
+        val robot = when {
+            permanentOn -> WidgetArt.Btn(R.drawable.fw_i_ear, "Écoute permanente", "green")
+            needsSetup -> WidgetArt.Btn(R.drawable.fw_i_robot, "Autoriser Aiwa", "red")
+            agentNeeds -> WidgetArt.Btn(R.drawable.fw_i_robot, "Il a quelque chose à dire", "red")
+            agentOn -> WidgetArt.Btn(R.drawable.fw_i_robot, "Super agent · à l'écoute", "green")
+            else -> WidgetArt.Btn(R.drawable.fw_i_robot, "Super agent")
         }
-        v.chip(R.id.fw_cast, null, "pill", click = activity(context, 22, CastActivity::class.java))
-        v.chip(R.id.fw_mcp, "MCP", "pill", click = activity(context, 21, ExternalActivity::class.java))
-        v.chip(R.id.fw_campaign, "Campagne", "blue", click = activity(context, 14, ProposalsActivity::class.java))
-        v.chip(R.id.fw_scenario, "Scénario", "pill", click = activity(context, 20, ScenariosActivity::class.java))
-        // ---- Build: the robot (the permanent listening on puts the ear in its place), Claude, the ear and the + ----
-        if (permanentOn) {
-            v.box(R.id.fw_robot, "green", activity(context, 16, ListenToggleActivity::class.java))
-            v.setImageViewResource(R.id.fw_robot_icon, R.drawable.fw_i_ear)
-            v.setTextViewText(R.id.fw_robot_label, "Écoute permanente")
-            v.setViewVisibility(R.id.fw_robot_icon, android.view.View.VISIBLE)
-            v.setViewVisibility(R.id.fw_robot_text, android.view.View.GONE)
-            v.setViewVisibility(R.id.fw_robot_label, android.view.View.VISIBLE)
-        } else {
-            v.box(R.id.fw_robot, if (needsSetup || agentNeeds) "red" else if (agentOn) "green" else "pill", if (needsSetup) activity(context, 16, SetupActivity::class.java) else activity(context, 16, AgentToggleActivity::class.java))
-            v.setImageViewResource(R.id.fw_robot_icon, R.drawable.fw_i_robot)
-            v.setTextViewText(R.id.fw_robot_label, if (agentNeeds) "Il a quelque chose à dire" else if (agentOn) "Super agent · à l'écoute" else "Super agent")
-            v.setViewVisibility(R.id.fw_robot_icon, if (needsSetup) android.view.View.GONE else android.view.View.VISIBLE)
-            v.setViewVisibility(R.id.fw_robot_text, if (needsSetup) android.view.View.VISIBLE else android.view.View.GONE)
-            v.setViewVisibility(R.id.fw_robot_label, if (needsSetup) android.view.View.GONE else android.view.View.VISIBLE)
-        }
-        v.setTextViewText(R.id.fw_ear_label, if (state.listening) "Écoute active" else "Écoute")
-        v.setTextViewText(R.id.fw_plus_label, if (state.attachments > 0) "${state.attachments} jointe(s)" else "Ajouter")
-        v.setViewVisibility(R.id.fw_claude, if (state.cloudSessionId != null) android.view.View.VISIBLE else android.view.View.GONE)
-        v.box(R.id.fw_claude, if (state.waiting || state.silenceMinutes > 0) "red" else "orange", activity(context, 17, OpenClaudeActivity::class.java))
-        v.setViewVisibility(R.id.fw_ear, if (!permanentOn && !agentOn) android.view.View.VISIBLE else android.view.View.GONE)
-        v.box(R.id.fw_ear, if (state.listening) "green" else "pill", activity(context, 18, ListenToggleActivity::class.java))
-        v.box(R.id.fw_plus, if (state.attachments > 0) "green" else "pill", activity(context, 19, PlusMenuActivity::class.java))
-        // ---- Build, drawn as a picture (WidgetArt) under invisible touch zones of the same proportions ----
-        run {
-            val (pw, ph) = pageSizePx(context)
-            val robot = when {
-                permanentOn -> WidgetArt.Btn(R.drawable.fw_i_ear, "Écoute permanente", "green")
-                needsSetup -> WidgetArt.Btn(R.drawable.fw_i_robot, "Autoriser Aiwa", "red")
-                agentNeeds -> WidgetArt.Btn(R.drawable.fw_i_robot, "Il a quelque chose à dire", "red")
-                agentOn -> WidgetArt.Btn(R.drawable.fw_i_robot, "Super agent · à l'écoute", "green")
-                else -> WidgetArt.Btn(R.drawable.fw_i_robot, "Super agent")
-            }
-            val claude = WidgetArt.Btn(R.drawable.fw_i_claude, "Claude", if (state.waiting || state.silenceMinutes > 0) "red" else "orange", enabled = state.cloudSessionId != null)
-            val ear = WidgetArt.Btn(R.drawable.fw_i_ear, if (state.listening) "Écoute active" else "Écoute", if (state.listening) "green" else "grey", enabled = !permanentOn && !agentOn)
-            val plus = WidgetArt.Btn(R.drawable.fw_i_plus, if (state.attachments > 0) "${state.attachments} jointe(s)" else "Ajouter", if (state.attachments > 0) "green" else "grey")
-            val scenario = WidgetArt.Btn(R.drawable.fw_i_scenario, "Scénario", "violet")
-            v.setImageViewBitmap(R.id.fw_art_build, WidgetArt.page(context, pw, ph, listOf(listOf(robot to 3f, claude to 1f), listOf(ear to 1f, plus to 1f, scenario to 1f))))
-            v.setOnClickPendingIntent(R.id.fw_z_robot, if (permanentOn) activity(context, 70, ListenToggleActivity::class.java) else if (needsSetup) activity(context, 70, SetupActivity::class.java) else activity(context, 70, AgentToggleActivity::class.java))
-            if (state.cloudSessionId != null) v.setOnClickPendingIntent(R.id.fw_z_claude, activity(context, 71, OpenClaudeActivity::class.java))
-            if (!permanentOn && !agentOn) v.setOnClickPendingIntent(R.id.fw_z_ear, activity(context, 72, ListenToggleActivity::class.java))
-            v.setOnClickPendingIntent(R.id.fw_z_plus, activity(context, 73, PlusMenuActivity::class.java))
-            v.setOnClickPendingIntent(R.id.fw_z_scen, activity(context, 74, ScenariosActivity::class.java))
-        }
+        val robotTap = if (permanentOn) activity(context, 70, ListenToggleActivity::class.java) else if (needsSetup) activity(context, 70, SetupActivity::class.java) else activity(context, 70, AgentToggleActivity::class.java)
+        val hasClaude = state.cloudSessionId != null
+        val earOk = !permanentOn && !agentOn
+        val buildPage = listOf(
+            listOf(Cell(robot, 3f, robotTap),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_claude, "Claude", if (state.waiting || state.silenceMinutes > 0) "red" else "orange", enabled = hasClaude), 1f, if (hasClaude) activity(context, 71, OpenClaudeActivity::class.java) else null)),
+            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_ear, if (state.listening) "Écoute active" else "Écoute", if (state.listening) "green" else "grey", enabled = earOk), 1f, if (earOk) activity(context, 72, ListenToggleActivity::class.java) else null),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_plus, if (state.attachments > 0) "${state.attachments} jointe(s)" else "Ajouter", if (state.attachments > 0) "green" else "grey"), 1f, activity(context, 73, PlusMenuActivity::class.java)),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_scenario, "Scénario", "violet"), 1f, activity(context, 74, ScenariosActivity::class.java))))
+        // ---- Voir: visible or not, then the four ways to see ----
+        val voir = listOf(
+            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_voir, if (voirOn) "Visible" else "Caché", if (voirOn) "green" else "grey"), 1f, broadcast(context, 50, ACTION_VOIR, "do" to "toggle"))),
+            listOf("lien" to (R.drawable.fw_i_link to "Lien"), "proche" to (R.drawable.fw_i_pin to "Proximité"), "qr" to (R.drawable.fw_i_qr to "QR code"), "favoris" to (R.drawable.fw_i_star to "Favoris")).mapIndexed { i, (mode, il) ->
+                Cell(WidgetArt.Btn(il.first, il.second, if (mode == "proche" && voirOn) "green" else "grey"), 1f, activity(context, 51 + i, voirIntent(context, state, kinds, mode))) })
         // ---- Papers: every link of the Papers tab of the app (the repository's documents), in the browser ----
-        listOf(R.id.fw_pa_film to "tree/main/docs/videos", R.id.fw_pa_src to "", R.id.fw_pa_yellow to "blob/main/docs/YELLOWPAPER.md", R.id.fw_pa_plain to "blob/main/docs/EXPLAINED.md",
-            R.id.fw_pa_value to "raw/main/docs/value-ontology.pdf", R.id.fw_pa_slides to "raw/main/docs/AIWA_carousel_16_pages_square_final.pdf", R.id.fw_pa_plan to "blob/main/docs/PLAN.md",
-            R.id.fw_pa_biz to "blob/main/docs/BUSINESS.md", R.id.fw_pa_soc to "blob/main/docs/VISION-SOCIETE-AUGMENTEE.md").forEachIndexed { i, (id, path) ->
-            val url = "https://github.com/theodoreyong9/Aiwa_store" + (if (path.isEmpty()) "" else "/$path")
-            v.chip(id, null, "pill", click = activity(context, 60 + i, Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))))
+        val papers = listOf(
+            Triple("Films", R.drawable.fw_i_media, "tree/main/docs/videos"), Triple("Source", R.drawable.fw_i_docs, ""), Triple("Yellow", R.drawable.fw_i_book, "blob/main/docs/YELLOWPAPER.md"),
+            Triple("Simple", R.drawable.fw_i_papers, "blob/main/docs/EXPLAINED.md"), Triple("Valeur", R.drawable.fw_i_papers, "raw/main/docs/value-ontology.pdf"),
+            Triple("Slides", R.drawable.fw_i_slides, "raw/main/docs/AIWA_carousel_16_pages_square_final.pdf"), Triple("Plan", R.drawable.fw_i_papers, "blob/main/docs/PLAN.md"),
+            Triple("Business", R.drawable.fw_i_papers, "blob/main/docs/BUSINESS.md"), Triple("Société", R.drawable.fw_i_papers, "blob/main/docs/VISION-SOCIETE-AUGMENTEE.md")).mapIndexed { i, (word, icon, path) ->
+            Cell(WidgetArt.Btn(icon, word), 1f, activity(context, 60 + i, Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/theodoreyong9/Aiwa_store" + (if (path.isEmpty()) "" else "/$path")))))
         }
-        // ---- Voir: visible or not, how far, and the window of the people near ----
-        val voirOn = VoirSettings.on(context)
-        v.chip(R.id.fw_voir_on, if (voirOn) "Visible" else "Caché", if (voirOn) "green" else "pill", click = broadcast(context, 50, ACTION_VOIR, "do" to "toggle"))
-        listOf(R.id.fw_v_link to "lien", R.id.fw_v_near to "proche", R.id.fw_v_qr to "qr", R.id.fw_v_fav to "favoris").forEachIndexed { i, (id, mode) ->
-            v.chip(id, null, if (mode == "proche" && voirOn) "green" else "pill", click = activity(context, 51 + i, voirIntent(context, state, kinds, mode)))
+        val pages = listOf(domain, files, buildPage, voir, listOf(papers.take(5), papers.drop(5)))
+        // ---- the pictures and the touch zones ----
+        val (pw, ph) = sizePx(context)
+        val letter = listOf("d", "f", "b", "v", "p")
+        pages.forEachIndexed { p, rows ->
+            v.setImageViewBitmap(IMG[p], WidgetArt.full(context, pw, ph, alert, tabs, p, rows.map { row -> row.map { it.btn to it.weight } }))
+            rows.forEachIndexed { r, row ->
+                row.forEachIndexed { c, cell -> id(context, "z_${letter[p]}_${r}_$c").let { zid -> v.setViewVisibility(zid, android.view.View.VISIBLE); cell.click?.let { v.setOnClickPendingIntent(zid, it) } } }
+            }
         }
+        // a zone with no cell under it (fewer kinds of files than five) must not take a share of its row
+        for (c in kindCells.size until 5) v.setViewVisibility(id(context, "z_f_1_$c"), android.view.View.GONE)
+        val page = TABS.indexOf(tab).coerceAtLeast(0)
+        v.setDisplayedChild(R.id.fw_img_flip, page)
+        v.setDisplayedChild(R.id.fw_zone_flip, page)
         return v
     }
 
-    /** The size, in pixels, of the pictures of a page: the width of the widget less its padding, two thirds of its height (the tabs are the first third); a picture is never wider than 1100 px. */
-    private fun pageSizePx(context: Context): Pair<Int, Int> {
-        val d = context.resources.displayMetrics.density
-        var w = 330f; var h = 84f
+    /** The size, in pixels, of the pictures: the size of the widget (from its options) and never so many pixels that five of them exceed what a RemoteViews may carry (a fraction of the screen's memory). */
+    private fun sizePx(context: Context): Pair<Int, Int> {
+        val dm = context.resources.displayMetrics
+        val d = dm.density
+        var w = 330f; var h = 126f
         try {
             val id = ids(context).firstOrNull()
             if (id != null) {
                 val o = AppWidgetManager.getInstance(context).getAppWidgetOptions(id)
                 val minW = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0); val maxH = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
-                if (minW > 0) w = minW - 12f
-                if (maxH > 0) h = (maxH - 8f) * 2f / 3f
+                if (minW > 0) w = minW.toFloat()
+                if (maxH > 0) h = maxH.toFloat()
             }
         } catch (err: Exception) { /* the default size */ }
-        val k = minOf(1f, 1100f / (w * d))
-        return maxOf(120, (w * d * k).toInt()) to maxOf(60, (h * d * k).toInt())
+        val budget = dm.widthPixels.toFloat() * dm.heightPixels * 4f * 1.5f * 0.7f / (5f * 4f)   // pixels per picture
+        val k = minOf(1f, 900f / (w * d), Math.sqrt((budget / (w * d * h * d)).toDouble()).toFloat())
+        return maxOf(150, (w * d * k).toInt()) to maxOf(60, (h * d * k).toInt())
     }
 
     /** The window « Voir » (a page of the web app): the links of the Files of the current repository, the reach, and whether they are published. */
