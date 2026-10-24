@@ -118,7 +118,7 @@ object FastWidget {
                 broadcast(context, 40 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")))
         }.ifEmpty { listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_files, "Aucun fichier", enabled = false), 1f, null)) }
         val files = listOf(
-            listOf(Cell(project, 2f, projectTap), Cell(WidgetArt.Btn(R.drawable.fw_i_campaign, "Campagnes", "green"), 1f, activity(context, 14, ProposalsActivity::class.java))),
+            listOf(Cell(project, 3f, projectTap), Cell(WidgetArt.Btn(R.drawable.fw_i_campaign, "Campagnes", "green"), 2f, activity(context, 14, ProposalsActivity::class.java))),
             kindCells)
         // ---- Build: the robot (the permanent listening on puts the ear in its place), Claude, then the ear, the + and the scenarios ----
         val robot = when {

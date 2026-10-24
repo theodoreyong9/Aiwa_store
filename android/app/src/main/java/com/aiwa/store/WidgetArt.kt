@@ -78,14 +78,22 @@ object WidgetArt {
         val total = tabs.sumOf { it.weight.toDouble() }.toFloat()
         // the tabs: slanted pieces (a closed one is lower than the open one); the card is the body under them PLUS the tabs, nothing around: the rest of the picture stays transparent
         val tabShapes = ArrayList<Pair<List<PointF>, Float>>()
-        var tx = 0f
+        val inset = w * 0.07f                         // the strip of the tabs and the last row are narrower than the middle row: the silhouette of the widget has steps
+        val span = w - 2 * inset
+        var tx = inset
         tabs.forEachIndexed { i, tab ->
-            val x0 = tx; val x1 = tx + w * tab.weight / total; tx = x1
+            val x0 = tx; val x1 = tx + span * tab.weight / total; tx = x1
             val top = if (i == active) 0f else tabH * 0.22f
             val sk = skew * (tabH - top) / tabH
             tabShapes += listOf(PointF(x0, tabH + 1.5f * unit), PointF(if (i == 0) x0 else x0 + sk, top), PointF(if (i == tabs.size - 1) x1 else x1 + sk, top), PointF(x1, tabH + 1.5f * unit)) to top
         }
-        val card = Path().apply { addRoundRect(RectF(0f, tabH, w, h), floatArrayOf(8f * unit, 8f * unit, 8f * unit, 8f * unit, radius, radius, radius, radius), Path.Direction.CW) }
+        val midBottom = tabH + (h - tabH) * (if (rows.size == 2) 12f / 18f else 1f)
+        val card = Path().apply {
+            if (rows.size == 2) {
+                addRoundRect(RectF(0f, tabH, w, midBottom), 9f * unit, 9f * unit, Path.Direction.CW)
+                op(Path().apply { addRoundRect(RectF(inset, midBottom - 4f * unit, w - inset, h), floatArrayOf(0f, 0f, 0f, 0f, radius, radius, radius, radius), Path.Direction.CW) }, Path.Op.UNION)
+            } else addRoundRect(RectF(0f, tabH, w, h), floatArrayOf(8f * unit, 8f * unit, 8f * unit, 8f * unit, radius, radius, radius, radius), Path.Direction.CW)
+        }
         tabShapes.forEach { (poly, _) -> card.op(Path().apply { moveTo(poly[0].x, poly[0].y); for (p in poly.drop(1)) lineTo(p.x, p.y); close() }, Path.Op.UNION) }
         canvas.save(); canvas.clipPath(card)
         // the card: a diagonal gradient, a sheen on top
@@ -102,9 +110,9 @@ object WidgetArt {
         // the body under the tabs: lighter glass
         canvas.drawRect(0f, tabH, w, h, paint().apply { shader = LinearGradient(0f, tabH, 0f, h, 0x22FFFFFF, 0x0AFFFFFF, Shader.TileMode.CLAMP) })
         // the tabs: the open one is raised glass that joins the body
-        var x = 0f
+        var x = inset
         tabs.forEachIndexed { i, tab ->
-            val x0 = x; val x1 = x + w * tab.weight / total; x = x1
+            val x0 = x; val x1 = x + span * tab.weight / total; x = x1
             val first = i == 0; val last = i == tabs.size - 1
             val isOpen = i == active
             val (poly, top) = tabShapes[i]
@@ -124,9 +132,11 @@ object WidgetArt {
             val s2 = rowH * 0.22f
             val tot = row.sumOf { it.second.toDouble() }.toFloat()
             val top = rowTop; val bottom = top + rowH; rowTop = bottom
-            var cx0 = 0f
+            val narrow = rows.size == 2 && r == 1
+            val xa = if (narrow) inset else 0f; val xb = if (narrow) w - inset else w
+            var cx0 = xa
             row.forEachIndexed { c, (btn, weight) ->
-                val x0 = cx0; val x1 = cx0 + w * weight / tot; cx0 = x1
+                val x0 = cx0; val x1 = cx0 + (xb - xa) * weight / tot; cx0 = x1
                 val firstC = c == 0; val lastC = c == row.size - 1
                 val poly = listOf(PointF(x0, bottom + 1.5f * unit), PointF(if (firstC) x0 else x0 + s2, top - 0.5f * unit), PointF(if (lastC) x1 else x1 + s2, top - 0.5f * unit), PointF(x1, bottom + 1.5f * unit))
                 cell(canvas, poly, btn.tone, btn.enabled, 6f * unit, unit, raised = false, seam = true)
