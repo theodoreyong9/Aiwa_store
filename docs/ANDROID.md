@@ -177,3 +177,7 @@ of a rolling release, `android-latest`. Locally: `npm run build -w aiwa-store-we
 The WebView host, the camera for scanning codes and the Termux backend on a real device; the keystore and the GitHub login on a real device (the device flow's logic is
 unit-tested against a stand-in of GitHub, not against GitHub); the automatic backup; the widget on real launchers; Google Play policy (the APK
 is meant to be installed by hand). No Android SDK is available where this was written: the Kotlin that is not plain JVM is compiled in CI only.
+
+### Direct links between phones: STUN and TURN
+
+The wallet's network and « Voir » open direct WebRTC links. `deployment.json` (`nearby.iceServers`) lists the servers that help them: a STUN server finds each phone's public address (enough on Wi-Fi), a **TURN** relay carries the traffic of the pairs that cannot reach each other directly (mobile data behind a carrier's NAT, a symmetric NAT). The default list has Google's STUN and the public *Open Relay* TURN (shared, rate-limited, best effort: it can be slow or refuse). For a real deployment run a TURN server of your own (coturn) and put its address and its credentials in this list: nothing else changes. The TURN relay sees encrypted traffic only.

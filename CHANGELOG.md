@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Voir: a fifth entry at the bottom right, *Monde*: the people who are visible anywhere (one room for the world), ranked by their signed Aiwa score. Works while few people are in the room; a very large world will need an index.
+- Voir: *Monde* is gone (one room for the whole world does not scale). Direct links between phones (Voir, the wallet's network) now also have a TURN relay (the public Open Relay service, best effort, shared and rate-limited): the pairs that cannot connect directly (a carrier network, a symmetric NAT) go through it. For a real deployment run a coturn of your own and put it in `deployment.json` (`nearby.iceServers`).
 - Widget, Domaine: a *Cast TV* button (the televisions found, to send a video to); the super agent can open it (`open: cast`).
 - Widget: *Campagnes* takes the place of Boucles in Files (next to Projet); Domaine holds *Boucles* and *MCP* (the door of the external agents, which lived in Réglages), then Réglages · Wallet; the green dot of a running loop is back on Domaine. The super agent can open MCP (`open: mcp`).
 - Widget: *Boucles* moves to Files, next to Projet (the green dot of a running loop is now on Files); Domaine holds Campagne, Réglages and Wallet.
