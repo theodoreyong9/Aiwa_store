@@ -1,0 +1,169 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Jean — la télécommande</title>
+<style>
+@font-face{font-family:SG;src:url(../aiwa-v25/fonts/SpaceGrotesk.ttf);font-weight:300 700}
+@font-face{font-family:FR;src:url(../aiwa-v25/fonts/Fraunces-Italic.ttf);font-style:italic;font-weight:100 900}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#05060d}
+body{font-family:SG,sans-serif;color:#f4f4ff;position:relative}
+.shot{position:absolute;inset:0;opacity:0;overflow:hidden}
+.world{position:absolute;left:0;top:0;width:2560px;height:1440px;transform-origin:0 0}
+.world img.plate{position:absolute;left:0;top:0;width:2560px;height:1440px}
+.proj{position:absolute;left:0;top:0;transform-origin:0 0;mix-blend-mode:screen;overflow:hidden;background:#000}
+.cap{position:absolute;left:0;right:0;bottom:64px;text-align:center;font-size:40px;color:#eef0ff;text-shadow:0 2px 16px #000d;padding:0 200px;opacity:0}
+i{font-family:FR;font-weight:400;color:#9db8ff}
+.k{position:absolute;font-size:24px;letter-spacing:.34em;text-transform:uppercase;color:#9db8ff;font-weight:600}
+.big{position:absolute;font-weight:700;letter-spacing:-.02em;line-height:1.04}
+.glass{position:absolute;border-radius:30px;background:linear-gradient(#ffffff2e,#ffffff0d);border:2px solid #ffffff55;box-shadow:0 30px 80px #0007}
+.tag{position:absolute;padding:14px 30px;border-radius:60px;background:linear-gradient(#ffffff38,#ffffff12);border:2px solid #ffffff66;font-size:36px;font-weight:600;white-space:nowrap;box-shadow:0 20px 50px #0006}
+/* the phone screens (715 x 1470 px) */
+.ps{position:relative;width:715px;height:1470px;border-radius:104px;overflow:hidden;background:#06070f}
+.ps .wall{position:absolute;inset:0;background:radial-gradient(900px 700px at 20% 15%,#2b3f8f,transparent 60%),radial-gradient(800px 700px at 90% 95%,#6a2c8a,transparent 60%),#070914}
+.ps .sb{position:absolute;left:0;right:0;top:30px;text-align:center;font-size:30px;font-weight:600;color:#fff}
+.ps .time{position:absolute;left:0;right:0;top:250px;text-align:center;font-size:190px;font-weight:300;letter-spacing:-.04em}
+.ps .date{position:absolute;left:0;right:0;top:470px;text-align:center;font-size:36px;color:#cfd3ff}
+.ps .app{position:absolute;width:128px;height:128px;border-radius:34px}
+.ps .nt{position:absolute;left:36px;right:36px;border-radius:44px;background:linear-gradient(#ffffff38,#ffffff14);border:2px solid #ffffff66;padding:34px 38px}
+.ps .nt b{display:block;font-size:34px;color:#9db8ff;letter-spacing:.05em;margin-bottom:10px}
+.ps .nt span{font-size:42px;line-height:1.25;color:#fff}
+/* the widget replica */
+.wg{position:absolute;width:980px;height:470px;transform-origin:0 0;border-radius:50px;background:linear-gradient(315deg,#6a2c8a,#1d2f66);border:2px solid #ffffff66;padding:18px 20px}
+.wg:before{content:"";position:absolute;inset:0;border-radius:50px;background:linear-gradient(#ffffff3d,#ffffff08 45%,#ffffff00)}
+.bar{position:relative;height:96px;border-radius:60px;background:#2b2a63;padding:8px;display:flex;gap:8px}
+.tab{flex:1;border-radius:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:25px;font-weight:600;color:#e2e6ff}
+.tab.on{background:linear-gradient(#5b8df0,#2f5db8);border:2px solid #b8c4ff;color:#fff}
+.tab svg,.btn svg{width:40px;height:40px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pg{position:absolute;left:20px;right:20px;top:130px;bottom:18px;visibility:hidden}
+.row{display:flex;gap:12px;height:48%;margin-bottom:12px}
+.btn{flex:1;border-radius:46px;background:linear-gradient(#6d68aa,#544f93);border:2px solid #9c98d0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:25px;font-weight:600;position:relative}
+.btn.v{background:linear-gradient(#9a6fc8,#7a58a8);border-color:#d3b4f4}.btn.g{background:linear-gradient(#3f8a86,#2f7470);border-color:#6fc3a3}
+.ring{position:absolute;border-radius:50%;border:6px solid #fff;opacity:0;pointer-events:none}
+.node{position:absolute;border-radius:30px;background:linear-gradient(#ffffff2e,#ffffff0d);border:2px solid #ffffff55;padding:28px 32px}
+.term{position:absolute;left:260px;top:170px;width:1400px;height:740px;border-radius:30px;background:#07081aee;border:2px solid #ffffff44;box-shadow:0 40px 100px #000a;font-family:monospace;font-size:31px;line-height:1.5;padding:70px 46px 30px;color:#cfe3ff;overflow:hidden}
+.term .dots{position:absolute;left:30px;top:24px;display:flex;gap:12px}.term .dots span{width:18px;height:18px;border-radius:50%}
+.term .ok{color:#52e0a0}.term .dim{color:#7c86b8}
+</style></head><body>
+<!--PLATES-->
+<div class="shot" id="sh1"><div class="world" id="w1"><img class="plate" src="file:///tmp/jean/plates/plate-B.png"><div class="proj" id="p1"></div><div id="fx1"></div></div></div>
+<div class="shot" id="sh2"><div class="world" id="w2"><img class="plate" src="file:///tmp/jean/plates/plate-C.png"><div class="proj" id="p2"></div><div id="fx2"></div></div>
+  <div class="k" style="left:140px;top:130px" id="m1t">Manuelle</div><div class="k" style="right:140px;top:130px;text-align:right" id="m2t">Vocale</div></div>
+<div class="shot" id="sh3"><div class="world" id="w3"><img class="plate" src="file:///tmp/jean/plates/plate-A.png"><div class="proj" id="p3t"></div><div class="proj" id="p3p"></div></div></div>
+<div class="shot" id="sh4" style="background:radial-gradient(1200px 800px at 30% 20%,#1c2a63,transparent 60%),radial-gradient(1000px 700px at 80% 90%,#4a2070,transparent 60%),#070914"><div class="k" style="left:260px;top:100px">Un cerveau Linux</div>
+  <div class="term" id="term"><div class="dots"><span style="background:#ff6b6b"></span><span style="background:#ffd166"></span><span style="background:#52b089"></span></div><div id="tl"></div></div>
+  <svg id="br4" style="position:absolute;left:0;top:0" width="1920" height="1080"></svg></div>
+<div class="shot" id="sh5" style="background:radial-gradient(1200px 800px at 70% 20%,#1c2a63,transparent 60%),radial-gradient(1000px 700px at 10% 90%,#4a2070,transparent 60%),#070914"><div class="k" style="left:140px;top:110px">Sessions multiples</div><div id="grid5"></div></div>
+<div class="shot" id="sh6"><div class="world" id="w6"><img class="plate" src="file:///tmp/jean/plates/plate-B.png"><div class="proj" id="p6"></div></div>
+  <div class="tag" id="t6" style="left:170px;top:150px;opacity:0">le super agent touche ses propres boutons</div></div>
+<div class="shot" id="sh7"><div class="world" id="w7"><img class="plate" src="file:///tmp/jean/plates/plate-D.png"><div class="proj" id="p7"></div></div>
+  <div class="tag" id="t7" style="right:170px;top:150px;opacity:0">écran éteint</div></div>
+<div class="shot" id="sh8" style="background:radial-gradient(1400px 900px at 50% 40%,#202c70,transparent 60%),radial-gradient(1000px 700px at 90% 100%,#6a2c8a,transparent 60%),#05060d"><canvas id="cv8" width="1920" height="1080" style="position:absolute;left:0;top:0"></canvas>
+  <div class="big" id="u1" style="left:0;right:0;top:300px;text-align:center;font-size:100px">Créativité <i>sans limite</i></div>
+  <div class="big" id="u2" style="left:0;right:0;top:470px;text-align:center;font-size:84px">Tu gardes la <i>propriété</i></div>
+  <div class="big" id="u3" style="left:0;right:0;top:620px;text-align:center;font-size:84px">Distribution <i>sans permission</i></div></div>
+<div class="shot" id="sh9" style="background:radial-gradient(1200px 800px at 25% 15%,#2b3f8f,transparent 60%),radial-gradient(1000px 700px at 85% 95%,#6a2c8a,transparent 60%),#05060d">
+  <div class="k" id="j0" style="left:0;right:0;top:250px;text-align:center">Jean</div>
+  <div class="big" id="j1" style="left:0;right:0;top:330px;text-align:center;font-size:150px">Service <i>client</i></div>
+  <div class="big" id="j2" style="left:0;right:0;top:560px;text-align:center;font-size:76px;font-weight:600">Efficace · Vibe builder · <i>Nexthinker</i></div>
+  <div class="big" id="j3" style="left:0;right:0;top:720px;text-align:center;font-size:56px;font-weight:500;color:#cfd3ff">Intégration <i>Nexthink</i> · commercialisation du cerveau</div></div>
+<div class="shot" id="sh10" style="background:radial-gradient(1200px 800px at 50% 40%,#2b3f8f,transparent 60%),#05060d"><div class="big" id="e1" style="left:0;right:0;top:360px;text-align:center;font-size:190px">Jean</div>
+  <div class="big" id="e2" style="left:0;right:0;top:620px;text-align:center;font-size:62px;font-weight:500;color:#cfd3ff">× <i>Nexthink</i></div></div>
+<div class="cap" id="cap"></div>
+<script>
+const SCHED=[{"at": 0.9, "end": 3.42, "text": "J'ai créé une télécommande sur Android.", "key": "remote"}, {"at": 4.72, "end": 6.83, "text": "À la fois manuelle, et vocale.", "key": "modes"}, {"at": 8.23, "end": 11.0, "text": "Elle pilote mes comptes GitHub, et Claude Code.", "key": "accounts"}, {"at": 12.2, "end": 13.99, "text": "Grâce à un cerveau Linux.", "key": "brain"}, {"at": 16.99, "end": 19.46, "text": "Elle crée et gère des sessions multiples.", "key": "sessions"}, {"at": 22.06, "end": 24.46, "text": "Elle peut même utiliser sa propre télécommande.", "key": "self"}, {"at": 26.06, "end": 28.82, "text": "Même écran éteint, elle continue de créer avec toi.", "key": "dark"}, {"at": 30.42, "end": 36.91, "text": "Dans un univers de créativité sans limite, où tu gardes la propriété, et où la distribution existe sans permission.", "key": "universe"}, {"at": 38.11, "end": 41.13, "text": "Je m'appelle Jean, et ma passion, c'est le service client.", "key": "me"}, {"at": 41.63, "end": 45.25, "text": "Je suis extrêmement efficace : vibe builder, Nexthinker.", "key": "eff"}, {"at": 45.75, "end": 51.46, "text": "Et j'aimerais consacrer le développement du cerveau de mon projet à l'intégration Nexthink, et à sa commercialisation.", "key": "nex"}],TOTAL=55.26;
+const CORNERS={"A": {"phone": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.7], [0.4, 0.7]], "tv": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.6], [0.4, 0.6]]}, "B": {"phone": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.7], [0.4, 0.7]], "tv": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.6], [0.4, 0.6]]}, "C": {"phone": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.7], [0.4, 0.7]], "tv": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.6], [0.4, 0.6]]}, "D": {"phone": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.7], [0.4, 0.7]], "tv": [[0.4, 0.3], [0.6, 0.3], [0.6, 0.6], [0.4, 0.6]]}};
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),ramp=(t,a,b)=>clamp((t-a)/(b-a)),eo=x=>1-Math.pow(1-x,3),eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const $=id=>document.getElementById(id);
+const K=Object.fromEntries(SCHED.map(s=>[s.key,s]));
+const PW=2560,PH=1440;
+// ---- homography: a rectangle of W x H pixels onto four points (the corners of a screen in the plate) -> matrix3d
+function solve(A,b){const n=b.length;for(let i=0;i<n;i++){let m=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[m][i]))m=r;[A[i],A[m]]=[A[m],A[i]];[b[i],b[m]]=[b[m],b[i]];for(let r=i+1;r<n;r++){const f=A[r][i]/A[i][i];for(let c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i]}}const x=Array(n).fill(0);for(let i=n-1;i>=0;i--){let s=b[i];for(let c=i+1;c<n;c++)s-=A[i][c]*x[c];x[i]=s/A[i][i]}return x}
+function matrix3d(W,H,c){const S=[[0,0],[W,0],[W,H],[0,H]],D=c.map(p=>[p[0]*PW,p[1]*PH]);const A=[],b=[];for(let i=0;i<4;i++){const[x,y]=S[i],[X,Y]=D[i];A.push([x,y,1,0,0,0,-X*x,-X*y]);b.push(X);A.push([0,0,0,x,y,1,-Y*x,-Y*y]);b.push(Y)}const h=solve(A,b);return `matrix3d(${h[0]},${h[3]},0,${h[6]},${h[1]},${h[4]},0,${h[7]},0,0,1,0,${h[2]},${h[5]},0,1)`}
+function project(el,W,H,corners){el.style.width=W+'px';el.style.height=H+'px';el.style.transform=matrix3d(W,H,corners)}
+const mid=c=>[(c[0][0]+c[2][0])/2,(c[0][1]+c[2][1])/2];
+// ---- the camera: a shift and a scale of the whole plate (nothing moves in 3D: a screen never slides on its phone)
+function camera(world,t,a,b,from,to,drift=1){const u=eio(ramp(t,a,b)),z=from[0]+(to[0]-from[0])*u,fx=from[1]+(to[1]-from[1])*u,fy=from[2]+(to[2]-from[2])*u;
+ const s=.75*z,dx=drift*(5*Math.sin(t*.55)+2*Math.sin(t*1.7)),dy=drift*(4*Math.cos(t*.47)+1.5*Math.sin(t*1.3));
+ world.style.transform=`translate(${960-fx*PW*s+dx}px,${540-fy*PH*s+dy}px) scale(${s})`}
+// ---- icons and the widget
+const IC={domain:'M12 3 L3 8 L12 13 L21 8 Z M3 12.5 L12 17.5 L21 12.5 M3 16.5 L12 21.5 L21 16.5',files:'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',build:'M8 8 L4 12 L8 16 M16 8 L20 12 L16 16 M13.5 5 L10.5 19',voir:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0.01 0z',loops:'M20 12a8 8 0 0 0-14-5.3L4 9 M4 4v5h5 M4 12a8 8 0 0 0 14 5.3L20 15 M20 20v-5h-5',campaign:'M21 3 L10 14 M21 3 L14 21 L10 14 L3 10 Z',settings:'M4 7h10 M18 7h2 M4 17h2 M10 17h10 M16 5v4 M8 15v4',wallet:'M5 6h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z M3 10h18 M16 14.5h2',docs:'M6 3h8l4 4v14H6z M14 3v4h4 M9 12h6 M9 16h6',media:'M12 3a9 9 0 1 0 0.01 0z M10 8.5 L16 12 L10 15.5 Z',app:'M9 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M11 18h2',page:'M12 3a9 9 0 1 0 0.01 0z M3 12h18 M12 3c3 3 3 15 0 18 M12 3c-3 3-3 15 0 18',contract:'M6 3h9l4 4v14H6z M15 3v4h4 M9 14l2.5 2.5L16 12',project:'M5 8h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2 M3 13h18',scenario:'M4 9h16v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z M4 9l2-5h3l-2 5 M9 9l2-5h3l-2 5 M14 9l2-5h3l-1 5',robot:'M7 8h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z M12 8V5 M9.5 13h0.01 M14.5 13h0.01 M9 18v2 M15 18v2',claude:'M12 3v18 M4.2 7.5l15.6 9 M19.8 7.5l-15.6 9',ear:'M7 9a5 5 0 0 1 10 0c0 3-3 4-3 7a2.5 2.5 0 0 1-5 0 M10 9a2 2 0 0 1 4 0',plus:'M12 5v14 M5 12h14'};
+const svg=n=>`<svg viewBox="0 0 24 24"><path d="${IC[n]}"/></svg>`;
+const B=(n,l,c='',w='')=>`<div class="btn ${c}" ${w?`style="flex:${w}"`:''}>${svg(n)}${l}</div>`;
+function widgetHTML(){return `<div class="bar"><div class="tab" data-t="domain">${svg('domain')}Domaine</div><div class="tab" data-t="files">${svg('files')}Files</div><div class="tab on" data-t="build">${svg('build')}Build</div><div class="tab" data-t="voir">${svg('voir')}Voir</div></div>
+ <div class="pg" data-p="domain"><div class="row">${B('loops','Boucles')}${B('campaign','Campagne')}</div><div class="row">${B('settings','Réglages')}${B('wallet','Wallet')}</div></div>
+ <div class="pg" data-p="files"><div class="row">${B('docs','Docs','g')}${B('media','Média','g')}${B('app','App','g')}${B('page','Page','v')}${B('contract','Contrat','v')}</div><div class="row">${B('project','Projet')}${B('scenario','Scénario')}</div></div>
+ <div class="pg" data-p="build" style="visibility:visible"><div class="row">${B('robot','Super agent','g','3')}${B('claude','Claude')}</div><div class="row">${B('ear','Écoute')}${B('plus','Ajouter')}</div></div>
+ <div class="pg" data-p="voir"><div class="row">${B('voir','Visible','g')}${B('page','Voir les autres')}</div><div class="row">${B('plus','100 m')}${B('plus','1 km')}${B('plus','10 km')}${B('plus','Ville')}</div></div>`}
+function setTab(root,name){root.querySelectorAll('.tab').forEach(e=>e.classList.toggle('on',e.dataset.t==name));root.querySelectorAll('.pg').forEach(e=>e.style.visibility=e.dataset.p==name?'visible':'hidden')}
+// ---- the screens of the phone
+function homeScreen(){return `<div class="ps"><div class="wall"></div><div class="sb">9:41</div>
+ <div class="app" style="left:60px;top:150px;background:linear-gradient(#5b8df0,#2f5db8)"></div><div class="app" style="left:220px;top:150px;background:linear-gradient(#3f8a86,#2f7470)"></div><div class="app" style="left:380px;top:150px;background:linear-gradient(#9a6fc8,#7a58a8)"></div><div class="app" style="left:540px;top:150px;background:linear-gradient(#d28a6c,#b8644a)"></div>
+ <div class="wg" style="left:30px;top:520px;transform:scale(.69)">${widgetHTML()}<div class="ring" id="ring"></div></div>
+ <div class="app" style="left:60px;top:1270px;background:#ffffff22"></div><div class="app" style="left:220px;top:1270px;background:#ffffff22"></div><div class="app" style="left:380px;top:1270px;background:#ffffff22"></div><div class="app" style="left:540px;top:1270px;background:#ffffff22"></div></div>`}
+function lockScreen(){return `<div class="ps"><div class="wall" style="opacity:.55"></div><div class="time">9:41</div><div class="date">samedi 24 octobre</div>
+ <div class="nt" id="nt1" style="top:640px"><b>AIWA · SUPER AGENT</b><span>Création en cours : 3 sessions travaillent.</span></div>
+ <div class="nt" id="nt2" style="top:880px"><b>CLAUDE CODE</b><span>Une vidéo est prête. Je la lance sur la télé ?</span></div></div>`}
+const P={};
+function setup(){
+ const C=CORNERS;
+ $('p1').innerHTML=homeScreen();project($('p1'),715,1470,C.B.phone);
+ $('p2').innerHTML=homeScreen();project($('p2'),715,1470,C.C.phone);
+ $('p6').innerHTML=homeScreen();project($('p6'),715,1470,C.B.phone);
+ $('p7').innerHTML=lockScreen();project($('p7'),715,1470,C.D.phone);
+ for(const id of ['p1','p2','p6'])$(id).querySelector('.ps').style.borderRadius='104px';
+ $('p3p').innerHTML=homeScreen();project($('p3p'),715,1470,C.A.phone);
+ $('p3t').innerHTML=tvScreen();project($('p3t'),1920,1080,C.A.tv);
+ // the terminal and the sessions
+ const g=$('grid5');const names=['Aiwa_store','site-web','film-noël','support-client','campagne','contrats'];
+ g.innerHTML=names.map((n,i)=>`<div class="node" id="se${i}" style="left:${140+(i%3)*580}px;top:${250+Math.floor(i/3)*330}px;width:540px;height:290px"><div style="font-size:26px;letter-spacing:.2em;color:#9db8ff">SESSION ${i+1}</div><div style="font-size:48px;font-weight:700;margin:10px 0">${n}</div><div style="font-size:30px;color:#cfd3ff" id="ss${i}">…</div><div style="position:absolute;right:30px;top:30px;width:22px;height:22px;border-radius:50%;background:#52e0a0" id="sd${i}"></div></div>`).join('');
+}
+function tvScreen(){return `<div style="width:1920px;height:1080px;position:relative;background:radial-gradient(1200px 800px at 30% 20%,#1c2a63,transparent 60%),#05060d"><div style="position:absolute;left:120px;top:110px;font-size:46px;letter-spacing:.3em;color:#9db8ff">MES COMPTES</div>
+ <div class="node" style="left:120px;top:260px;width:780px;height:420px"><div style="font-size:80px;font-weight:700">GitHub</div><div style="font-size:42px;color:#cfd3ff;margin-top:20px">dépôts · branches · releases</div><div style="font-size:44px;color:#52e0a0;margin-top:60px">● connecté</div></div>
+ <div class="node" style="left:1020px;top:260px;width:780px;height:420px"><div style="font-size:80px;font-weight:700">Claude Code</div><div style="font-size:42px;color:#cfd3ff;margin-top:20px">sessions · agents · critique</div><div style="font-size:44px;color:#52e0a0;margin-top:60px">● connecté</div></div>
+ <div style="position:absolute;left:120px;top:780px;font-size:56px;color:#fff">Une télécommande, deux comptes, <i>un seul geste</i>.</div></div>`}
+// ---- the text of the terminal
+const TERM=[['$ ','termux — le cerveau','dim'],['$ ','aiwa-server --brain','' ],['','chargement du cerveau Linux… ','dim'],['','✓ relais · sessions · boucles · campagnes','ok'],['','✓ agent · voix · scénarios','ok'],['','✓ GitHub connecté · Claude Code connecté','ok'],['$ ','aiwa session new "film-noël"','' ],['','→ session créée','ok'],['$ ','aiwa session list','' ],['','6 sessions · 3 travaillent','dim']];
+function cosmos(t){const c=$('cv8'),x=c.getContext('2d');x.clearRect(0,0,1920,1080);const n=70;for(let i=0;i<n;i++){const a=i*2.399+t*.04*(i%5+1)*.3,r=120+((i*37)%820),px=960+Math.cos(a)*r*1.25,py=540+Math.sin(a)*r*.62,s=1+((i*13)%5)*.7;x.beginPath();x.arc(px,py,s,0,6.28);x.fillStyle=`rgba(157,184,255,${.35+.45*Math.abs(Math.sin(t*.8+i))})`;x.fill();if(i%3==0){const j=(i+7)%n,b=j*2.399+t*.04*(j%5+1)*.3,rr=120+((j*37)%820);x.beginPath();x.moveTo(px,py);x.lineTo(960+Math.cos(b)*rr*1.25,540+Math.sin(b)*rr*.62);x.strokeStyle='rgba(157,184,255,.13)';x.lineWidth=1;x.stroke()}}}
+let built=false;
+function render(t){
+ if(!built){setup();built=true}
+ const E=TOTAL;
+ // the shots: [element, start, end]
+ const S=[['sh1',0,K.modes.at-.25],['sh2',K.modes.at-.25,K.accounts.at-.25],['sh3',K.accounts.at-.25,K.brain.at-.25],['sh4',K.brain.at-.25,K.sessions.at-.25],['sh5',K.sessions.at-.25,K.self.at-.25],['sh6',K.self.at-.25,K.dark.at-.25],['sh7',K.dark.at-.25,K.universe.at-.25],['sh8',K.universe.at-.25,K.me.at-.25],['sh9',K.me.at-.25,E-3.2],['sh10',E-3.2,E+1]];
+ S.forEach(([id,a,b],i)=>{$(id).style.opacity=(i==0?ramp(t,0,.6):ramp(t,a,a+.5))*(i==S.length-1?1:1-ramp(t,b-.1,b+.4))});
+ const C=CORNERS,pB=mid(C.B.phone),pC=mid(C.C.phone),pD=mid(C.D.phone),tvA=mid(C.A.tv),phA=mid(C.A.phone);
+ // 1: the remote on the table, a slow push-in
+ camera($('w1'),t,0,K.modes.at,[1.0,pB[0]+.02,pB[1]-.02],[1.55,pB[0],pB[1]]);
+ // 2: from above: manual (taps) then vocal (rings of voice)
+ camera($('w2'),t,K.modes.at-.25,K.accounts.at,[1.25,pC[0],pC[1]],[1.5,pC[0],pC[1]]);
+ const m0=K.modes.at,w2=$('p2');let cur='build';[['domain',m0+.25],['files',m0+.6],['voir',m0+.95],['build',m0+1.3]].forEach(([n,a])=>{if(t>=a)cur=n});setTab(w2,cur);
+ $('m1t').style.opacity=eo(ramp(t,m0,m0+.3))*(1-ramp(t,m0+1.5,m0+1.8));$('m2t').style.opacity=eo(ramp(t,m0+1.7,m0+2.0));
+ voiceRings($('fx2'),t,m0+1.7,K.modes.end+.5,C.C.phone);
+ // 3: the TV, a dolly toward the screen
+ camera($('w3'),t,K.accounts.at-.25,K.brain.at,[1.0,.5,.55],[1.45,tvA[0],tvA[1]+.02]);
+ $('p3t').style.opacity=eo(ramp(t,K.accounts.at,K.accounts.at+.6));
+ // 4: the brain, a terminal that types
+ {const t0=K.brain.at,lines=TERM;let h='';let tt=t-t0-.2;let shown=0;for(let i=0;i<lines.length;i++){const [p,txt,cls]=lines[i];const start=i*.42;if(tt<start)break;const n=cls==''?Math.floor((tt-start)*38):txt.length;h+=`<div>${p}<span class="${cls}">${txt.slice(0,Math.max(0,n))}</span></div>`}
+  $('tl').innerHTML=h;$('term').style.transform=`scale(${1+.04*ramp(t,t0,K.sessions.at)}) translateY(${-14*ramp(t,t0,K.sessions.at)}px)`;
+  const b=$('br4');if(!b.dataset.d){let s='';for(let i=0;i<9;i++){const a=i/9*6.283;s+=`<circle cx="${1730+Math.cos(a)*90}" cy="${300+Math.sin(a)*90}" r="7" fill="#9db8ff"/><line x1="1730" y1="300" x2="${1730+Math.cos(a)*90}" y2="${300+Math.sin(a)*90}" stroke="#9db8ff" stroke-width="2" opacity=".5"/>`}b.innerHTML=s+'<circle cx="1730" cy="300" r="16" fill="#fff"/>';b.dataset.d=1}
+  b.style.opacity=eo(ramp(t,t0+1,t0+2))}
+ // 5: sessions that wake one by one
+ for(let i=0;i<6;i++){const a=K.sessions.at+.3+i*.55,v=eo(ramp(t,a,a+.5)),e=$('se'+i);e.style.opacity=v;e.style.transform=`translateY(${(1-v)*50}px)`;
+  $('ss'+i).textContent=t>a+1.2?(i%2?'en cours…':'terminé ✓'):'démarrage…';$('sd'+i).style.background=t>a+1.2&&i%2?'#ffd166':'#52e0a0'}
+ // 6: the remote presses its own buttons
+ camera($('w6'),t,K.self.at-.25,K.dark.at,[1.5,pB[0],pB[1]],[1.18,pB[0]+.02,pB[1]+.01]);
+ {const s0=K.self.at,seq=[['domain',s0+.5],['files',s0+1.0],['build',s0+1.5],['voir',s0+2.0],['build',s0+2.5]];let cur='build';seq.forEach(([n,a])=>{if(t>=a)cur=n});setTab($('p6'),cur);
+  $('t6').style.opacity=eo(ramp(t,s0+.2,s0+.8))*(1-ramp(t,K.dark.at-.9,K.dark.at-.3))}
+ // 7: the screen is off, the notification glows
+ camera($('w7'),t,K.dark.at-.25,K.universe.at,[1.2,pD[0],pD[1]],[1.6,pD[0],pD[1]]);
+ {const d0=K.dark.at;const g=eo(ramp(t,d0+.2,d0+1.2));$('p7').style.opacity=g;$('nt1').style.transform=`translateY(${(1-eo(ramp(t,d0+.6,d0+1.4)))*60}px)`;$('nt1').style.opacity=eo(ramp(t,d0+.6,d0+1.4));$('nt2').style.opacity=eo(ramp(t,d0+2.2,d0+3));
+  $('t7').style.opacity=eo(ramp(t,d0+.3,d0+.9))*(1-ramp(t,K.universe.at-.8,K.universe.at-.3))}
+ // 8: the universe
+ cosmos(t);[['u1',K.universe.at+.5],['u2',K.universe.at+2.9],['u3',K.universe.at+5.4]].forEach(([id,a])=>{const v=eo(ramp(t,a,a+.6));$(id).style.opacity=v;$(id).style.transform=`translateY(${(1-v)*40}px)`});
+ // 9-10: Jean
+ [['j0',K.me.at],['j1',K.me.at+.4],['j2',K.eff.at],['j3',K.nex.at]].forEach(([id,a])=>{const v=eo(ramp(t,a,a+.6));$(id).style.opacity=v;$(id).style.transform=`translateY(${(1-v)*40}px)`});
+ $('e1').style.opacity=eo(ramp(t,E-3,E-2.2));$('e2').style.opacity=eo(ramp(t,E-2.4,E-1.6));
+ const c=SCHED.find(s=>t>=s.at-.1&&t<s.end+.2);$('cap').textContent=c?c.text:'';$('cap').style.opacity=(c?Math.min(ramp(t,c.at-.1,c.at+.1),1-ramp(t,c.end,c.end+.2)):0)*(t>E-3.3?0:1);
+}
+function voiceRings(host,t,a,b,corners){const m=mid(corners);if(!host.dataset.d){host.innerHTML=[0,1,2].map(i=>`<div class="ring" id="vr${i}" style="left:${m[0]*PW-60}px;top:${m[1]*PH-60}px;width:120px;height:120px;border-color:#9db8ff"></div>`).join('');host.dataset.d=1}
+ for(let i=0;i<3;i++){const e=$('vr'+i),u=((t-a)*.55+i/3)%1,on=t>a&&t<b+.3;e.style.opacity=on?(1-u)*.7:0;const s=1+u*9;e.style.transform=`scale(${s})`}}
+window.render=render;window.READY=true;
+</script></body></html>
