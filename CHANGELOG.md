@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: the colours of the buttons and tabs (and the dots) are translucent: the photo shows through. Not verified on a device.
+
 - Widget: the strip of the tabs and the last row are narrower than the middle row (7% in on each side), which gives the widget a stepped silhouette; Campagnes is wider (its word was cut). Not verified on a device.
 
 - Widget: the buttons of the middle row of every tab have a much larger icon on the left side, leaning like the cell, with the word beside it. Not verified on a device.

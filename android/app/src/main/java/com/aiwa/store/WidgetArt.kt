@@ -29,7 +29,16 @@ object WidgetArt {
     class Tab(val icon: Int, val label: String, val tone: String = "grey", val weight: Float = 1f, val always: Boolean = false, val dot: Boolean = false)
 
     // top, bottom, edge, glow (0 = none)
-    private fun colours(tone: String): IntArray = when (tone) {
+    private fun colours(tone: String): IntArray = translucent(solid(tone))
+
+    /** The coloured tones are see-through (the photo and the light show through them); the grey one already is. */
+    private fun translucent(c: IntArray): IntArray {
+        if (c[3] == 0) return c
+        c[0] = withAlpha(c[0], 0xA0); c[1] = withAlpha(c[1], 0x78)
+        return c
+    }
+
+    private fun solid(tone: String): IntArray = when (tone) {
         "green" -> intArrayOf(0xFF3FA37E.toInt(), 0xFF22664A.toInt(), 0xFF8FE3BE.toInt(), 0xCC52D6A0.toInt())
         "red" -> intArrayOf(0xFFE5605B.toInt(), 0xFFA8302D.toInt(), 0xFFFFA39F.toInt(), 0xCCF27A75.toInt())
         "orange" -> intArrayOf(0xFFE09A7C.toInt(), 0xFFB5603F.toInt(), 0xFFFFCDB6.toInt(), 0x66E09A7C.toInt())
@@ -120,7 +129,7 @@ object WidgetArt {
             cell(canvas, poly, tone, true, 6f * unit, unit, raised = isOpen, seam = !isOpen)
             val cx = (x0 + x1) / 2f + skew / 2f - (if (first) skew / 2f else 0f) - (if (last) skew / 2f else 0f)
             content(context, canvas, RectF(cx - (x1 - x0) / 2f, top, cx + (x1 - x0) / 2f, tabH), tab.icon, "", true, unit, if (isOpen) 255 else 215)
-            if (tab.dot) { val dr = 3.2f * unit; canvas.drawCircle(cx + 12f * unit, top + (tabH - top) / 2f - 9f * unit, dr, paint().apply { color = 0xFF52D6A0.toInt() }) }
+            if (tab.dot) { val dr = 3.2f * unit; canvas.drawCircle(cx + 12f * unit, top + (tabH - top) / 2f - 9f * unit, dr, paint().apply { color = 0xCC52D6A0.toInt() }) }
         }
         // the body: rows of cells that touch; the seams are slanted
         // the first row of the body (the middle of the widget) is the thickest; the tabs and the last row are thinner
