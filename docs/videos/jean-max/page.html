@@ -88,8 +88,8 @@ const IC={domain:'M12 3 L3 8 L12 13 L21 8 Z M3 12.5 L12 17.5 L21 12.5 M3 16.5 L1
 const svg=n=>`<svg viewBox="0 0 24 24"><path d="${IC[n]}"/></svg>`;
 const B=(n,l,c='',w='')=>`<div class="btn ${c}" ${w?`style="flex:${w}"`:''}>${svg(n)}${l}</div>`;
 function widgetHTML(){return `<div class="bar"><div class="tab" data-t="domain">${svg('domain')}Domaine</div><div class="tab" data-t="files">${svg('files')}Files</div><div class="tab on" data-t="build">${svg('build')}Build</div><div class="tab" data-t="voir">${svg('voir')}Voir</div></div>
- <div class="pg" data-p="domain"><div class="row">${B('loops','Boucles')}${B('campaign','Campagne')}</div><div class="row">${B('settings','Réglages')}${B('wallet','Wallet')}</div></div>
- <div class="pg" data-p="files"><div class="row">${B('docs','Docs','g')}${B('media','Média','g')}${B('app','App','g')}${B('page','Page','v')}${B('contract','Contrat','v')}</div><div class="row">${B('project','Projet')}</div></div>
+ <div class="pg" data-p="domain"><div class="row">${B('campaign','Campagne')}</div><div class="row">${B('settings','Réglages')}${B('wallet','Wallet')}</div></div>
+ <div class="pg" data-p="files"><div class="row">${B('docs','Docs','g')}${B('media','Média','g')}${B('app','App','g')}${B('page','Page','v')}${B('contract','Contrat','v')}</div><div class="row">${B('project','Projet')}${B('loops','Boucles')}</div></div>
  <div class="pg" data-p="build" style="visibility:visible"><div class="row">${B('robot','Super agent','g','3')}${B('claude','Claude')}</div><div class="row">${B('ear','Écoute')}${B('plus','Ajouter')}${B('scenario','Scénario')}</div></div>
  <div class="pg" data-p="voir"><div class="row">${B('voir','Visible','g')}</div><div class="row">${B('link','Lien')}${B('pin','Proximité')}${B('qr','QR code')}${B('star','Favoris')}</div></div>`}
 function setTab(root,name){root.querySelectorAll('.tab').forEach(e=>e.classList.toggle('on',e.dataset.t==name));root.querySelectorAll('.pg').forEach(e=>e.style.visibility=e.dataset.p==name?'visible':'hidden')}

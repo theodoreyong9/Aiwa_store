@@ -335,8 +335,8 @@ object WidgetTab {
     fun set(context: Context, tab: String) { try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString("tab", tab).apply() } catch (err: Exception) { } }
     /** The tab that holds the button the super agent touched (null: the button is on no tab). */
     fun of(button: String): String? = when (button) {
-        "project", "loops", "settings", "wallet" -> "domain"
-        "documents", "video", "pages", "android", "aiwa", "campaign", "store" -> "files"
+        "settings", "wallet", "campaign" -> "domain"
+        "documents", "video", "pages", "android", "aiwa", "store", "project", "loops" -> "files"
         "claude", "agent", "plus", "listen" -> "build"
         "voir" -> "voir"
         else -> null

@@ -107,8 +107,8 @@ object FastWidget {
         v.setInt(R.id.fw_root, "setBackgroundResource", if (state.waiting) R.drawable.widget_bg_alert else R.drawable.widget_bg)
         // ---- the tabs; the question and the update stay in view whatever the tab ----
         val buildBusy = agentOn || permanentOn
-        tabText["domain"] = "Domaine" + (if (loopOn) " ●" else ""); tabColor["domain"] = if (loopOn) "green" else "taboff"
-        tabText["files"] = "Files"; tabColor["files"] = "taboff"
+        tabText["domain"] = "Domaine"; tabColor["domain"] = "taboff"
+        tabText["files"] = "Files" + (if (loopOn) " ●" else ""); tabColor["files"] = if (loopOn) "green" else "taboff"
         tabText["voir"] = "Voir" + (if (VoirSettings.on(context)) " ●" else ""); tabColor["voir"] = if (VoirSettings.on(context)) "green" else "taboff"
         tabText["build"] = "Build" + (if (buildBusy) " ●" else ""); tabColor["build"] = if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else if (buildBusy) "green" else "taboff"
         listOf("domain", "files", "build", "voir").forEachIndexed { i, name ->
