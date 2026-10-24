@@ -17,6 +17,10 @@ DEFAULTS = [
      "prompt": "Tu es mon interprète. Tout ce que le téléphone entend, tu le traduis tout de suite dans l'autre langue de la conversation, fidèlement, phrase par phrase, sans commentaire ni résumé. Au début, demande-moi en quelle langue traduire (l'anglais par défaut), puis tiens-t'y jusqu'à ce que je change.",
      "speak": "Tu parles à chaque phrase entendue : la traduction seule, à voix haute. Tu ne notes rien.",
      "words": [{"word": "en anglais", "does": "traduis désormais vers l'anglais"}, {"word": "en allemand", "does": "traduis désormais vers l'allemand"}, {"word": "en espagnol", "does": "traduis désormais vers l'espagnol"}, {"word": "en italien", "does": "traduis désormais vers l'italien"}]},
+    {"id": "candidature", "name": "Candidature CV", "word": "scénario candidature", "kind": "double",
+     "prompt": "Je te donne mon CV (les fichiers joints) et le lien web d'une annonce. Tu lances une campagne de candidature : la lettre de motivation adaptée à l'annonce, une vidéo de candidature (une minute, en première personne, qui dit ce que je ferais concrètement pour cette entreprise), et mon CV mis en regard de l'annonce. Tu n'inventes rien : tout vient de mon CV et de l'annonce. Tu travailles par des sessions (`send`) : une session campagne pour la lettre et le plan, une session vidéo pour la vidéo. À la fin tu me donnes simplement les fichiers et le lien web de l'annonce : c'est moi qui envoie.",
+     "speak": "Tu ne parles que pour demander le CV ou le lien de l'annonce s'il manque, puis pour dire où ça en est, en une phrase. Le reste du temps tu notes en silence.",
+     "words": [{"word": "où en est", "does": "dis en une phrase où en est la candidature"}, {"word": "les fichiers", "does": "donne-moi les fichiers produits et le lien web de l'annonce"}, {"word": "l'annonce", "does": "retiens le lien de l'annonce que je viens de dire"}]},
     {"id": "rapport", "name": "Rapport", "word": "le rapport", "kind": "report", "prompt": "", "speak": "", "words": []},
 ]
 
@@ -62,6 +66,22 @@ def load(path):
     if not isinstance(raw, list):
         return [dict(d) for d in DEFAULTS]
     found = [c for c in (clean(r) for r in raw) if c]
+    # a default that was created after the person saved her list is offered ONCE (the marker file remembers it: she can delete it afterwards)
+    marker = path.with_name(path.name + ".offered")
+    try:
+        offered = set(json.loads(marker.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        offered = {d["id"] for d in DEFAULTS if d["id"] in {s["id"] for s in found}}      # first run of this version: what she has was already offered
+    changed = False
+    for d in DEFAULTS:
+        if d["id"] not in offered and d["id"] not in {s["id"] for s in found} and not any(plain(s["word"]) == plain(d["word"]) for s in found):
+            found.append(dict(d)); changed = True
+        offered.add(d["id"])
+    try:
+        marker.write_text(json.dumps(sorted(offered)), encoding="utf-8")
+        if changed: save(path, found)
+    except OSError:
+        pass
     return found[:MAX_SCENARIOS]
 
 

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A new default scenario, **Candidature CV** (« scénario candidature »): you give your CV and the link of an ad; the double asks for what is missing, then runs the campaign through sessions (the cover letter, an application video in the first person, the CV set against the ad), invents nothing, and gives back the files and the link of the ad for you to send. Someone who already saved her scenarios gets it once (and can delete it) (brain 177).
 - Voir: *Monde* is gone (one room for the whole world does not scale). Direct links between phones (Voir, the wallet's network) now also have a TURN relay (the public Open Relay service, best effort, shared and rate-limited): the pairs that cannot connect directly (a carrier network, a symmetric NAT) go through it. For a real deployment run a coturn of your own and put it in `deployment.json` (`nearby.iceServers`).
 - Widget, Domaine: a *Cast TV* button (the televisions found, to send a video to); the super agent can open it (`open: cast`).
 - Widget: *Campagnes* takes the place of Boucles in Files (next to Projet); Domaine holds *Boucles* and *MCP* (the door of the external agents, which lived in Réglages), then Réglages · Wallet; the green dot of a running loop is back on Domaine. The super agent can open MCP (`open: mcp`).

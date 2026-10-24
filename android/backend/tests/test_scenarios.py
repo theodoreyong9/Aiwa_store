@@ -15,6 +15,18 @@ TMP = Path(tempfile.mkdtemp(prefix="aiwa-scen-"))
 
 
 class ScenarioLogic(unittest.TestCase):
+    def test_the_application_scenario_is_a_default_and_is_offered_once_to_an_old_list(self):
+        ids = [d["id"] for d in sc.DEFAULTS]
+        self.assertIn("candidature", ids)
+        cand = next(d for d in sc.DEFAULTS if d["id"] == "candidature")
+        self.assertIsNotNone(sc.clean(cand))
+        self.assertEqual(sc.match("lance le scénario candidature", [dict(d) for d in sc.DEFAULTS])["id"], "candidature")
+        path = TMP / "old.json"
+        sc.save(path, [d for d in sc.DEFAULTS if d["id"] != "candidature"])
+        self.assertIn("candidature", [x["id"] for x in sc.load(path)])
+        sc.save(path, [x for x in sc.load(path) if x["id"] != "candidature"])
+        self.assertNotIn("candidature", [x["id"] for x in sc.load(path)], "deleted by the person: not offered again")
+
     def test_launch_word_matches_without_accents_and_longest_wins(self):
         items = [dict(d) for d in sc.DEFAULTS]
         self.assertEqual(sc.match("Lance le scénario entretien s'il te plaît", items)["id"], "entretien")
