@@ -175,9 +175,9 @@ OPEN_KINDS = {"documents": "documents", "document": "documents", "docs": "docume
               # the other buttons of the widget: the same screens as a tap on them
               "wallet": "wallet", "portefeuille": "wallet", "store": "store", "magasin": "store", "reglages": "settings", "réglages": "settings", "parametres": "settings", "paramètres": "settings",
               "boucles": "loops", "boucle": "loops", "campagne": "campaign", "campagnes": "campaign", "propositions": "campaign", "question": "question", "claude": "claude", "conversation": "claude",
-              "plus": "plus", "ajouter": "plus", "mise a jour": "update", "mise à jour": "update", "projet": "project", "ecoute": "listen", "écoute": "listen", "micro": "listen", "robot": "agent", "voir": "voir", "les autres": "voir", "mcp": "mcp", "agents externes": "mcp"}
+              "plus": "plus", "ajouter": "plus", "mise a jour": "update", "mise à jour": "update", "projet": "project", "ecoute": "listen", "écoute": "listen", "micro": "listen", "robot": "agent", "voir": "voir", "les autres": "voir", "mcp": "mcp", "agents externes": "mcp", "cast": "cast", "tv": "cast", "télé": "cast", "television": "cast", "télévision": "cast"}
 OPEN_SPOKEN = {"documents": "les documents", "video": "les vidéos", "pages": "la page", "android": "l'app", "aiwa": "l'Aiwa", "wallet": "le Wallet", "store": "le Store", "settings": "les réglages", "loops": "les boucles", "campaign": "la campagne",
-               "question": "la question", "claude": "la conversation Claude", "plus": "le menu plus", "update": "la mise à jour", "project": "le choix du projet", "listen": "l'écoute permanente (bascule)", "agent": "le robot (bascule)", "voir": "la fenêtre Voir (les personnes proches)", "mcp": "les agents externes (MCP)"}
+               "question": "la question", "claude": "la conversation Claude", "plus": "le menu plus", "update": "la mise à jour", "project": "le choix du projet", "listen": "l'écoute permanente (bascule)", "agent": "le robot (bascule)", "voir": "la fenêtre Voir (les personnes proches)", "mcp": "les agents externes (MCP)", "cast": "le choix de la télé (cast)"}
 PUSH_WORDS = {"main": "main", "branche": "branche", "branch": "branche"}   # kept for old tests; push is no longer a spoken setting
 
 

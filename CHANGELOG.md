@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Widget, Domaine: a *Cast TV* button (the televisions found, to send a video to); the super agent can open it (`open: cast`).
 - Widget: *Campagnes* takes the place of Boucles in Files (next to Projet); Domaine holds *Boucles* and *MCP* (the door of the external agents, which lived in Réglages), then Réglages · Wallet; the green dot of a running loop is back on Domaine. The super agent can open MCP (`open: mcp`).
 - Widget: *Boucles* moves to Files, next to Projet (the green dot of a running loop is now on Files); Domaine holds Campagne, Réglages and Wallet.
 - Voir → Lien: the GitHub name and the repository are enough (two fields, or « nom/dépôt », or a github.com address): the window shows the links of that repository's Files that exist (read with GitHub's public API, no key), and can keep it as a favourite.

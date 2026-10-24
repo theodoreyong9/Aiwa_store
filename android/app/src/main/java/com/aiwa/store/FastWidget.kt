@@ -79,7 +79,7 @@ object FastWidget {
 
     /** A button of the widget is a column (icon above, label under): the colour and the tap are on the column, the words on its label. */
     private val LABEL = mapOf(R.id.fw_tab_domain to R.id.fw_tab_domain_t, R.id.fw_tab_files to R.id.fw_tab_files_t, R.id.fw_tab_build to R.id.fw_tab_build_t, R.id.fw_question to R.id.fw_question_t,
-        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_wallet to R.id.fw_wallet_t, R.id.fw_tab_voir to R.id.fw_tab_voir_t, R.id.fw_voir_on to R.id.fw_voir_on_t, R.id.fw_v_link to R.id.fw_v_link_t, R.id.fw_v_near to R.id.fw_v_near_t, R.id.fw_v_qr to R.id.fw_v_qr_t, R.id.fw_v_fav to R.id.fw_v_fav_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_mcp to R.id.fw_mcp_t, R.id.fw_scenario to R.id.fw_scenario_t,
+        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_wallet to R.id.fw_wallet_t, R.id.fw_tab_voir to R.id.fw_tab_voir_t, R.id.fw_voir_on to R.id.fw_voir_on_t, R.id.fw_v_link to R.id.fw_v_link_t, R.id.fw_v_near to R.id.fw_v_near_t, R.id.fw_v_qr to R.id.fw_v_qr_t, R.id.fw_v_fav to R.id.fw_v_fav_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_mcp to R.id.fw_mcp_t, R.id.fw_cast to R.id.fw_cast_t, R.id.fw_scenario to R.id.fw_scenario_t,
         R.id.fw_k0 to R.id.fw_k0_t, R.id.fw_k1 to R.id.fw_k1_t, R.id.fw_k2 to R.id.fw_k2_t, R.id.fw_k3 to R.id.fw_k3_t, R.id.fw_k4 to R.id.fw_k4_t)
 
     private fun RemoteViews.chip(id: Int, text: String?, color: String, textColor: Int = TEXT, click: PendingIntent? = null, bold: Boolean = false) {
@@ -135,6 +135,7 @@ object FastWidget {
             if (kind != null) v.setImageViewResource(intArrayOf(R.id.fw_k0_i, R.id.fw_k1_i, R.id.fw_k2_i, R.id.fw_k3_i, R.id.fw_k4_i)[i], when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; "android" -> R.drawable.fw_i_app; else -> R.drawable.fw_i_contract })
             if (kind != null) v.chip(id, if (kind.mode == "aiwa") "Contrat" else kind.word, if (kind.mode == "pages" || kind.mode == "aiwa") (if (kind.found) "violet" else "violetdim") else if (kind.found) "green" else "dim", if (kind.found) TEXT else TEXT_DIM, broadcast(context, 40 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")), bold = kind.current)
         }
+        v.chip(R.id.fw_cast, null, "pill", click = activity(context, 22, CastActivity::class.java))
         v.chip(R.id.fw_mcp, "MCP", "pill", click = activity(context, 21, ExternalActivity::class.java))
         v.chip(R.id.fw_campaign, "Campagne", "blue", click = activity(context, 14, ProposalsActivity::class.java))
         v.chip(R.id.fw_scenario, "Scénario", "pill", click = activity(context, 20, ScenariosActivity::class.java))
