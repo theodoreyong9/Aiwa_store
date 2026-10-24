@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: no more frame around the widget: the picture is transparent outside of the card, which is now the body plus the tabs (the space above the closed tabs shows the wallpaper). Not verified on a device.
+
 - Widget: the closed tabs are lower than the open one; « Visible » is violet when on.
 
 - Widget: a tab is coloured only when it is open (except when it calls for attention: red Build, the question, the update); Campagnes is green.

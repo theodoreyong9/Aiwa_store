@@ -72,7 +72,20 @@ object WidgetArt {
         val canvas = Canvas(bmp)
         val w = widthPx.toFloat(); val h = heightPx.toFloat()
         val radius = 26f * unit
-        val card = Path().apply { addRoundRect(RectF(0f, 0f, w, h), radius, radius, Path.Direction.CW) }
+        val tabH = h * 7f / 25f
+        val skew = tabH * 0.26f
+        val total = tabs.sumOf { it.weight.toDouble() }.toFloat()
+        // the tabs: slanted pieces (a closed one is lower than the open one); the card is the body under them PLUS the tabs, nothing around: the rest of the picture stays transparent
+        val tabShapes = ArrayList<Pair<List<PointF>, Float>>()
+        var tx = 0f
+        tabs.forEachIndexed { i, tab ->
+            val x0 = tx; val x1 = tx + w * tab.weight / total; tx = x1
+            val top = if (i == active) 0f else tabH * 0.22f
+            val sk = skew * (tabH - top) / tabH
+            tabShapes += listOf(PointF(x0, tabH + 1.5f * unit), PointF(if (i == 0) x0 else x0 + sk, top), PointF(if (i == tabs.size - 1) x1 else x1 + sk, top), PointF(x1, tabH + 1.5f * unit)) to top
+        }
+        val card = Path().apply { addRoundRect(RectF(0f, tabH, w, h), floatArrayOf(8f * unit, 8f * unit, 8f * unit, 8f * unit, radius, radius, radius, radius), Path.Direction.CW) }
+        tabShapes.forEach { (poly, _) -> card.op(Path().apply { moveTo(poly[0].x, poly[0].y); for (p in poly.drop(1)) lineTo(p.x, p.y); close() }, Path.Op.UNION) }
         canvas.save(); canvas.clipPath(card)
         // the card: a diagonal gradient, a sheen on top
         val bg = paint().apply { shader = LinearGradient(w, 0f, 0f, h, if (alert) 0xFF5B2140.toInt() else 0xFF1D2F66.toInt(), if (alert) 0xFF2A1650.toInt() else 0xFF6A2C8A.toInt(), Shader.TileMode.CLAMP) }
@@ -85,21 +98,15 @@ object WidgetArt {
             canvas.drawBitmap(p, src, RectF(0f, 0f, w, h), paint().apply { isFilterBitmap = true })
             canvas.drawRect(0f, 0f, w, h, paint().apply { shader = LinearGradient(w, 0f, 0f, h, withAlpha(if (alert) 0xFF5B2140.toInt() else 0xFF1D2F66.toInt(), 150), withAlpha(if (alert) 0xFF2A1650.toInt() else 0xFF2A1450.toInt(), 190), Shader.TileMode.CLAMP) })
         }
-        val tabH = h * 7f / 25f
-        // the strip of the tabs: darker; the body under it: lighter glass
-        canvas.drawRect(0f, 0f, w, tabH, paint().apply { color = 0x55000000 })
+        // the body under the tabs: lighter glass
         canvas.drawRect(0f, tabH, w, h, paint().apply { shader = LinearGradient(0f, tabH, 0f, h, 0x22FFFFFF, 0x0AFFFFFF, Shader.TileMode.CLAMP) })
-        // the tabs: slanted pieces; the open one is raised glass that joins the body
-        val skew = tabH * 0.26f
-        val total = tabs.sumOf { it.weight.toDouble() }.toFloat()
+        // the tabs: the open one is raised glass that joins the body
         var x = 0f
         tabs.forEachIndexed { i, tab ->
             val x0 = x; val x1 = x + w * tab.weight / total; x = x1
             val first = i == 0; val last = i == tabs.size - 1
             val isOpen = i == active
-            val top = if (isOpen) 0f else tabH * 0.22f          // a closed tab is lower: the open one stands out
-            val sk = skew * (tabH - top) / tabH
-            val poly = listOf(PointF(x0, tabH + 1.5f * unit), PointF(if (first) x0 else x0 + sk, top), PointF(if (last) x1 else x1 + sk, top), PointF(x1, tabH + 1.5f * unit))
+            val (poly, top) = tabShapes[i]
             val tone = if (isOpen || tab.always) tab.tone else "grey"      // a tab is coloured only when it is open (or when it calls for attention)
             cell(canvas, poly, tone, true, 6f * unit, unit, raised = isOpen, seam = !isOpen)
             val cx = (x0 + x1) / 2f + skew / 2f - (if (first) skew / 2f else 0f) - (if (last) skew / 2f else 0f)
@@ -129,8 +136,6 @@ object WidgetArt {
         canvas.drawRect(0f, 0f, w, h, paint().apply { shader = LinearGradient(0f, 0f, w * 0.7f, h * 1.6f, intArrayOf(0x00FFFFFF, 0x22FFFFFF, 0x00FFFFFF), floatArrayOf(0.15f, 0.3f, 0.45f), Shader.TileMode.CLAMP) })
         canvas.drawRect(0f, 0f, w, h, paint().apply { shader = android.graphics.BitmapShader(grain(), Shader.TileMode.REPEAT, Shader.TileMode.REPEAT) })
         canvas.restore()
-        // the edge of the card, lit at the top
-        canvas.drawPath(card, paint().apply { style = Paint.Style.STROKE; strokeWidth = 1.4f * unit; shader = LinearGradient(0f, 0f, 0f, h, 0xAAFFFFFF.toInt(), 0x33FFFFFF, Shader.TileMode.CLAMP) })
         return bmp
     }
 
