@@ -23,10 +23,10 @@ import androidx.core.content.ContextCompat
  */
 object WidgetArt {
     /** One cell: its icon, its word, its colour (grey, green, red, orange, violet, blue) and whether it answers a tap (an unavailable one is drawn dim). */
-    class Btn(val icon: Int, val label: String, val tone: String = "grey", val enabled: Boolean = true)
+    class Btn(val icon: Int, val label: String, val tone: String = "grey", val enabled: Boolean = true, val iconOnly: Boolean = false)
 
     /** One cell of the strip of the tabs (its colour shows only when it is the open one, unless `always`). `icon` 0 = a word only (the question, the update). */
-    class Tab(val icon: Int, val label: String, val tone: String = "grey", val weight: Float = 1f, val always: Boolean = false)
+    class Tab(val icon: Int, val label: String, val tone: String = "grey", val weight: Float = 1f, val always: Boolean = false, val dot: Boolean = false)
 
     // top, bottom, edge, glow (0 = none)
     private fun colours(tone: String): IntArray = when (tone) {
@@ -110,7 +110,8 @@ object WidgetArt {
             val tone = if (isOpen || tab.always) tab.tone else "grey"      // a tab is coloured only when it is open (or when it calls for attention)
             cell(canvas, poly, tone, true, 6f * unit, unit, raised = isOpen, seam = !isOpen)
             val cx = (x0 + x1) / 2f + skew / 2f - (if (first) skew / 2f else 0f) - (if (last) skew / 2f else 0f)
-            content(context, canvas, RectF(cx - (x1 - x0) / 2f, top, cx + (x1 - x0) / 2f, tabH), tab.icon, tab.label, true, unit, if (isOpen) 255 else 215)
+            content(context, canvas, RectF(cx - (x1 - x0) / 2f, top, cx + (x1 - x0) / 2f, tabH), tab.icon, "", true, unit, if (isOpen) 255 else 215)
+            if (tab.dot) { val dr = 3.2f * unit; canvas.drawCircle(cx + 12f * unit, top + (tabH - top) / 2f - 9f * unit, dr, paint().apply { color = 0xFF52D6A0.toInt() }) }
         }
         // the body: rows of cells that touch; the seams are slanted
         // the first row of the body (the middle of the widget) is the thickest; the tabs and the last row are thinner
@@ -129,7 +130,7 @@ object WidgetArt {
                 val poly = listOf(PointF(x0, bottom + 1.5f * unit), PointF(if (firstC) x0 else x0 + s2, top - 0.5f * unit), PointF(if (lastC) x1 else x1 + s2, top - 0.5f * unit), PointF(x1, bottom + 1.5f * unit))
                 cell(canvas, poly, btn.tone, btn.enabled, 6f * unit, unit, raised = false, seam = true)
                 val shift = (if (firstC) 0f else s2 / 2f) / 2f + (if (lastC) 0f else s2 / 2f) / 2f
-                content(context, canvas, RectF(x0 + shift, top, x1 + shift, bottom), btn.icon, btn.label, btn.enabled, unit, 255)
+                content(context, canvas, RectF(x0 + shift, top, x1 + shift, bottom), btn.icon, if (btn.iconOnly) "" else btn.label, btn.enabled, unit, 255)
             }
         }
         // over everything: a band of light across the card (the glass catches a light), and a fine grain (matte glass, no flat gradients)
@@ -173,6 +174,11 @@ object WidgetArt {
         val textH = text.descent() - text.ascent()
         val icon = if (iconRes != 0) ContextCompat.getDrawable(context, iconRes)?.mutate() else null
         val size = (20f * unit).toInt()
+        if (icon != null && label.isEmpty()) {          // the icon alone, a little larger
+            val big = (24f * unit).toInt()
+            icon.setBounds((box.centerX() - big / 2f).toInt(), (box.centerY() - big / 2f).toInt(), (box.centerX() + big / 2f).toInt(), (box.centerY() + big / 2f).toInt()); icon.alpha = alpha; icon.draw(canvas)
+            return
+        }
         if (icon == null) { canvas.drawText(word, box.centerX() - textW / 2f, box.centerY() - (text.ascent() + text.descent()) / 2f, text); return }
         if (box.height() < 40f * unit) {
             val total = size + 5f * unit + textW; val left = box.centerX() - total / 2f

@@ -268,8 +268,8 @@ private fun ProposalsWindow(onClose: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                shape = RoundedCornerShape(22.dp), color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                modifier = Modifier.padding(12.dp).fillMaxWidth().glassPanel(RoundedCornerShape(22.dp))
+                shape = PanelShape, color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
+                modifier = Modifier.padding(12.dp).fillMaxWidth().glassPanel(PanelShape)
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column(Modifier.padding(14.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -310,7 +310,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
                                 if (group.isNotEmpty()) {
                                     Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                                     group.forEach { p ->
-                                        Surface(shape = RoundedCornerShape(16.dp), color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, GlassEdge), modifier = Modifier.fillMaxWidth().background(GlassBody, RoundedCornerShape(16.dp))) {
+                                        Surface(shape = SlantShape(10.dp, 8.dp), color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, GlassEdge), modifier = Modifier.fillMaxWidth().background(GlassBody, SlantShape(10.dp, 8.dp))) {
                                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                                 ModeButtons(context, p)
                                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

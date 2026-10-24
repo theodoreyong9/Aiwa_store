@@ -75,6 +75,30 @@ internal val SheetChip = Color(0x2EFFFFFF)
 internal val GlassBody = androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0x42FFFFFF), Color(0x14FFFFFF)))
 internal val GlassEdge = androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0x99FFFFFF), Color(0x1FFFFFFF)))
 internal val GlassSheen = androidx.compose.ui.graphics.Brush.verticalGradient(0f to Color(0x2EFFFFFF), 0.35f to Color(0x00FFFFFF))
+/** The cut of the widget's cells: a parallelogram leaning to the right, with rounded corners (the same for the buttons, the rows and the little chips of the menus). */
+internal class SlantShape(private val skew: androidx.compose.ui.unit.Dp = 10.dp, private val round: androidx.compose.ui.unit.Dp = 8.dp) : androidx.compose.ui.graphics.Shape {
+    override fun createOutline(size: androidx.compose.ui.geometry.Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection, density: androidx.compose.ui.unit.Density): androidx.compose.ui.graphics.Outline {
+        val s = with(density) { skew.toPx() }.coerceAtMost(size.width / 3f); val r = with(density) { round.toPx() }
+        val v = listOf(androidx.compose.ui.geometry.Offset(s, 0f), androidx.compose.ui.geometry.Offset(size.width, 0f), androidx.compose.ui.geometry.Offset(size.width - s, size.height), androidx.compose.ui.geometry.Offset(0f, size.height))
+        val path = androidx.compose.ui.graphics.Path()
+        v.forEachIndexed { i, p ->
+            val prev = v[(i + 3) % 4]; val next = v[(i + 1) % 4]
+            fun toward(o: androidx.compose.ui.geometry.Offset): androidx.compose.ui.geometry.Offset {
+                val d = o - p; val len = d.getDistance(); val k = minOf(r, len / 2f) / len
+                return androidx.compose.ui.geometry.Offset(p.x + d.x * k, p.y + d.y * k)
+            }
+            val a = toward(prev); val b = toward(next)
+            if (i == 0) path.moveTo(a.x, a.y) else path.lineTo(a.x, a.y)
+            path.quadraticBezierTo(p.x, p.y, b.x, b.y)
+        }
+        path.close()
+        return androidx.compose.ui.graphics.Outline.Generic(path)
+    }
+}
+
+/** The body of a panel, as the widget's: small corners on top, large ones below. */
+internal val PanelShape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 26.dp, bottomEnd = 26.dp)
+
 /** The panel of a menu or a list, in the style of the widget: the same photo behind (dark and tinted), a band of light across it, the same colours. */
 @Composable
 internal fun Modifier.glassPanel(shape: androidx.compose.ui.graphics.Shape): Modifier {
@@ -138,7 +162,7 @@ private fun rowText(entry: PickerEntry): RowText {
 @Composable
 internal fun GlassButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.material3.ButtonDefaults.ContentPadding, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) =
     androidx.compose.material3.Button(
-        onClick = onClick, modifier = modifier, enabled = enabled, shape = RoundedCornerShape(14.dp), contentPadding = contentPadding,
+        onClick = onClick, modifier = modifier, enabled = enabled, shape = SlantShape(7.dp, 6.dp), contentPadding = contentPadding,
         colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0x59FFFFFF), contentColor = Color.White, disabledContainerColor = Color(0x14FFFFFF), disabledContentColor = SheetDim),
         border = androidx.compose.foundation.BorderStroke(1.dp, GlassEdge), content = content,
     )
@@ -146,7 +170,7 @@ internal fun GlassButton(onClick: () -> Unit, modifier: Modifier = Modifier, ena
 @Composable
 internal fun GlassOutlinedButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.material3.ButtonDefaults.ContentPadding, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) =
     androidx.compose.material3.Button(
-        onClick = onClick, modifier = modifier, enabled = enabled, shape = RoundedCornerShape(14.dp), contentPadding = contentPadding,
+        onClick = onClick, modifier = modifier, enabled = enabled, shape = SlantShape(7.dp, 6.dp), contentPadding = contentPadding,
         colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0x1FFFFFFF), contentColor = SheetText, disabledContainerColor = Color(0x0DFFFFFF), disabledContentColor = SheetDim),
         border = androidx.compose.foundation.BorderStroke(1.dp, GlassEdge), content = content,
     )
@@ -181,18 +205,18 @@ internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQu
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                shape = RoundedCornerShape(24.dp),
+                shape = PanelShape,
                 color = Color.Transparent,
                 border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                modifier = Modifier.padding(horizontal = 14.dp).fillMaxWidth().heightIn(max = 600.dp).glassPanel(RoundedCornerShape(24.dp))
+                modifier = Modifier.padding(horizontal = 14.dp).fillMaxWidth().heightIn(max = 600.dp).glassPanel(PanelShape)
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column {
                     // the head: a back arrow when the menu is a step of another one, the title, and the close
                     Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (onBack != null) Text("‹", color = SheetText, fontSize = 20.sp, modifier = Modifier.padding(end = 8.dp).background(SheetChip, RoundedCornerShape(14.dp)).border(1.dp, SheetLine, RoundedCornerShape(14.dp)).clickable { onBack() }.padding(horizontal = 12.dp, vertical = 2.dp))
+                        if (onBack != null) Text("‹", color = SheetText, fontSize = 20.sp, modifier = Modifier.padding(end = 8.dp).background(SheetChip, SlantShape(6.dp, 6.dp)).border(1.dp, SheetLine, SlantShape(6.dp, 6.dp)).clickable { onBack() }.padding(horizontal = 12.dp, vertical = 2.dp))
                         Text(title ?: "", color = SheetText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = if (onBack == null) 4.dp else 0.dp))
-                        Text("✕", color = SheetText, fontSize = 13.sp, modifier = Modifier.background(SheetChip, RoundedCornerShape(14.dp)).border(1.dp, SheetLine, RoundedCornerShape(14.dp)).clickable { onDismiss() }.padding(horizontal = 11.dp, vertical = 6.dp))
+                        Text("✕", color = SheetText, fontSize = 13.sp, modifier = Modifier.background(SheetChip, SlantShape(6.dp, 6.dp)).border(1.dp, SheetLine, SlantShape(6.dp, 6.dp)).clickable { onDismiss() }.padding(horizontal = 11.dp, vertical = 6.dp))
                     }
                     if (query != null) {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).background(SheetChip, RoundedCornerShape(14.dp)).border(1.dp, SheetLine, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -223,8 +247,8 @@ internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQu
                                 // An ACTION (not an item of the list around it): a filled glass button
                                 Box(
                                     Modifier.fillMaxWidth()
-                                        .background(Color(0x40FFFFFF), RoundedCornerShape(16.dp))
-                                        .border(1.dp, Color(0x80FFFFFF), RoundedCornerShape(16.dp))
+                                        .background(Color(0x40FFFFFF), SlantShape(10.dp, 8.dp))
+                                        .border(1.dp, Color(0x80FFFFFF), SlantShape(10.dp, 8.dp))
                                         .clickable { entry.onClick() }.padding(vertical = 12.dp),
                                     contentAlignment = Alignment.Center,
                                 ) { Text(entry.label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) }
@@ -236,7 +260,7 @@ internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQu
                                 Text(entry.label, color = SheetDim, fontSize = 12.sp, lineHeight = 16.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp))
                                 return@items
                             }
-                            val shape = RoundedCornerShape(16.dp)
+                            val shape = SlantShape(10.dp, 8.dp)
                             Row(
                                 Modifier.fillMaxWidth()
                                     .background(GlassBody, shape).background(if (entry.active) Color(0x33FFFFFF) else Color.Transparent, shape)

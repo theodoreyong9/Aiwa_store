@@ -86,10 +86,10 @@ object FastWidget {
         val buildBusy = agentOn || permanentOn
         // ---- the tabs (the question and the update join the strip only when there is one) ----
         val tabs = mutableListOf(
-            WidgetArt.Tab(R.drawable.fw_i_domain, "Domaine" + (if (loopOn) " ●" else ""), "blue"),
+            WidgetArt.Tab(R.drawable.fw_i_domain, "Domaine", "blue", dot = loopOn),
             WidgetArt.Tab(R.drawable.fw_i_files, "Files", "green"),
-            WidgetArt.Tab(R.drawable.fw_i_build, "Build" + (if (buildBusy) " ●" else ""), if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else "orange", always = state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup),
-            WidgetArt.Tab(R.drawable.fw_i_voir, "Voir" + (if (voirOn) " ●" else ""), "violet"))
+            WidgetArt.Tab(R.drawable.fw_i_build, "Build", if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else "orange", always = state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup, dot = buildBusy),
+            WidgetArt.Tab(R.drawable.fw_i_voir, "Voir", "violet", dot = voirOn))
         val ask = state.ask != null
         val upd = state.appUpdateReady
         if (ask) tabs += WidgetArt.Tab(R.drawable.fw_i_question, "Question", "red", always = true)
@@ -134,15 +134,15 @@ object FastWidget {
         val buildPage = listOf(
             listOf(Cell(robot, 3f, robotTap),
                 Cell(WidgetArt.Btn(R.drawable.fw_i_claude, "Claude", if (state.waiting || state.silenceMinutes > 0) "red" else "grey", enabled = hasClaude), 1f, if (hasClaude) activity(context, 71, OpenClaudeActivity::class.java) else null)),
-            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_ear, if (state.listening) "Écoute active" else "Écoute", if (state.listening) "green" else "grey", enabled = earOk), 1f, if (earOk) activity(context, 72, ListenToggleActivity::class.java) else null),
-                Cell(WidgetArt.Btn(R.drawable.fw_i_plus, if (state.attachments > 0) "${state.attachments} jointe(s)" else "Ajouter", if (state.attachments > 0) "green" else "grey"), 1f, activity(context, 73, PlusMenuActivity::class.java)),
-                Cell(WidgetArt.Btn(R.drawable.fw_i_scenario, "Scénario"), 1f, activity(context, 74, ScenariosActivity::class.java))))
+            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_ear, if (state.listening) "Écoute active" else "Écoute", if (state.listening) "green" else "grey", enabled = earOk, iconOnly = true), 1f, if (earOk) activity(context, 72, ListenToggleActivity::class.java) else null),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_plus, if (state.attachments > 0) "${state.attachments} jointe(s)" else "Ajouter", if (state.attachments > 0) "green" else "grey", iconOnly = true), 1f, activity(context, 73, PlusMenuActivity::class.java)),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_scenario, "Scénario", iconOnly = true), 1f, activity(context, 74, ScenariosActivity::class.java))))
         // ---- Voir: visible or not, then the four ways to see ----
         val voirTaps = listOf("lien", "proche", "qr", "favoris").mapIndexed { i, mode -> activity(context, 51 + i, voirIntent(context, state, kinds, mode)) }
         val voir = listOf(
             listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_voir, if (voirOn) "Visible" else "Caché", if (voirOn) "violet" else "grey"), 1f, broadcast(context, 50, ACTION_VOIR, "do" to "toggle")),
                 Cell(WidgetArt.Btn(R.drawable.fw_i_pin, "Proximité", "violet"), 1f, voirTaps[1])),
-            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_link, "Lien"), 1f, voirTaps[0]), Cell(WidgetArt.Btn(R.drawable.fw_i_qr, "QR code"), 1f, voirTaps[2]), Cell(WidgetArt.Btn(R.drawable.fw_i_star, "Favoris"), 1f, voirTaps[3])))
+            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_link, "Lien", iconOnly = true), 1f, voirTaps[0]), Cell(WidgetArt.Btn(R.drawable.fw_i_qr, "QR code", iconOnly = true), 1f, voirTaps[2]), Cell(WidgetArt.Btn(R.drawable.fw_i_star, "Favoris", iconOnly = true), 1f, voirTaps[3])))
         val pages = listOf(domain, files, buildPage, voir)
         // ---- the pictures and the touch zones ----
         val (pw, ph) = sizePx(context)

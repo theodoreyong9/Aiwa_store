@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: the tabs are icons only (a dot for « busy »), and so are the bottom buttons of Build and Voir. Menus and lists take the cut of the widget's cells (slanted parallelograms with rounded corners, a panel with small corners above and large ones below). Not verified on a device.
+
 - Menus and lists (pickers, Boucles, Campagnes): the same photo as the widget behind the glass, darkened and tinted, with the same band of light. Not verified on a device.
 
 - Widget: no more frame around the widget: the picture is transparent outside of the card, which is now the body plus the tabs (the space above the closed tabs shows the wallpaper). Not verified on a device.

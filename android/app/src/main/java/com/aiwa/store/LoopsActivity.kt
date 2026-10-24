@@ -154,8 +154,8 @@ private fun LoopsWindow(onClose: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                shape = RoundedCornerShape(24.dp), color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                modifier = Modifier.padding(16.dp).fillMaxWidth().glassPanel(RoundedCornerShape(24.dp))
+                shape = PanelShape, color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
+                modifier = Modifier.padding(16.dp).fillMaxWidth().glassPanel(PanelShape)
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
