@@ -38,6 +38,16 @@ object WidgetArt {
         else -> intArrayOf(0x30FFFFFF, 0x0DFFFFFF, 0x66FFFFFF, 0x00000000)       // glass: the card shows through
     }
 
+    private var grainTile: Bitmap? = null
+
+    /** A 96 px tile of fine noise (white and black specks of very low opacity), made once. */
+    private fun grain(): Bitmap = grainTile ?: Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888).also { b ->
+        val rnd = java.util.Random(7)
+        val px = IntArray(96 * 96) { if (rnd.nextBoolean()) (rnd.nextInt(14) shl 24) or 0xFFFFFF else (rnd.nextInt(18) shl 24) }
+        b.setPixels(px, 0, 96, 0, 0, 96, 96)
+        grainTile = b
+    }
+
     private var photoRes = 0
     private var photoBitmap: Bitmap? = null
 
@@ -109,6 +119,9 @@ object WidgetArt {
                 content(context, canvas, RectF(x0 + shift, top, x1 + shift, bottom), btn.icon, btn.label, btn.enabled, unit, 255)
             }
         }
+        // over everything: a band of light across the card (the glass catches a light), and a fine grain (matte glass, no flat gradients)
+        canvas.drawRect(0f, 0f, w, h, paint().apply { shader = LinearGradient(0f, 0f, w * 0.7f, h * 1.6f, intArrayOf(0x00FFFFFF, 0x22FFFFFF, 0x00FFFFFF), floatArrayOf(0.15f, 0.3f, 0.45f), Shader.TileMode.CLAMP) })
+        canvas.drawRect(0f, 0f, w, h, paint().apply { shader = android.graphics.BitmapShader(grain(), Shader.TileMode.REPEAT, Shader.TileMode.REPEAT) })
         canvas.restore()
         // the edge of the card, lit at the top
         canvas.drawPath(card, paint().apply { style = Paint.Style.STROKE; strokeWidth = 1.4f * unit; shader = LinearGradient(0f, 0f, 0f, h, 0xAAFFFFFF.toInt(), 0x33FFFFFF, Shader.TileMode.CLAMP) })

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: the glass catches a band of light and has a fine grain (drawn on the Canvas: the AGSL shaders need Android 13 and a hardware canvas, which a widget picture does not give; the icons already are line drawings on the 24 grid, an icon pack would change nothing). Not verified on a device.
+
 - Widget: a photo behind the glass (city at night by default, neon, starry sky, workshop, or none; the choice is in the Settings, « Fond du widget »). Photos are cropped from Poly Haven HDRIs (CC0). Not verified on a device.
 
 - Widget: no more Projet in Domaine (it stays in Files); the Papers tab is gone and its nine links are a « Papers » section of the Settings.
