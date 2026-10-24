@@ -2,6 +2,7 @@ import { config } from './config.js';
 import { $, switchView } from './ui.js';
 import { initStore, initLibrary, initComments, showStoreTab } from './store-ui.js';
 import { initWallet, initWalletPage } from './wallet-ui.js';
+import { initVoirPage } from './voir.js';
 import { initCommentsTab } from './comments-ui.js';
 import { initPublish, sheetIsOpen, closeSheet } from './publish-ui.js';
 import { closeViewer } from './viewer.js';
@@ -38,11 +39,12 @@ initWallet();
 
 // A page alone, opened by the widget's Wallet or Store button (?page=wallet | ?page=store&repo=owner/name): no bar, no tabs inside, one thing on screen.
 const pageParams = new URLSearchParams(location.search);
-const pageAlone = ['wallet', 'store'].includes(pageParams.get('page')) ? pageParams.get('page') : null;
+const pageAlone = ['wallet', 'store', 'voir'].includes(pageParams.get('page')) ? pageParams.get('page') : null;
 if (pageAlone) {
   document.body.dataset.page = pageAlone;
   switchView(pageAlone);
   if (pageAlone === 'store') showStoreTab('aiwa');
+  else if (pageAlone === 'voir') initVoirPage(pageParams);
   else initWalletPage(pageParams.get('repo'));
 }
 

@@ -331,3 +331,12 @@ body[data-page="wallet"] #my-apps-section,
 body[data-page="wallet"] #phrase-notice,
 body[data-page="wallet"] .ids { display: none; }
 body[data-page="wallet"] #lite-actions:not([hidden]) { display: block; }
+
+/* « Voir »: the people near, ranked by their Aiwa score */
+.voir-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.voir-list li { border: 1px solid var(--line, #ffffff33); border-radius: 14px; padding: 12px 14px; }
+.voir-list .who { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+.voir-list .score { font-variant-numeric: tabular-nums; }
+.voir-list a { display: inline-block; margin: 6px 10px 0 0; }
+.voir-list button { float: right; }
+body[data-page="voir"] #app-nav { display: none; }

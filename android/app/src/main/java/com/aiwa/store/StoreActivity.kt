@@ -12,6 +12,7 @@ import android.os.SystemClock
 import android.provider.MediaStore
 import android.util.Log
 import android.view.ViewGroup
+import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -96,6 +97,13 @@ class StoreActivity : ComponentActivity() {
 
     // The page asked for the camera before the phone had given it: the request waits here for the answer.
     private var cameraRequest: PermissionRequest? = null
+    // « Voir » (?page=voir) asks the page for a coarse position: only the Store's own page gets it, and only after the person agreed (Android's question comes first).
+    private var geoAsk: Pair<String, GeolocationPermissions.Callback>? = null
+    private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        geoAsk?.let { (origin, callback) -> callback.invoke(origin, granted, false) }
+        geoAsk = null
+    }
+
     private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val request = cameraRequest ?: return@registerForActivityResult
         cameraRequest = null
@@ -144,6 +152,7 @@ class StoreActivity : ComponentActivity() {
             allowContentAccess = false
             setSupportMultipleWindows(false)
             mediaPlaybackRequiresUserGesture = false      // the camera's preview starts by itself
+            setGeolocationEnabled(true)
         }
         web.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
@@ -159,6 +168,14 @@ class StoreActivity : ComponentActivity() {
                         cameraRequest = request
                         cameraPermission.launch(Manifest.permission.CAMERA)
                     }
+                }
+            }
+
+            override fun onGeolocationPermissionsShowPrompt(origin: String, callback: GeolocationPermissions.Callback) {
+                if (!origin.startsWith("https://appassets.androidplatform.net")) { callback.invoke(origin, false, false); return }
+                runOnUiThread {
+                    if (ContextCompat.checkSelfPermission(this@StoreActivity, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) callback.invoke(origin, true, false)
+                    else { geoAsk?.let { (o, c) -> c.invoke(o, false, false) }; geoAsk = origin to callback; locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION) }
                 }
             }
 

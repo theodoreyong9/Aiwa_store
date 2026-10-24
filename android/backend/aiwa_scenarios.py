@@ -103,7 +103,7 @@ def inner_words(sc, text):
 def reply_command(sc, relay_url):
     return ("curl -s -m 10 -H 'Title: aiwa-scenario' -d '{\"scenario\":\"" + sc["id"] + "\",\"say\":\"<ce que tu dis à voix haute, une ou deux phrases courtes, ou vide>\",\"note\":\"<ce que tu retiens et affiches sans le dire, court, ou vide>\","
             "\"send\":[{\"session\":\"<identifiant session_… d'une session de travail>\",\"message\":\"<le message que tu proposes de lui envoyer>\"}],"
-            "\"do\":{\"repo\":\"<nom du dépôt>\",\"session\":\"<identifiant session_… ou nouvelle>\",\"open\":\"<documents, video, page, app, aiwa, wallet, store, reglages, boucles, campagne, question, claude, plus, mise a jour, projet, ecoute ou robot>\",\"cast\":{\"tv\":\"<nom de la TV, ou vide>\",\"wait\":false},"
+            "\"do\":{\"repo\":\"<nom du dépôt>\",\"session\":\"<identifiant session_… ou nouvelle>\",\"open\":\"<documents, video, page, app, aiwa, wallet, store, reglages, boucles, campagne, question, claude, plus, mise a jour, projet, ecoute, robot ou voir>\",\"cast\":{\"tv\":\"<nom de la TV, ou vide>\",\"wait\":false},"
             "\"connector\":{\"kind\":\"<mail, agenda, sms, appel, whatsapp, telegram, twitter, instagram, linkedin ou tiktok>\",\"to\":\"<adresse ou numéro>\",\"subject\":\"<objet ou titre>\",\"body\":\"<texte>\",\"start\":\"<AAAA-MM-JJ HH:MM>\"}}}' " + relay_url)
 
 

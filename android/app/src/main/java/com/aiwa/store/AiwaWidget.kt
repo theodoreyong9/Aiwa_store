@@ -338,6 +338,7 @@ object WidgetTab {
         "project", "loops", "settings", "wallet" -> "domain"
         "documents", "video", "pages", "android", "aiwa", "campaign", "store" -> "files"
         "claude", "agent", "plus", "listen" -> "build"
+        "voir" -> "voir"
         else -> null
     }
 }
@@ -440,6 +441,7 @@ fun openWidgetButton(app: Context, name: String): Boolean {
         "plus" -> Intent(app, PlusMenuActivity::class.java)
         "update" -> Intent(app, InstallUpdateActivity::class.java)
         "project" -> Intent(app, ProjectPickerActivity::class.java)
+        "voir" -> FastWidget.voirIntent(app, AiwaRepository.state.value, lightKinds(AiwaRepository.state.value, app))
         "listen" -> Intent(app, ListenToggleActivity::class.java)
         "agent" -> Intent(app, AgentToggleActivity::class.java)
         else -> return false

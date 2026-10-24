@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **« Voir »**: a fourth tab in the widget (a *Visible* switch, off by default; the reach 100 m · 1 km · 10 km · town; *Voir les autres*) and a window (`?page=voir`) where the people of the same map cell see the public web links of the Files of your current repository, ranked by their signed Aiwa score (WebRTC room per geohash cell, only while the window is open; https links only; *Bloquer*). Nothing is transferred. In Domaine, *Aiwa* is *Wallet* again. The super agent can open it (`open: voir`, brain 176).
 - A new film for Roger, in his first person (`docs/videos/roger-nexthink`): the earpiece, the widget, the three ways to drive it, the buttons, the voice order to the office server, the Nexthink video on the television, the DEX, the business model and the two profiles, then a client of Nexthink; one visual language (the glass of the widget, drawn in HTML pages), no 3D. A demonstration: the Nexthink scenario is invented and says so on screen.
 
 - The instructions every session receives (and docs/consignes, regenerated) name the buttons of the new widget (Domaine → Campagne, Files → Docs, Contrat, Projet) and no longer a Workflow or GitHub Actions button that is gone (brain 175).

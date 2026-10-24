@@ -9,6 +9,8 @@
     <!-- The Store reads QR codes with the camera (a payment received, two phones pairing for an app): asked once, when the page first
          opens the camera (StoreActivity.kt). Not every phone has one, and nothing but scanning needs it. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- « Voir » : a coarse position (a map cell, never the exact place) to find the people near, only when the person turns it on -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- Android 11+ package-visibility: without declaring this,
          resolving/launching RecognizerIntent.ACTION_RECOGNIZE_SPEECH can

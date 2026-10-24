@@ -54,11 +54,12 @@ Si Termux ou le cerveau manque, le widget le dit et un appui copie la ligne. Cla
 
 ## 3. Le widget
 
-Un seul widget, en vues Android classiques : un appui sur un onglet ne fait que tourner une page (rapide). Deux cellules de haut par défaut, étirable en hauteur. En haut, trois **onglets** ; la **question** de Claude (rouge, un appui y répond) et la **mise à jour** (↻, seulement quand une version est prête) restent toujours visibles. Un point sur un onglet dit ce qui travaille (une boucle, l'écoute) ; rouge quand quelque chose attend ta réponse.
+Un seul widget, en vues Android classiques : un appui sur un onglet ne fait que tourner une page (rapide). Deux cellules de haut par défaut, étirable en hauteur. En haut, quatre **onglets** ; la **question** de Claude (rouge, un appui y répond) et la **mise à jour** (↻, seulement quand une version est prête) restent toujours visibles. Un point sur un onglet dit ce qui travaille (une boucle, l'écoute) ; rouge quand quelque chose attend ta réponse.
 
-- **Domaine** : Boucles · Campagne, puis Réglages · Aiwa (l'application).
+- **Domaine** : Boucles · Campagne, puis Réglages · Wallet.
 - **Files** : Docs · Média · Page · App · Contrat (gris tant que le dépôt n'a rien de ce type, coloré sinon ; un appui l'ouvre), puis Projet ▾ (dépôt et session, ou *Tous*) · Scénario.
 - **Build** : le super agent (gris, vert quand il écoute, rouge s'il a quelque chose à dire) et Claude ; l'écoute permanente et le « + » (pièces jointes).
+- **Voir** : un interrupteur *Visible* (coupé par défaut), la portée (100 m · 1 km · 10 km · ville) et *Voir les autres*. Rien n'est transféré : tu publies les **liens web des Files** de ton dépôt en cours (Docs, Média, App, Page, Contrat, seulement ceux qui existent, donc publics), et les personnes de la même zone voient ces liens, **classées par score Aiwa**. La rencontre se fait dans un salon WebRTC par case de carte (geohash : jamais ta position exacte), tant que la fenêtre est ouverte ; le score est signé par la clé du portefeuille ; liens en https seulement, bouton *Bloquer*.
 
 Le **super agent** peut toucher à tous ces boutons avec `open` (comme un appui), sauf valider un paiement du Wallet ; il règle aussi les pastilles de session et de dépôt, envoie à la télévision et prépare un mail, un SMS, un rendez-vous, un appel ou un message (connecteurs : l'application s'ouvre pré-remplie, c'est toi qui envoies).
 
