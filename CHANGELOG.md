@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: Page and Contrat are yellow (not violet) when the repository has them.
+
 - Widget: the bottom buttons of every tab are icons only, and the bottom row is thinner (a third of the body).
 
 - Widget: the tabs are icons only (a dot for « busy »), and so are the bottom buttons of Build and Voir. Menus and lists take the cut of the widget's cells (slanted parallelograms with rounded corners, a panel with small corners above and large ones below). Not verified on a device.

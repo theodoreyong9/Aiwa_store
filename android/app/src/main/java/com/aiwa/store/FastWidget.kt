@@ -113,7 +113,7 @@ object FastWidget {
         // ---- Files: the project and the campaigns, then one cell per kind of file found ----
         val kindCells = kinds.take(5).mapIndexed { i, kind ->
             val icon = when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; "android" -> R.drawable.fw_i_app; else -> R.drawable.fw_i_contract }
-            val tone = if (!kind.found) "grey" else if (kind.mode == "pages" || kind.mode == "aiwa") "violet" else "green"
+            val tone = if (!kind.found) "grey" else if (kind.mode == "pages" || kind.mode == "aiwa") "yellow" else "green"
             Cell(WidgetArt.Btn(icon, if (kind.mode == "aiwa") "Contrat" else kind.word, tone, enabled = kind.found, iconOnly = true), 1f,
                 broadcast(context, 40 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")))
         }.ifEmpty { listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_files, "Aucun fichier", enabled = false), 1f, null)) }

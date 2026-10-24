@@ -34,6 +34,7 @@ object WidgetArt {
         "red" -> intArrayOf(0xFFE5605B.toInt(), 0xFFA8302D.toInt(), 0xFFFFA39F.toInt(), 0xCCF27A75.toInt())
         "orange" -> intArrayOf(0xFFE09A7C.toInt(), 0xFFB5603F.toInt(), 0xFFFFCDB6.toInt(), 0x66E09A7C.toInt())
         "violet" -> intArrayOf(0xFFA77BD6.toInt(), 0xFF6F4A9E.toInt(), 0xFFDCC3FA.toInt(), 0x66A77BD6.toInt())
+        "yellow" -> intArrayOf(0xFFE8C14A.toInt(), 0xFFA9831C.toInt(), 0xFFFFEBA6.toInt(), 0x88F2CF5E.toInt())
         "blue" -> intArrayOf(0xFF6B9BF5.toInt(), 0xFF2F5DB8.toInt(), 0xFFC4D3FF.toInt(), 0x883A6ECD.toInt())
         else -> intArrayOf(0x30FFFFFF, 0x0DFFFFFF, 0x66FFFFFF, 0x00000000)       // glass: the card shows through
     }
