@@ -25,7 +25,7 @@ object FastWidget {
     private val tabText = mutableMapOf("domain" to "Domaine", "files" to "Files", "build" to "Build", "voir" to "Voir", "papers" to "Papers")
     private val tabColor = mutableMapOf("domain" to "taboff", "files" to "taboff", "build" to "taboff", "voir" to "taboff", "papers" to "taboff")
     private val tabView = mapOf("domain" to R.id.fw_tab_domain, "files" to R.id.fw_tab_files, "build" to R.id.fw_tab_build, "voir" to R.id.fw_tab_voir, "papers" to R.id.fw_tab_papers)
-    private val tabPage = mapOf("domain" to 0, "files" to 1, "build" to 2, "voir" to 3, "papers" to 4)
+    private val tabPage = mapOf("domain" to 0, "files" to 1, "build" to 5, "voir" to 3, "papers" to 4)
 
     /** The tap on a tab: ONLY the page of the flipper and the two tabs concerned change, with a partial update; nothing of the state is read, nothing is rebuilt. */
     fun switchTab(context: Context, tab: String) {
@@ -118,7 +118,7 @@ object FastWidget {
         v.chip(R.id.fw_question, null, "red", click = activity(context, 4, AskActivity::class.java))
         v.setViewVisibility(R.id.fw_update, if (state.appUpdateReady) android.view.View.VISIBLE else android.view.View.GONE)
         v.box(R.id.fw_update, "green", activity(context, 5, InstallUpdateActivity::class.java))
-        v.setDisplayedChild(R.id.fw_flipper, when (tab) { "domain" -> 0; "files" -> 1; "voir" -> 3; "papers" -> 4; else -> 2 })
+        v.setDisplayedChild(R.id.fw_flipper, when (tab) { "domain" -> 0; "files" -> 1; "voir" -> 3; "papers" -> 4; else -> 5 })
         // ---- Domaine ----
         val projectBad = !allMode && (state.repo == null || (accessNotice(state, 1) != null || state.backend == "missing" || state.claudeLogin == "needed"))
         val projectLabel = if (allMode) "Tous" else (Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet") + " ▾"
@@ -162,6 +162,27 @@ object FastWidget {
         v.setViewVisibility(R.id.fw_ear, if (!permanentOn && !agentOn) android.view.View.VISIBLE else android.view.View.GONE)
         v.box(R.id.fw_ear, if (state.listening) "green" else "pill", activity(context, 18, ListenToggleActivity::class.java))
         v.box(R.id.fw_plus, if (state.attachments > 0) "green" else "pill", activity(context, 19, PlusMenuActivity::class.java))
+        // ---- Build, drawn as a picture (WidgetArt) under invisible touch zones of the same proportions ----
+        run {
+            val (pw, ph) = pageSizePx(context)
+            val robot = when {
+                permanentOn -> WidgetArt.Btn(R.drawable.fw_i_ear, "Écoute permanente", "green")
+                needsSetup -> WidgetArt.Btn(R.drawable.fw_i_robot, "Autoriser Aiwa", "red")
+                agentNeeds -> WidgetArt.Btn(R.drawable.fw_i_robot, "Il a quelque chose à dire", "red")
+                agentOn -> WidgetArt.Btn(R.drawable.fw_i_robot, "Super agent · à l'écoute", "green")
+                else -> WidgetArt.Btn(R.drawable.fw_i_robot, "Super agent")
+            }
+            val claude = WidgetArt.Btn(R.drawable.fw_i_claude, "Claude", if (state.waiting || state.silenceMinutes > 0) "red" else "orange", enabled = state.cloudSessionId != null)
+            val ear = WidgetArt.Btn(R.drawable.fw_i_ear, if (state.listening) "Écoute active" else "Écoute", if (state.listening) "green" else "grey", enabled = !permanentOn && !agentOn)
+            val plus = WidgetArt.Btn(R.drawable.fw_i_plus, if (state.attachments > 0) "${state.attachments} jointe(s)" else "Ajouter", if (state.attachments > 0) "green" else "grey")
+            val scenario = WidgetArt.Btn(R.drawable.fw_i_scenario, "Scénario", "violet")
+            v.setImageViewBitmap(R.id.fw_art_build, WidgetArt.page(context, pw, ph, listOf(listOf(robot to 3f, claude to 1f), listOf(ear to 1f, plus to 1f, scenario to 1f))))
+            v.setOnClickPendingIntent(R.id.fw_z_robot, if (permanentOn) activity(context, 70, ListenToggleActivity::class.java) else if (needsSetup) activity(context, 70, SetupActivity::class.java) else activity(context, 70, AgentToggleActivity::class.java))
+            if (state.cloudSessionId != null) v.setOnClickPendingIntent(R.id.fw_z_claude, activity(context, 71, OpenClaudeActivity::class.java))
+            if (!permanentOn && !agentOn) v.setOnClickPendingIntent(R.id.fw_z_ear, activity(context, 72, ListenToggleActivity::class.java))
+            v.setOnClickPendingIntent(R.id.fw_z_plus, activity(context, 73, PlusMenuActivity::class.java))
+            v.setOnClickPendingIntent(R.id.fw_z_scen, activity(context, 74, ScenariosActivity::class.java))
+        }
         // ---- Papers: every link of the Papers tab of the app (the repository's documents), in the browser ----
         listOf(R.id.fw_pa_film to "tree/main/docs/videos", R.id.fw_pa_src to "", R.id.fw_pa_yellow to "blob/main/docs/YELLOWPAPER.md", R.id.fw_pa_plain to "blob/main/docs/EXPLAINED.md",
             R.id.fw_pa_value to "raw/main/docs/value-ontology.pdf", R.id.fw_pa_slides to "raw/main/docs/AIWA_carousel_16_pages_square_final.pdf", R.id.fw_pa_plan to "blob/main/docs/PLAN.md",
@@ -176,6 +197,23 @@ object FastWidget {
             v.chip(id, null, if (mode == "proche" && voirOn) "green" else "pill", click = activity(context, 51 + i, voirIntent(context, state, kinds, mode)))
         }
         return v
+    }
+
+    /** The size, in pixels, of the pictures of a page: the width of the widget less its padding, two thirds of its height (the tabs are the first third); a picture is never wider than 1100 px. */
+    private fun pageSizePx(context: Context): Pair<Int, Int> {
+        val d = context.resources.displayMetrics.density
+        var w = 330f; var h = 84f
+        try {
+            val id = ids(context).firstOrNull()
+            if (id != null) {
+                val o = AppWidgetManager.getInstance(context).getAppWidgetOptions(id)
+                val minW = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0); val maxH = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
+                if (minW > 0) w = minW - 12f
+                if (maxH > 0) h = (maxH - 8f) * 2f / 3f
+            }
+        } catch (err: Exception) { /* the default size */ }
+        val k = minOf(1f, 1100f / (w * d))
+        return maxOf(120, (w * d * k).toInt()) to maxOf(60, (h * d * k).toInt())
     }
 
     /** The window « Voir » (a page of the web app): the links of the Files of the current repository, the reach, and whether they are published. */
