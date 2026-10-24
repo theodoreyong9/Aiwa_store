@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: no more Projet in Domaine (it stays in Files); the Papers tab is gone and its nine links are a « Papers » section of the Settings.
+
 - Widget: the whole widget is now drawn as one picture per tab (card, slanted tabs, a mosaic of glass cells that touch, no gaps) under invisible touch zones; a tap on a tab still only turns two flippers. Not verified on a device (the CI compiles, the rendering must be judged on the phone).
 
 - Widget: a fifth tab, **Papers**, with one button for each link of the Papers tab of the app (the film, the source, the yellow paper, the plain words, the value paper, the carousel, the plan, the business model, the vision), opened in the browser.

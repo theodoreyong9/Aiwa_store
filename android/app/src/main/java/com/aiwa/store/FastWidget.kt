@@ -21,8 +21,8 @@ object FastWidget {
     const val ACTION_BUSY = "com.aiwa.store.FW_BUSY"
     const val ACTION_VOIR = "com.aiwa.store.FW_VOIR"
     private var lastSignature = ""
-    private val TABS = listOf("domain", "files", "build", "voir", "papers")
-    private val IMG = intArrayOf(R.id.fw_img0, R.id.fw_img1, R.id.fw_img2, R.id.fw_img3, R.id.fw_img4)
+    private val TABS = listOf("domain", "files", "build", "voir")
+    private val IMG = intArrayOf(R.id.fw_img0, R.id.fw_img1, R.id.fw_img2, R.id.fw_img3)
 
     /** The tap on a tab: ONLY the page of the two flippers changes, with a partial update. */
     fun switchTab(context: Context, tab: String) {
@@ -89,8 +89,7 @@ object FastWidget {
             WidgetArt.Tab(R.drawable.fw_i_domain, "Domaine" + (if (loopOn) " ●" else ""), if (loopOn) "green" else "grey"),
             WidgetArt.Tab(R.drawable.fw_i_files, "Files"),
             WidgetArt.Tab(R.drawable.fw_i_build, "Build" + (if (buildBusy) " ●" else ""), if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else if (buildBusy) "green" else "grey"),
-            WidgetArt.Tab(R.drawable.fw_i_voir, "Voir" + (if (voirOn) " ●" else ""), if (voirOn) "green" else "grey"),
-            WidgetArt.Tab(R.drawable.fw_i_papers, "Papers"))
+            WidgetArt.Tab(R.drawable.fw_i_voir, "Voir" + (if (voirOn) " ●" else ""), if (voirOn) "green" else "grey"))
         val ask = state.ask != null
         val upd = state.appUpdateReady
         if (ask) tabs += WidgetArt.Tab(R.drawable.fw_i_question, "Question", "red")
@@ -106,9 +105,9 @@ object FastWidget {
         val project = WidgetArt.Btn(R.drawable.fw_i_project, projectLabel, if (allMode) "green" else if (projectBad) "red" else "blue", enabled = !locked)
         val projectTap = if (locked) broadcast(context, 6, ACTION_BUSY) else activity(context, 6, ProjectPickerActivity::class.java)
         val domain = listOf(
-            listOf(Cell(project, 2f, projectTap), Cell(WidgetArt.Btn(R.drawable.fw_i_loops, if (loopOn) "Boucle ${state.loopPair}" else "Boucles", if (loopOn) "green" else "grey"), 1f, activity(context, 7, LoopsActivity::class.java))),
+            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_loops, if (loopOn) "Boucle ${state.loopPair}" else "Boucles", if (loopOn) "green" else "grey"), 1f, activity(context, 7, LoopsActivity::class.java)),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_wallet, "Wallet"), 1f, activity(context, 9, storePageIntent(context, "wallet", state.repo)))),
             listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_settings, "Réglages"), 1f, activity(context, 8, SettingsActivity::class.java)),
-                Cell(WidgetArt.Btn(R.drawable.fw_i_wallet, "Wallet"), 1f, activity(context, 9, storePageIntent(context, "wallet", state.repo))),
                 Cell(WidgetArt.Btn(R.drawable.fw_i_mcp, "MCP"), 1f, activity(context, 21, ExternalActivity::class.java)),
                 Cell(WidgetArt.Btn(R.drawable.fw_i_cast, "Cast TV"), 1f, activity(context, 22, CastActivity::class.java))))
         // ---- Files: the project and the campaigns, then one cell per kind of file found ----
@@ -143,18 +142,10 @@ object FastWidget {
             listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_voir, if (voirOn) "Visible" else "Caché", if (voirOn) "green" else "grey"), 1f, broadcast(context, 50, ACTION_VOIR, "do" to "toggle"))),
             listOf("lien" to (R.drawable.fw_i_link to "Lien"), "proche" to (R.drawable.fw_i_pin to "Proximité"), "qr" to (R.drawable.fw_i_qr to "QR code"), "favoris" to (R.drawable.fw_i_star to "Favoris")).mapIndexed { i, (mode, il) ->
                 Cell(WidgetArt.Btn(il.first, il.second, if (mode == "proche" && voirOn) "green" else "grey"), 1f, activity(context, 51 + i, voirIntent(context, state, kinds, mode))) })
-        // ---- Papers: every link of the Papers tab of the app (the repository's documents), in the browser ----
-        val papers = listOf(
-            Triple("Films", R.drawable.fw_i_media, "tree/main/docs/videos"), Triple("Source", R.drawable.fw_i_docs, ""), Triple("Yellow", R.drawable.fw_i_book, "blob/main/docs/YELLOWPAPER.md"),
-            Triple("Simple", R.drawable.fw_i_papers, "blob/main/docs/EXPLAINED.md"), Triple("Valeur", R.drawable.fw_i_papers, "raw/main/docs/value-ontology.pdf"),
-            Triple("Slides", R.drawable.fw_i_slides, "raw/main/docs/AIWA_carousel_16_pages_square_final.pdf"), Triple("Plan", R.drawable.fw_i_papers, "blob/main/docs/PLAN.md"),
-            Triple("Business", R.drawable.fw_i_papers, "blob/main/docs/BUSINESS.md"), Triple("Société", R.drawable.fw_i_papers, "blob/main/docs/VISION-SOCIETE-AUGMENTEE.md")).mapIndexed { i, (word, icon, path) ->
-            Cell(WidgetArt.Btn(icon, word), 1f, activity(context, 60 + i, Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/theodoreyong9/Aiwa_store" + (if (path.isEmpty()) "" else "/$path")))))
-        }
-        val pages = listOf(domain, files, buildPage, voir, listOf(papers.take(5), papers.drop(5)))
+        val pages = listOf(domain, files, buildPage, voir)
         // ---- the pictures and the touch zones ----
         val (pw, ph) = sizePx(context)
-        val letter = listOf("d", "f", "b", "v", "p")
+        val letter = listOf("d", "f", "b", "v")
         pages.forEachIndexed { p, rows ->
             v.setImageViewBitmap(IMG[p], WidgetArt.full(context, pw, ph, alert, tabs, p, rows.map { row -> row.map { it.btn to it.weight } }))
             rows.forEachIndexed { r, row ->

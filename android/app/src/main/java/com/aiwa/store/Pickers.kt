@@ -872,6 +872,13 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Scénarios : un mot lance un double de moi, ou le rapport", false, lines = 2, chevron = true) { open(ScenariosActivity::class.java) })
                 add(PickerEntry("Ma façon de parler : l'agent me répond comme je parle", false, lines = 2, chevron = true) { open(StyleActivity::class.java) })
                 add(PickerEntry("Mes mots", false, lines = 1, chevron = true) { open(RecognitionsActivity::class.java) })
+                add(PickerEntry("Papers", false, header = true) { })
+                listOf("Film" to "tree/main/docs/videos", "Source" to "", "Yellow paper" to "blob/main/docs/YELLOWPAPER.md", "Explication simple" to "blob/main/docs/EXPLAINED.md", "Valeur" to "raw/main/docs/value-ontology.pdf",
+                    "Carrousel" to "raw/main/docs/AIWA_carousel_16_pages_square_final.pdf", "Plan" to "blob/main/docs/PLAN.md", "Business" to "blob/main/docs/BUSINESS.md", "Société augmentée" to "blob/main/docs/VISION-SOCIETE-AUGMENTEE.md").forEach { (name, path) ->
+                    add(PickerEntry(name, false, lines = 1, chevron = true) {
+                        startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/theodoreyong9/Aiwa_store" + (if (path.isEmpty()) "" else "/$path"))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    })
+                }
                 add(PickerEntry("Aiwa", false, header = true) { })
                 add(PickerEntry("État d'Aiwa", false, lines = 1, chevron = true) { open(HealthActivity::class.java) })
                 // Which build and which brain run: the numbers to compare with what GitHub says is the latest (the update entries are gone from this list)
