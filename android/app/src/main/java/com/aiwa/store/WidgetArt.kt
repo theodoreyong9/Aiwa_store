@@ -38,12 +38,25 @@ object WidgetArt {
         else -> intArrayOf(0x30FFFFFF, 0x0DFFFFFF, 0x66FFFFFF, 0x00000000)       // glass: the card shows through
     }
 
+    private var photoRes = 0
+    private var photoBitmap: Bitmap? = null
+
+    /** The photo of a drawable (0 = none), decoded once and kept. */
+    private fun photo(context: Context, res: Int): Bitmap? {
+        if (res == 0) return null
+        if (res != photoRes) {
+            photoBitmap = try { android.graphics.BitmapFactory.decodeResource(context.resources, res) } catch (err: Throwable) { null }
+            photoRes = res
+        }
+        return photoBitmap
+    }
+
     private fun withAlpha(color: Int, alpha: Int): Int = (color and 0x00FFFFFF) or (alpha.coerceIn(0, 255) shl 24)
 
     private fun paint(): Paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     /** The picture of the widget for the open tab `active` (an index of `tabs`), with the rows of cells of its page. */
-    fun full(context: Context, widthPx: Int, heightPx: Int, alert: Boolean, tabs: List<Tab>, active: Int, rows: List<List<Pair<Btn, Float>>>): Bitmap {
+    fun full(context: Context, widthPx: Int, heightPx: Int, alert: Boolean, background: Int, tabs: List<Tab>, active: Int, rows: List<List<Pair<Btn, Float>>>): Bitmap {
         val unit = widthPx / 330f                      // one « dp » of the drawing: the picture is designed on a card 330 wide
         val bmp = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
@@ -54,6 +67,14 @@ object WidgetArt {
         // the card: a diagonal gradient, a sheen on top
         val bg = paint().apply { shader = LinearGradient(w, 0f, 0f, h, if (alert) 0xFF5B2140.toInt() else 0xFF1D2F66.toInt(), if (alert) 0xFF2A1650.toInt() else 0xFF6A2C8A.toInt(), Shader.TileMode.CLAMP) }
         canvas.drawRect(0f, 0f, w, h, bg)
+        // a photo behind the glass (cut to fill the card), darkened and tinted by the card's own colours so that the words stay readable and the alert still shows
+        photo(context, background)?.let { p ->
+            val scale = maxOf(w / p.width, h / p.height)
+            val sw = w / scale; val sh = h / scale
+            val src = android.graphics.Rect(((p.width - sw) / 2f).toInt(), ((p.height - sh) / 2f).toInt(), ((p.width + sw) / 2f).toInt(), ((p.height + sh) / 2f).toInt())
+            canvas.drawBitmap(p, src, RectF(0f, 0f, w, h), paint().apply { isFilterBitmap = true })
+            canvas.drawRect(0f, 0f, w, h, paint().apply { shader = LinearGradient(w, 0f, 0f, h, withAlpha(if (alert) 0xFF5B2140.toInt() else 0xFF1D2F66.toInt(), 150), withAlpha(if (alert) 0xFF2A1650.toInt() else 0xFF2A1450.toInt(), 190), Shader.TileMode.CLAMP) })
+        }
         val tabH = h / 3f
         // the strip of the tabs: darker; the body under it: lighter glass
         canvas.drawRect(0f, 0f, w, tabH, paint().apply { color = 0x55000000 })

@@ -48,7 +48,7 @@ object FastWidget {
         val kinds = lightKinds(state, context).sortedBy { listOf("documents", "video", "android", "pages", "aiwa").indexOf(it.mode) }
         val signature = listOf(tab, state.repo, state.cloudSessionId, state.status, state.waiting, state.silenceMinutes, state.loopPair, state.listening, state.agent?.enabled, state.agent?.say != null, state.agent?.proposal != null,
             state.agent?.command != null, state.ask != null, state.appUpdateReady, state.attachments, Projects.isAll(context), Projects.nameOf(context, state.repo, state.cloudSessionId), hasTermuxPermission(context),
-            kinds.map { it.word + it.found + it.current }, VoirSettings.on(context), VoirSettings.radius(context)).joinToString("|")
+            kinds.map { it.word + it.found + it.current }, VoirSettings.on(context), VoirSettings.radius(context), WidgetBackground.key(context)).joinToString("|")
         if (!force && signature == lastSignature) return
         lastSignature = signature
         val views = try { build(context, state, tab, kinds) } catch (err: Throwable) { return }
@@ -147,7 +147,7 @@ object FastWidget {
         val (pw, ph) = sizePx(context)
         val letter = listOf("d", "f", "b", "v")
         pages.forEachIndexed { p, rows ->
-            v.setImageViewBitmap(IMG[p], WidgetArt.full(context, pw, ph, alert, tabs, p, rows.map { row -> row.map { it.btn to it.weight } }))
+            v.setImageViewBitmap(IMG[p], WidgetArt.full(context, pw, ph, alert, WidgetBackground.res(context), tabs, p, rows.map { row -> row.map { it.btn to it.weight } }))
             rows.forEachIndexed { r, row ->
                 row.forEachIndexed { c, cell -> id(context, "z_${letter[p]}_${r}_$c").let { zid -> v.setViewVisibility(zid, android.view.View.VISIBLE); cell.click?.let { v.setOnClickPendingIntent(zid, it) } } }
             }
@@ -250,4 +250,20 @@ object VoirSettings {
     fun setOn(context: Context, on: Boolean) { try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean("on", on).apply() } catch (err: Exception) { } }
     fun radius(context: Context): Int = try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getInt("radius", 1).coerceIn(0, 3) } catch (err: Exception) { 1 }
     fun setRadius(context: Context, radius: Int) { try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putInt("radius", radius.coerceIn(0, 3)).apply() } catch (err: Exception) { } }
+}
+
+
+/** The photo behind the widget: one of a few (free of rights, from Poly Haven) or none; the default is the city at night. */
+object WidgetBackground {
+    private const val FILE = "aiwa_widget_bg"
+    val CHOICES = listOf("ville" to ("Ville la nuit" to R.drawable.fw_bg_ville), "neon" to ("Néons" to R.drawable.fw_bg_neon), "desert" to ("Ciel étoilé" to R.drawable.fw_bg_desert), "atelier" to ("Atelier" to R.drawable.fw_bg_atelier), "none" to ("Aucune" to 0))
+    fun key(context: Context): String = try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("bg", "ville") ?: "ville" } catch (err: Exception) { "ville" }
+    fun res(context: Context): Int = CHOICES.firstOrNull { it.first == key(context) }?.second?.second ?: 0
+    fun label(context: Context): String = CHOICES.firstOrNull { it.first == key(context) }?.second?.first ?: "Aucune"
+    /** The next photo of the list. */
+    fun next(context: Context) {
+        val i = CHOICES.indexOfFirst { it.first == key(context) }
+        try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString("bg", CHOICES[(i + 1) % CHOICES.size].first).apply() } catch (err: Exception) { }
+        FastWidget.render(context, force = true)
+    }
 }

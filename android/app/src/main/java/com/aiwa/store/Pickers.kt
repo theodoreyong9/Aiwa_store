@@ -666,6 +666,7 @@ class HealthActivity : ComponentActivity() {
                 BackendSync.refresh(bridge)
             }
             val entries = buildList {
+                add(PickerEntry("Fond du widget : ${WidgetBackground.label(applicationContext)} (toucher pour changer)", false, lines = 2) { WidgetBackground.next(applicationContext); finish() })
                 add(PickerEntry("État d'Aiwa", false, header = true) { })
                 add(
                     PickerEntry(

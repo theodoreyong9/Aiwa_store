@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: a photo behind the glass (city at night by default, neon, starry sky, workshop, or none; the choice is in the Settings, « Fond du widget »). Photos are cropped from Poly Haven HDRIs (CC0). Not verified on a device.
+
 - Widget: no more Projet in Domaine (it stays in Files); the Papers tab is gone and its nine links are a « Papers » section of the Settings.
 
 - Widget: the whole widget is now drawn as one picture per tab (card, slanted tabs, a mosaic of glass cells that touch, no gaps) under invisible touch zones; a tap on a tab still only turns two flippers. Not verified on a device (the CI compiles, the rendering must be judged on the phone).
