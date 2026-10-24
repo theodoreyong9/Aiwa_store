@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A new film for Roger, in his first person (`docs/videos/roger-nexthink`): the earpiece, the widget, the three ways to drive it, the buttons, the voice order to the office server, the Nexthink video on the television, the DEX, the business model and the two profiles, then a client of Nexthink; one visual language (the glass of the widget, drawn in HTML pages), no 3D. A demonstration: the Nexthink scenario is invented and says so on screen.
+
 - The instructions every session receives (and docs/consignes, regenerated) name the buttons of the new widget (Domaine → Campagne, Files → Docs, Contrat, Projet) and no longer a Workflow or GitHub Actions button that is gone (brain 175).
 
 - **The widget is now in plain views**: the same tabs, but a tap on a tab only turns a page instead of recomposing the whole widget, so it is fast; the widget already on the screen becomes the fast one with the update.

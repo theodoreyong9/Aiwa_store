@@ -1,0 +1,185 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Roger — service client, démonstration</title>
+<style>
+@font-face{font-family:SG;src:url(../aiwa-v25/fonts/SpaceGrotesk.ttf);font-weight:300 700}
+@font-face{font-family:FR;src:url(../aiwa-v25/fonts/Fraunces-Italic.ttf);font-style:italic;font-weight:100 900}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#0c0f26}
+body{font-family:SG,sans-serif;color:#f4f4ff;position:relative}
+#bg{position:absolute;inset:-200px;background:radial-gradient(1200px 800px at 30% 20%,#2b3f8f 0%,transparent 60%),radial-gradient(1000px 700px at 80% 90%,#6a2c8a 0%,transparent 60%),#0c0f26}
+.sc{position:absolute;inset:0;opacity:0;will-change:transform,opacity}
+.cam{position:absolute;inset:0;transform-origin:50% 50%}
+h1{position:absolute;font-size:118px;line-height:1.04;font-weight:700;letter-spacing:-.02em}
+h2{position:absolute;font-size:84px;line-height:1.06;font-weight:700;letter-spacing:-.02em}
+i{font-family:FR;font-weight:400;color:#9db8ff}
+.k{position:absolute;font-size:26px;letter-spacing:.32em;text-transform:uppercase;color:#9db8ff;font-weight:600}
+.p{position:absolute;font-size:46px;line-height:1.28;color:#cfd3ff}
+.glass{position:absolute;border-radius:34px;background:linear-gradient(#ffffff33,#ffffff10);border:2px solid #ffffff55;box-shadow:0 30px 80px #0006}
+.pill{position:absolute;padding:16px 34px;border-radius:60px;background:linear-gradient(#ffffff3a,#ffffff14);border:2px solid #ffffff66;font-size:38px;font-weight:600;white-space:nowrap}
+.pill.on{background:linear-gradient(#5b8df0e6,#2f5db8e6);border-color:#b8c4ffb3}
+/* the widget replica */
+#wg{position:absolute;width:980px;height:470px;border-radius:50px;background:linear-gradient(315deg,#6a2c8a,#1d2f66);border:2px solid #ffffff55;box-shadow:0 40px 100px #000a;padding:18px 20px}
+#wg:before{content:"";position:absolute;inset:0;border-radius:50px;background:linear-gradient(#ffffff3d,#ffffff08 45%,#ffffff00)}
+.bar{position:relative;height:96px;border-radius:60px;background:#00000047;padding:8px;display:flex;gap:8px}
+.tab{flex:1;border-radius:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:25px;font-weight:600;gap:2px;color:#e2e6ff}
+.tab.on{background:linear-gradient(#5b8df0e6,#2f5db8e6);border:2px solid #b8c4ffb3;color:#fff}
+.tab svg,.btn svg{width:40px;height:40px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pg{position:absolute;left:20px;right:20px;top:130px;bottom:18px;opacity:0}
+.row{display:flex;gap:12px;height:48%;margin-bottom:12px}
+.btn{flex:1;border-radius:46px;background:linear-gradient(#ffffff2e,#ffffff12);border:2px solid #ffffff55;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:25px;font-weight:600;gap:2px;position:relative}
+.btn.v{background:linear-gradient(#b38e5bc0,#7a58a8aa);border-color:#c9a6f0cc}
+.btn.g{background:linear-gradient(#802e9e6d,#2e9e6d66);border-color:#52b089aa}
+.btn.big{flex:3}
+.tap{position:absolute;width:90px;height:90px;border-radius:50%;border:5px solid #fff;opacity:0;transform:scale(.4);pointer-events:none}
+.ico svg{width:84px;height:84px;fill:none;stroke:#9db8ff;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.node{position:absolute;width:480px;height:290px;border-radius:34px;background:linear-gradient(#ffffff33,#ffffff10);border:2px solid #ffffff55;padding:30px;font-size:34px}
+.node b{display:block;font-size:44px;margin-bottom:10px;line-height:1.1}
+.node small{font-size:27px;color:#cfd3ff;line-height:1.25}
+.chk{position:absolute;right:26px;bottom:24px;width:46px;height:46px;border-radius:50%;background:#2e9e6d;opacity:0;display:flex;align-items:center;justify-content:center;font-size:30px}
+#tv{position:absolute;left:330px;top:150px;width:1260px;height:720px;border-radius:26px;background:#05060f;border:14px solid #1b1d33;box-shadow:0 40px 100px #000a;overflow:hidden}
+#tv img{position:absolute;border-radius:12px;box-shadow:0 20px 50px #000a}
+.lbl{position:absolute;font-size:24px;letter-spacing:.14em;text-transform:uppercase;color:#9db8ff}
+.prog{position:absolute;height:20px;border-radius:12px;background:#ffffff22;overflow:hidden}.prog>div{height:100%;background:linear-gradient(90deg,#5b8df0,#9db8ff);width:0}
+#cap{position:absolute;left:0;right:0;bottom:70px;text-align:center;font-size:40px;color:#e6e8ff;text-shadow:0 2px 14px #000c;padding:0 220px}
+#demo{position:absolute;right:50px;top:40px;font-size:22px;letter-spacing:.22em;text-transform:uppercase;color:#9aa3d9;opacity:.8}
+</style></head><body>
+<div id="bg"></div>
+<div id="demo">Démonstration · scénario fictif</div>
+
+<div class="sc" id="s1"><div class="cam" id="c1">
+ <svg id="ear" viewBox="0 0 200 260" style="position:absolute;left:150px;top:110px;width:300px;height:390px"><path d="M60 110a55 55 0 0 1 110 0c0 38-34 46-34 84a26 26 0 0 1-52 0" fill="none" stroke="#9db8ff" stroke-width="5" stroke-linecap="round"/><path d="M92 112a24 24 0 0 1 48 0" fill="none" stroke="#9db8ff" stroke-width="5" stroke-linecap="round"/><circle id="bud" cx="150" cy="150" r="16" fill="#fff"/></svg>
+ <div id="halo" style="position:absolute;left:160px;top:190px;width:280px;height:280px;border-radius:50%;background:radial-gradient(#9db8ff55,transparent 70%);opacity:0"></div>
+ <div class="k" style="left:560px;top:150px">Roger</div>
+ <h1 id="t1" style="left:560px;top:205px;width:1250px">Ma passion,<br>c’est le <i>service client</i>.</h1>
+ <h1 id="t2" style="left:560px;top:205px;width:1250px;opacity:0">Dedans se cache<br>un <i>widget</i>.</h1>
+ <div id="wg1" style="position:absolute;left:560px;top:140px;opacity:0"></div>
+</div></div>
+
+<div class="sc" id="s2"><div class="cam" id="c2">
+ <div class="k" style="left:150px;top:150px">Trois façons de le piloter</div>
+ <div class="glass" id="m1" style="left:150px;top:290px;width:520px;height:340px;padding:44px"><div class="ico" data-i="settings"></div><h2 style="position:static;font-size:64px;margin-top:10px">Manuel</h2><div class="p" style="position:static;font-size:34px">les boutons</div></div>
+ <div class="glass" id="m2" style="left:700px;top:290px;width:520px;height:340px;padding:44px"><div class="ico" data-i="ear"></div><h2 style="position:static;font-size:64px;margin-top:10px">Vocal</h2><div class="p" style="position:static;font-size:34px">je lui parle</div></div>
+ <div class="glass" id="m3" style="left:1250px;top:290px;width:520px;height:340px;padding:44px"><div class="ico" data-i="robot"></div><h2 style="position:static;font-size:64px;margin-top:10px">Autonome</h2><div class="p" style="position:static;font-size:34px">il travaille seul</div></div>
+ <div id="os" style="position:absolute;left:150px;top:720px;opacity:0"><div class="k" style="position:static;margin-bottom:22px">Un système d’exploitation ouvert, bâti sur</div>
+  <span class="pill on" style="position:static;margin-right:22px">Claude Code</span><span class="pill" style="position:static;margin-right:22px">+</span><span class="pill on" style="position:static">Termux</span></div>
+</div></div>
+
+<div class="sc" id="s3"><div class="cam" id="c3"><div class="k" style="left:150px;top:120px">Le contrôle, bouton par bouton</div><div id="wg3" style="position:absolute;left:470px;top:300px"></div>
+ <div class="p" id="lab3" style="left:470px;top:820px;font-size:58px;color:#fff"></div></div></div>
+
+<div class="sc" id="s4"><div class="cam" id="c4">
+ <div class="k" style="left:150px;top:120px">« Dis au serveur du bureau… »</div>
+ <div id="wave" style="position:absolute;left:150px;top:230px;width:1620px;height:120px"></div>
+ <div class="node" id="n1" style="left:120px;top:440px"><b>Serveur du bureau</b><small>produit les vidéos de Noël</small><div class="chk" id="k1c">✓</div></div>
+ <div class="node" id="n2" style="left:720px;top:440px"><b>Session vidéo</b><small>critique chaque film</small><div class="chk" id="k2c">✓</div></div>
+ <div class="node" id="n3" style="left:1320px;top:440px"><b>Ma télé</b><small>cast quand c’est prêt</small><div class="chk" id="k3c">✓</div></div>
+ <svg style="position:absolute;left:0;top:0" width="1920" height="1080"><g stroke="#9db8ff" stroke-width="5" fill="none" stroke-linecap="round"><path id="a1" d="M610 585H710" stroke-dasharray="100" stroke-dashoffset="100"/><path id="a2" d="M1210 585H1310" stroke-dasharray="100" stroke-dashoffset="100"/></g></svg>
+</div></div>
+
+<div class="sc" id="s5"><div class="cam" id="c5">
+ <div class="k" style="left:330px;top:90px">Pendant ce temps, sur ma télé</div>
+ <div id="tv"><div class="lbl" style="left:50px;top:36px">Scène 1</div><img src="still6.jpg" style="left:50px;top:80px;width:370px"><div class="lbl" style="left:445px;top:36px">Scène 2</div><img src="still22.jpg" style="left:445px;top:80px;width:370px"><div class="lbl" style="left:840px;top:36px" id="l3">Scène 3 · rendu…</div><img id="im3" src="still41.jpg" style="left:840px;top:80px;width:370px;opacity:.2">
+  <div style="position:absolute;left:50px;bottom:120px;font-size:44px;font-weight:600">Vidéo Nexthink · Aiwa</div>
+  <div class="prog" style="left:50px;bottom:70px;width:1000px"><div id="pr"></div></div>
+  <div id="pct" style="position:absolute;right:60px;bottom:50px;font-size:56px;font-weight:700">0 %</div></div></div>
+</div></div>
+
+<div class="sc" id="s6"><div class="cam" id="c6">
+ <svg id="brain" style="position:absolute;left:0;top:0" width="1920" height="1080"></svg>
+ <h1 id="nx" style="left:0;right:0;top:380px;text-align:center;font-size:190px">Nexthink</h1>
+ <h2 id="dx" style="left:0;right:0;top:620px;text-align:center;font-size:62px;font-weight:500">le <i>DEX</i> qui centralise les cerveaux</h2>
+</div></div>
+
+<div class="sc" id="s7"><div class="cam" id="c7">
+ <h1 style="left:150px;top:200px;font-size:100px">Pourquoi ?</h1>
+ <div class="p" style="left:154px;top:360px;font-size:54px;color:#fff;width:1300px">Mon modèle économique est <i>ailleurs</i>.</div>
+ <div class="pill on" id="b1" style="left:154px;top:560px;font-size:50px">autogestion économique des agents</div>
+ <div class="pill on" id="b2" style="left:154px;top:700px;font-size:50px">contrats hors chaîne</div>
+</div></div>
+
+<div class="sc" id="s8"><div class="cam" id="c8">
+ <div class="k" style="left:150px;top:120px">Ce que je cherche en échange</div>
+ <h2 style="left:150px;top:190px;width:1500px;font-size:92px">Un poste de <i>service client</i><br>dans le DEX Nexthink</h2>
+ <div class="glass" id="pc1" style="left:150px;top:500px;width:780px;height:300px;padding:44px"><div class="k" style="position:static;margin-bottom:14px">Service client</div><h2 style="position:static;font-size:58px">Des résultats exceptionnels</h2></div>
+ <div class="glass" id="pc2" style="left:970px;top:500px;width:800px;height:300px;padding:44px"><div class="k" style="position:static;margin-bottom:14px">Business analyst</div><h2 style="position:static;font-size:58px">Prolifique, orienté système</h2></div>
+</div></div>
+
+<div class="sc" id="s9"><div class="cam" id="c9">
+ <div class="k" style="left:150px;top:100px">Chez le client de Nexthink</div>
+ <div class="glass" id="br" style="left:150px;top:180px;width:1000px;height:600px;padding:0;overflow:hidden"><div style="height:64px;background:#00000040;display:flex;align-items:center;gap:12px;padding:0 24px"><span style="width:16px;height:16px;border-radius:50%;background:#ff6b6b"></span><span style="width:16px;height:16px;border-radius:50%;background:#ffd166"></span><span style="width:16px;height:16px;border-radius:50%;background:#52b089"></span><span style="margin-left:24px;font-size:24px;color:#cfd3ff">site-du-client.exemple</span></div>
+  <div style="padding:50px"><div style="font-size:30px;letter-spacing:.2em;color:#9db8ff;text-transform:uppercase">Campagne</div><h2 style="position:static;font-size:66px;margin:16px 0 40px">Refonte du site web</h2>
+  <div class="prog" style="position:static;width:860px;height:26px"><div id="pr9" style="width:0"></div></div>
+  <div style="display:flex;gap:16px;margin-top:40px"><span class="pill" style="position:static;font-size:30px" id="c9a">Maquettes</span><span class="pill" style="position:static;font-size:30px" id="c9b">Contenus</span><span class="pill" style="position:static;font-size:30px" id="c9c">Mise en ligne</span></div></div></div>
+ <div class="glass" id="bub" style="left:1200px;top:280px;width:560px;height:330px;padding:40px"><div class="k" style="position:static;margin-bottom:14px;font-size:22px">Message à Nexthink</div><div style="font-size:42px;line-height:1.25;color:#fff">Une amélioration est possible sur le <i>délai de traitement</i>.</div></div>
+</div></div>
+
+<div class="sc" id="s10"><div class="cam" id="c10">
+ <h1 style="left:0;right:0;top:330px;text-align:center;font-size:150px">Roger</h1>
+ <div class="p" style="left:0;right:0;top:560px;text-align:center;font-size:52px;color:#fff">Service client · Business analyst</div>
+ <div class="p" style="left:0;right:0;top:650px;text-align:center;font-size:40px">Démonstration : le scénario Nexthink est fictif.</div>
+</div></div>
+<div id="cap"></div>
+<script>
+/*SCHED*/
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),ramp=(t,a,b)=>clamp((t-a)/(b-a)),eo=x=>1-Math.pow(1-x,3),eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const $=id=>document.getElementById(id);
+const K=Object.fromEntries(SCHED.map(s=>[s.key,s]));
+const IC={domain:'M12 3 L3 8 L12 13 L21 8 Z M3 12.5 L12 17.5 L21 12.5 M3 16.5 L12 21.5 L21 16.5',files:'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',build:'M8 8 L4 12 L8 16 M16 8 L20 12 L16 16 M13.5 5 L10.5 19',loops:'M20 12a8 8 0 0 0-14-5.3L4 9 M4 4v5h5 M4 12a8 8 0 0 0 14 5.3L20 15 M20 20v-5h-5',campaign:'M21 3 L10 14 M21 3 L14 21 L10 14 L3 10 Z',settings:'M4 7h10 M18 7h2 M4 17h2 M10 17h10 M16 5v4 M8 15v4',aiwa:'M4 20 L12 4 L20 20 M7.5 14.5 H16.5',docs:'M6 3h8l4 4v14H6z M14 3v4h4 M9 12h6 M9 16h6',media:'M12 3a9 9 0 1 0 0.01 0z M10 8.5 L16 12 L10 15.5 Z',app:'M9 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M11 18h2',page:'M12 3a9 9 0 1 0 0.01 0z M3 12h18 M12 3c3 3 3 15 0 18 M12 3c-3 3-3 15 0 18',contract:'M6 3h9l4 4v14H6z M15 3v4h4 M9 14l2.5 2.5L16 12',project:'M5 8h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2 M3 13h18',scenario:'M4 9h16v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z M4 9l2-5h3l-2 5 M9 9l2-5h3l-2 5 M14 9l2-5h3l-1 5',robot:'M7 8h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z M12 8V5 M9.5 13h0.01 M14.5 13h0.01 M9 18v2 M15 18v2',claude:'M12 3v18 M4.2 7.5l15.6 9 M19.8 7.5l-15.6 9',ear:'M7 9a5 5 0 0 1 10 0c0 3-3 4-3 7a2.5 2.5 0 0 1-5 0 M10 9a2 2 0 0 1 4 0',plus:'M12 5v14 M5 12h14'};
+const svg=(n)=>`<svg viewBox="0 0 24 24"><path d="${IC[n]}"/></svg>`;
+const B=(n,l,c='',w='')=>`<div class="btn ${c}" ${w?`style="flex:${w}"`:''}>${svg(n)}${l}</div>`;
+function widget(id,withTaps){
+ $(id).innerHTML=`<div id="${id}w" style="position:relative;width:980px;height:470px;border-radius:50px;background:linear-gradient(315deg,#6a2c8a,#1d2f66);border:2px solid #ffffff55;box-shadow:0 40px 100px #000a;padding:18px 20px;overflow:hidden">
+ <div style="position:absolute;inset:0;border-radius:50px;background:linear-gradient(#ffffff3d,#ffffff08 45%,#ffffff00)"></div>
+ <div class="bar" style="position:relative"><div class="tab" data-t="domain">${svg('domain')}Domaine</div><div class="tab" data-t="files">${svg('files')}Files</div><div class="tab on" data-t="build">${svg('build')}Build</div></div>
+ <div class="pg" data-p="domain"><div class="row">${B('loops','Boucles')}${B('campaign','Campagne')}</div><div class="row">${B('settings','Réglages')}${B('aiwa','Aiwa')}</div></div>
+ <div class="pg" data-p="files"><div class="row">${B('docs','Docs','g')}${B('media','Média','g')}${B('app','App','g')}${B('page','Page','v')}${B('contract','Contrat','v')}</div><div class="row">${B('project','Projet')}${B('scenario','Scénario')}</div></div>
+ <div class="pg" data-p="build" style="opacity:1"><div class="row">${B('robot','Super agent','g','3')}${B('claude','Claude')}</div><div class="row">${B('ear','Écoute')}${B('plus','Ajouter')}</div></div>
+ <div class="tap" id="${id}tap"></div></div>`}
+function setTab(id,name){const w=$(id);w.querySelectorAll('.tab').forEach(e=>e.classList.toggle('on',e.dataset.t==name));w.querySelectorAll('.pg').forEach(e=>e.style.opacity=e.dataset.p==name?1:0)}
+function tapAt(id,x,y,t,a){const e=$(id+'tap'),v=ramp(t,a,a+.5);e.style.left=(x-45)+'px';e.style.top=(y-45)+'px';e.style.opacity=v>0&&v<1?(1-v):0;e.style.transform=`scale(${.4+v*1.3})`}
+widget('wg1');widget('wg3');document.querySelectorAll('.ico').forEach(e=>e.innerHTML=svg(e.dataset.i));
+// a brain network for the DEX
+(function(){const g=$('brain');let h='';const P=[];for(let i=0;i<14;i++){const a=i/14*Math.PI*2,r=i%2?430:330;const x=960+Math.cos(a)*r*1.6,y=540+Math.sin(a)*r*.9;if(x>380&&x<1540&&y>340&&y<740)continue;P.push([x,y])}
+ P.forEach((p,i)=>{h+=`<line class="ln" x1="${p[0]}" y1="${p[1]}" x2="960" y2="540" stroke="#9db8ff" stroke-width="2" opacity=".5"/><circle class="nd" cx="${p[0]}" cy="${p[1]}" r="14" fill="#fff"/>`});g.innerHTML=h})();
+(function(){const w=$('wave');let h='';for(let i=0;i<64;i++)h+=`<div style="position:absolute;left:${i*25}px;width:12px;border-radius:6px;background:#9db8ff"></div>`;w.innerHTML=h})();
+let t_=0;const win=(el,a,b,f=.4)=>{el.style.opacity=ramp(t_,a,a+f)*(1-ramp(t_,b-f,b))};
+const cam=(id,t,a,b,kind)=>{const p=eio(ramp(t,a,b)),e=$(id);let tr='';
+ if(kind=='push')tr=`scale(${1+.06*p})`;else if(kind=='pull')tr=`scale(${1.08-.08*p})`;else if(kind=='truck')tr=`translateX(${-60*p+30}px) scale(1.03)`;else if(kind=='crane')tr=`translateY(${40-80*p}px) scale(1.03)`;else if(kind=='drift')tr=`translate(${20*Math.sin(t*.6)}px,${14*Math.cos(t*.5)}px) scale(1.02)`;e.style.transform=tr};
+function render(t){t_=t;
+ const T=TOTAL,E=T-2.6;
+ const S=[[0,K.modes.at-.2],[K.modes.at-.2,K.buttons.at-.2],[K.buttons.at-.2,K.cmd.at-.2],[K.cmd.at-.2,K.wait.at-.2],[K.wait.at-.2,K.dex.at-.2],[K.dex.at-.2,K.why.at-.2],[K.why.at-.2,K.hire.at-.2],[K.hire.at-.2,K.client.at-.2],[K.client.at-.2,E],[E,T+1]];
+ S.forEach((r,i)=>{const e=$('s'+(i+1));if(i==0)e.style.opacity=ramp(t,0,.5)*(1-ramp(t,r[1]-.3,r[1]+.2));else if(i==9)e.style.opacity=ramp(t,r[0],r[0]+.5);else e.style.opacity=ramp(t,r[0],r[0]+.35)*(1-ramp(t,r[1]-.3,r[1]+.2))});
+ ['push','truck','pull','crane','drift','push','truck','pull','drift','push'].forEach((k,i)=>cam('c'+(i+1),t,S[i][0],S[i][1],k));
+ // 1 earpiece then widget
+ const w1=ramp(t,K.widget.at-.2,K.widget.at+.6);$('t1').style.opacity=1-ramp(t,K.widget.at-.3,K.widget.at+.1);$('t2').style.opacity=ramp(t,K.widget.at+.1,K.widget.at+.6);
+ $('wg1').style.opacity=eo(w1);$('wg1').style.transform=`translateY(${(1-eo(w1))*80+400}px) scale(.8)`;$('wg1').style.transformOrigin='0 0';
+ $('ear').style.transform=`translateX(${-eo(w1)*40}px)`;$('halo').style.opacity=.6+.4*Math.sin(t*3)*(1-w1);$('bud').setAttribute('r',16+4*Math.sin(t*5)*(1-w1));
+ // 2 modes
+ ['m1','m2','m3'].forEach((id,i)=>{const v=eo(ramp(t,K.modes.at+.2+i*.9,K.modes.at+.8+i*.9));$(id).style.opacity=v;$(id).style.transform=`translateY(${(1-v)*60}px)`});
+ $('os').style.opacity=eo(ramp(t,K.os.at,K.os.at+.5));
+ // 3 buttons: the widget taps through the tabs
+ const b0=K.buttons.at;const tabs=[['domain',b0+.9,177],['files',b0+2.6,490],['build',b0+4.3,803]];let cur='build';tabs.forEach(([n,a,x])=>{if(t>=a)cur=n});setTab('wg3w',cur);
+ tabs.forEach(([n,a,x],i)=>{if(t>=a-.1&&t<a+.7)tapAt('wg3',x,66,t,a)});
+ $('lab3').textContent=cur=='domain'?'Domaine : boucles, campagne, réglages, Aiwa':cur=='files'?'Files : docs, média, app, page, contrat, projet, scénario':'Build : le super agent, Claude, l’écoute';$('lab3').style.opacity=1;
+ const wgw=$('wg3');wgw.style.transform=`scale(${1+.05*Math.sin(t*.4)})`;
+ // 4 the command
+ [...$('wave').children].forEach((b,i)=>{const on=t>K.cmd.at&&t<K.cmd.end+.2;b.style.height=(on?10+80*Math.abs(Math.sin(t*9+i*.7))*Math.abs(Math.sin(i*.35+t*2)):6)+'px';b.style.top=(60-parseFloat(b.style.height)/2)+'px'});
+ ['n1','n2','n3'].forEach((id,i)=>{const v=eo(ramp(t,K.cmd.at+1.2+i*2.3,K.cmd.at+1.8+i*2.3));$(id).style.opacity=v;$(id).style.transform=`translateY(${(1-v)*50}px)`;$('k'+(i+1)+'c').style.opacity=ramp(t,K.cmd.at+3.4+i*2.3,K.cmd.at+3.7+i*2.3)});
+ $('a1').style.strokeDashoffset=100*(1-ramp(t,K.cmd.at+2.8,K.cmd.at+3.6));$('a2').style.strokeDashoffset=100*(1-ramp(t,K.cmd.at+5.1,K.cmd.at+5.9));
+ // 5 the TV
+ const pv=ramp(t,K.wait.at+.8,K.dex.at-.8);$('pr').style.width=(pv*72)+'%';$('pct').textContent=Math.round(pv*72)+' %';$('im3').style.opacity=.2+.8*pv;
+ // 6 the DEX
+ const d=eo(ramp(t,K.dex.at,K.dex.at+1.2));$('nx').style.opacity=d;$('nx').style.transform=`scale(${.9+.1*d})`;$('dx').style.opacity=eo(ramp(t,K.dex.at+.9,K.dex.at+1.8));
+ document.querySelectorAll('.ln').forEach((l,i)=>{const v=ramp(t,K.dex.at+.2+i*.05,K.dex.at+1.4+i*.05);l.setAttribute('opacity',.5*v);l.setAttribute('x2',String(parseFloat(l.getAttribute('x1'))+(960-parseFloat(l.getAttribute('x1')))*eo(v)));l.setAttribute('y2',String(parseFloat(l.getAttribute('y1'))+(540-parseFloat(l.getAttribute('y1')))*eo(v)))});
+ document.querySelectorAll('.nd').forEach((c,i)=>c.setAttribute('opacity',ramp(t,K.dex.at+.1+i*.05,K.dex.at+.6+i*.05)));
+ // 7 the model
+ [['b1',K.ask.at],['b2',K.ask.at+1.7]].forEach(([id,a])=>{const v=eo(ramp(t,a,a+.5));$(id).style.opacity=v;$(id).style.transform=`translateX(${(1-v)*-80}px)`});
+ // 8 the two profiles
+ [['pc1',K.cs.at],['pc2',K.ba.at]].forEach(([id,a])=>{const v=eo(ramp(t,a-.1,a+.5));$(id).style.opacity=v;$(id).style.transform=`translateY(${(1-v)*60}px)`});
+ // 9 the client
+ const c0=K.client.at;$('pr9').style.width=(ramp(t,c0+.5,c0+10)*86)+'%';
+ [['c9a',1.5],['c9b',4],['c9c',7]].forEach(([id,a])=>{$(id).classList.toggle('on',t>c0+a)});
+ const bb=eo(ramp(t,c0+7.5,c0+8.3));$('bub').style.opacity=bb;$('bub').style.transform=`translateX(${(1-bb)*120}px)`;
+ const c=SCHED.find(s=>t>=s.at-.1&&t<s.end+.2);$('cap').textContent=c?c.text:'';$('cap').style.opacity=c?Math.min(ramp(t,c.at-.1,c.at+.1),1-ramp(t,c.end,c.end+.2)):0;
+}
+window.render=render;window.READY=true;render(0);
+</script></body></html>
