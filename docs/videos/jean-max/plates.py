@@ -45,16 +45,16 @@ def blob(x, y, w, d, a=0.75):
     n.links.new(tr.outputs[0], mx.inputs[1]); n.links.new(bl.outputs[0], mx.inputs[2]); n.links.new(mx.outputs[0], out.inputs['Surface'])
     b.data.materials.append(m)
 blob(0.0, 2.52, 0.85, 0.5, 0.8); blob(1.55, -0.2, 0.7, 0.7, 0.6); blob(0.25, -1.1, 2.2, 1.3, 0.5)
-bpy.ops.object.light_add(type='POINT', location=(1.5, -0.15, 0.55)); l = bpy.context.active_object; l.data.energy = 260 if night else 90; l.data.color = (1.0, 0.72, 0.45); l.data.shadow_soft_size = 0.08
+bpy.ops.object.light_add(type='POINT', location=(1.5, -0.15, 0.55)); l = bpy.context.active_object; l.data.energy = 220 if night else 50; l.data.color = (1.0, 0.8, 0.62); l.data.shadow_soft_size = 0.08
 bpy.ops.object.light_add(type='AREA', location=(0.0, 1.2, 0.8)); tvl = bpy.context.active_object; tvl.data.energy = 20 if night else 60; tvl.data.size = 1.2; tvl.data.color = (0.55, 0.7, 1.0); tvl.rotation_euler = (math.radians(90 + 25), 0, 0)
 # a soft key from the side for the phone (a window's light), so that its glass catches a long reflection
 bpy.ops.object.light_add(type='AREA', location=(-1.3, -1.2, 1.2)); key = bpy.context.active_object; key.data.energy = 25 if night else 70; key.data.size = 0.9; key.data.color = (0.75, 0.82, 1.0)
 key.rotation_euler = (math.radians(60), 0, math.radians(-50))
 # the camera of each plate: where, at what, what lens, how shallow
-CAM = {'A': ((-0.95, -2.25, 0.95), (0.15, 0.2, 0.80), 30.0, 3.2),
-       'B': ((0.30, -1.02, 0.80), (0.04, -1.40, 0.47), 52.0, 2.2),
-       'C': ((0.04, -1.40, 0.98), (0.04, -1.40, 0.46), 46.0, 4.0),
-       'D': ((0.26, -1.06, 0.74), (0.03, -1.40, 0.47), 56.0, 2.0)}[SHOT]
+CAM = {'A': ((-0.95, -2.25, 0.95), (0.15, 0.2, 0.80), 30.0, 5.6),
+       'B': ((0.139, -1.645, 0.833), (0.04, -1.40, 0.46), 55.0, 5.6),
+       'C': ((0.04, -1.40, 0.92), (0.04, -1.40, 0.46), 50.0, 8.0),
+       'D': ((-0.172, -1.767, 0.721), (0.03, -1.40, 0.47), 58.0, 4.0)}[SHOT]
 bpy.ops.object.camera_add(location=CAM[0]); cam = bpy.context.active_object; s.camera = cam
 tgt = bpy.data.objects.new('target', None); bpy.context.collection.objects.link(tgt); tgt.location = CAM[1]
 tc = cam.constraints.new('TRACK_TO'); tc.target = tgt; tc.track_axis = 'TRACK_NEGATIVE_Z'; tc.up_axis = 'UP_Y'
