@@ -17,12 +17,12 @@ def load(asset, gltf, height=None, loc=(0, 0, 0), yaw=0.0):
     return kit.import_asset(os.path.join(ph, asset, gltf), height=height, location=loc, yaw=yaw)
 TZ = 0.45
 table = load('ph-WoodenTable_01', 'WoodenTable_01_2k.gltf', height=TZ, loc=(0.25, -1.1, 0))
-book = load('ph-binder_notebook', 'binder_notebook_2k.gltf', height=0.03, loc=(-0.14, -1.0, TZ), yaw=math.radians(-14))
+book = load('ph-binder_notebook', 'binder_notebook_2k.gltf', height=0.03, loc=(-0.38, -0.98, TZ), yaw=math.radians(-14))
 plant = load('ph-potted_plant_04', 'potted_plant_04_2k.gltf', height=0.22, loc=(0.62, -0.95, TZ), yaw=math.radians(20))
 lamp = load('ph-industrial_pipe_lamp', 'industrial_pipe_lamp_2k.gltf', height=0.45, loc=(1.55, -0.2, 0.0), yaw=math.radians(35))
 W_, H_, D_ = 0.0715, 0.1470, 0.0082
 phone = kit.phone('/tmp/jean/bp_%d.png', frames=1, width=W_, height=H_, depth=D_, corner=0.011, location=(0, 0, 0))
-PHONE_POS = {'A': (0.18, -1.08, -14), 'B': (0.18, -1.08, 6), 'C': (0.18, -1.08, 0), 'D': (0.18, -1.08, -22)}[SHOT]
+PHONE_POS = {'A': (0.32, -1.16, -14), 'B': (0.32, -1.16, 6), 'C': (0.32, -1.16, 0), 'D': (0.32, -1.16, -22)}[SHOT]
 for poly in phone.data.polygons: poly.use_smooth = (poly.material_index == 1)      # the glass is flat (a smooth big face bulges like a pillow)
 phone.rotation_euler = (math.radians(-90), 0, math.radians(PHONE_POS[2])); phone.location = (PHONE_POS[0], PHONE_POS[1], TZ + 0.006)
 TVZ = 0.72
@@ -53,9 +53,9 @@ bpy.ops.object.light_add(type='AREA', location=(-1.3, -1.2, 1.2)); key = bpy.con
 key.rotation_euler = (math.radians(60), 0, math.radians(-50))
 # the camera of each plate: where, at what, what lens, how shallow
 CAM = {'A': ((-0.95, -2.25, 0.95), (0.15, 0.2, 0.80), 30.0, 5.6),
-       'B': ((0.231, -1.318, 0.846), (0.18, -1.08, 0.46), 55.0, 5.6),
-       'C': ((0.18, -1.08, 0.92), (0.18, -1.08, 0.46), 50.0, 8.0),
-       'D': ((0.032, -1.487, 0.706), (0.17, -1.08, 0.47), 58.0, 4.0)}[SHOT]
+       'B': ((0.371, -1.398, 0.846), (0.32, -1.16, 0.46), 55.0, 5.6),
+       'C': ((0.32, -1.16, 0.92), (0.32, -1.16, 0.46), 50.0, 8.0),
+       'D': ((0.172, -1.567, 0.706), (0.31, -1.16, 0.47), 58.0, 4.0)}[SHOT]
 bpy.ops.object.camera_add(location=CAM[0]); cam = bpy.context.active_object; s.camera = cam
 tgt = bpy.data.objects.new('target', None); bpy.context.collection.objects.link(tgt); tgt.location = CAM[1]
 tc = cam.constraints.new('TRACK_TO'); tc.target = tgt; tc.track_axis = 'TRACK_NEGATIVE_Z'; tc.up_axis = 'UP_Y'
