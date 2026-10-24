@@ -88,12 +88,12 @@ object FastWidget {
         val tabs = mutableListOf(
             WidgetArt.Tab(R.drawable.fw_i_domain, "Domaine" + (if (loopOn) " ●" else ""), "blue"),
             WidgetArt.Tab(R.drawable.fw_i_files, "Files", "green"),
-            WidgetArt.Tab(R.drawable.fw_i_build, "Build" + (if (buildBusy) " ●" else ""), if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else "orange"),
+            WidgetArt.Tab(R.drawable.fw_i_build, "Build" + (if (buildBusy) " ●" else ""), if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else "orange", always = state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup),
             WidgetArt.Tab(R.drawable.fw_i_voir, "Voir" + (if (voirOn) " ●" else ""), "violet"))
         val ask = state.ask != null
         val upd = state.appUpdateReady
-        if (ask) tabs += WidgetArt.Tab(R.drawable.fw_i_question, "Question", "red")
-        if (upd) tabs += WidgetArt.Tab(R.drawable.fw_i_update, "Mise à jour", "green")
+        if (ask) tabs += WidgetArt.Tab(R.drawable.fw_i_question, "Question", "red", always = true)
+        if (upd) tabs += WidgetArt.Tab(R.drawable.fw_i_update, "Mise à jour", "green", always = true)
         TABS.forEachIndexed { i, name -> v.setOnClickPendingIntent(id(context, "t_$name"), broadcast(context, 1 + i, ACTION_TAB, "tab" to name)) }
         v.setViewVisibility(R.id.t_ask, if (ask) android.view.View.VISIBLE else android.view.View.GONE)
         v.setViewVisibility(R.id.t_upd, if (upd) android.view.View.VISIBLE else android.view.View.GONE)
@@ -118,7 +118,7 @@ object FastWidget {
                 broadcast(context, 40 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")))
         }.ifEmpty { listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_files, "Aucun fichier", enabled = false), 1f, null)) }
         val files = listOf(
-            listOf(Cell(project, 2f, projectTap), Cell(WidgetArt.Btn(R.drawable.fw_i_campaign, "Campagnes"), 1f, activity(context, 14, ProposalsActivity::class.java))),
+            listOf(Cell(project, 2f, projectTap), Cell(WidgetArt.Btn(R.drawable.fw_i_campaign, "Campagnes", "green"), 1f, activity(context, 14, ProposalsActivity::class.java))),
             kindCells)
         // ---- Build: the robot (the permanent listening on puts the ear in its place), Claude, then the ear, the + and the scenarios ----
         val robot = when {

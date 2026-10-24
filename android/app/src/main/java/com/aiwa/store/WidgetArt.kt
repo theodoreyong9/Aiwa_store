@@ -25,8 +25,8 @@ object WidgetArt {
     /** One cell: its icon, its word, its colour (grey, green, red, orange, violet, blue) and whether it answers a tap (an unavailable one is drawn dim). */
     class Btn(val icon: Int, val label: String, val tone: String = "grey", val enabled: Boolean = true)
 
-    /** One cell of the strip of the tabs. `icon` 0 = a word only (the question, the update). */
-    class Tab(val icon: Int, val label: String, val tone: String = "grey", val weight: Float = 1f)
+    /** One cell of the strip of the tabs (its colour shows only when it is the open one, unless `always`). `icon` 0 = a word only (the question, the update). */
+    class Tab(val icon: Int, val label: String, val tone: String = "grey", val weight: Float = 1f, val always: Boolean = false)
 
     // top, bottom, edge, glow (0 = none)
     private fun colours(tone: String): IntArray = when (tone) {
@@ -98,7 +98,7 @@ object WidgetArt {
             val first = i == 0; val last = i == tabs.size - 1
             val poly = listOf(PointF(x0, tabH + 1.5f * unit), PointF(if (first) x0 else x0 + skew, 0f), PointF(if (last) x1 else x1 + skew, 0f), PointF(x1, tabH + 1.5f * unit))
             val isOpen = i == active
-            val tone = tab.tone
+            val tone = if (isOpen || tab.always) tab.tone else "grey"      // a tab is coloured only when it is open (or when it calls for attention)
             cell(canvas, poly, tone, true, 6f * unit, unit, raised = isOpen, seam = !isOpen)
             val cx = (x0 + x1) / 2f + skew / 2f - (if (first) skew / 2f else 0f) - (if (last) skew / 2f else 0f)
             content(context, canvas, RectF(cx - (x1 - x0) / 2f, 0f, cx + (x1 - x0) / 2f, tabH), tab.icon, tab.label, true, unit, if (isOpen) 255 else 215)

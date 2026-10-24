@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: a tab is coloured only when it is open (except when it calls for attention: red Build, the question, the update); Campagnes is green.
+
 - Widget: the tabs and the last row are thinner than the middle row; each tab has its colour (Domaine blue, Files green, Build orange, Voir violet), Boucles blue, the super agent orange, Claude/Scénario/Projet/Campagnes plain, the kinds of files coloured only when the repository has them; in Voir, Caché and Proximité share the first row.
 
 - Widget: the glass catches a band of light and has a fine grain (drawn on the Canvas: the AGSL shaders need Android 13 and a hardware canvas, which a widget picture does not give; the icons already are line drawings on the 24 grid, an icon pack would change nothing). Not verified on a device.
