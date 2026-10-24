@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: the closed tabs are lower than the open one; « Visible » is violet when on.
+
 - Widget: a tab is coloured only when it is open (except when it calls for attention: red Build, the question, the update); Campagnes is green.
 
 - Widget: the tabs and the last row are thinner than the middle row; each tab has its colour (Domaine blue, Files green, Build orange, Voir violet), Boucles blue, the super agent orange, Claude/Scénario/Projet/Campagnes plain, the kinds of files coloured only when the repository has them; in Voir, Caché and Proximité share the first row.

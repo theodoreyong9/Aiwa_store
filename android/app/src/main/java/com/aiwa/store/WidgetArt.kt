@@ -96,12 +96,14 @@ object WidgetArt {
         tabs.forEachIndexed { i, tab ->
             val x0 = x; val x1 = x + w * tab.weight / total; x = x1
             val first = i == 0; val last = i == tabs.size - 1
-            val poly = listOf(PointF(x0, tabH + 1.5f * unit), PointF(if (first) x0 else x0 + skew, 0f), PointF(if (last) x1 else x1 + skew, 0f), PointF(x1, tabH + 1.5f * unit))
             val isOpen = i == active
+            val top = if (isOpen) 0f else tabH * 0.22f          // a closed tab is lower: the open one stands out
+            val sk = skew * (tabH - top) / tabH
+            val poly = listOf(PointF(x0, tabH + 1.5f * unit), PointF(if (first) x0 else x0 + sk, top), PointF(if (last) x1 else x1 + sk, top), PointF(x1, tabH + 1.5f * unit))
             val tone = if (isOpen || tab.always) tab.tone else "grey"      // a tab is coloured only when it is open (or when it calls for attention)
             cell(canvas, poly, tone, true, 6f * unit, unit, raised = isOpen, seam = !isOpen)
             val cx = (x0 + x1) / 2f + skew / 2f - (if (first) skew / 2f else 0f) - (if (last) skew / 2f else 0f)
-            content(context, canvas, RectF(cx - (x1 - x0) / 2f, 0f, cx + (x1 - x0) / 2f, tabH), tab.icon, tab.label, true, unit, if (isOpen) 255 else 215)
+            content(context, canvas, RectF(cx - (x1 - x0) / 2f, top, cx + (x1 - x0) / 2f, tabH), tab.icon, tab.label, true, unit, if (isOpen) 255 else 215)
         }
         // the body: rows of cells that touch; the seams are slanted
         // the first row of the body (the middle of the widget) is the thickest; the tabs and the last row are thinner

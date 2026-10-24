@@ -140,7 +140,7 @@ object FastWidget {
         // ---- Voir: visible or not, then the four ways to see ----
         val voirTaps = listOf("lien", "proche", "qr", "favoris").mapIndexed { i, mode -> activity(context, 51 + i, voirIntent(context, state, kinds, mode)) }
         val voir = listOf(
-            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_voir, if (voirOn) "Visible" else "Caché", if (voirOn) "green" else "grey"), 1f, broadcast(context, 50, ACTION_VOIR, "do" to "toggle")),
+            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_voir, if (voirOn) "Visible" else "Caché", if (voirOn) "violet" else "grey"), 1f, broadcast(context, 50, ACTION_VOIR, "do" to "toggle")),
                 Cell(WidgetArt.Btn(R.drawable.fw_i_pin, "Proximité", "violet"), 1f, voirTaps[1])),
             listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_link, "Lien"), 1f, voirTaps[0]), Cell(WidgetArt.Btn(R.drawable.fw_i_qr, "QR code"), 1f, voirTaps[2]), Cell(WidgetArt.Btn(R.drawable.fw_i_star, "Favoris"), 1f, voirTaps[3])))
         val pages = listOf(domain, files, buildPage, voir)
