@@ -302,14 +302,31 @@
 <!-- ============ PAPERS ============ -->
 <main class="view" id="view-voir" data-view="voir" hidden>
   <section class="card">
-    <h2>Voir</h2>
+    <h2 id="voir-title">Voir</h2>
     <p class="muted" id="voir-status">…</p>
     <p class="muted" id="voir-mine"></p>
   </section>
-  <section class="card" id="voir-list-card">
-    <h3>Autour de toi, classés par score Aiwa</h3>
+  <section class="card" id="voir-lien" hidden>
+    <h3>Voir par lien</h3>
+    <p class="muted">Colle un lien (une page, ou la carte d'une personne) : tu le vois ici et tu peux le garder en favori.</p>
+    <input id="voir-input" type="url" inputmode="url" placeholder="https://…" autocomplete="off">
+    <button type="button" id="voir-go">Voir</button>
+  </section>
+  <section class="card" id="voir-qr" hidden>
+    <h3>Par QR code</h3>
+    <p class="muted" id="voir-qr-note">Montre ce code : la personne en face scanne et voit tes liens.</p>
+    <div id="voir-qr-draw"></div>
+    <video id="voir-scan" hidden playsinline muted></video>
+    <button type="button" id="voir-scan-btn">Scanner un code</button>
+  </section>
+  <section class="card" id="voir-result" hidden>
+    <h3>Résultat</h3>
+    <ul id="voir-result-list" class="voir-list"></ul>
+  </section>
+  <section class="card" id="voir-list-card" hidden>
+    <h3 id="voir-list-title">Autour de toi, classés par score Aiwa</h3>
     <ul id="voir-list" class="voir-list"></ul>
-    <p class="muted" id="voir-empty">Personne pour l'instant : la liste se remplit quand d'autres personnes proches ouvrent « Voir ».</p>
+    <p class="muted" id="voir-empty"></p>
   </section>
 </main>
 <main class="view" id="view-papers" data-view="papers" hidden>

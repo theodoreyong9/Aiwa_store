@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ed25519 } from '@noble/curves/ed25519.js';
-import { geohash, cleanLinks, checkEntry } from '../src/voir-core.js';
+import { geohash, bounds, cellsAround, cleanLinks, checkEntry, parseCard, cardText } from '../src/voir-core.js';
 
 // voir-core.js: the parts of « Voir » that need no page
 const utf8 = new TextEncoder();
@@ -33,4 +33,26 @@ test('an entry is accepted only if it is signed by the key it names, fresh, for 
   assert.equal(checkEntry(entry, 'u09t', now + 11 * 60_000), null, 'too old');
   assert.equal(checkEntry({ ...entry, links: [{ kind: 'page', url: 'https://evil.example/' }] }, 'u09t', now), null, 'links are signed too');
   assert.equal(checkEntry(null, 'u09t', now), null);
+});
+
+test('the cells around a position: its own and the neighbours toward the nearest edges, 8 characters (about 38 x 19 m)', () => {
+  const cells = cellsAround(46.5197, 6.6323);
+  assert.ok(cells.length >= 2 && cells.length <= 4);
+  assert.ok(cells.every((c) => c.length === 8));
+  assert.equal(cells[0], geohash(46.5197, 6.6323, 8));
+  const b = bounds(cells[0]);
+  assert.ok(b.latLo <= 46.5197 && 46.5197 <= b.latHi && b.lonLo <= 6.6323 && 6.6323 <= b.lonHi);
+  assert.ok(b.latHi - b.latLo < 0.0003 && b.lonHi - b.lonLo < 0.0005);
+});
+
+test('a card from a QR code or a pasted text: https links only, nothing else', () => {
+  const links = [{ kind: 'page', url: 'https://a.github.io/b/' }, { kind: 'docs', url: 'https://github.com/a/b/tree/HEAD/docs' }];
+  const card = parseCard(cardText('a/b', links));
+  assert.equal(card.repo, 'a/b');
+  assert.equal(card.links.length, 2);
+  assert.equal(parseCard('https://a.github.io/b/').links[0].kind, 'page');
+  assert.equal(parseCard('http://insecure.example/'), null);
+  assert.equal(parseCard('javascript:alert(1)'), null);
+  assert.equal(parseCard('{"links":[{"kind":"page","url":"http://x"}]}'), null);
+  assert.equal(parseCard('x'.repeat(2000)), null);
 });
