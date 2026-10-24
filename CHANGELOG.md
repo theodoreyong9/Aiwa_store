@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: the bottom buttons of every tab are icons only, and the bottom row is thinner (a third of the body).
+
 - Widget: the tabs are icons only (a dot for « busy »), and so are the bottom buttons of Build and Voir. Menus and lists take the cut of the widget's cells (slanted parallelograms with rounded corners, a panel with small corners above and large ones below). Not verified on a device.
 
 - Menus and lists (pickers, Boucles, Campagnes): the same photo as the widget behind the glass, darkened and tinted, with the same band of light. Not verified on a device.

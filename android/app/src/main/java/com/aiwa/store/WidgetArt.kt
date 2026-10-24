@@ -115,7 +115,7 @@ object WidgetArt {
         }
         // the body: rows of cells that touch; the seams are slanted
         // the first row of the body (the middle of the widget) is the thickest; the tabs and the last row are thinner
-        val shares = if (rows.size == 2) listOf(11f, 7f) else List(rows.size) { 1f }
+        val shares = if (rows.size == 2) listOf(12f, 6f) else List(rows.size) { 1f }
         val sumShares = shares.sum()
         var rowTop = tabH
         rows.forEachIndexed { r, row ->
