@@ -86,10 +86,10 @@ object FastWidget {
         val buildBusy = agentOn || permanentOn
         // ---- the tabs (the question and the update join the strip only when there is one) ----
         val tabs = mutableListOf(
-            WidgetArt.Tab(R.drawable.fw_i_domain, "Domaine" + (if (loopOn) " ●" else ""), if (loopOn) "green" else "grey"),
-            WidgetArt.Tab(R.drawable.fw_i_files, "Files"),
-            WidgetArt.Tab(R.drawable.fw_i_build, "Build" + (if (buildBusy) " ●" else ""), if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else if (buildBusy) "green" else "grey"),
-            WidgetArt.Tab(R.drawable.fw_i_voir, "Voir" + (if (voirOn) " ●" else ""), if (voirOn) "green" else "grey"))
+            WidgetArt.Tab(R.drawable.fw_i_domain, "Domaine" + (if (loopOn) " ●" else ""), "blue"),
+            WidgetArt.Tab(R.drawable.fw_i_files, "Files", "green"),
+            WidgetArt.Tab(R.drawable.fw_i_build, "Build" + (if (buildBusy) " ●" else ""), if (state.waiting || state.silenceMinutes > 0 || agentNeeds || needsSetup) "red" else "orange"),
+            WidgetArt.Tab(R.drawable.fw_i_voir, "Voir" + (if (voirOn) " ●" else ""), "violet"))
         val ask = state.ask != null
         val upd = state.appUpdateReady
         if (ask) tabs += WidgetArt.Tab(R.drawable.fw_i_question, "Question", "red")
@@ -102,10 +102,10 @@ object FastWidget {
         // ---- Domaine ----
         val projectBad = !allMode && (state.repo == null || (accessNotice(state, 1) != null || state.backend == "missing" || state.claudeLogin == "needed"))
         val projectLabel = if (allMode) "Tous" else (Projects.nameOf(context, state.repo, state.cloudSessionId) ?: "Projet") + " ▾"
-        val project = WidgetArt.Btn(R.drawable.fw_i_project, projectLabel, if (allMode) "green" else if (projectBad) "red" else "blue", enabled = !locked)
+        val project = WidgetArt.Btn(R.drawable.fw_i_project, projectLabel, if (allMode) "green" else if (projectBad) "red" else "grey", enabled = !locked)
         val projectTap = if (locked) broadcast(context, 6, ACTION_BUSY) else activity(context, 6, ProjectPickerActivity::class.java)
         val domain = listOf(
-            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_loops, if (loopOn) "Boucle ${state.loopPair}" else "Boucles", if (loopOn) "green" else "grey"), 1f, activity(context, 7, LoopsActivity::class.java)),
+            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_loops, if (loopOn) "Boucle ${state.loopPair}" else "Boucles", if (loopOn) "green" else "blue"), 1f, activity(context, 7, LoopsActivity::class.java)),
                 Cell(WidgetArt.Btn(R.drawable.fw_i_wallet, "Wallet"), 1f, activity(context, 9, storePageIntent(context, "wallet", state.repo)))),
             listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_settings, "Réglages"), 1f, activity(context, 8, SettingsActivity::class.java)),
                 Cell(WidgetArt.Btn(R.drawable.fw_i_mcp, "MCP"), 1f, activity(context, 21, ExternalActivity::class.java)),
@@ -113,12 +113,12 @@ object FastWidget {
         // ---- Files: the project and the campaigns, then one cell per kind of file found ----
         val kindCells = kinds.take(5).mapIndexed { i, kind ->
             val icon = when (kind.mode) { "documents" -> R.drawable.fw_i_docs; "video" -> R.drawable.fw_i_media; "pages" -> R.drawable.fw_i_page; "android" -> R.drawable.fw_i_app; else -> R.drawable.fw_i_contract }
-            val tone = if (kind.mode == "pages" || kind.mode == "aiwa") "violet" else if (kind.found) "green" else "grey"
-            Cell(WidgetArt.Btn(icon, if (kind.mode == "aiwa") "Contrat" else kind.word, tone, enabled = kind.found || kind.mode == "pages" || kind.mode == "aiwa"), 1f,
+            val tone = if (!kind.found) "grey" else if (kind.mode == "pages" || kind.mode == "aiwa") "violet" else "green"
+            Cell(WidgetArt.Btn(icon, if (kind.mode == "aiwa") "Contrat" else kind.word, tone, enabled = kind.found), 1f,
                 broadcast(context, 40 + i, ACTION_KIND, "mode" to kind.mode, "found" to (if (kind.found) "1" else "0")))
         }.ifEmpty { listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_files, "Aucun fichier", enabled = false), 1f, null)) }
         val files = listOf(
-            listOf(Cell(project, 2f, projectTap), Cell(WidgetArt.Btn(R.drawable.fw_i_campaign, "Campagnes", "blue"), 1f, activity(context, 14, ProposalsActivity::class.java))),
+            listOf(Cell(project, 2f, projectTap), Cell(WidgetArt.Btn(R.drawable.fw_i_campaign, "Campagnes"), 1f, activity(context, 14, ProposalsActivity::class.java))),
             kindCells)
         // ---- Build: the robot (the permanent listening on puts the ear in its place), Claude, then the ear, the + and the scenarios ----
         val robot = when {
@@ -126,22 +126,23 @@ object FastWidget {
             needsSetup -> WidgetArt.Btn(R.drawable.fw_i_robot, "Autoriser Aiwa", "red")
             agentNeeds -> WidgetArt.Btn(R.drawable.fw_i_robot, "Il a quelque chose à dire", "red")
             agentOn -> WidgetArt.Btn(R.drawable.fw_i_robot, "Super agent · à l'écoute", "green")
-            else -> WidgetArt.Btn(R.drawable.fw_i_robot, "Super agent")
+            else -> WidgetArt.Btn(R.drawable.fw_i_robot, "Super agent", "orange")
         }
         val robotTap = if (permanentOn) activity(context, 70, ListenToggleActivity::class.java) else if (needsSetup) activity(context, 70, SetupActivity::class.java) else activity(context, 70, AgentToggleActivity::class.java)
         val hasClaude = state.cloudSessionId != null
         val earOk = !permanentOn && !agentOn
         val buildPage = listOf(
             listOf(Cell(robot, 3f, robotTap),
-                Cell(WidgetArt.Btn(R.drawable.fw_i_claude, "Claude", if (state.waiting || state.silenceMinutes > 0) "red" else "orange", enabled = hasClaude), 1f, if (hasClaude) activity(context, 71, OpenClaudeActivity::class.java) else null)),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_claude, "Claude", if (state.waiting || state.silenceMinutes > 0) "red" else "grey", enabled = hasClaude), 1f, if (hasClaude) activity(context, 71, OpenClaudeActivity::class.java) else null)),
             listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_ear, if (state.listening) "Écoute active" else "Écoute", if (state.listening) "green" else "grey", enabled = earOk), 1f, if (earOk) activity(context, 72, ListenToggleActivity::class.java) else null),
                 Cell(WidgetArt.Btn(R.drawable.fw_i_plus, if (state.attachments > 0) "${state.attachments} jointe(s)" else "Ajouter", if (state.attachments > 0) "green" else "grey"), 1f, activity(context, 73, PlusMenuActivity::class.java)),
-                Cell(WidgetArt.Btn(R.drawable.fw_i_scenario, "Scénario", "violet"), 1f, activity(context, 74, ScenariosActivity::class.java))))
+                Cell(WidgetArt.Btn(R.drawable.fw_i_scenario, "Scénario"), 1f, activity(context, 74, ScenariosActivity::class.java))))
         // ---- Voir: visible or not, then the four ways to see ----
+        val voirTaps = listOf("lien", "proche", "qr", "favoris").mapIndexed { i, mode -> activity(context, 51 + i, voirIntent(context, state, kinds, mode)) }
         val voir = listOf(
-            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_voir, if (voirOn) "Visible" else "Caché", if (voirOn) "green" else "grey"), 1f, broadcast(context, 50, ACTION_VOIR, "do" to "toggle"))),
-            listOf("lien" to (R.drawable.fw_i_link to "Lien"), "proche" to (R.drawable.fw_i_pin to "Proximité"), "qr" to (R.drawable.fw_i_qr to "QR code"), "favoris" to (R.drawable.fw_i_star to "Favoris")).mapIndexed { i, (mode, il) ->
-                Cell(WidgetArt.Btn(il.first, il.second, if (mode == "proche" && voirOn) "green" else "grey"), 1f, activity(context, 51 + i, voirIntent(context, state, kinds, mode))) })
+            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_voir, if (voirOn) "Visible" else "Caché", if (voirOn) "green" else "grey"), 1f, broadcast(context, 50, ACTION_VOIR, "do" to "toggle")),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_pin, "Proximité", "violet"), 1f, voirTaps[1])),
+            listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_link, "Lien"), 1f, voirTaps[0]), Cell(WidgetArt.Btn(R.drawable.fw_i_qr, "QR code"), 1f, voirTaps[2]), Cell(WidgetArt.Btn(R.drawable.fw_i_star, "Favoris"), 1f, voirTaps[3])))
         val pages = listOf(domain, files, buildPage, voir)
         // ---- the pictures and the touch zones ----
         val (pw, ph) = sizePx(context)

@@ -85,7 +85,7 @@ object WidgetArt {
             canvas.drawBitmap(p, src, RectF(0f, 0f, w, h), paint().apply { isFilterBitmap = true })
             canvas.drawRect(0f, 0f, w, h, paint().apply { shader = LinearGradient(w, 0f, 0f, h, withAlpha(if (alert) 0xFF5B2140.toInt() else 0xFF1D2F66.toInt(), 150), withAlpha(if (alert) 0xFF2A1650.toInt() else 0xFF2A1450.toInt(), 190), Shader.TileMode.CLAMP) })
         }
-        val tabH = h / 3f
+        val tabH = h * 7f / 25f
         // the strip of the tabs: darker; the body under it: lighter glass
         canvas.drawRect(0f, 0f, w, tabH, paint().apply { color = 0x55000000 })
         canvas.drawRect(0f, tabH, w, h, paint().apply { shader = LinearGradient(0f, tabH, 0f, h, 0x22FFFFFF, 0x0AFFFFFF, Shader.TileMode.CLAMP) })
@@ -98,17 +98,21 @@ object WidgetArt {
             val first = i == 0; val last = i == tabs.size - 1
             val poly = listOf(PointF(x0, tabH + 1.5f * unit), PointF(if (first) x0 else x0 + skew, 0f), PointF(if (last) x1 else x1 + skew, 0f), PointF(x1, tabH + 1.5f * unit))
             val isOpen = i == active
-            val tone = if (isOpen) "blue" else tab.tone
+            val tone = tab.tone
             cell(canvas, poly, tone, true, 6f * unit, unit, raised = isOpen, seam = !isOpen)
             val cx = (x0 + x1) / 2f + skew / 2f - (if (first) skew / 2f else 0f) - (if (last) skew / 2f else 0f)
             content(context, canvas, RectF(cx - (x1 - x0) / 2f, 0f, cx + (x1 - x0) / 2f, tabH), tab.icon, tab.label, true, unit, if (isOpen) 255 else 215)
         }
         // the body: rows of cells that touch; the seams are slanted
-        val rowH = (h - tabH) / rows.size
-        val s2 = rowH * 0.22f
+        // the first row of the body (the middle of the widget) is the thickest; the tabs and the last row are thinner
+        val shares = if (rows.size == 2) listOf(11f, 7f) else List(rows.size) { 1f }
+        val sumShares = shares.sum()
+        var rowTop = tabH
         rows.forEachIndexed { r, row ->
+            val rowH = (h - tabH) * shares[r] / sumShares
+            val s2 = rowH * 0.22f
             val tot = row.sumOf { it.second.toDouble() }.toFloat()
-            val top = tabH + r * rowH; val bottom = top + rowH
+            val top = rowTop; val bottom = top + rowH; rowTop = bottom
             var cx0 = 0f
             row.forEachIndexed { c, (btn, weight) ->
                 val x0 = cx0; val x1 = cx0 + w * weight / tot; cx0 = x1
@@ -163,7 +167,7 @@ object WidgetArt {
         val icon = if (iconRes != 0) ContextCompat.getDrawable(context, iconRes)?.mutate() else null
         val size = (20f * unit).toInt()
         if (icon == null) { canvas.drawText(word, box.centerX() - textW / 2f, box.centerY() - (text.ascent() + text.descent()) / 2f, text); return }
-        if (box.height() < 30f * unit) {
+        if (box.height() < 40f * unit) {
             val total = size + 5f * unit + textW; val left = box.centerX() - total / 2f
             icon.setBounds(left.toInt(), (box.centerY() - size / 2f).toInt(), left.toInt() + size, (box.centerY() + size / 2f).toInt()); icon.alpha = alpha; icon.draw(canvas)
             canvas.drawText(word, left + size + 5f * unit, box.centerY() - (text.ascent() + text.descent()) / 2f, text)

@@ -8,7 +8,7 @@
 <ImageView android:id="@+id/fw_img3" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY"/>
 </ViewFlipper>
 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
-<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="7" android:orientation="horizontal">
 <FrameLayout android:id="@+id/t_domain" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/t_files" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/t_build" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
@@ -16,24 +16,24 @@
 <FrameLayout android:id="@+id/t_ask" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/t_upd" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 </LinearLayout>
-<ViewFlipper android:id="@+id/fw_zone_flip" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="2" android:inAnimation="@null" android:outAnimation="@null">
+<ViewFlipper android:id="@+id/fw_zone_flip" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="18" android:inAnimation="@null" android:outAnimation="@null">
 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
-<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="11" android:orientation="horizontal">
 <FrameLayout android:id="@+id/z_d_0_0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/z_d_0_1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 </LinearLayout>
-<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="7" android:orientation="horizontal">
 <FrameLayout android:id="@+id/z_d_1_0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/z_d_1_1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/z_d_1_2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 </LinearLayout>
 </LinearLayout>
 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
-<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="11" android:orientation="horizontal">
 <FrameLayout android:id="@+id/z_f_0_0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="2"/>
 <FrameLayout android:id="@+id/z_f_0_1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 </LinearLayout>
-<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="7" android:orientation="horizontal">
 <FrameLayout android:id="@+id/z_f_1_0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/z_f_1_1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/z_f_1_2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
@@ -42,25 +42,25 @@
 </LinearLayout>
 </LinearLayout>
 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
-<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="11" android:orientation="horizontal">
 <FrameLayout android:id="@+id/z_b_0_0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="3"/>
 <FrameLayout android:id="@+id/z_b_0_1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 </LinearLayout>
-<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="7" android:orientation="horizontal">
 <FrameLayout android:id="@+id/z_b_1_0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/z_b_1_1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/z_b_1_2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 </LinearLayout>
 </LinearLayout>
 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
-<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="11" android:orientation="horizontal">
 <FrameLayout android:id="@+id/z_v_0_0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
+<FrameLayout android:id="@+id/z_v_0_1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 </LinearLayout>
-<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
+<LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="7" android:orientation="horizontal">
 <FrameLayout android:id="@+id/z_v_1_0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/z_v_1_1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 <FrameLayout android:id="@+id/z_v_1_2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
-<FrameLayout android:id="@+id/z_v_1_3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"/>
 </LinearLayout>
 </LinearLayout>
 </ViewFlipper></LinearLayout></FrameLayout>
