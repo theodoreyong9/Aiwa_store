@@ -98,3 +98,24 @@ export function parseCard(text) {
 
 /** The text of my QR code: my repository and my links, short. */
 export const cardText = (repo, links) => JSON.stringify({ v: 1, repo, links: cleanLinks(links) });
+
+/** « owner/name » from what a person types: two words (the GitHub name, the repository), « owner/name », or a github.com address. Null when it is not a repository. */
+export function parseRepo(owner, name) {
+  let o = String(owner ?? '').trim(), n = String(name ?? '').trim();
+  const joined = n ? `${o}/${n}` : o;
+  const m = /^(?:https?:\/\/)?(?:www\.)?(?:github\.com\/)?@?([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))\/([\w.-]{1,100}?)(?:\.git)?(?:[/?#].*)?$/.exec(joined);
+  return m ? `${m[1]}/${m[2]}` : null;
+}
+
+/** The public web links of the Files of a repository (the same ones the widget publishes): docs, media, app, page, contract. */
+export function repoLinks(repo) {
+  const [owner, name] = repo.split('/');
+  const page = name.toLowerCase() === `${owner.toLowerCase()}.github.io` ? `https://${owner}.github.io/` : `https://${owner}.github.io/${name}/`;
+  return [
+    { kind: 'docs', url: `https://github.com/${repo}/tree/HEAD/docs` },
+    { kind: 'media', url: `https://github.com/${repo}/releases/tag/videos` },
+    { kind: 'app', url: `https://github.com/${repo}/releases` },
+    { kind: 'page', url: page },
+    { kind: 'contract', url: `https://github.com/${repo}/tree/HEAD/aiwa-apps` },
+  ];
+}

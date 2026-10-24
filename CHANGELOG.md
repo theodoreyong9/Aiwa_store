@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Voir → Lien: the GitHub name and the repository are enough (two fields, or « nom/dépôt », or a github.com address): the window shows the links of that repository's Files that exist (read with GitHub's public API, no key), and can keep it as a favourite.
 - **« Voir » simplified, Scénario in Build**: Voir holds a *Visible / Caché* switch and four entries (by link, near: about 50 m, by QR code, my favourites); the 100 m · 1 km · 10 km · town steps are gone. *Scénario* moves from Files to the bottom row of Build; Files has Docs · Média · App · Page · Contrat, then Projet.
 - **« Voir »**: a fourth tab in the widget (a *Visible* switch, off by default; the reach 100 m · 1 km · 10 km · town; *Voir les autres*) and a window (`?page=voir`) where the people of the same map cell see the public web links of the Files of your current repository, ranked by their signed Aiwa score (WebRTC room per geohash cell, only while the window is open; https links only; *Bloquer*). Nothing is transferred. In Domaine, *Aiwa* is *Wallet* again. The super agent can open it (`open: voir`, brain 176).
 - A new film for Roger, in his first person (`docs/videos/roger-nexthink`): the earpiece, the widget, the three ways to drive it, the buttons, the voice order to the office server, the Nexthink video on the television, the DEX, the business model and the two profiles, then a client of Nexthink; one visual language (the glass of the widget, drawn in HTML pages), no 3D. A demonstration: the Nexthink scenario is invented and says so on screen.

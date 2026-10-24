@@ -7,7 +7,7 @@ import { config } from './config.js';
 import { session, connected, onSession } from './session.js';
 import { $ } from './ui.js';
 import { drawQr, scanQr } from './qr.js';
-import { cellsAround, cleanLinks, checkEntry, messageOf, parseCard, cardText, readBlocked, writeBlocked, utf8, PERIOD_MS } from './voir-core.js';
+import { cellsAround, cleanLinks, checkEntry, messageOf, parseCard, cardText, parseRepo, repoLinks, readBlocked, writeBlocked, utf8, PERIOD_MS } from './voir-core.js';
 
 const kindName = { docs: 'Docs', media: 'Média', app: 'App', page: 'Page', contract: 'Contrat' };
 const FAVS = 'aiwa-voir-favs';
@@ -38,10 +38,10 @@ function addFavourite(card) {
   if (!list.some((f) => f.links.map((l) => l.url).join('|') === key)) { list.unshift({ repo: card.repo ?? '', links: card.links, at: Date.now() }); writeFavs(list); }
 }
 
-function showResult(card) {
+function showResult(card, message = 'Ce n\'est ni un lien https ni la carte d\'une personne.') {
   $('voir-result').hidden = false;
   const ul = $('voir-result-list'); ul.textContent = '';
-  if (!card) { const li = document.createElement('li'); li.textContent = 'Ce n\'est ni un lien https ni la carte d\'une personne.'; ul.append(li); return; }
+  if (!card) { const li = document.createElement('li'); li.textContent = message; ul.append(li); return; }
   ul.append(cardItem(card, [['Garder en favori', () => { addFavourite(card); showResult(card); }]]));
 }
 
@@ -66,17 +66,30 @@ export function initVoirPage(params) {
   let mine = [];
   try { mine = cleanLinks(JSON.parse(params.get('links') ?? '[]')); } catch { mine = []; }
   const status = (text) => { $('voir-status').textContent = text; };
-  $('voir-title').textContent = { lien: 'Voir par lien', proche: 'Voir à proximité (50 m)', qr: 'Voir par QR code', favoris: 'Mes favoris' }[mode];
+  $('voir-title').textContent = { lien: 'Voir un dépôt', proche: 'Voir à proximité (50 m)', qr: 'Voir par QR code', favoris: 'Mes favoris' }[mode];
   $('voir-mine').textContent = mine.length ? `Tes liens (${repo || 'ton dépôt'}) : ${mine.map((l) => kindName[l.kind]).join(', ')}.` : 'Ton dépôt n\'a encore rien à montrer (ou il est privé).';
 
   if (mode === 'favoris') { status('Gardés sur ce téléphone.'); renderFavourites(); return; }
 
   if (mode === 'lien') {
-    $('voir-lien').hidden = false; status('Colle un lien ou la carte d\'une personne.');
-    const go = () => showResult(parseCard($('voir-input').value));
+    $('voir-lien').hidden = false; status('Le nom GitHub et le dépôt.');
+    const go = async () => {
+      const repoName = parseRepo($('voir-owner').value, $('voir-repo').value);
+      if (!repoName) { showResult(null, 'Il faut le nom GitHub et le dépôt (ou « nom/dépôt »).'); return; }
+      status(`Je regarde ${repoName}…`);
+      // what exists, read without any key (GitHub's public API): the links of what is not there are left out; if GitHub cannot be reached, all five are shown
+      let links = repoLinks(repoName);
+      try {
+        const get = async (path) => (await fetch(`https://api.github.com/repos/${repoName}${path}`, { headers: { Accept: 'application/vnd.github+json' } })).ok;
+        if (!(await get(''))) { showResult(null, `${repoName} : introuvable, ou privé (Aiwa ne lit que les dépôts publics).`); status(''); return; }
+        const [docs, contract, releases] = await Promise.all([get('/contents/docs'), get('/contents/aiwa-apps'), get('/releases')]);
+        links = links.filter((l) => (l.kind === 'docs' ? docs : l.kind === 'contract' ? contract : l.kind === 'app' || l.kind === 'media' ? releases : true));
+      } catch { /* the five links are shown, unchecked */ }
+      status(''); showResult({ repo: repoName, links });
+    };
     $('voir-go').addEventListener('click', go);
-    $('voir-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
-    navigator.clipboard?.readText?.().then((text) => { if (text && parseCard(text)) { $('voir-input').value = text; go(); } }).catch(() => {});
+    for (const id of ['voir-owner', 'voir-repo']) $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+    navigator.clipboard?.readText?.().then((text) => { const r = parseRepo(text); if (r && !$('voir-owner').value) { $('voir-owner').value = r; go(); } }).catch(() => {});
     return;
   }
 

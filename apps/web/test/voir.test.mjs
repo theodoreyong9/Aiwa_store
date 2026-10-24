@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ed25519 } from '@noble/curves/ed25519.js';
-import { geohash, bounds, cellsAround, cleanLinks, checkEntry, parseCard, cardText } from '../src/voir-core.js';
+import { geohash, bounds, cellsAround, cleanLinks, checkEntry, parseCard, cardText, parseRepo, repoLinks } from '../src/voir-core.js';
 
 // voir-core.js: the parts of « Voir » that need no page
 const utf8 = new TextEncoder();
@@ -55,4 +55,23 @@ test('a card from a QR code or a pasted text: https links only, nothing else', (
   assert.equal(parseCard('javascript:alert(1)'), null);
   assert.equal(parseCard('{"links":[{"kind":"page","url":"http://x"}]}'), null);
   assert.equal(parseCard('x'.repeat(2000)), null);
+});
+
+test('a repository from the GitHub name and the name, or from a pasted address', () => {
+  assert.equal(parseRepo('theodoreyong9', 'Aiwa_store'), 'theodoreyong9/Aiwa_store');
+  assert.equal(parseRepo('theodoreyong9/Aiwa_store'), 'theodoreyong9/Aiwa_store');
+  assert.equal(parseRepo('@jdacunha', 'mon-depot'), 'jdacunha/mon-depot');
+  assert.equal(parseRepo('https://github.com/a/b/tree/main/docs'), 'a/b');
+  assert.equal(parseRepo('https://github.com/a/b.git'), 'a/b');
+  assert.equal(parseRepo('seulement'), null);
+  assert.equal(parseRepo('', ''), null);
+  assert.equal(parseRepo('a b', 'c'), null);
+});
+
+test('the links of the Files of a repository are the five public ones, all https', () => {
+  const links = repoLinks('a/b');
+  assert.deepEqual(links.map((l) => l.kind), ['docs', 'media', 'app', 'page', 'contract']);
+  assert.equal(links[3].url, 'https://a.github.io/b/');
+  assert.equal(repoLinks('a/a.github.io')[3].url, 'https://a.github.io/');
+  assert.deepEqual(cleanLinks(links), links);
 });
