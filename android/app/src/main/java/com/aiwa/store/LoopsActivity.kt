@@ -155,7 +155,7 @@ private fun LoopsWindow(onClose: () -> Unit) {
         ) {
             Surface(
                 shape = RoundedCornerShape(24.dp), color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                modifier = Modifier.padding(16.dp).fillMaxWidth().background(SheetBrush, RoundedCornerShape(24.dp)).background(GlassSheen, RoundedCornerShape(24.dp))
+                modifier = Modifier.padding(16.dp).fillMaxWidth().glassPanel(RoundedCornerShape(24.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {

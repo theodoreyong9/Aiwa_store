@@ -36,6 +36,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -72,6 +75,23 @@ internal val SheetChip = Color(0x2EFFFFFF)
 internal val GlassBody = androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0x42FFFFFF), Color(0x14FFFFFF)))
 internal val GlassEdge = androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0x99FFFFFF), Color(0x1FFFFFFF)))
 internal val GlassSheen = androidx.compose.ui.graphics.Brush.verticalGradient(0f to Color(0x2EFFFFFF), 0.35f to Color(0x00FFFFFF))
+/** The panel of a menu or a list, in the style of the widget: the same photo behind (dark and tinted), a band of light across it, the same colours. */
+@Composable
+internal fun Modifier.glassPanel(shape: androidx.compose.ui.graphics.Shape): Modifier {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val res = remember { WidgetBackground.res(context) }
+    val photo = if (res != 0) androidx.compose.ui.graphics.ImageBitmap.imageResource(res) else null
+    return this.clip(shape).background(SheetBrush).drawBehind {
+        if (photo != null) {
+            val scale = maxOf(size.width / photo.width, size.height / photo.height)
+            val sw = (size.width / scale).toInt().coerceAtMost(photo.width); val sh = (size.height / scale).toInt().coerceAtMost(photo.height)
+            drawImage(photo, srcOffset = androidx.compose.ui.unit.IntOffset((photo.width - sw) / 2, (photo.height - sh) / 2), srcSize = androidx.compose.ui.unit.IntSize(sw, sh), dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()))
+            drawRect(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0x961D2F66), Color(0xBE2A1450)), start = androidx.compose.ui.geometry.Offset(size.width, 0f), end = androidx.compose.ui.geometry.Offset(0f, size.height)))
+        }
+        drawRect(androidx.compose.ui.graphics.Brush.linearGradient(0.15f to Color(0x00FFFFFF), 0.3f to Color(0x22FFFFFF), 0.45f to Color(0x00FFFFFF), start = androidx.compose.ui.geometry.Offset.Zero, end = androidx.compose.ui.geometry.Offset(size.width * 0.7f, size.height * 1.6f)))
+    }
+}
+
 internal val Accent = Color(0xFFB8C4FF)
 
 /** The sheets are dark whatever the phone's theme. */
@@ -164,7 +184,7 @@ internal fun PickerSheet(entries: List<PickerEntry>, query: String? = null, onQu
                 shape = RoundedCornerShape(24.dp),
                 color = Color.Transparent,
                 border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                modifier = Modifier.padding(horizontal = 14.dp).fillMaxWidth().heightIn(max = 600.dp).background(SheetBrush, RoundedCornerShape(24.dp)).background(GlassSheen, RoundedCornerShape(24.dp))
+                modifier = Modifier.padding(horizontal = 14.dp).fillMaxWidth().heightIn(max = 600.dp).glassPanel(RoundedCornerShape(24.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column {

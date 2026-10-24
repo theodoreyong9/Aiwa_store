@@ -269,7 +269,7 @@ private fun ProposalsWindow(onClose: () -> Unit) {
         ) {
             Surface(
                 shape = RoundedCornerShape(22.dp), color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, SheetLine),
-                modifier = Modifier.padding(12.dp).fillMaxWidth().background(SheetBrush, RoundedCornerShape(22.dp)).background(GlassSheen, RoundedCornerShape(22.dp))
+                modifier = Modifier.padding(12.dp).fillMaxWidth().glassPanel(RoundedCornerShape(22.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
             ) {
                 Column(Modifier.padding(14.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
