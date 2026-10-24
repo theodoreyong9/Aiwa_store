@@ -91,7 +91,7 @@ function widgetHTML(){return `<div class="bar"><div class="tab" data-t="domain">
  <div class="pg" data-p="domain"><div class="row">${B('loops','Boucles')}${B('mcp','MCP')}</div><div class="row">${B('settings','Réglages')}${B('wallet','Wallet')}${B('cast','Cast TV')}</div></div>
  <div class="pg" data-p="files"><div class="row">${B('docs','Docs','g')}${B('media','Média','g')}${B('app','App','g')}${B('page','Page','v')}${B('contract','Contrat','v')}</div><div class="row">${B('project','Projet')}${B('campaign','Campagnes')}</div></div>
  <div class="pg" data-p="build" style="visibility:visible"><div class="row">${B('robot','Super agent','g','3')}${B('claude','Claude')}</div><div class="row">${B('ear','Écoute')}${B('plus','Ajouter')}${B('scenario','Scénario')}</div></div>
- <div class="pg" data-p="voir"><div class="row">${B('voir','Visible','g')}</div><div class="row">${B('link','Lien')}${B('pin','Proximité')}${B('qr','QR code')}${B('star','Favoris')}</div></div>`}
+ <div class="pg" data-p="voir"><div class="row">${B('voir','Visible','g')}</div><div class="row">${B('link','Lien')}${B('pin','Proximité')}${B('qr','QR code')}${B('star','Favoris')}${B('page','Monde')}</div></div>`}
 function setTab(root,name){root.querySelectorAll('.tab').forEach(e=>e.classList.toggle('on',e.dataset.t==name));root.querySelectorAll('.pg').forEach(e=>e.style.visibility=e.dataset.p==name?'visible':'hidden')}
 // ---- the screens of the phone
 function homeScreen(){return `<div class="ps"><div class="wall"></div><div class="sb">9:41</div>

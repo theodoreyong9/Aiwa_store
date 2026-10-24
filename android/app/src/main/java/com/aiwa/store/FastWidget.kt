@@ -79,7 +79,7 @@ object FastWidget {
 
     /** A button of the widget is a column (icon above, label under): the colour and the tap are on the column, the words on its label. */
     private val LABEL = mapOf(R.id.fw_tab_domain to R.id.fw_tab_domain_t, R.id.fw_tab_files to R.id.fw_tab_files_t, R.id.fw_tab_build to R.id.fw_tab_build_t, R.id.fw_question to R.id.fw_question_t,
-        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_wallet to R.id.fw_wallet_t, R.id.fw_tab_voir to R.id.fw_tab_voir_t, R.id.fw_voir_on to R.id.fw_voir_on_t, R.id.fw_v_link to R.id.fw_v_link_t, R.id.fw_v_near to R.id.fw_v_near_t, R.id.fw_v_qr to R.id.fw_v_qr_t, R.id.fw_v_fav to R.id.fw_v_fav_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_mcp to R.id.fw_mcp_t, R.id.fw_cast to R.id.fw_cast_t, R.id.fw_scenario to R.id.fw_scenario_t,
+        R.id.fw_project to R.id.fw_project_t, R.id.fw_loops to R.id.fw_loops_t, R.id.fw_settings to R.id.fw_settings_t, R.id.fw_wallet to R.id.fw_wallet_t, R.id.fw_tab_voir to R.id.fw_tab_voir_t, R.id.fw_voir_on to R.id.fw_voir_on_t, R.id.fw_v_link to R.id.fw_v_link_t, R.id.fw_v_near to R.id.fw_v_near_t, R.id.fw_v_qr to R.id.fw_v_qr_t, R.id.fw_v_fav to R.id.fw_v_fav_t, R.id.fw_v_world to R.id.fw_v_world_t, R.id.fw_campaign to R.id.fw_campaign_t, R.id.fw_mcp to R.id.fw_mcp_t, R.id.fw_cast to R.id.fw_cast_t, R.id.fw_scenario to R.id.fw_scenario_t,
         R.id.fw_k0 to R.id.fw_k0_t, R.id.fw_k1 to R.id.fw_k1_t, R.id.fw_k2 to R.id.fw_k2_t, R.id.fw_k3 to R.id.fw_k3_t, R.id.fw_k4 to R.id.fw_k4_t)
 
     private fun RemoteViews.chip(id: Int, text: String?, color: String, textColor: Int = TEXT, click: PendingIntent? = null, bold: Boolean = false) {
@@ -165,7 +165,7 @@ object FastWidget {
         // ---- Voir: visible or not, how far, and the window of the people near ----
         val voirOn = VoirSettings.on(context)
         v.chip(R.id.fw_voir_on, if (voirOn) "Visible" else "Caché", if (voirOn) "green" else "pill", click = broadcast(context, 50, ACTION_VOIR, "do" to "toggle"))
-        listOf(R.id.fw_v_link to "lien", R.id.fw_v_near to "proche", R.id.fw_v_qr to "qr", R.id.fw_v_fav to "favoris").forEachIndexed { i, (id, mode) ->
+        listOf(R.id.fw_v_link to "lien", R.id.fw_v_near to "proche", R.id.fw_v_qr to "qr", R.id.fw_v_fav to "favoris", R.id.fw_v_world to "monde").forEachIndexed { i, (id, mode) ->
             v.chip(id, null, if (mode == "proche" && voirOn) "green" else "pill", click = activity(context, 51 + i, voirIntent(context, state, kinds, mode)))
         }
         return v

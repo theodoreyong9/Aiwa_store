@@ -52,21 +52,21 @@ function renderFavourites() {
   for (const fav of list) ul.append(cardItem(fav, [['Retirer', () => { writeFavs(readFavs().filter((f) => f.at !== fav.at)); renderFavourites(); }]]));
 }
 
-function renderNear(entries, blocked) {
+function renderNear(entries, blocked, mode = 'proche') {
   const ul = $('voir-list'); ul.textContent = '';
   const rows = [...entries.values()].filter((e) => !blocked.has(e.pub)).sort((a, b) => (b.score / Math.max(1, b.laps)) - (a.score / Math.max(1, a.laps)));
-  $('voir-empty').hidden = rows.length > 0; $('voir-empty').textContent = 'Personne pour l\'instant : la liste se remplit quand d\'autres personnes à moins de 50 m ouvrent « Voir ».';
-  for (const e of rows) ul.append(cardItem(e, [['Garder en favori', () => addFavourite({ repo: e.repo, links: e.links })], ['Bloquer', () => { const set = readBlocked(); set.add(e.pub); writeBlocked(set); renderNear(entries, set); }]]));
+  $('voir-empty').hidden = rows.length > 0; $('voir-empty').textContent = mode === 'monde' ? 'Personne pour l\'instant : la liste se remplit quand d\'autres personnes visibles ouvrent « Voir ».' : 'Personne pour l\'instant : la liste se remplit quand d\'autres personnes à moins de 50 m ouvrent « Voir ».';
+  for (const e of rows) ul.append(cardItem(e, [['Garder en favori', () => addFavourite({ repo: e.repo, links: e.links })], ['Bloquer', () => { const set = readBlocked(); set.add(e.pub); writeBlocked(set); renderNear(entries, set, mode); }]]));
 }
 
 export function initVoirPage(params) {
-  const mode = ['lien', 'proche', 'qr', 'favoris'].includes(params.get('m')) ? params.get('m') : 'proche';
+  const mode = ['lien', 'proche', 'qr', 'favoris', 'monde'].includes(params.get('m')) ? params.get('m') : 'proche';
   const publish = params.get('pub') === '1';
   const repo = params.get('repo') ?? '';
   let mine = [];
   try { mine = cleanLinks(JSON.parse(params.get('links') ?? '[]')); } catch { mine = []; }
   const status = (text) => { $('voir-status').textContent = text; };
-  $('voir-title').textContent = { lien: 'Voir un dépôt', proche: 'Voir à proximité (50 m)', qr: 'Voir par QR code', favoris: 'Mes favoris' }[mode];
+  $('voir-title').textContent = { lien: 'Voir un dépôt', proche: 'Voir à proximité (50 m)', monde: 'Voir le monde', qr: 'Voir par QR code', favoris: 'Mes favoris' }[mode];
   $('voir-mine').textContent = mine.length ? `Tes liens (${repo || 'ton dépôt'}) : ${mine.map((l) => kindName[l.kind]).join(', ')}.` : 'Ton dépôt n\'a encore rien à montrer (ou il est privé).';
 
   if (mode === 'favoris') { status('Gardés sur ce téléphone.'); renderFavourites(); return; }
@@ -104,14 +104,12 @@ export function initVoirPage(params) {
     return;
   }
 
-  // near: about 50 m
-  $('voir-list-card').hidden = false; $('voir-list-title').textContent = 'À moins de 50 m, classés par score Aiwa';
-  $('voir-empty').textContent = ''; 
-  if (!navigator.geolocation) { status('Ce téléphone ne donne pas la position : « Voir » ne peut pas trouver les personnes proches.'); return; }
-  status('Recherche de ta zone…');
-  navigator.geolocation.getCurrentPosition((pos) => {
-    const cells = cellsAround(pos.coords.latitude, pos.coords.longitude), own = cells[0];
-    status(publish ? `Tu es visible dans la zone ${own}.` : `Tu regardes sans te montrer (zone ${own}). Active « Visible » dans le widget pour publier tes liens.`);
+  // near (about 50 m) or the world: the same rooms, a different place to meet
+  $('voir-list-card').hidden = false; $('voir-list-title').textContent = mode === 'monde' ? 'Dans le monde, classés par score Aiwa' : 'À moins de 50 m, classés par score Aiwa';
+  $('voir-empty').textContent = '';
+  const meet = (cells) => {
+    const own = cells[0];
+    status(publish ? (mode === 'monde' ? 'Tu es visible dans le monde.' : `Tu es visible dans la zone ${own}.`) : 'Tu regardes sans te montrer. Active « Visible » dans le widget pour publier tes liens.');
     const entries = new Map(), blocked = readBlocked(), decoder = new TextDecoder();
     const iceServers = config.nearby?.iceServers ?? [{ urls: 'stun:stun.l.google.com:19302' }];
     const actions = cells.map((cell) => {
@@ -120,7 +118,7 @@ export function initVoirPage(params) {
       action.onMessage = (data) => {
         let entry; try { entry = JSON.parse(decoder.decode(data instanceof Uint8Array ? data : new Uint8Array(data))); } catch { return; }
         const ok = checkEntry(entry, cells);
-        if (ok && ok.pub !== session.aiwa?.identity?.publicKey) { entries.set(ok.pub, ok); renderNear(entries, blocked); }
+        if (ok && ok.pub !== session.aiwa?.identity?.publicKey) { entries.set(ok.pub, ok); renderNear(entries, blocked, mode); }
       };
       return { room, action };
     });
@@ -136,6 +134,11 @@ export function initVoirPage(params) {
     for (const { room, action } of actions) room.onPeerJoin = (peerId) => { announce(action, peerId).catch(() => {}); };
     const all = () => Promise.all(actions.map(({ action }) => announce(action).catch(() => {})));
     setInterval(all, PERIOD_MS); onSession(() => { all(); }); all();
-    renderNear(entries, blocked);
-  }, (err) => status(err.code === 1 ? 'Sans l\'autorisation de position, « Voir » ne peut pas trouver les personnes proches.' : `Position indisponible (${err.message}).`), { enableHighAccuracy: true, maximumAge: 60_000, timeout: 20_000 });
+    renderNear(entries, blocked, mode);
+  };
+  if (mode === 'monde') { meet(['monde']); return; }
+  if (!navigator.geolocation) { status('Ce téléphone ne donne pas la position : « Voir » ne peut pas trouver les personnes proches.'); return; }
+  status('Recherche de ta zone…');
+  navigator.geolocation.getCurrentPosition((pos) => meet(cellsAround(pos.coords.latitude, pos.coords.longitude)),
+    (err) => status(err.code === 1 ? 'Sans l\'autorisation de position, « Voir » ne peut pas trouver les personnes proches.' : `Position indisponible (${err.message}).`), { enableHighAccuracy: true, maximumAge: 60_000, timeout: 20_000 });
 }
