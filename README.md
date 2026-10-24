@@ -212,8 +212,8 @@ le code, jamais exécuté).
 
 **Vue d'ensemble.** Le téléphone ne produit rien : les sessions Claude Code écrivent dans ton dépôt.
 
-<!-- diagram: readme-02-65ba2d44.png -->
-![Diagram: 11. Architecture](docs/img/diagrams/readme-02-65ba2d44.png)
+<!-- diagram: readme-02-20977f57.png -->
+![Diagram: 11. Architecture](docs/img/diagrams/readme-02-20977f57.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
@@ -292,8 +292,8 @@ sequenceDiagram
 
 **Les trois couches de l'appli** : `app` (Compose, Glance, services), `bridge` (Kotlin pur, testé en JVM : parseur, mots, pilules, API du cerveau), `backend` (Python).
 
-<!-- diagram: readme-04-b645f69e.png -->
-![Diagram: 11. Architecture](docs/img/diagrams/readme-04-b645f69e.png)
+<!-- diagram: readme-04-e48d4e51.png -->
+![Diagram: 11. Architecture](docs/img/diagrams/readme-04-e48d4e51.png)
 
 <details>
 <summary>The source of this diagram (Mermaid)</summary>
