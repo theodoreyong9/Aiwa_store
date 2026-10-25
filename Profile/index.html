@@ -4,94 +4,128 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>theodoreyong9 · Aiwa</title>
-<meta name="description" content="Mon profil : ce que je construis, mes fichiers, où me trouver.">
+<meta name="description" content="Je construis Aiwa. Mes fichiers, ce que je montre, où me trouver.">
 <style>
-/* Une page, un fichier : pas un script. Le fond est une boucle de 4 secondes rendue avec Blender (verre, chrome et lumière devant une ville la nuit, tout fait un nombre entier de tours : la fin rejoint le début).
-   Le mouvement est du CSS : des panneaux de verre en 3D qui flottent, un titre qui se sépare en couleurs, un bandeau qui défile, des bordures qui tournent. */
+/* Un fichier, aucun script. Références retenues dans aiwa-design/references.md : plein écran en couches sur une vidéo, une très grande typographie, un index en police à chasse fixe,
+   des apparitions liées au défilement (CSS pur). Le fond est une boucle de 4 s rendue avec Blender (verre, chrome et lumière devant une ville la nuit). */
 @property --a{syntax:"<angle>";inherits:false;initial-value:0deg}
-:root{color-scheme:dark;--blue:#6b9bf5;--green:#52d6a0;--violet:#a77bd6;--orange:#e09a7c;--yellow:#e8c14a}
+:root{color-scheme:dark;--ink:#f6f6ff;--dim:#aeb3e8;--acc:#52d6a0;--blue:#6b9bf5;--violet:#a77bd6;--line:rgba(255,255,255,.22);--mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%}
-body{font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#f4f4ff;background:#080a1c;overflow-x:hidden}
-.bg{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;background:#080a1c url("media/poster.jpg") center/cover no-repeat}
-.veil{position:fixed;inset:0;z-index:1;background:radial-gradient(120% 90% at 50% 20%,rgba(8,10,28,.05),rgba(8,10,28,.72) 78%),linear-gradient(135deg,rgba(29,47,102,.42),rgba(60,24,96,.58));mix-blend-mode:normal}
-.scan{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.10;background:repeating-linear-gradient(0deg,rgba(255,255,255,.7) 0 1px,transparent 1px 3px);animation:scan 9s linear infinite}
-@keyframes scan{to{background-position:0 60px}}
+html{scroll-behavior:smooth;overflow-x:clip}
+body{margin:0;background:#06081a;color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:hidden}
+a{color:inherit}
+.bg{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;background:#06081a url("media/poster.jpg") center/cover no-repeat}
+.veil{position:fixed;inset:0;z-index:1;background:radial-gradient(110% 80% at 50% 0%,rgba(6,8,26,.05),rgba(6,8,26,.78) 82%),linear-gradient(180deg,rgba(14,22,60,.35),rgba(34,14,64,.62))}
 .grain{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>")}
-main{position:relative;z-index:3;max-width:680px;margin:0 auto;padding:56px 18px 90px;display:flex;flex-direction:column;gap:40px}
+.mono{font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;font-size:12px}
+main{position:relative;z-index:3;overflow-x:clip}
+section{padding:0 clamp(16px,4vw,48px)}
 
-/* le titre : trois couches de couleur qui se séparent et se rejoignent */
-header{text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;perspective:900px}
-.mark{width:92px;height:92px;display:grid;place-items:center;font-size:38px;font-weight:800;color:#fff;background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.5);clip-path:polygon(20px 0,100% 0,calc(100% - 20px) 100%,0 100%);animation:turn 14s ease-in-out infinite;backdrop-filter:blur(8px)}
-@keyframes turn{0%,100%{transform:rotateY(-24deg) rotateX(8deg)}50%{transform:rotateY(24deg) rotateX(-6deg)}}
-h1{position:relative;margin:4px 0 0;font-size:clamp(34px,10vw,56px);font-weight:800;letter-spacing:-.03em;line-height:1;color:#fff}
-h1::before,h1::after{content:attr(data-t);position:absolute;inset:0;mix-blend-mode:screen;pointer-events:none}
-h1::before{color:#6b9bf5;animation:split1 6s ease-in-out infinite}
-h1::after{color:#e56ac0;animation:split2 6s ease-in-out infinite}
-@keyframes split1{0%,60%,100%{transform:translate(0)}70%{transform:translate(-5px,1px)}80%{transform:translate(3px,-1px)}}
-@keyframes split2{0%,60%,100%{transform:translate(0)}70%{transform:translate(5px,-1px)}80%{transform:translate(-3px,1px)}}
-.tag{margin:0;max-width:30em;color:#dfe2ff;font-size:17px}
-.tag b{color:#fff;background:linear-gradient(90deg,var(--blue),var(--violet),var(--green),var(--blue));background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:flow 8s linear infinite}
-@keyframes flow{to{background-position:300% 0}}
+/* 1. l'entrée : une barre, un nom énorme */
+.hero{min-height:100svh;display:flex;flex-direction:column;justify-content:space-between;padding-block:18px 28px}
+.bar{display:flex;justify-content:space-between;gap:16px;color:var(--ink)}
+.bar span:last-child{color:var(--dim);text-align:right}
+.name{margin:0;font-weight:900;line-height:.84;letter-spacing:-.045em;text-transform:uppercase;font-size:clamp(54px,20.5vw,230px);overflow-wrap:anywhere}
+.name .l2{display:block;color:transparent;-webkit-text-stroke:1.5px var(--ink);animation:fill 8s ease-in-out infinite}
+@keyframes fill{0%,100%{color:transparent}50%{color:rgba(246,246,255,.9)}}
+.sub{display:grid;gap:14px;max-width:34em}
+.sub p{margin:0;font-size:clamp(17px,4.6vw,22px);color:#e3e6ff}
+.sub b{color:var(--acc)}
+.hint{display:flex;align-items:center;gap:10px;color:var(--dim)}
+.hint i{display:block;width:44px;height:1px;background:var(--dim);transform-origin:left;animation:grow 2.4s ease-in-out infinite}
+@keyframes grow{0%{transform:scaleX(0)}60%,100%{transform:scaleX(1)}}
 
-/* le bandeau qui défile */
-.strip{position:relative;overflow:hidden;white-space:nowrap;border-block:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.05);backdrop-filter:blur(6px);margin-inline:-18px;padding:9px 0;transform:skewY(-2deg)}
-.strip span{display:inline-block;padding-right:2.5em;font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:#cfd3ff;animation:run 22s linear infinite}
+/* 2. l'énoncé */
+.say{padding-block:12vh}
+.say p{margin:0;max-width:20em;font-size:clamp(28px,7.4vw,64px);font-weight:700;line-height:1.08;letter-spacing:-.02em}
+.say em{font-style:normal;color:var(--acc)}
+
+/* 3. l'index : une ligne par fichier */
+.index{padding-block:6vh 10vh}
+.index h2{margin:0 0 14px;font-weight:400;color:var(--dim)}
+.row{display:grid;grid-template-columns:2.2em 1fr auto;gap:12px;align-items:baseline;padding:16px 0;border-top:1px solid var(--line);text-decoration:none;position:relative;transition:padding .25s,background .25s}
+.row:last-of-type{border-bottom:1px solid var(--line)}
+.row b{font-size:clamp(22px,6vw,40px);font-weight:700;letter-spacing:-.02em;text-transform:uppercase}
+.row .mono{color:var(--dim)}
+.row .go{color:var(--acc)}
+.row:hover,.row:focus-visible{background:rgba(255,255,255,.07);padding-left:14px;outline:none}
+.row:active{background:rgba(82,214,160,.18)}
+.row small{display:block;font-size:13px;color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0;margin-top:2px}
+
+/* le bandeau géant entre deux parties */
+.big{overflow:hidden;white-space:nowrap;padding-block:2vh;border-block:1px solid var(--line);transform:rotate(-1.5deg);margin-inline:-4vw}
+.big span{display:inline-block;font-weight:900;text-transform:uppercase;font-size:clamp(40px,12vw,120px);letter-spacing:-.03em;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.6);animation:run 26s linear infinite}
 @keyframes run{to{transform:translateX(-100%)}}
 
-h2{margin:0 0 14px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#c3c6f0;text-align:center;font-weight:600}
-
-/* les panneaux de verre en 3D */
-.stage{perspective:1100px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;transform-style:preserve-3d}
-.cell{--c:var(--blue);position:relative;display:flex;flex-direction:column;gap:4px;padding:20px 24px;color:#fff;text-decoration:none;
-  background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.04));backdrop-filter:blur(10px) saturate(1.4);
-  clip-path:polygon(18px 0,100% 0,calc(100% - 18px) 100%,0 100%);transform-style:preserve-3d;animation:float 9s ease-in-out infinite;animation-delay:calc(var(--i)*-1.3s)}
-.cell::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 70%,transparent),transparent 85%)}
-.cell::after{content:"";position:absolute;inset:0;padding:1px;background:conic-gradient(from var(--a),transparent 0 70%,var(--c) 88%,#fff 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 6s linear infinite;animation-delay:calc(var(--i)*-.8s)}
+/* 4. Aiwa en quatre morceaux, taillés comme le widget */
+.parts{padding-block:12vh}
+.parts h2{margin:0 0 16px;font-weight:400;color:var(--dim)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.cell{--c:var(--blue);position:relative;padding:22px 26px 24px;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.03));backdrop-filter:blur(10px) saturate(1.3);clip-path:polygon(18px 0,100% 0,calc(100% - 18px) 100%,0 100%)}
+.cell::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 60%,transparent),transparent 90%)}
+.cell::after{content:"";position:absolute;inset:0;padding:1px;background:conic-gradient(from var(--a),transparent 0 72%,var(--c) 90%,#fff);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 7s linear infinite;animation-delay:calc(var(--i)*-1.7s)}
 @keyframes spin{to{--a:360deg}}
-@keyframes float{0%,100%{transform:rotateX(5deg) rotateY(-9deg) translateZ(0)}50%{transform:rotateX(-4deg) rotateY(9deg) translateZ(24px)}}
-.cell b{font-size:18px;letter-spacing:-.01em}.cell span{font-size:12.5px;color:#d6d9ff}
-.cell:active{filter:brightness(1.3)}
-.green{--c:var(--green)}.blue{--c:var(--blue)}.violet{--c:var(--violet)}.orange{--c:var(--orange)}.yellow{--c:var(--yellow)}
+.cell b{display:block;font-size:22px;letter-spacing:-.01em;text-transform:uppercase}
+.cell span{font-size:14px;color:#dde0ff}
+.g{--c:var(--acc)}.v{--c:var(--violet)}.o{--c:#e09a7c}
 
-.me{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
-.chip{padding:12px 24px;color:#fff;text-decoration:none;font-weight:600;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.45);clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);backdrop-filter:blur(8px)}
-footer{text-align:center;font-size:12px;color:#aab0e6}
-footer code{color:#fff}
-@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+/* 5. me trouver */
+.find{padding-block:8vh 14vh;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.find a.btn{padding:16px 30px;text-decoration:none;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#05110c;background:var(--acc);clip-path:polygon(14px 0,100% 0,calc(100% - 14px) 100%,0 100%)}
+.find p{margin:0;color:var(--dim);font-size:13px;max-width:24em}
+.find code{color:var(--ink)}
+
+/* apparitions liées au défilement : seulement là où le navigateur sait le faire, la page est complète sans */
+@supports (animation-timeline:view()){
+  .say p,.row,.cell,.index h2,.parts h2{animation:rise both linear;animation-timeline:view();animation-range:entry 0% entry 55%}
+  @keyframes rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.name .l2{color:transparent}}
 </style>
 </head>
 <body>
 <video class="bg" src="media/loop.mp4" poster="media/poster.jpg" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>
-<div class="veil"></div><div class="scan"></div><div class="grain"></div>
+<div class="veil"></div><div class="grain"></div>
 <main>
-  <header>
-    <div class="mark" aria-hidden="true">A</div>
-    <h1 data-t="theodoreyong9">theodoreyong9</h1>
-    <p class="tag">Je construis <b>Aiwa</b> : un assistant qui vit sur le téléphone, parle à Claude, produit des documents, des vidéos, des pages et des apps, et se pilote à la voix.</p>
-  </header>
-
-  <div class="strip" aria-hidden="true"><span>Aiwa · Files · Build · Voir · Score · Boucles · Wallet · Aiwa · Files · Build · Voir · Score · Boucles · Wallet ·</span><span>Aiwa · Files · Build · Voir · Score · Boucles · Wallet · Aiwa · Files · Build · Voir · Score · Boucles · Wallet ·</span></div>
-
-  <section class="stage">
-    <h2>Mes fichiers</h2>
-    <div class="grid">
-      <a class="cell green" style="--i:0" href="https://github.com/theodoreyong9/Aiwa_store"><b>Source</b><span>le dépôt d'Aiwa</span></a>
-      <a class="cell blue" style="--i:1" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs"><b>Documents</b><span>le plan, le business, la vision</span></a>
-      <a class="cell violet" style="--i:2" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/YELLOWPAPER.md"><b>Yellow paper</b><span>comment Aiwa fonctionne</span></a>
-      <a class="cell orange" style="--i:3" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs/videos"><b>Films</b><span>ce que je montre</span></a>
-      <a class="cell yellow" style="--i:4" href="https://github.com/theodoreyong9/Aiwa_store/releases"><b>App</b><span>l'APK Android</span></a>
-      <a class="cell blue" style="--i:5" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/EXPLAINED.md"><b>En mots simples</b><span>Aiwa expliqué</span></a>
+  <section class="hero">
+    <div class="bar mono"><span>Aiwa · profil</span><span>2026 · en ligne</span></div>
+    <h1 class="name">theo<br>dore<span class="l2">yong9</span></h1>
+    <div class="sub">
+      <p>Je construis <b>Aiwa</b> : un assistant qui vit sur le téléphone, parle à Claude, et produit des documents, des vidéos, des pages et des apps, à la voix.</p>
+      <div class="hint mono"><i></i>Défile</div>
     </div>
   </section>
 
-  <section>
-    <h2>Me trouver</h2>
-    <div class="me"><a class="chip" href="https://github.com/theodoreyong9">GitHub</a></div>
+  <section class="say">
+    <p>Un téléphone, une voix, <em>un dépôt</em>. Tout ce que je dis devient un fichier que je peux ouvrir.</p>
   </section>
 
-  <footer>Un fichier de mon dépôt : <code>Profile/index.html</code>. Le super agent le réécrit quand je le lui demande.</footer>
+  <div class="big" aria-hidden="true"><span>Files · Build · Voir · Domaine · Files · Build · Voir · Domaine ·&nbsp;</span><span>Files · Build · Voir · Domaine · Files · Build · Voir · Domaine ·&nbsp;</span></div>
+
+  <section class="index">
+    <h2 class="mono">Mes fichiers</h2>
+    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store"><span class="mono">01</span><b>Source<small>le dépôt d'Aiwa</small></b><span class="mono go">GitHub ↗</span></a>
+    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs"><span class="mono">02</span><b>Documents<small>le plan, le business, la vision</small></b><span class="mono go">Lire ↗</span></a>
+    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/YELLOWPAPER.md"><span class="mono">03</span><b>Yellow paper<small>comment Aiwa fonctionne</small></b><span class="mono go">Lire ↗</span></a>
+    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs/videos"><span class="mono">04</span><b>Films<small>ce que je montre</small></b><span class="mono go">Voir ↗</span></a>
+    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store/releases"><span class="mono">05</span><b>App<small>l'APK Android</small></b><span class="mono go">Installer ↗</span></a>
+    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/EXPLAINED.md"><span class="mono">06</span><b>En mots simples<small>Aiwa expliqué</small></b><span class="mono go">Lire ↗</span></a>
+  </section>
+
+  <section class="parts">
+    <h2 class="mono">Aiwa, en quatre morceaux</h2>
+    <div class="grid">
+      <div class="cell" style="--i:0"><b>Domaine</b><span>les boucles, le wallet, les agents externes, la télé</span></div>
+      <div class="cell g" style="--i:1"><b>Files</b><span>ce que mon dépôt produit : documents, films, page, app, contrat</span></div>
+      <div class="cell o" style="--i:2"><b>Build</b><span>le super agent, Claude, l'écoute, les scénarios</span></div>
+      <div class="cell v" style="--i:3"><b>Voir</b><span>les gens autour de moi, leurs profils, un glissement pour passer au suivant</span></div>
+    </div>
+  </section>
+
+  <section class="find">
+    <a class="btn" href="https://github.com/theodoreyong9">Me trouver sur GitHub</a>
+    <p>Cette page est un fichier de mon dépôt, <code>Profile/index.html</code>. Le super agent la réécrit quand je le lui demande.</p>
+  </section>
 </main>
 </body>
 </html>

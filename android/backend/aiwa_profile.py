@@ -49,6 +49,8 @@ def instruction(repo_name=None):
         "(2) la forme : `<title>`, `<meta name=\"viewport\">`, une page qui se lit bien sur un téléphone (une colonne, texte de 16 px au moins, contraste fort), un fond animé SOMBRE (une vidéo `<video autoplay muted loop playsinline>` ou un GIF, avec `poster`) pour que le texte reste lisible, "
         f"du mouvement en CSS plutôt qu'en script ; (3) aucun `<script>` du tout (la page est lue sans script) et aucune ressource en `http://` ; "
         f"(4) le poids : la page {HTML_MAX // 1000} Ko au plus, chaque média {MEDIA_MAX // 1_000_000} Mo au plus, tous les médias {MEDIA_TOTAL // 1_000_000} Mo au plus, rangés dans `{FOLDER}/media/`, appelés par des chemins relatifs. "
+        "C'est un site : suis donc la consigne Design ci-dessus comme pour tout site (références mesurées du catalogue avec `--format=site`, rien de recopié, la page ouverte en 390 px et en 1440 px avec Playwright et ses captures regardées, "
+        "les débordements, contrastes faibles et erreurs de console corrigés, `aiwa-design/references.md` écrit dans le dépôt). Vise l'expérimental et le soigné : un profil ordinaire n'atteint pas le niveau. "
         f"Pars du niveau de la page de référence ({TEMPLATE_URL}) : lis-la d'abord. Le fichier n'est pas publié : Aiwa le lit tel quel dans le dépôt (public)."
     )
     if repo_name:

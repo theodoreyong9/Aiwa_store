@@ -33,7 +33,7 @@ class Profile(unittest.TestCase):
 
     def test_the_minimum_of_quality_is_in_the_instruction_and_checked(self):
         text = P.instruction("jean/site")
-        for word in ("nom", "viewport", "<script>", "Mo", "page de référence"):
+        for word in ("nom", "viewport", "<script>", "Mo", "page de référence", "consigne Design", "390 px", "aiwa-design/references.md"):
             self.assertIn(word, text)
         good = '<!doctype html><title>x</title><meta name="viewport" content="width=device-width"><h1>x</h1><video src="media/a.mp4"></video><a href="https://github.com/x">x</a>'
         self.assertEqual(P.check(good, {"media/a.mp4": 900_000}), [])
