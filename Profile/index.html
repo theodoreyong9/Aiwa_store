@@ -6,63 +6,92 @@
 <title>theodoreyong9 · Aiwa</title>
 <meta name="description" content="Mon profil : ce que je construis, mes fichiers, où me trouver.">
 <style>
-:root{color-scheme:dark;--blue:#6b9bf5;--green:#3fa37e;--violet:#a77bd6;--orange:#e09a7c;--yellow:#e8c14a}
+/* Une page, un fichier : pas un script. Le fond est une boucle de 4 secondes rendue avec Blender (verre, chrome et lumière devant une ville la nuit, tout fait un nombre entier de tours : la fin rejoint le début).
+   Le mouvement est du CSS : des panneaux de verre en 3D qui flottent, un titre qui se sépare en couleurs, un bandeau qui défile, des bordures qui tournent. */
+@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}
+:root{color-scheme:dark;--blue:#6b9bf5;--green:#52d6a0;--violet:#a77bd6;--orange:#e09a7c;--yellow:#e8c14a}
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%}
-body{font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#f4f4ff;background:#10132e;overflow-x:hidden}
-/* le fond : la ville la nuit, qui bouge lentement (une vidéo ou un GIF se met à la place avec une session) */
-.bg{position:fixed;inset:-4%;z-index:0;background:#10132e url("media/ville.jpg") center/cover no-repeat;animation:drift 48s ease-in-out infinite alternate}
-@keyframes drift{from{transform:scale(1.02) translate3d(-1.5%,0,0)}to{transform:scale(1.12) translate3d(1.5%,-1%,0)}}
-.veil{position:fixed;inset:0;z-index:1;background:linear-gradient(135deg,rgba(29,47,102,.66),rgba(42,20,80,.82))}
+body{font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#f4f4ff;background:#080a1c;overflow-x:hidden}
+.bg{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;background:#080a1c url("media/ville.jpg") center/cover no-repeat}
+.veil{position:fixed;inset:0;z-index:1;background:radial-gradient(120% 90% at 50% 20%,rgba(8,10,28,.05),rgba(8,10,28,.72) 78%),linear-gradient(135deg,rgba(29,47,102,.42),rgba(60,24,96,.58));mix-blend-mode:normal}
+.scan{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.10;background:repeating-linear-gradient(0deg,rgba(255,255,255,.7) 0 1px,transparent 1px 3px);animation:scan 9s linear infinite}
+@keyframes scan{to{background-position:0 60px}}
 .grain{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>")}
-main{position:relative;z-index:3;max-width:640px;margin:0 auto;padding:56px 18px 72px;display:flex;flex-direction:column;gap:30px}
-header{text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
-.mark{width:84px;height:84px;display:grid;place-items:center;font-size:34px;font-weight:700;letter-spacing:-.02em;background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.08));border:1px solid rgba(255,255,255,.45);clip-path:polygon(18px 0,100% 0,calc(100% - 18px) 100%,0 100%)}
-h1{margin:6px 0 0;font-size:30px;letter-spacing:-.01em}
-.tag{margin:0;color:#d4d8ff;max-width:34em}
-h2{margin:0 0 10px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#c3c6f0;text-align:center;font-weight:600}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
-.cell{--c:rgba(255,255,255,.2);position:relative;display:flex;flex-direction:column;gap:3px;padding:16px 22px;color:#fff;text-decoration:none;background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,.06)),linear-gradient(180deg,var(--c),transparent);border:1px solid rgba(255,255,255,.3);clip-path:polygon(16px 0,100% 0,calc(100% - 16px) 100%,0 100%);transition:transform .2s,filter .2s}
-.cell:hover,.cell:focus-visible{transform:translateY(-2px);filter:brightness(1.18);outline:none}
-.cell b{font-size:16px}.cell span{font-size:12px;color:#d0d4ff}
-.green{--c:rgba(63,163,126,.5)}.blue{--c:rgba(107,155,245,.5)}.violet{--c:rgba(167,123,214,.5)}.orange{--c:rgba(224,154,124,.5)}.yellow{--c:rgba(232,193,74,.5)}
-p.lead{margin:0;text-align:center;color:#e6e8ff}
-.me{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-.chip{padding:10px 20px;color:#fff;text-decoration:none;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.4);clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%)}
-.chip:hover{background:rgba(255,255,255,.26)}
+main{position:relative;z-index:3;max-width:680px;margin:0 auto;padding:56px 18px 90px;display:flex;flex-direction:column;gap:40px}
+
+/* le titre : trois couches de couleur qui se séparent et se rejoignent */
+header{text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;perspective:900px}
+.mark{width:92px;height:92px;display:grid;place-items:center;font-size:38px;font-weight:800;color:#fff;background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.5);clip-path:polygon(20px 0,100% 0,calc(100% - 20px) 100%,0 100%);animation:turn 14s ease-in-out infinite;backdrop-filter:blur(8px)}
+@keyframes turn{0%,100%{transform:rotateY(-24deg) rotateX(8deg)}50%{transform:rotateY(24deg) rotateX(-6deg)}}
+h1{position:relative;margin:4px 0 0;font-size:clamp(34px,10vw,56px);font-weight:800;letter-spacing:-.03em;line-height:1;color:#fff}
+h1::before,h1::after{content:attr(data-t);position:absolute;inset:0;mix-blend-mode:screen;pointer-events:none}
+h1::before{color:#6b9bf5;animation:split1 6s ease-in-out infinite}
+h1::after{color:#e56ac0;animation:split2 6s ease-in-out infinite}
+@keyframes split1{0%,60%,100%{transform:translate(0)}70%{transform:translate(-5px,1px)}80%{transform:translate(3px,-1px)}}
+@keyframes split2{0%,60%,100%{transform:translate(0)}70%{transform:translate(5px,-1px)}80%{transform:translate(-3px,1px)}}
+.tag{margin:0;max-width:30em;color:#dfe2ff;font-size:17px}
+.tag b{color:#fff;background:linear-gradient(90deg,var(--blue),var(--violet),var(--green),var(--blue));background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:flow 8s linear infinite}
+@keyframes flow{to{background-position:300% 0}}
+
+/* le bandeau qui défile */
+.strip{position:relative;overflow:hidden;white-space:nowrap;border-block:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.05);backdrop-filter:blur(6px);margin-inline:-18px;padding:9px 0;transform:skewY(-2deg)}
+.strip span{display:inline-block;padding-right:2.5em;font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:#cfd3ff;animation:run 22s linear infinite}
+@keyframes run{to{transform:translateX(-100%)}}
+
+h2{margin:0 0 14px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#c3c6f0;text-align:center;font-weight:600}
+
+/* les panneaux de verre en 3D */
+.stage{perspective:1100px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;transform-style:preserve-3d}
+.cell{--c:var(--blue);position:relative;display:flex;flex-direction:column;gap:4px;padding:20px 24px;color:#fff;text-decoration:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.04));backdrop-filter:blur(10px) saturate(1.4);
+  clip-path:polygon(18px 0,100% 0,calc(100% - 18px) 100%,0 100%);transform-style:preserve-3d;animation:float 9s ease-in-out infinite;animation-delay:calc(var(--i)*-1.3s)}
+.cell::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 70%,transparent),transparent 85%)}
+.cell::after{content:"";position:absolute;inset:0;padding:1px;background:conic-gradient(from var(--a),transparent 0 70%,var(--c) 88%,#fff 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 6s linear infinite;animation-delay:calc(var(--i)*-.8s)}
+@keyframes spin{to{--a:360deg}}
+@keyframes float{0%,100%{transform:rotateX(5deg) rotateY(-9deg) translateZ(0)}50%{transform:rotateX(-4deg) rotateY(9deg) translateZ(24px)}}
+.cell b{font-size:18px;letter-spacing:-.01em}.cell span{font-size:12.5px;color:#d6d9ff}
+.cell:active{filter:brightness(1.3)}
+.green{--c:var(--green)}.blue{--c:var(--blue)}.violet{--c:var(--violet)}.orange{--c:var(--orange)}.yellow{--c:var(--yellow)}
+
+.me{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.chip{padding:12px 24px;color:#fff;text-decoration:none;font-weight:600;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.45);clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);backdrop-filter:blur(8px)}
 footer{text-align:center;font-size:12px;color:#aab0e6}
-@media (prefers-reduced-motion:reduce){.bg{animation:none}.cell{transition:none}}
+footer code{color:#fff}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
 <body>
-<div class="bg" aria-hidden="true"></div><div class="veil"></div><div class="grain"></div>
+<video class="bg" src="media/loop.mp4" poster="media/ville.jpg" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>
+<div class="veil"></div><div class="scan"></div><div class="grain"></div>
 <main>
   <header>
     <div class="mark" aria-hidden="true">A</div>
-    <h1>theodoreyong9</h1>
+    <h1 data-t="theodoreyong9">theodoreyong9</h1>
     <p class="tag">Je construis <b>Aiwa</b> : un assistant qui vit sur le téléphone, parle à Claude, produit des documents, des vidéos, des pages et des apps, et se pilote à la voix.</p>
   </header>
 
-  <section>
+  <div class="strip" aria-hidden="true"><span>Aiwa · Files · Build · Voir · Score · Boucles · Wallet · Aiwa · Files · Build · Voir · Score · Boucles · Wallet ·</span><span>Aiwa · Files · Build · Voir · Score · Boucles · Wallet · Aiwa · Files · Build · Voir · Score · Boucles · Wallet ·</span></div>
+
+  <section class="stage">
     <h2>Mes fichiers</h2>
     <div class="grid">
-      <a class="cell green" href="https://github.com/theodoreyong9/Aiwa_store"><b>Source</b><span>le dépôt d'Aiwa</span></a>
-      <a class="cell blue" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs"><b>Documents</b><span>le plan, le business, la vision</span></a>
-      <a class="cell violet" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/YELLOWPAPER.md"><b>Yellow paper</b><span>comment Aiwa fonctionne</span></a>
-      <a class="cell orange" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs/videos"><b>Films</b><span>ce que je montre</span></a>
-      <a class="cell yellow" href="https://github.com/theodoreyong9/Aiwa_store/releases"><b>App</b><span>l'APK Android</span></a>
-      <a class="cell blue" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/EXPLAINED.md"><b>En mots simples</b><span>Aiwa expliqué</span></a>
+      <a class="cell green" style="--i:0" href="https://github.com/theodoreyong9/Aiwa_store"><b>Source</b><span>le dépôt d'Aiwa</span></a>
+      <a class="cell blue" style="--i:1" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs"><b>Documents</b><span>le plan, le business, la vision</span></a>
+      <a class="cell violet" style="--i:2" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/YELLOWPAPER.md"><b>Yellow paper</b><span>comment Aiwa fonctionne</span></a>
+      <a class="cell orange" style="--i:3" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs/videos"><b>Films</b><span>ce que je montre</span></a>
+      <a class="cell yellow" style="--i:4" href="https://github.com/theodoreyong9/Aiwa_store/releases"><b>App</b><span>l'APK Android</span></a>
+      <a class="cell blue" style="--i:5" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/EXPLAINED.md"><b>En mots simples</b><span>Aiwa expliqué</span></a>
     </div>
   </section>
 
   <section>
     <h2>Me trouver</h2>
-    <div class="me">
-      <a class="chip" href="https://github.com/theodoreyong9">GitHub</a>
-    </div>
+    <div class="me"><a class="chip" href="https://github.com/theodoreyong9">GitHub</a></div>
   </section>
 
-  <footer>Cette page est un fichier de mon dépôt : <code>Profile/index.html</code>. Une session la modifie quand je le demande.</footer>
+  <footer>Un fichier de mon dépôt : <code>Profile/index.html</code>. Le super agent le réécrit quand je le lui demande.</footer>
 </main>
 </body>
 </html>

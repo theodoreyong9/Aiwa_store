@@ -235,6 +235,7 @@ class StoreActivity : ComponentActivity() {
             setBackgroundColor(Color.parseColor("#10132E"))
             settings.javaScriptEnabled = false          // the page of a profile is plain html
             settings.allowFileAccess = false
+            settings.mediaPlaybackRequiresUserGesture = false      // the video behind a profile starts by itself (muted)
             webViewClient = object : android.webkit.WebViewClient() {
                 override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
                     if (request.url.scheme in setOf("https", "mailto", "tel", "sms")) try { startActivity(Intent(Intent.ACTION_VIEW, request.url)) } catch (err: Exception) { }

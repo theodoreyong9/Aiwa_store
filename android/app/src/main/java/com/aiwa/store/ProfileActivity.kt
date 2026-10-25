@@ -69,6 +69,7 @@ private fun ProfileScreen(urls: List<String>, start: Int, onClose: () -> Unit) {
                     settings.javaScriptEnabled = false          // the pages are plain html: nothing of a profile runs
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
+                    settings.mediaPlaybackRequiresUserGesture = false      // the video behind a profile starts by itself (muted)
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                             val url = request.url
