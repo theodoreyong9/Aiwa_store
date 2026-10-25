@@ -271,25 +271,22 @@ object WidgetBackground {
 }
 
 
-/** The profile page: the repository that holds its `Profile/` folder (the phone keeps it too, to show it in the settings), and the publishing. */
+/** The profile: the repository that holds its `Profile/` folder (the phone keeps it too, to show it in the settings). The page itself is the work of a session. */
 object ProfileSettings {
     private const val FILE = "aiwa_profile"
     fun repo(context: Context): String? = try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("repo", null) } catch (err: Exception) { null }
     fun setRepo(context: Context, repo: String) { try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString("repo", repo).apply() } catch (err: Exception) { } }
 
-    /** Takes the repository in use as the one of the profile, then writes the page there with the links of the files it holds. Reports in a toast. */
-    fun publish(context: Context, takeCurrent: Boolean) {
+    /** Takes the repository in use as the one of the profile and tells the brain (the sessions are told where the `Profile/` folder goes). Reports in a toast. */
+    fun takeCurrent(context: Context) {
         val app = context.applicationContext
         kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-            val state = AiwaRepository.state.value
-            if (takeCurrent) state.repo?.let { setRepo(app, it) }
-            val repo = repo(app)
+            val repo = AiwaRepository.state.value.repo
             if (repo == null) { toastOnMain(app, "Choisis d'abord un projet, puis « Dépôt du profil »."); return@launch }
-            val links = FastWidget.voirLinks(repo, lightKinds(state, app))
-            val patch = org.json.JSONObject().put("repo", repo).put("liens", org.json.JSONArray().also { a -> links.forEach { (k, u) -> a.put(org.json.JSONObject().put("kind", k).put("url", u)) } })
-            val answer = try { LocalClaudeBridge().profileApply(patch.toString(), !takeCurrent) } catch (err: Exception) { toastOnMain(app, "Profil : ${err.message ?: "?"}"); return@launch }
-            val json = try { org.json.JSONObject(answer) } catch (err: Exception) { null }
-            toastOnMain(app, if (takeCurrent) "Dépôt du profil : $repo" else if (json?.optBoolean("ok") == true) "Profil publié : ${json.optString("url")}" else "Profil : ${json?.optString("error")?.takeIf { it.isNotBlank() } ?: "pas publié"}")
+            setRepo(app, repo)
+            val answer = try { LocalClaudeBridge().profileRepo(repo) } catch (err: Exception) { toastOnMain(app, "Profil : ${err.message ?: "?"}"); return@launch }
+            val ok = try { org.json.JSONObject(answer).optBoolean("ok") } catch (err: Exception) { false }
+            toastOnMain(app, if (ok) "Dépôt du profil : $repo" else "Profil : le cerveau n'a pas pris ce dépôt.")
         }
     }
 

@@ -20,7 +20,7 @@ data class AgentProposal(val id: String, val session: String, val sessionTitle: 
 data class AgentCast(val tv: String, val wait: Boolean)
 /** A request to a connector (kind: mail, agenda, sms, appel): plain data for an app of the phone, which the person confirms and then sends/calls/saves herself. */
 data class AgentConnector(val kind: String, val to: String = "", val subject: String = "", val body: String = "", val start: String = "")
-data class AgentCommand(val id: String, val readBack: String, val instruction: String, val cast: AgentCast? = null, val open: String? = null, val connector: AgentConnector? = null, val auto: Boolean = false, val profile: String? = null)
+data class AgentCommand(val id: String, val readBack: String, val instruction: String, val cast: AgentCast? = null, val open: String? = null, val connector: AgentConnector? = null, val auto: Boolean = false)
 data class AgentInfo(val enabled: Boolean, val session: String?, val interval: Int, val creating: Boolean, val error: String?, val say: AgentSay?, val proposal: AgentProposal?, val voice: String = "none", val command: AgentCommand? = null, val llm: String = "none", val repo: String? = null, val history: List<AgentOld> = emptyList(), val voiceError: String? = null)
 /** An agent put aside: it can be taken back. */
 data class AgentOld(val id: String, val repo: String?, val title: String)
@@ -258,10 +258,10 @@ interface ClaudeBridge {
     /** The person asked for the video to go to the television once Claude has made it. */
     suspend fun castPending(tv: String) { throw UnsupportedOperationException("castPending") }
     suspend fun castClear() { throw UnsupportedOperationException("castClear") }
-    /** The profile page: what is set (repository, name, text, background, contacts, address of the page) as the brain's JSON. */
+    /** The profile: the repository chosen and the address of its page, as the brain's JSON. */
     suspend fun profile(): String { throw UnsupportedOperationException("profile") }
-    /** A change of the profile (`patch`, a JSON object) and, with `publish`, the page written in the repository chosen for it. Returns the brain's answer as JSON ({"ok", "url", "error"}). */
-    suspend fun profileApply(patch: String, publish: Boolean): String { throw UnsupportedOperationException("profileApply") }
+    /** The repository of the profile, chosen in the settings (the brain tells the sessions where `Profile/` goes). Returns the brain's answer as JSON ({"ok", "repo", "url", "error"}). */
+    suspend fun profileRepo(repo: String): String { throw UnsupportedOperationException("profileRepo") }
     /** create (builder, critic), start / stop / relaunch / rollback / delete (id), limit (limit). Returns the reason when refused, null when done. */
     suspend fun loopsAction(action: String, fields: Map<String, String> = emptyMap()): String? { throw UnsupportedOperationException("loopsAction") }
     // The proposals a session prepared (`aiwa-proposals/proposals.json` of the repository): to read, validate and send by hand.

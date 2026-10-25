@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-- Profile: a full-screen view (`ProfileActivity`): the page of a repository's `Profile/` folder, the others of the list a swipe away (previous / next / close bar at the bottom: the home-screen widget cannot be put inside an app). « Voir » gets a « Profil » button on each person (near, favourites, a link) that opens the whole list; the Settings get « Voir mon profil en plein écran ». The pages run no script. Not verified on a device.
+- Profile (brain 180): the profile is a production like the others, not an order of the super agent. The settings choose the repository of the profile (« Profil ») and the brain tells every session what a `Profile/` folder is (one self-contained `index.html`, a video or a GIF behind, the files in front, the contacts as links, published by GitHub Pages); the super agent, told which repository it is, proposes it when the person says they work on their profile. In « Voir », each person has a « Profil » button that opens the list full screen, one swipe from the next (`ProfileActivity`; a slim bar replaces the widget, which an app cannot hold). The pages run no script. Not verified on a device.
 
-- Profile (brain 179): `aiwa_profile.py` writes ONE html page (photo, name, text, a dark background picture or video, the links of the files, the contacts as links) in `Profile/` of the repository chosen in the Settings (« Profil »), with one of four shipped backgrounds (city at night, neon, starry sky, workshop; crops of CC0 panoramas); the super agent changes the background, text, name, photo and contacts by voice (`do.profile`, read back first) and the page is written again. Not done yet: the full-screen view in the app, the switch from profile to profile in Voir, the photo taken from the phone. Not verified on a device.
+
 
 - Brain 178: the super agent can switch Voir (`open`: visible / caché), and open Proximité, Lien, QR code or Favoris: the widget turns to the Voir tab and the switch changes under the eyes of the person.
 

@@ -67,7 +67,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 179
+BACKEND_VERSION = 180
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -1055,6 +1055,7 @@ def _instruction_lines(repo, work, base, direct, origin=None, quality=None):
         lines.append(("images", _image_line()))
         lines.append(("stock", _stock_line(repo)))
         lines.append(("proposals", _proposals_line(repo)))
+        lines.append(("profile", profile_lib.instruction(profile_lib.repo())))
     lines.append(("ask", _ask_line(repo, work, topic)))
     # Mandatory, not a switch: it is how the widget learns that Claude is
     # waiting (the CLI can't read a cloud reply back). A public relay, a
@@ -3213,17 +3214,15 @@ def cast_register(tv):
 
 
 def profile_state():
-    profile = profile_lib.load()
-    return {"ok": True, "repo": profile.get("repo"), "nom": profile.get("nom") or "", "texte": profile.get("texte") or "", "fond": profile.get("fond") or "ville", "contacts": profile.get("contacts") or {},
-            "published": profile.get("published"), "url": profile_lib.page_url(profile["repo"]) if profile.get("repo") else None}
+    repo = profile_lib.repo()
+    return {"ok": True, "repo": repo, "url": profile_lib.page_url(repo) if repo else None}
 
 
 def profile_apply(data):
-    """A change of the profile (the phone's settings, or what the super agent asked once the person agreed), then, with `publish`, the page written in the repository chosen for it."""
-    profile = profile_lib.update(data.get("patch") if isinstance(data.get("patch"), dict) else {})
-    if data.get("publish") is True:
-        return profile_lib.publish(github, profile)
-    return {"ok": True}
+    """The repository of the profile (the phone's settings): the only thing Aiwa keeps; the page itself is the work of a session."""
+    if "repo" in data and not profile_lib.set_repo(data.get("repo")):
+        return {"ok": False, "error": "dépôt invalide"}
+    return profile_state()
 
 
 def cast_clear():
@@ -3450,7 +3449,7 @@ def _agent_digest(with_ci=False):
     asks = [{"session": (_session_entry(a.get("session")) or {}).get("title") if a.get("session") else None, "question": a["question"]} for a in pending]
     with lock:
         pills = {"repo": current_repo, "session": (_session_entry(current_cloud) or {}).get("title") or current_cloud if current_cloud else None,
-                 "direct": push_main, "deploy": deploy_mode, "quality": video_quality}
+                 "direct": push_main, "deploy": deploy_mode, "quality": video_quality, "profile": profile_lib.repo()}
     text, sig = agent_lib.digest(sessions, loops, asks, current_id=in_use, pills=pills)
     _index_refresh_async()
     return text + _index_digest() + (_workflow_digest() if with_ci else ""), sig
@@ -3931,7 +3930,7 @@ def agent_snapshot():
         command = dict(agent["command"]) if agent["command"] else None
     if command:
         spoken, instruction = agent_lib.command_phrases(command["items"], lambda sid: (_session_entry(sid) or {}).get("title") or sid)
-        command = {"id": command["id"], "read_back": spoken, "instruction": instruction, "cast": command["items"].get("cast"), "open": command["items"].get("open"), "connector": command["items"].get("connector"), "profile": command["items"].get("profile"), "auto": command.get("auto") is True}
+        command = {"id": command["id"], "read_back": spoken, "instruction": instruction, "cast": command["items"].get("cast"), "open": command["items"].get("open"), "connector": command["items"].get("connector"), "auto": command.get("auto") is True}
     out["command"] = command
     return out
 
