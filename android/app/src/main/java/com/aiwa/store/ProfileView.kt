@@ -18,10 +18,10 @@ object ProfileView {
     /** Reads the page in the background and shows it; a word on a plain page when there is none (no repository, a private one, no Profile folder yet). */
     fun load(web: WebView, repo: String?) {
         val main = Handler(Looper.getMainLooper())
-        if (!valid(repo)) { show(web, main, null, "Pas de profil : choisis le dépôt du profil dans les Réglages."); return }
+        if (repo == null || !valid(repo)) { show(web, main, null, "Pas de profil : choisis le dépôt du profil dans les Réglages."); return }
         Thread {
             val html = try {
-                val c = URL(base(repo!!) + "index.html").openConnection() as HttpURLConnection
+                val c = URL(base(repo) + "index.html").openConnection() as HttpURLConnection
                 c.connectTimeout = 10_000; c.readTimeout = 15_000
                 if (c.responseCode == 200) c.inputStream.bufferedReader().use { it.readText() } else null
             } catch (err: Exception) { null }
