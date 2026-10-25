@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 
 /**
- * A profile (the page `Profile/` of a repository, on GitHub Pages) in full screen, and the others of the same list one swipe away (the list comes from « Voir »: the people near, the favourites, a link). The pages are
+ * A profile (the file `Profile/index.html` of a repository, read from GitHub as it is) in full screen, and the others of the same list one swipe away (the list comes from « Voir »: the people near, the favourites, a link). The pages are
  * plain html: the view runs no script, and what a page links (a mail, a number, a site) opens in the app that handles it. The widget of the home screen cannot be put inside an app: a slim bar at the bottom takes its place (previous, next, close).
  */
 class ProfileActivity : ComponentActivity() {
@@ -42,7 +42,7 @@ class ProfileActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val urls = try { JSONArray(intent.getStringExtra(EXTRA_URLS) ?: "[]").let { a -> (0 until a.length()).map { a.getString(it) } } } catch (err: Exception) { emptyList() }
-            .filter { it.startsWith("https://") }.take(60)
+            .filter { ProfileView.valid(it) }.take(60)
         if (urls.isEmpty()) { finish(); return }
         val start = intent.getIntExtra(EXTRA_INDEX, 0).coerceIn(0, urls.size - 1)
         setContent { ProfileScreen(urls, start, onClose = { finish() }) }
@@ -51,8 +51,8 @@ class ProfileActivity : ComponentActivity() {
     companion object {
         const val EXTRA_URLS = "urls"
         const val EXTRA_INDEX = "index"
-        fun open(context: android.content.Context, urls: List<String>, index: Int = 0) =
-            context.startActivity(Intent(context, ProfileActivity::class.java).putExtra(EXTRA_URLS, JSONArray(urls).toString()).putExtra(EXTRA_INDEX, index).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        fun open(context: android.content.Context, repos: List<String>, index: Int = 0) =
+            context.startActivity(Intent(context, ProfileActivity::class.java).putExtra(EXTRA_URLS, JSONArray(repos).toString()).putExtra(EXTRA_INDEX, index).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
 
@@ -72,12 +72,11 @@ private fun ProfileScreen(urls: List<String>, start: Int, onClose: () -> Unit) {
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                             val url = request.url
-                            if (url.toString() == urls[page]) return false
                             if (url.scheme in setOf("https", "mailto", "tel", "sms")) try { context.startActivity(Intent(Intent.ACTION_VIEW, url).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (err: Exception) { }
                             return true
                         }
                     }
-                    loadUrl(urls[page])
+                    ProfileView.load(this, urls[page])
                 }
             }, modifier = Modifier.fillMaxSize(), onRelease = { it.destroy() })
         }

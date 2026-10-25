@@ -67,7 +67,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 180
+BACKEND_VERSION = 181
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -3215,7 +3215,7 @@ def cast_register(tv):
 
 def profile_state():
     repo = profile_lib.repo()
-    return {"ok": True, "repo": repo, "url": profile_lib.page_url(repo) if repo else None}
+    return {"ok": True, "repo": repo}
 
 
 def profile_apply(data):

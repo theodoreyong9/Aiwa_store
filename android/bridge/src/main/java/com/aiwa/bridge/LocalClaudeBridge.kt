@@ -440,8 +440,6 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
         requireAccepted(postText("/api/cast/pending", JSONObject().put("tv", tv).toString()))
     }
 
-    override suspend fun profile(): String = withContext(Dispatchers.IO) { getText("/api/profile") }
-
     override suspend fun profileRepo(repo: String): String = withContext(Dispatchers.IO) {
         postText("/api/profile", JSONObject().put("repo", repo).toString())
     }

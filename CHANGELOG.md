@@ -2,9 +2,10 @@
 
 ## Unreleased
 
+- Profile (brain 181): the profile is a production like the others: the file `Profile/index.html` of the repository chosen in the settings (« Profil »), written by the super agent itself when the person says they work on their profile (its one exception to « no change to any repository »: that folder). Nothing is published: the app reads the file from GitHub as it is (a public repository) and shows it with no script. It is what the application shows when opened outside of the widget, with « Mettre le widget » at the bottom (instead of « En construction »), and what « Voir » opens for the other people: a « Profil » button on each person near, favourite or found by link opens the list full screen, one swipe from the next. Not verified on a device.
+
 - `Profile/index.html` (and its background picture in `Profile/media/`): the profile of the owner of this repository, a self-contained page (the city at night drifting slowly behind, the files of the repository in front as slanted cards, no script). Meant to be rewritten by a session on request (a video or a GIF behind, a photo, the contacts).
 
-- Profile (brain 180): the profile is a production like the others, not an order of the super agent. The settings choose the repository of the profile (« Profil ») and the brain tells every session what a `Profile/` folder is (one self-contained `index.html`, a video or a GIF behind, the files in front, the contacts as links, published by GitHub Pages); the super agent, told which repository it is, proposes it when the person says they work on their profile. In « Voir », each person has a « Profil » button that opens the list full screen, one swipe from the next (`ProfileActivity`; a slim bar replaces the widget, which an app cannot hold). The pages run no script. Not verified on a device.
 
 
 

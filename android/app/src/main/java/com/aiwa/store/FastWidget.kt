@@ -289,14 +289,4 @@ object ProfileSettings {
             toastOnMain(app, if (ok) "Dépôt du profil : $repo" else "Profil : le cerveau n'a pas pris ce dépôt.")
         }
     }
-
-    /** Shows the own profile in full screen (the address the brain gives for the repository chosen). */
-    fun show(context: Context) {
-        val app = context.applicationContext
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-            val json = try { org.json.JSONObject(LocalClaudeBridge().profile()) } catch (err: Exception) { toastOnMain(app, "Profil : ${err.message ?: "?"}"); return@launch }
-            val url = json.optString("url").takeIf { it.startsWith("https://") }
-            if (url == null) toastOnMain(app, "Aucun dépôt choisi pour le profil.") else ProfileActivity.open(app, listOf(url))
-        }
-    }
 }

@@ -1,6 +1,6 @@
 """The profile: a folder `Profile/` of ONE repository the person chose in the settings. It is a production like the others (documents, media, page): the super agent hears « on travaille sur mon profil », the session
 writes the page there (`Profile/index.html`, as complex as wanted: a video or a GIF behind, the files in front, the ways to reach her), and GitHub Pages publishes it. Aiwa writes nothing itself: it only remembers which
-repository, gives the address of the page, and tells the sessions what the folder is for."""
+repository and tells the sessions what the folder is for. Nothing is published: the app reads `Profile/index.html` from the repository as it is (a public one), and shows it."""
 import json
 import re
 from pathlib import Path
@@ -34,19 +34,13 @@ def set_repo(value):
     return True
 
 
-def page_url(repo_name):
-    owner, name = repo_name.split("/", 1)
-    base = f"https://{owner}.github.io/" + ("" if name.lower() == f"{owner}.github.io".lower() else name + "/")
-    return base + FOLDER + "/"
-
-
 def instruction(repo_name=None):
     """What a session is told about the profile folder (and, when a repository is chosen, which one it is)."""
     text = (
         f"Profil : le dossier `{FOLDER}/` d'un dépôt est la page de la personne, une production comme les autres. Quand elle dit qu'on travaille sur son profil, tu écris `{FOLDER}/index.html` : UN fichier HTML autonome "
         f"(HTML et CSS, pas de script venu d'ailleurs), beau et travaillé ; en fond une vidéo ou un GIF de la meilleure qualité possible rangé dans `{FOLDER}/media/` (ou une image), sombre pour que le texte reste lisible ; "
-        "au premier plan sa photo, son texte, et les fichiers de la session en cours (leurs liens publics) présentés avec style ; ses contacts renseignés en liens (mailto:, tel:, https:). Elle le publie avec GitHub Pages."
+        "au premier plan sa photo, son texte, et les fichiers de la session en cours (leurs liens publics) présentés avec style ; ses contacts renseignés en liens (mailto:, tel:, https:). Le fichier n'est pas publié : Aiwa le lit tel quel dans le dépôt (public), avec les médias rangés à côté, par des chemins relatifs."
     )
     if repo_name:
-        text += f" Son dépôt du profil est {repo_name} : c'est là, et seulement là, que va ce dossier (adresse de la page : {page_url(repo_name)})."
+        text += f" Son dépôt du profil est {repo_name} : c'est là, et seulement là, que va ce dossier ; tu travailles dans ce dépôt quand elle parle de son profil."
     return text

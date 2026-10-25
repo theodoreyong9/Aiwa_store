@@ -919,7 +919,6 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Mes mots", false, lines = 1, chevron = true) { open(RecognitionsActivity::class.java) })
                 add(PickerEntry("Profil", false, header = true) { })
                 add(PickerEntry("Dépôt du profil : ${ProfileSettings.repo(applicationContext) ?: "pas choisi"} (toucher : prendre le projet en cours)", false, lines = 2) { ProfileSettings.takeCurrent(applicationContext); finish() })
-                add(PickerEntry("Voir mon profil en plein écran", false, lines = 1, chevron = true) { ProfileSettings.show(applicationContext); finish() })
                 add(PickerEntry("Papers", false, header = true) { })
                 listOf("Film" to "tree/main/docs/videos", "Source" to "", "Yellow paper" to "blob/main/docs/YELLOWPAPER.md", "Explication simple" to "blob/main/docs/EXPLAINED.md", "Valeur" to "raw/main/docs/value-ontology.pdf",
                     "Carrousel" to "raw/main/docs/AIWA_carousel_16_pages_square_final.pdf", "Plan" to "blob/main/docs/PLAN.md", "Business" to "blob/main/docs/BUSINESS.md", "Société augmentée" to "blob/main/docs/VISION-SOCIETE-AUGMENTEE.md").forEach { (name, path) ->

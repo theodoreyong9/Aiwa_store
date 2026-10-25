@@ -119,9 +119,3 @@ export function repoLinks(repo) {
     { kind: 'contract', url: `https://github.com/${repo}/tree/HEAD/aiwa-apps` },
   ];
 }
-
-/** The address of the profile page of a repository (its `Profile/` folder on GitHub Pages): where a person's profile is, whoever she is. */
-export function profileUrl(repo) {
-  const [owner, name] = repo.split('/');
-  return name.toLowerCase() === `${owner.toLowerCase()}.github.io` ? `https://${owner}.github.io/Profile/` : `https://${owner}.github.io/${name}/Profile/`;
-}

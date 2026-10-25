@@ -8,7 +8,7 @@ import { session, connected, onSession } from './session.js';
 import { $ } from './ui.js';
 import { hostAvailable, hostPost } from './host.js';
 import { drawQr, scanQr } from './qr.js';
-import { cellsAround, cleanLinks, checkEntry, messageOf, parseCard, cardText, parseRepo, repoLinks, profileUrl, readBlocked, writeBlocked, utf8, PERIOD_MS } from './voir-core.js';
+import { cellsAround, cleanLinks, checkEntry, messageOf, parseCard, cardText, parseRepo, repoLinks, readBlocked, writeBlocked, utf8, PERIOD_MS } from './voir-core.js';
 
 const kindName = { docs: 'Docs', media: 'Média', app: 'App', page: 'Page', contract: 'Contrat' };
 const FAVS = 'aiwa-voir-favs';
@@ -33,11 +33,10 @@ function cardItem({ repo, pub, score, laps, links }, buttons) {
   return li;
 }
 
-/** Opens the profiles of a list full screen on the phone (the app swipes from one to the next); in a browser, the one chosen opens in a tab. */
+/** Opens the profiles of a list full screen on the phone (the app reads each `Profile/index.html` from its repository and swipes from one to the next); in a browser, the folder of the one chosen opens on GitHub. */
 function openProfiles(repos, index) {
-  const urls = repos.map(profileUrl);
-  if (hostAvailable()) hostPost({ cmd: 'profile', urls, index });
-  else window.open(urls[index], '_blank', 'noopener');
+  if (hostAvailable()) hostPost({ cmd: 'profile', repos, index });
+  else window.open(`https://github.com/${repos[index]}/tree/HEAD/Profile`, '_blank', 'noopener');
 }
 const profileButton = (repos, repo) => (repo && repos.includes(repo) ? [['Profil', () => openProfiles(repos, repos.indexOf(repo))]] : []);
 

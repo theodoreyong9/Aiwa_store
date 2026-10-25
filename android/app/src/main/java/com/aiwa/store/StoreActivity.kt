@@ -226,35 +226,31 @@ class StoreActivity : ComponentActivity() {
 
     private var widgetButton: android.widget.Button? = null
 
+    /** What the application shows for now, outside of the widget: the person's own profile, as someone who discovers her would see it (the page `Profile/` of the repository chosen in the settings), and « Mettre le widget » at the bottom. */
+    @android.annotation.SuppressLint("SetJavaScriptEnabled")
     private fun constructionCover(): android.view.View {
         val dp = resources.displayMetrics.density
-        val column = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            gravity = android.view.Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#14141A"))
-            setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
-            isClickable = true          // taps do not reach the page underneath
+        val frame = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#10132E")); isClickable = true }
+        val view = WebView(this).apply {
+            setBackgroundColor(Color.parseColor("#10132E"))
+            settings.javaScriptEnabled = false          // the page of a profile is plain html
+            settings.allowFileAccess = false
+            webViewClient = object : android.webkit.WebViewClient() {
+                override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
+                    if (request.url.scheme in setOf("https", "mailto", "tel", "sms")) try { startActivity(Intent(Intent.ACTION_VIEW, request.url)) } catch (err: Exception) { }
+                    return true
+                }
+            }
         }
-        column.addView(android.widget.TextView(this).apply {
-            text = "En construction"
-            setTextColor(Color.parseColor("#E9E7F1"))
-            textSize = 26f
-            gravity = android.view.Gravity.CENTER
-        })
-        column.addView(android.widget.TextView(this).apply {
-            text = "L'application n'est pas encore utilisable. Pour l'instant, Aiwa se commande depuis le widget."
-            setTextColor(Color.parseColor("#9694A6"))
-            textSize = 15f
-            gravity = android.view.Gravity.CENTER
-            setPadding(0, (12 * dp).toInt(), 0, (24 * dp).toInt())
-        })
+        frame.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        ProfileView.load(view, ProfileSettings.repo(this))
         val button = android.widget.Button(this).apply {
             text = "Mettre le widget"
             setOnClickListener { WidgetPin.request(this@StoreActivity, explain = true) }
         }
         widgetButton = button
-        column.addView(button)
-        return column
+        frame.addView(button, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL).apply { bottomMargin = (16 * dp).toInt() })
+        return frame
     }
 
     // The wake word listens whenever Aiwa is opened and the microphone is allowed; it asks for the microphone once, at the first opening
@@ -346,9 +342,9 @@ class StoreActivity : ComponentActivity() {
             "save" -> saveToDownloads(json.optString("name"), json.optString("mime", "application/json"), json.optString("text"))
             "dictation" -> startActivity(Intent(this, MainActivity::class.java))
             "profile" -> {
-                val list = json.optJSONArray("urls")
-                val urls = if (list == null) emptyList() else (0 until list.length()).map { list.optString(it) }.filter { it.startsWith("https://") }
-                if (urls.isNotEmpty()) ProfileActivity.open(this, urls, json.optInt("index", 0))
+                val list = json.optJSONArray("repos")
+                val repos = if (list == null) emptyList() else (0 until list.length()).map { list.optString(it) }.filter { ProfileView.valid(it) }
+                if (repos.isNotEmpty()) ProfileActivity.open(this, repos, json.optInt("index", 0))
             }
             "secret-get" -> respond(reply, id) { JSONObject().put("value", secrets.get(secretName(json)) ?: JSONObject.NULL) }
             "secret-set" -> respond(reply, id) { secrets.set(secretName(json), json.getString("value")); JSONObject() }
@@ -421,7 +417,7 @@ class StoreActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_URL = "url"
-        /** The application itself is not usable yet: a cover says « En construction » over the page. */
+        /** The application itself is not usable yet: a cover shows the own profile over the page. */
         const val UNDER_CONSTRUCTION = true
         const val EXTRA_APPLY_UPDATE = "apply_update"
         private const val FRESH_START_MS = 10_000L      // a release that arrives this soon after the page opened replaces it at once

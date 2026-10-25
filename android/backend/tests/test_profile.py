@@ -25,10 +25,6 @@ class Profile(unittest.TestCase):
         self.assertTrue(P.set_repo("jean/site"))
         self.assertEqual(P.repo(), "jean/site")
 
-    def test_the_address_of_the_page(self):
-        self.assertEqual(P.page_url("jean/site"), "https://jean.github.io/site/Profile/")
-        self.assertEqual(P.page_url("jean/jean.github.io"), "https://jean.github.io/Profile/")
-
     def test_the_sessions_are_told_what_the_folder_is_and_which_repository(self):
         text = P.instruction("jean/site")
         self.assertIn("Profile/index.html", text)
