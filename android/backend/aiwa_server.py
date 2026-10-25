@@ -67,7 +67,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 184
+BACKEND_VERSION = 185
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -3233,7 +3233,7 @@ def profile_check():
     base = f"https://raw.githubusercontent.com/{repo}/HEAD/{profile_lib.FOLDER}/"
     try:
         with urllib.request.urlopen(urllib.request.Request(base + "index.html", headers={"User-Agent": "aiwa"}), timeout=15) as resp:
-            html = resp.read(profile_lib.HTML_MAX * 2).decode("utf-8", "replace")
+            html = resp.read(profile_lib.READ_MAX).decode("utf-8", "replace")
     except (OSError, ValueError):
         return {"ok": False, "error": f"Pas de profil lisible dans {repo} : un dossier Profile/ public avec un index.html."}
     media = {}

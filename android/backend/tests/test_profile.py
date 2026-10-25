@@ -31,22 +31,22 @@ class Profile(unittest.TestCase):
         self.assertIn("jean/site", text)
         self.assertNotIn("jean/site", P.instruction())
 
-    def test_the_minimum_of_quality_is_in_the_instruction_and_checked(self):
+    def test_a_profile_is_the_showcase_with_no_limit_of_technique_and_a_short_minimum(self):
         text = P.instruction("jean/site")
-        for word in ("nom", "viewport", "<script src>", "Mo", "page de référence", "consigne Design", "390 px", "aiwa-design/references.md"):
+        for word in ("VITRINE", "10 secondes", "AUCUNE limite technique", "Three.js", "consigne Design", "390 px", "aiwa-design/references.md", "page de référence", "jean/site"):
             self.assertIn(word, text)
         good = '<!doctype html><title>x</title><meta name="viewport" content="width=device-width"><h1>x</h1><video src="media/a.mp4"></video><a href="https://github.com/x">x</a>'
-        self.assertEqual(P.check(good, {"media/a.mp4": 900_000}), [])
-        bad = P.check('<html><script src="http://x.org/a.js"></script></html>', {"media/a.mp4": 9_000_000})
-        self.assertGreaterEqual(len(bad), 6)
-        self.assertTrue(any("script src" in b for b in bad) and any("http://" in b for b in bad) and any("Mo" in b for b in bad))
-        self.assertEqual(P.check(good.replace("</video>", "</video><script>var a=1;</script>"), {}), [], "an inline script that only draws is allowed")
-        self.assertTrue(any("réseau" in b for b in P.check(good + "<script>fetch('x')</script>", {})), "a script that calls the network is not")
+        self.assertEqual(P.check(good), [])
+        heavy = good + '<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"></script><script>fetch("https://x.org/a.json")</script>'
+        self.assertEqual(P.check(heavy), [], "a library from a CDN and a call to the network are the maker's choice")
+        bad = P.check('<html><a href="http://x.org/">x</a></html>')
+        self.assertGreaterEqual(len(bad), 4)
+        self.assertTrue(any("http://" in b for b in bad))
 
     def test_the_profile_of_this_repository_reaches_the_minimum(self):
         root = Path(__file__).resolve().parents[3] / "Profile"
         media = {f"media/{f.name}": f.stat().st_size for f in (root / "media").glob("*") if f.is_file()}
-        self.assertEqual(P.check((root / "index.html").read_text(encoding="utf-8"), media), [])
+        self.assertEqual(P.check((root / "index.html").read_text(encoding="utf-8")), [])
 
     def test_the_super_agent_has_no_order_to_write_the_profile(self):
         self.assertIsNone(A.parse_command({"profile": {"fond": "neon", "texte": "x"}}, []), "the profile is the work of a session, not an order")

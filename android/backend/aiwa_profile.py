@@ -35,24 +35,20 @@ def set_repo(value):
 
 
 TEMPLATE_URL = "https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/Profile/index.html"
-HTML_MAX = 300_000          # bytes: the page itself
-MEDIA_MAX = 8_000_000       # bytes: one video, GIF or picture
-MEDIA_TOTAL = 15_000_000    # bytes: all of `Profile/media/`
+READ_MAX = 2_000_000        # bytes of the page the brain reads to check it (a limit of reading, not of making)
 
 
 def instruction(repo_name=None):
-    """What a session is told about the profile folder (and, when a repository is chosen, which one it is): what it is, and the minimum of quality a profile must reach."""
+    """What a session is told about the profile folder (and, when a repository is chosen, which one it is): what a profile is FOR, and the little it must have."""
     text = (
-        f"Profil : le dossier `{FOLDER}/` d'un dépôt est la page de la personne, une production comme les autres. Quand elle dit qu'on travaille sur son profil, tu écris `{FOLDER}/index.html` : UN fichier HTML autonome, "
-        "beau et travaillé. Niveau MINIMAL, que tu vérifies avant de dire que c'est fait : "
-        "(1) le contenu : son nom, une phrase qui dit ce qu'elle fait, les liens publics de ses fichiers (ceux de la session en cours), au moins un moyen de la joindre (lien `mailto:`, `tel:` ou https) que SEULE elle a donné, jamais inventé ; "
-        "(2) la forme : `<title>`, `<meta name=\"viewport\">`, une page qui se lit bien sur un téléphone (une colonne, texte de 16 px au moins, contraste fort), un fond animé SOMBRE (une vidéo `<video autoplay muted loop playsinline>` ou un GIF, avec `poster`) pour que le texte reste lisible, "
-        f"du mouvement en CSS ; (3) aucun `<script src>` ni appel réseau (`fetch`, `XMLHttpRequest`, `WebSocket`, `import()`), aucune ressource en `http://` ; un script EN LIGNE est permis pour l'animation (WebGL, canvas : c'est ce qui fait la signature), "
-        "mais il ne tourne que sur le profil de son propriétaire, et la page doit rester belle et complète sans lui (la vidéo et le CSS) ; "
-        f"(4) le poids : la page {HTML_MAX // 1000} Ko au plus, chaque média {MEDIA_MAX // 1_000_000} Mo au plus, tous les médias {MEDIA_TOTAL // 1_000_000} Mo au plus, rangés dans `{FOLDER}/media/`, appelés par des chemins relatifs. "
-        "C'est un site : suis donc la consigne Design ci-dessus comme pour tout site (références mesurées du catalogue avec `--format=site`, rien de recopié, la page ouverte en 390 px et en 1440 px avec Playwright et ses captures regardées, "
-        "les débordements, contrastes faibles et erreurs de console corrigés, `aiwa-design/references.md` écrit dans le dépôt). Vise l'expérimental et le soigné : un profil ordinaire n'atteint pas le niveau. "
-        f"Pars du niveau de la page de référence ({TEMPLATE_URL}) : lis-la d'abord. Le fichier n'est pas publié : Aiwa le lit tel quel dans le dépôt (public)."
+        f"Profil : le dossier `{FOLDER}/` d'un dépôt est la page de la personne, une production comme les autres, et c'est la VITRINE d'Aiwa : en 10 secondes elle doit montrer tout ce qu'Aiwa sait faire de mieux en création de site ET de média. "
+        f"Quand elle dit qu'on travaille sur son profil, tu écris `{FOLDER}/index.html` (avec ses médias et ses bibliothèques à côté, dans `{FOLDER}/`) : une page ET une animation, une signature qui frappe tout de suite, pas un CV. "
+        "AUCUNE limite technique : tout ce qu'un site sait faire, tu peux le faire (WebGL, canvas, SVG, scènes 3D, bibliothèques comme Three.js ou GSAP, par CDN ou copiées dans le dépôt, scripts, vidéos lourdes, son, mouvement lié au défilement, au doigt, à l'inclinaison). "
+        "Sers-toi de TOUT ce qu'Aiwa a pour produire : la recherche de design (consigne Design ci-dessus), la vidéo (rendus Blender, boucles de qualité maximale), les images, les musiques libres. "
+        "Le minimum qui ne se négocie pas : son nom en titre (`<h1>`), un `<title>`, la balise viewport (la page se lit sur un téléphone), un fond qui bouge, des liens (les fichiers publics de la session en cours, et un moyen de la joindre que SEULE elle a donné, jamais inventé), aucune ressource en `http://` (le navigateur du téléphone la bloque). "
+        "Comme pour tout site : références mesurées avec `--format=site`, rien de recopié, la page ouverte en 390 px et en 1440 px avec Playwright, les captures regardées, les débordements, contrastes faibles et erreurs de console corrigés, `aiwa-design/references.md` écrit dans le dépôt. "
+        "Garde la page belle même sans script (la vidéo et le CSS) : sur les profils des autres dans « Voir », les scripts ne tournent pas. "
+        f"Pars du niveau de la page de référence ({TEMPLATE_URL}) et dépasse-la. Le fichier n'est pas publié : Aiwa le lit tel quel dans le dépôt (public)."
     )
     if repo_name:
         text += f" Son dépôt du profil est {repo_name} : c'est là, et seulement là, que va ce dossier ; tu travailles dans ce dépôt quand elle parle de son profil."
@@ -60,31 +56,19 @@ def instruction(repo_name=None):
 
 
 def check(html, media=None):
-    """The minimum of a profile: the problems found in the page (its text) and in the sizes of its media ({path: bytes}), as plain sentences; an empty list when it is good."""
+    """What a profile must have, and nothing more (no limit of weight, of script or of network: a profile does what a site does): its problems as plain sentences; an empty list when it is good."""
     problems = []
     low = html.lower()
-    media = media or {}
-    if len(html.encode("utf-8")) > HTML_MAX:
-        problems.append(f"La page pèse plus de {HTML_MAX // 1000} Ko.")
     if "<title>" not in low:
         problems.append("Il manque le <title>.")
     if 'name="viewport"' not in low and "name='viewport'" not in low:
         problems.append("Il manque la balise viewport : la page ne se lira pas bien sur un téléphone.")
-    if re.search(r"<script[^>]*\bsrc\s*=", low):
-        problems.append("Un <script src> : seuls les scripts en ligne sont permis, retire-le.")
-    if re.search(r"\bfetch\s*\(|xmlhttprequest|websocket|\bimport\s*\(|\beval\s*\(|document\.cookie|localstorage", low):
-        problems.append("Le script appelle le réseau, lit ou écrit des données : il ne doit que dessiner.")
     if re.search(r"""(?:src|href|url)\s*[=(]\s*["']?http://""", low):
-        problems.append("Une ressource est en http:// : tout doit être en https ou en chemin relatif.")
+        problems.append("Une ressource est en http:// : le navigateur du téléphone la bloque, mets https ou un chemin relatif.")
     if "<h1" not in low:
         problems.append("Il manque le nom en titre (<h1>).")
     if not re.search(r"""href\s*=\s*["'](?:https://|mailto:|tel:)""", low):
         problems.append("Aucun lien : au moins les fichiers publics et un moyen de te joindre.")
-    if "<video" not in low and "background" not in low:
-        problems.append("Pas de fond : une vidéo, un GIF ou une image sombre derrière le texte.")
-    for path, size in media.items():
-        if size > MEDIA_MAX:
-            problems.append(f"{path} pèse plus de {MEDIA_MAX // 1_000_000} Mo.")
-    if sum(media.values()) > MEDIA_TOTAL:
-        problems.append(f"Les médias pèsent plus de {MEDIA_TOTAL // 1_000_000} Mo en tout.")
+    if "<video" not in low and "background" not in low and "<canvas" not in low:
+        problems.append("Pas de fond : une vidéo, un canvas, un GIF ou une image derrière le texte.")
     return problems
