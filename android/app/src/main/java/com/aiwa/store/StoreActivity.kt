@@ -233,7 +233,8 @@ class StoreActivity : ComponentActivity() {
         val frame = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#10132E")); isClickable = true }
         val view = WebView(this).apply {
             setBackgroundColor(Color.parseColor("#10132E"))
-            settings.javaScriptEnabled = false          // the page of a profile is plain html
+            settings.javaScriptEnabled = true           // her OWN profile may draw (WebGL): the page has no bridge to the app, no file access, and opens nothing but https / mail / tel links; the profiles of the others (ProfileActivity) run no script
+            settings.javaScriptCanOpenWindowsAutomatically = false
             settings.allowFileAccess = false
             settings.mediaPlaybackRequiresUserGesture = false      // the video behind a profile starts by itself (muted)
             webViewClient = object : android.webkit.WebViewClient() {

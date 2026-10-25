@@ -47,7 +47,8 @@ def instruction(repo_name=None):
         "beau et travaillé. Niveau MINIMAL, que tu vérifies avant de dire que c'est fait : "
         "(1) le contenu : son nom, une phrase qui dit ce qu'elle fait, les liens publics de ses fichiers (ceux de la session en cours), au moins un moyen de la joindre (lien `mailto:`, `tel:` ou https) que SEULE elle a donné, jamais inventé ; "
         "(2) la forme : `<title>`, `<meta name=\"viewport\">`, une page qui se lit bien sur un téléphone (une colonne, texte de 16 px au moins, contraste fort), un fond animé SOMBRE (une vidéo `<video autoplay muted loop playsinline>` ou un GIF, avec `poster`) pour que le texte reste lisible, "
-        f"du mouvement en CSS plutôt qu'en script ; (3) aucun `<script>` du tout (la page est lue sans script) et aucune ressource en `http://` ; "
+        f"du mouvement en CSS ; (3) aucun `<script src>` ni appel réseau (`fetch`, `XMLHttpRequest`, `WebSocket`, `import()`), aucune ressource en `http://` ; un script EN LIGNE est permis pour l'animation (WebGL, canvas : c'est ce qui fait la signature), "
+        "mais il ne tourne que sur le profil de son propriétaire, et la page doit rester belle et complète sans lui (la vidéo et le CSS) ; "
         f"(4) le poids : la page {HTML_MAX // 1000} Ko au plus, chaque média {MEDIA_MAX // 1_000_000} Mo au plus, tous les médias {MEDIA_TOTAL // 1_000_000} Mo au plus, rangés dans `{FOLDER}/media/`, appelés par des chemins relatifs. "
         "C'est un site : suis donc la consigne Design ci-dessus comme pour tout site (références mesurées du catalogue avec `--format=site`, rien de recopié, la page ouverte en 390 px et en 1440 px avec Playwright et ses captures regardées, "
         "les débordements, contrastes faibles et erreurs de console corrigés, `aiwa-design/references.md` écrit dans le dépôt). Vise l'expérimental et le soigné : un profil ordinaire n'atteint pas le niveau. "
@@ -69,8 +70,10 @@ def check(html, media=None):
         problems.append("Il manque le <title>.")
     if 'name="viewport"' not in low and "name='viewport'" not in low:
         problems.append("Il manque la balise viewport : la page ne se lira pas bien sur un téléphone.")
-    if "<script" in low:
-        problems.append("La page contient un <script> : elle est lue sans script, retire-le.")
+    if re.search(r"<script[^>]*\bsrc\s*=", low):
+        problems.append("Un <script src> : seuls les scripts en ligne sont permis, retire-le.")
+    if re.search(r"\bfetch\s*\(|xmlhttprequest|websocket|\bimport\s*\(|\beval\s*\(|document\.cookie|localstorage", low):
+        problems.append("Le script appelle le réseau, lit ou écrit des données : il ne doit que dessiner.")
     if re.search(r"""(?:src|href|url)\s*[=(]\s*["']?http://""", low):
         problems.append("Une ressource est en http:// : tout doit être en https ou en chemin relatif.")
     if "<h1" not in low:

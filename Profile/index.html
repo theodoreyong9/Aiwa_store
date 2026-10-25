@@ -15,17 +15,18 @@ html{scroll-behavior:smooth;overflow-x:clip}
 body{margin:0;background:#06081a;color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:hidden}
 a{color:inherit}
 .bg{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;background:#06081a url("media/poster.jpg") center/cover no-repeat}
-.veil{position:fixed;inset:0;z-index:1;background:radial-gradient(110% 80% at 50% 0%,rgba(6,8,26,.05),rgba(6,8,26,.78) 82%),linear-gradient(180deg,rgba(14,22,60,.35),rgba(34,14,64,.62))}
-.grain{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>")}
+.veil{position:fixed;inset:0;z-index:2;background:radial-gradient(110% 80% at 50% 0%,rgba(6,8,26,.05),rgba(6,8,26,.78) 82%),linear-gradient(180deg,rgba(14,22,60,.35),rgba(34,14,64,.62))}
+.grain{position:fixed;inset:0;z-index:3;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>")}
 .mono{font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;font-size:12px}
-main{position:relative;z-index:3;overflow-x:clip}
+main{position:relative;z-index:4;overflow-x:clip}
+#gl{position:fixed;inset:0;width:100%;height:100%;z-index:1;mix-blend-mode:screen;pointer-events:none;opacity:.95}
 section{padding:0 clamp(16px,4vw,48px)}
 
 /* 1. l'entrée : une barre, un nom énorme */
 .hero{min-height:100svh;display:flex;flex-direction:column;justify-content:space-between;padding-block:18px 28px}
 .bar{display:flex;justify-content:space-between;gap:16px;color:var(--ink)}
 .bar span:last-child{color:var(--dim);text-align:right}
-.name{margin:0;font-weight:900;line-height:.84;letter-spacing:-.045em;text-transform:uppercase;font-size:clamp(54px,20.5vw,230px);overflow-wrap:anywhere}
+.name{transform:translate(calc(var(--px,0)*-12px),calc(var(--py,0)*-8px));transition:transform .25s ease-out;margin:0;font-weight:900;line-height:.84;letter-spacing:-.045em;text-transform:uppercase;font-size:clamp(54px,20.5vw,230px);overflow-wrap:anywhere}
 .name .l2{display:block;color:transparent;-webkit-text-stroke:1.5px var(--ink);animation:fill 8s ease-in-out infinite}
 @keyframes fill{0%,100%{color:transparent}50%{color:rgba(246,246,255,.9)}}
 .sub{display:grid;gap:14px;max-width:34em}
@@ -34,6 +35,20 @@ section{padding:0 clamp(16px,4vw,48px)}
 .hint{display:flex;align-items:center;gap:10px;color:var(--dim)}
 .hint i{display:block;width:44px;height:1px;background:var(--dim);transform-origin:left;animation:grow 2.4s ease-in-out infinite}
 @keyframes grow{0%{transform:scaleX(0)}60%,100%{transform:scaleX(1)}}
+
+/* l'entrée en scène (le script ne fait qu'ajouter des classes et découper le nom en lettres) */
+.curtain{position:fixed;inset:0;z-index:20;background:#02030a;pointer-events:none;display:none}
+.js .curtain{display:block}
+.curtain::after{content:"";position:absolute;left:0;top:50%;height:1px;width:100%;background:var(--acc);transform:scaleX(0);transform-origin:left}
+.go .curtain{animation:curtain 1.5s cubic-bezier(.7,0,.2,1) .15s forwards}
+.go .curtain::after{animation:rule .7s cubic-bezier(.6,0,.2,1) forwards}
+@keyframes rule{to{transform:scaleX(1)}}
+@keyframes curtain{0%,45%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 0 100% 0)}}
+.js .ch{display:inline-block;opacity:0;transform:translateY(55%) skewX(-10deg);filter:blur(8px);text-shadow:-14px 0 #6b9bf5,14px 0 #e56ac0}
+.go .ch{opacity:1;transform:none;filter:none;text-shadow:0 0 0 transparent;transition:opacity .5s ease-out var(--d),transform .7s cubic-bezier(.2,.9,.2,1) var(--d),filter .6s ease-out var(--d),text-shadow .9s ease-out var(--d)}
+.js .name .ch{animation-delay:calc(var(--d) + 1.2s)}
+.js .bar,.js .sub{opacity:0}
+.go .bar,.go .sub{opacity:1;transition:opacity .8s ease-out 1.5s}
 
 /* 2. l'énoncé */
 .say{padding-block:12vh}
@@ -85,11 +100,12 @@ section{padding:0 clamp(16px,4vw,48px)}
 </head>
 <body>
 <video class="bg" src="media/loop.mp4" poster="media/poster.jpg" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>
-<div class="veil"></div><div class="grain"></div>
+<canvas id="gl" aria-hidden="true"></canvas>
+<div class="veil"></div><div class="grain"></div><div class="curtain" aria-hidden="true"></div>
 <main>
   <section class="hero">
     <div class="bar mono"><span>Aiwa · profil</span><span>2026 · en ligne</span></div>
-    <h1 class="name">theo<br>dore<span class="l2">yong9</span></h1>
+    <h1 class="name" aria-label="theodoreyong9"><span data-split data-delay="1500">theo</span><br><span data-split data-delay="1700">dore</span><span class="l2" data-split data-delay="1900">yong9</span></h1>
     <div class="sub">
       <p>Je construis <b>Aiwa</b> : un assistant qui vit sur le téléphone, parle à Claude, et produit des documents, des vidéos, des pages et des apps, à la voix.</p>
       <div class="hint mono"><i></i>Défile</div>
@@ -127,5 +143,59 @@ section{padding:0 clamp(16px,4vw,48px)}
     <p>Cette page est un fichier de mon dépôt, <code>Profile/index.html</code>. Le super agent la réécrit quand je le lui demande.</p>
   </section>
 </main>
+<script>
+/* Le seul script de la page : il découpe le nom en lettres, ajoute des classes, et dessine un champ de lignes qui coule (WebGL) par-dessus la vidéo ; il suit le doigt et l'inclinaison.
+   Aucun appel réseau, rien n'est lu ni écrit. Sans lui (ou sans WebGL), la page est complète : la vidéo et le CSS. Il ne tourne que sur le profil de son propriétaire. */
+(function () {
+  var root = document.documentElement, reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+  document.querySelectorAll('[data-split]').forEach(function (el) {
+    var text = el.textContent, base = parseInt(el.getAttribute('data-delay') || '0', 10); el.textContent = '';
+    Array.from(text).forEach(function (ch, i) { var s = document.createElement('span'); s.className = 'ch'; s.textContent = ch; s.style.setProperty('--d', (base + i * 60) + 'ms'); el.appendChild(s); });
+  });
+  root.classList.add('js');
+  requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.add(reduce ? 'go' : 'go'); }); });
+
+  var cv = document.getElementById('gl'), gl = null;
+  try { gl = cv.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' }); } catch (e) { gl = null; }
+  if (!gl) { if (cv) cv.remove(); return; }
+  var vs = 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+  var fs = 'precision mediump float;uniform vec2 r;uniform float t;uniform vec2 m;uniform float f;uniform float s;' +
+    'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}' +
+    'float n(vec2 p){vec2 i=floor(p),u=fract(p);u=u*u*(3.-2.*u);return mix(mix(h(i),h(i+vec2(1.,0.)),u.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),u.x),u.y);}' +
+    'float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*n(p);p=p*2.02+vec2(3.1,1.7);a*=.5;}return v;}' +
+    'void main(){vec2 uv=(gl_FragCoord.xy-.5*r)/r.y;vec2 mp=(m*r-.5*r)/r.y;float d=length(uv-mp);' +
+    'vec2 p=uv*1.7;p+=(uv-mp)*.45*exp(-d*3.)*sin(d*20.-t*5.);float tt=t*.07;' +
+    'vec2 q=vec2(fbm(p+tt),fbm(p+vec2(5.2,1.3)-tt));float v=fbm(p+2.6*q+vec2(0.,s*.7));' +
+    'float l=smoothstep(.14,0.,abs(sin(v*20.)))*.95;vec3 c=.5+.5*cos(6.2831*(v*1.5+vec3(0.,.33,.67)+t*.02));c=mix(c,vec3(.32,.84,.63),.28);' +
+    'float vig=smoothstep(1.35,.15,length(uv));float glow=exp(-d*4.2)*(.55+f);' +
+    'vec3 col=(c*l+c*glow*.55+c*v*.1)*vig+f*exp(-length(uv)*1.8)*vec3(.7,.8,1.);gl_FragColor=vec4(col*1.5,1.);}';
+  function shader(type, src) { var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return gl.getShaderParameter(o, gl.COMPILE_STATUS) ? o : null; }
+  var v = shader(gl.VERTEX_SHADER, vs), f = shader(gl.FRAGMENT_SHADER, fs), pg = gl.createProgram();
+  if (!v || !f) { cv.remove(); return; }
+  gl.attachShader(pg, v); gl.attachShader(pg, f); gl.linkProgram(pg);
+  if (!gl.getProgramParameter(pg, gl.LINK_STATUS)) { cv.remove(); return; }
+  gl.useProgram(pg);
+  var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  var loc = gl.getAttribLocation(pg, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  var U = {}; ['r', 't', 'm', 'f', 's'].forEach(function (k) { U[k] = gl.getUniformLocation(pg, k); });
+  var mx = .5, my = .5, tx = .5, ty = .5, flash = 1.2, t0 = performance.now(), last = 0, raf = 0;
+  function size() { var k = Math.min(devicePixelRatio || 1, 1.5) * .5; cv.width = Math.max(2, Math.round(innerWidth * k)); cv.height = Math.max(2, Math.round(innerHeight * k)); gl.viewport(0, 0, cv.width, cv.height); }
+  function aim(x, y) { tx = x / innerWidth; ty = 1 - y / innerHeight; root.style.setProperty('--px', (tx - .5).toFixed(3)); root.style.setProperty('--py', (.5 - ty).toFixed(3)); }
+  addEventListener('pointermove', function (e) { aim(e.clientX, e.clientY); }, { passive: true });
+  addEventListener('pointerdown', function (e) { aim(e.clientX, e.clientY); flash = Math.max(flash, .9); }, { passive: true });
+  addEventListener('deviceorientation', function (e) { if (e.gamma == null) return; tx = Math.min(1, Math.max(0, .5 + e.gamma / 60)); ty = Math.min(1, Math.max(0, .5 - (e.beta - 40) / 60)); }, { passive: true });
+  addEventListener('resize', size);
+  function draw(now) {
+    var t = (now - t0) / 1000; mx += (tx - mx) * .08; my += (ty - my) * .08; flash *= .965;
+    gl.uniform2f(U.r, cv.width, cv.height); gl.uniform1f(U.t, t); gl.uniform2f(U.m, mx, my); gl.uniform1f(U.f, flash); gl.uniform1f(U.s, (scrollY || 0) / Math.max(1, innerHeight));
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  function loop(now) { if (now - last > 30) { last = now; draw(now); } raf = requestAnimationFrame(loop); }
+  size();
+  if (reduce) { draw(performance.now()); } else { raf = requestAnimationFrame(loop); }
+  document.addEventListener('visibilitychange', function () { if (reduce) return; if (document.hidden) cancelAnimationFrame(raf); else raf = requestAnimationFrame(loop); });
+})();
+</script>
 </body>
 </html>
