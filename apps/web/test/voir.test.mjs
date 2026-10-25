@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ed25519 } from '@noble/curves/ed25519.js';
-import { geohash, bounds, cellsAround, cleanLinks, checkEntry, parseCard, cardText, parseRepo, repoLinks } from '../src/voir-core.js';
+import { geohash, bounds, cellsAround, cleanLinks, checkEntry, parseCard, cardText, parseRepo, repoLinks, profileUrl } from '../src/voir-core.js';
 
 // voir-core.js: the parts of « Voir » that need no page
 const utf8 = new TextEncoder();
@@ -74,4 +74,9 @@ test('the links of the Files of a repository are the five public ones, all https
   assert.equal(links[3].url, 'https://a.github.io/b/');
   assert.equal(repoLinks('a/a.github.io')[3].url, 'https://a.github.io/');
   assert.deepEqual(cleanLinks(links), links);
+});
+
+test('the profile of a repository is its Profile/ folder on GitHub Pages', () => {
+  assert.equal(profileUrl('a/b'), 'https://a.github.io/b/Profile/');
+  assert.equal(profileUrl('a/a.github.io'), 'https://a.github.io/Profile/');
 });

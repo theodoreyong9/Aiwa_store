@@ -134,6 +134,8 @@
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
             android:excludeFromRecents="true" />
+        <!-- A profile (a page of a repository) in full screen, the others of the list a swipe away (ProfileActivity.kt). -->
+        <activity android:name=".ProfileActivity" android:exported="false" android:theme="@style/Theme.Dictate" />
         <!-- The connectors the super agent may use: mail, agenda, SMS, call (ConnectorsActivity in Pickers.kt). -->
         <activity android:name=".ConnectorsActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"

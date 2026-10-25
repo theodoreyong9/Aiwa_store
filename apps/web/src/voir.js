@@ -6,8 +6,9 @@ import { joinRoom } from '@trystero-p2p/nostr';
 import { config } from './config.js';
 import { session, connected, onSession } from './session.js';
 import { $ } from './ui.js';
+import { hostAvailable, hostPost } from './host.js';
 import { drawQr, scanQr } from './qr.js';
-import { cellsAround, cleanLinks, checkEntry, messageOf, parseCard, cardText, parseRepo, repoLinks, readBlocked, writeBlocked, utf8, PERIOD_MS } from './voir-core.js';
+import { cellsAround, cleanLinks, checkEntry, messageOf, parseCard, cardText, parseRepo, repoLinks, profileUrl, readBlocked, writeBlocked, utf8, PERIOD_MS } from './voir-core.js';
 
 const kindName = { docs: 'Docs', media: 'Média', app: 'App', page: 'Page', contract: 'Contrat' };
 const FAVS = 'aiwa-voir-favs';
@@ -32,6 +33,14 @@ function cardItem({ repo, pub, score, laps, links }, buttons) {
   return li;
 }
 
+/** Opens the profiles of a list full screen on the phone (the app swipes from one to the next); in a browser, the one chosen opens in a tab. */
+function openProfiles(repos, index) {
+  const urls = repos.map(profileUrl);
+  if (hostAvailable()) hostPost({ cmd: 'profile', urls, index });
+  else window.open(urls[index], '_blank', 'noopener');
+}
+const profileButton = (repos, repo) => (repo && repos.includes(repo) ? [['Profil', () => openProfiles(repos, repos.indexOf(repo))]] : []);
+
 function addFavourite(card) {
   const list = readFavs();
   const key = card.links.map((l) => l.url).join('|');
@@ -42,21 +51,23 @@ function showResult(card, message = 'Ce n\'est ni un lien https ni la carte d\'u
   $('voir-result').hidden = false;
   const ul = $('voir-result-list'); ul.textContent = '';
   if (!card) { const li = document.createElement('li'); li.textContent = message; ul.append(li); return; }
-  ul.append(cardItem(card, [['Garder en favori', () => { addFavourite(card); showResult(card); }]]));
+  ul.append(cardItem(card, [...profileButton(card.repo ? [card.repo] : [], card.repo), ['Garder en favori', () => { addFavourite(card); showResult(card); }]]));
 }
 
 function renderFavourites() {
   $('voir-list-card').hidden = false; $('voir-list-title').textContent = 'Mes favoris';
   const ul = $('voir-list'); ul.textContent = ''; const list = readFavs();
   $('voir-empty').hidden = list.length > 0; $('voir-empty').textContent = 'Aucun favori : garde un lien, une carte scannée ou une personne proche.';
-  for (const fav of list) ul.append(cardItem(fav, [['Retirer', () => { writeFavs(readFavs().filter((f) => f.at !== fav.at)); renderFavourites(); }]]));
+  const favRepos = list.map((f) => f.repo).filter(Boolean);
+  for (const fav of list) ul.append(cardItem(fav, [...profileButton(favRepos, fav.repo), ['Retirer', () => { writeFavs(readFavs().filter((f) => f.at !== fav.at)); renderFavourites(); }]]));
 }
 
 function renderNear(entries, blocked, mode = 'proche') {
   const ul = $('voir-list'); ul.textContent = '';
   const rows = [...entries.values()].filter((e) => !blocked.has(e.pub)).sort((a, b) => (b.score / Math.max(1, b.laps)) - (a.score / Math.max(1, a.laps)));
   $('voir-empty').hidden = rows.length > 0; $('voir-empty').textContent = 'Personne pour l\'instant : la liste se remplit quand d\'autres personnes à moins de 50 m ouvrent « Voir ».';
-  for (const e of rows) ul.append(cardItem(e, [['Garder en favori', () => addFavourite({ repo: e.repo, links: e.links })], ['Bloquer', () => { const set = readBlocked(); set.add(e.pub); writeBlocked(set); renderNear(entries, set, mode); }]]));
+  const repos = rows.map((e) => e.repo).filter(Boolean);
+  for (const e of rows) ul.append(cardItem(e, [...profileButton(repos, e.repo), ['Garder en favori', () => addFavourite({ repo: e.repo, links: e.links })], ['Bloquer', () => { const set = readBlocked(); set.add(e.pub); writeBlocked(set); renderNear(entries, set, mode); }]]));
 }
 
 export function initVoirPage(params) {

@@ -919,6 +919,7 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Mes mots", false, lines = 1, chevron = true) { open(RecognitionsActivity::class.java) })
                 add(PickerEntry("Profil", false, header = true) { })
                 add(PickerEntry("Dépôt du profil : ${ProfileSettings.repo(applicationContext) ?: "pas choisi"} (toucher : prendre le projet en cours)", false, lines = 2) { ProfileSettings.publish(applicationContext, takeCurrent = true); finish() })
+                add(PickerEntry("Voir mon profil en plein écran", false, lines = 1, chevron = true) { ProfileSettings.show(applicationContext); finish() })
                 add(PickerEntry("Publier mon profil (la page Profile/ du dépôt) ; le fond, le texte et les contacts se changent à la voix", false, lines = 3, chevron = true) { ProfileSettings.publish(applicationContext, takeCurrent = false); finish() })
                 add(PickerEntry("Papers", false, header = true) { })
                 listOf("Film" to "tree/main/docs/videos", "Source" to "", "Yellow paper" to "blob/main/docs/YELLOWPAPER.md", "Explication simple" to "blob/main/docs/EXPLAINED.md", "Valeur" to "raw/main/docs/value-ontology.pdf",

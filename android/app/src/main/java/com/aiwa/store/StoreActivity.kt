@@ -345,6 +345,11 @@ class StoreActivity : ComponentActivity() {
         when (json.optString("cmd")) {
             "save" -> saveToDownloads(json.optString("name"), json.optString("mime", "application/json"), json.optString("text"))
             "dictation" -> startActivity(Intent(this, MainActivity::class.java))
+            "profile" -> {
+                val list = json.optJSONArray("urls")
+                val urls = if (list == null) emptyList() else (0 until list.length()).map { list.optString(it) }.filter { it.startsWith("https://") }
+                if (urls.isNotEmpty()) ProfileActivity.open(this, urls, json.optInt("index", 0))
+            }
             "secret-get" -> respond(reply, id) { JSONObject().put("value", secrets.get(secretName(json)) ?: JSONObject.NULL) }
             "secret-set" -> respond(reply, id) { secrets.set(secretName(json), json.getString("value")); JSONObject() }
             "secret-delete" -> respond(reply, id) { secrets.delete(secretName(json)); JSONObject() }
