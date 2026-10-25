@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>theodoreyong9 · Aiwa</title>
+<meta name="description" content="Mon profil : ce que je construis, mes fichiers, où me trouver.">
+<style>
+:root{color-scheme:dark;--blue:#6b9bf5;--green:#3fa37e;--violet:#a77bd6;--orange:#e09a7c;--yellow:#e8c14a}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#f4f4ff;background:#10132e;overflow-x:hidden}
+/* le fond : la ville la nuit, qui bouge lentement (une vidéo ou un GIF se met à la place avec une session) */
+.bg{position:fixed;inset:-4%;z-index:0;background:#10132e url("media/ville.jpg") center/cover no-repeat;animation:drift 48s ease-in-out infinite alternate}
+@keyframes drift{from{transform:scale(1.02) translate3d(-1.5%,0,0)}to{transform:scale(1.12) translate3d(1.5%,-1%,0)}}
+.veil{position:fixed;inset:0;z-index:1;background:linear-gradient(135deg,rgba(29,47,102,.66),rgba(42,20,80,.82))}
+.grain{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>")}
+main{position:relative;z-index:3;max-width:640px;margin:0 auto;padding:56px 18px 72px;display:flex;flex-direction:column;gap:30px}
+header{text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+.mark{width:84px;height:84px;display:grid;place-items:center;font-size:34px;font-weight:700;letter-spacing:-.02em;background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.08));border:1px solid rgba(255,255,255,.45);clip-path:polygon(18px 0,100% 0,calc(100% - 18px) 100%,0 100%)}
+h1{margin:6px 0 0;font-size:30px;letter-spacing:-.01em}
+.tag{margin:0;color:#d4d8ff;max-width:34em}
+h2{margin:0 0 10px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#c3c6f0;text-align:center;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.cell{--c:rgba(255,255,255,.2);position:relative;display:flex;flex-direction:column;gap:3px;padding:16px 22px;color:#fff;text-decoration:none;background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,.06)),linear-gradient(180deg,var(--c),transparent);border:1px solid rgba(255,255,255,.3);clip-path:polygon(16px 0,100% 0,calc(100% - 16px) 100%,0 100%);transition:transform .2s,filter .2s}
+.cell:hover,.cell:focus-visible{transform:translateY(-2px);filter:brightness(1.18);outline:none}
+.cell b{font-size:16px}.cell span{font-size:12px;color:#d0d4ff}
+.green{--c:rgba(63,163,126,.5)}.blue{--c:rgba(107,155,245,.5)}.violet{--c:rgba(167,123,214,.5)}.orange{--c:rgba(224,154,124,.5)}.yellow{--c:rgba(232,193,74,.5)}
+p.lead{margin:0;text-align:center;color:#e6e8ff}
+.me{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{padding:10px 20px;color:#fff;text-decoration:none;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.4);clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%)}
+.chip:hover{background:rgba(255,255,255,.26)}
+footer{text-align:center;font-size:12px;color:#aab0e6}
+@media (prefers-reduced-motion:reduce){.bg{animation:none}.cell{transition:none}}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"></div><div class="veil"></div><div class="grain"></div>
+<main>
+  <header>
+    <div class="mark" aria-hidden="true">A</div>
+    <h1>theodoreyong9</h1>
+    <p class="tag">Je construis <b>Aiwa</b> : un assistant qui vit sur le téléphone, parle à Claude, produit des documents, des vidéos, des pages et des apps, et se pilote à la voix.</p>
+  </header>
+
+  <section>
+    <h2>Mes fichiers</h2>
+    <div class="grid">
+      <a class="cell green" href="https://github.com/theodoreyong9/Aiwa_store"><b>Source</b><span>le dépôt d'Aiwa</span></a>
+      <a class="cell blue" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs"><b>Documents</b><span>le plan, le business, la vision</span></a>
+      <a class="cell violet" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/YELLOWPAPER.md"><b>Yellow paper</b><span>comment Aiwa fonctionne</span></a>
+      <a class="cell orange" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs/videos"><b>Films</b><span>ce que je montre</span></a>
+      <a class="cell yellow" href="https://github.com/theodoreyong9/Aiwa_store/releases"><b>App</b><span>l'APK Android</span></a>
+      <a class="cell blue" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/EXPLAINED.md"><b>En mots simples</b><span>Aiwa expliqué</span></a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Me trouver</h2>
+    <div class="me">
+      <a class="chip" href="https://github.com/theodoreyong9">GitHub</a>
+    </div>
+  </section>
+
+  <footer>Cette page est un fichier de mon dépôt : <code>Profile/index.html</code>. Une session la modifie quand je le demande.</footer>
+</main>
+</body>
+</html>
