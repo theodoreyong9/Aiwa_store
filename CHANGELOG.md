@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Profile: the page of the owner is more experimental (3D glass panels that float, borders of light that turn, a title that splits in colours, a strip that scrolls, all in CSS with no script) over a loop of 4 seconds made with Blender (glass, chrome and light in front of a night city, seamless; the script is `docs/videos/profile-loop/loop.py`, 0.9 MB). The profile views let a video start by itself (muted). Looked at in a desktop browser only, not on the phone.
+
 - Profile (brain 181): the profile is a production like the others: the file `Profile/index.html` of the repository chosen in the settings (« Profil »), written by the super agent itself when the person says they work on their profile (its one exception to « no change to any repository »: that folder). Nothing is published: the app reads the file from GitHub as it is (a public repository) and shows it with no script. It is what the application shows when opened outside of the widget, with « Mettre le widget » at the bottom (instead of « En construction »), and what « Voir » opens for the other people: a « Profil » button on each person near, favourite or found by link opens the list full screen, one swipe from the next. Not verified on a device.
 
 - `Profile/index.html` (and its background picture in `Profile/media/`): the profile of the owner of this repository, a self-contained page (the city at night drifting slowly behind, the files of the repository in front as slanted cards, no script). Meant to be rewritten by a session on request (a video or a GIF behind, a photo, the contacts).
