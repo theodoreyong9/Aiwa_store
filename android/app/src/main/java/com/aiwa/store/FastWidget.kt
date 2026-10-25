@@ -289,4 +289,18 @@ object ProfileSettings {
             toastOnMain(app, if (ok) "Dépôt du profil : $repo" else "Profil : le cerveau n'a pas pris ce dépôt.")
         }
     }
+
+    /** Asks the brain to read the profile of the repository chosen and says in a toast what lacks of the minimum (or that it is good). */
+    fun check(context: Context) {
+        val app = context.applicationContext
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            val json = try { org.json.JSONObject(LocalClaudeBridge().profileCheck()) } catch (err: Exception) { toastOnMain(app, "Profil : ${err.message ?: "?"}"); return@launch }
+            val problems = json.optJSONArray("problems")
+            toastOnMain(app, when {
+                !json.optBoolean("ok") -> json.optString("error").ifBlank { "Profil : pas lisible." }
+                problems == null || problems.length() == 0 -> "Ton profil atteint le niveau minimal."
+                else -> "Il manque : " + (0 until problems.length()).joinToString(" ") { problems.optString(it) }
+            })
+        }
+    }
 }

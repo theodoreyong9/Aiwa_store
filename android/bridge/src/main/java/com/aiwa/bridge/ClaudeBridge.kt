@@ -259,6 +259,8 @@ interface ClaudeBridge {
     suspend fun castPending(tv: String) { throw UnsupportedOperationException("castPending") }
     suspend fun castClear() { throw UnsupportedOperationException("castClear") }
     /** The repository of the profile, chosen in the settings (the brain tells the sessions where `Profile/` goes). Returns the brain's answer as JSON ({"ok", "repo", "error"}). */
+    /** What the profile of the repository chosen lacks of the minimum, as the brain's JSON ({"ok", "problems": [...], "error"}). */
+    suspend fun profileCheck(): String { throw UnsupportedOperationException("profileCheck") }
     suspend fun profileRepo(repo: String): String { throw UnsupportedOperationException("profileRepo") }
     /** create (builder, critic), start / stop / relaunch / rollback / delete (id), limit (limit). Returns the reason when refused, null when done. */
     suspend fun loopsAction(action: String, fields: Map<String, String> = emptyMap()): String? { throw UnsupportedOperationException("loopsAction") }

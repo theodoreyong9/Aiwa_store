@@ -67,7 +67,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 181
+BACKEND_VERSION = 182
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -3225,6 +3225,29 @@ def profile_apply(data):
     return profile_state()
 
 
+def profile_check():
+    """Reads the profile of the repository chosen (the file `Profile/index.html` and the sizes of the media it names, from GitHub as they are) and says what falls short of the minimum."""
+    repo = profile_lib.repo()
+    if not repo:
+        return {"ok": False, "error": "Aucun dépôt choisi pour le profil (Réglages)."}
+    base = f"https://raw.githubusercontent.com/{repo}/HEAD/{profile_lib.FOLDER}/"
+    try:
+        with urllib.request.urlopen(urllib.request.Request(base + "index.html", headers={"User-Agent": "aiwa"}), timeout=15) as resp:
+            html = resp.read(profile_lib.HTML_MAX * 2).decode("utf-8", "replace")
+    except (OSError, ValueError):
+        return {"ok": False, "error": f"Pas de profil lisible dans {repo} : un dossier Profile/ public avec un index.html."}
+    media = {}
+    names = {a or b for a, b in re.findall(r"""(?:src|poster|href)\s*=\s*["'](media/[^"'?#]{1,120})|url\(\s*["']?(media/[^"')?#]{1,120})""", html)}
+    for path in sorted(names)[:20]:
+        try:
+            with urllib.request.urlopen(urllib.request.Request(base + path, method="HEAD", headers={"User-Agent": "aiwa"}), timeout=15) as resp:
+                media[path] = int(resp.headers.get("Content-Length") or 0)
+        except (OSError, ValueError):
+            media[path] = 0
+    problems = profile_lib.check(html, media)
+    return {"ok": True, "repo": repo, "problems": problems}
+
+
 def cast_clear():
     with lock:
         cast_pending.update(on=False)
@@ -5280,6 +5303,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/api/profile":
             self.reply_json(profile_state())
+            return
+        if self.path == "/api/profile/check":
+            self.reply_json(profile_check())
             return
         if self.path == "/api/status":
             with lock:
