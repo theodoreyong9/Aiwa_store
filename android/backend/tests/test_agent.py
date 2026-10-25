@@ -9,7 +9,7 @@ import aiwa_agent as A  # noqa: E402
 
 class Agent(unittest.TestCase):
     def test_open_reaches_every_button_of_the_widget(self):
-        for word, kind in (("Wallet", "wallet"), ("réglages", "settings"), ("boucles", "loops"), ("mise à jour", "update"), ("écoute", "listen"), ("robot", "agent")):
+        for word, kind in (("Wallet", "wallet"), ("réglages", "settings"), ("boucles", "loops"), ("mise à jour", "update"), ("écoute", "listen"), ("robot", "agent"), ("me rendre visible", "voir_on"), ("caché", "voir_off"), ("proximité", "voir_near"), ("QR code", "voir_qr"), ("favoris", "voir_fav"), ("par lien", "voir_link")):
             self.assertEqual(A.parse_command({"open": word}, []), {"open": kind})
             self.assertIn(kind, A.OPEN_SPOKEN)
 

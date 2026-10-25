@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Brain 178: the super agent can switch Voir (`open`: visible / caché), and open Proximité, Lien, QR code or Favoris: the widget turns to the Voir tab and the switch changes under the eyes of the person.
+
 - Widget: it opens on Files by default (it still remembers the tab last used).
 
 - Widget: the outer corners of the strip of the tabs are cut (top left of Domaine, top right of the last tab). Not verified on a device.

@@ -338,7 +338,7 @@ object WidgetTab {
         "settings", "wallet", "loops", "mcp", "cast" -> "domain"
         "documents", "video", "pages", "android", "aiwa", "store", "project", "campaign" -> "files"
         "claude", "agent", "plus", "listen" -> "build"
-        "voir" -> "voir"
+        "voir", "voir_on", "voir_off", "voir_near", "voir_link", "voir_qr", "voir_fav" -> "voir"
         else -> null
     }
 }
@@ -429,6 +429,12 @@ class PickKindCallback : ActionCallback {
 /** Opens what the repository produced of one kind (« documents », « video », « pages », « android », « aiwa »): the same for the tap on one of the five and for the super agent (« ouvre ma vidéo »). */
 /** The other buttons of the widget, for the super agent: the very screen a tap on the button opens (the toggles of the ear and of the robot too). A Wallet payment is never validated from here: the screen only opens. */
 fun openWidgetButton(app: Context, name: String): Boolean {
+    // the switch of Voir: no screen, the widget changes (the person sees the tab turn and the button change)
+    if (name == "voir_on" || name == "voir_off") {
+        VoirSettings.setOn(app, name == "voir_on"); WidgetTab.set(app, "voir")
+        FastWidget.render(app, force = true)
+        return true
+    }
     WidgetTab.of(name)?.let { WidgetTab.set(app, it); kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch { AiwaWidget().updateAll(app) } }
     val repo = AiwaRepository.state.value.repo
     val intent = when (name) {
@@ -444,6 +450,7 @@ fun openWidgetButton(app: Context, name: String): Boolean {
         "update" -> Intent(app, InstallUpdateActivity::class.java)
         "project" -> Intent(app, ProjectPickerActivity::class.java)
         "voir" -> FastWidget.voirIntent(app, AiwaRepository.state.value, lightKinds(AiwaRepository.state.value, app))
+        "voir_near", "voir_link", "voir_qr", "voir_fav" -> FastWidget.voirIntent(app, AiwaRepository.state.value, lightKinds(AiwaRepository.state.value, app), when (name) { "voir_link" -> "lien"; "voir_qr" -> "qr"; "voir_fav" -> "favoris"; else -> "proche" })
         "listen" -> Intent(app, ListenToggleActivity::class.java)
         "agent" -> Intent(app, AgentToggleActivity::class.java)
         else -> return false
