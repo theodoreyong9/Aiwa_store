@@ -33,7 +33,7 @@ class Profile(unittest.TestCase):
 
     def test_a_profile_is_the_showcase_with_no_limit_of_technique_and_a_short_minimum(self):
         text = P.instruction("jean/site")
-        for word in ("VITRINE", "10 secondes", "AUCUNE limite technique", "Three.js", "consigne Design", "390 px", "aiwa-design/references.md", "page de référence", "jean/site"):
+        for word in ("VITRINE", "10 secondes", "AUCUNE limite technique", "UN SEUL écran", "sans défilement", "360×640", "Three.js", "consigne Design", "390 px", "aiwa-design/references.md", "page de référence", "jean/site"):
             self.assertIn(word, text)
         good = '<!doctype html><title>x</title><meta name="viewport" content="width=device-width"><h1>x</h1><video src="media/a.mp4"></video><a href="https://github.com/x">x</a>'
         self.assertEqual(P.check(good), [])

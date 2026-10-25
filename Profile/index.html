@@ -6,35 +6,59 @@
 <title>theodoreyong9 · Aiwa</title>
 <meta name="description" content="Je construis Aiwa. Mes fichiers, ce que je montre, où me trouver.">
 <style>
-/* Un fichier, aucun script. Références retenues dans aiwa-design/references.md : plein écran en couches sur une vidéo, une très grande typographie, un index en police à chasse fixe,
-   des apparitions liées au défilement (CSS pur). Le fond est une boucle de 4 s rendue avec Blender (verre, chrome et lumière devant une ville la nuit). */
+/* Un profil est un FORMAT, pas une page : tout tient dans UN écran, sans défilement, comme un avatar. Un nom, une phrase, six fichiers à portée du pouce, un fond qui vit.
+   Références retenues dans aiwa-design/references.md. Le fond est une boucle de 4 s rendue avec Blender (verre, chrome et lumière devant une ville la nuit), un champ WebGL coule par-dessus. */
 @property --a{syntax:"<angle>";inherits:false;initial-value:0deg}
-:root{color-scheme:dark;--ink:#f6f6ff;--dim:#aeb3e8;--acc:#52d6a0;--blue:#6b9bf5;--violet:#a77bd6;--line:rgba(255,255,255,.22);--mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
+:root{color-scheme:dark;--ink:#f6f6ff;--dim:#aeb3e8;--acc:#52d6a0;--blue:#6b9bf5;--violet:#a77bd6;--line:rgba(255,255,255,.24);--mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
 *{box-sizing:border-box}
-html{scroll-behavior:smooth;overflow-x:clip}
-body{margin:0;background:#06081a;color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:hidden}
+html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
+body{background:#06081a;color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:inherit}
 .bg{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;background:#06081a url("media/poster.jpg") center/cover no-repeat}
-.veil{position:fixed;inset:0;z-index:2;background:radial-gradient(110% 80% at 50% 0%,rgba(6,8,26,.05),rgba(6,8,26,.78) 82%),linear-gradient(180deg,rgba(14,22,60,.35),rgba(34,14,64,.62))}
+#gl{position:fixed;inset:0;width:100%;height:100%;z-index:1;mix-blend-mode:screen;pointer-events:none;opacity:.95}
+.veil{position:fixed;inset:0;z-index:2;background:radial-gradient(110% 80% at 50% 0%,rgba(6,8,26,.05),rgba(6,8,26,.76) 85%),linear-gradient(180deg,rgba(14,22,60,.32),rgba(34,14,64,.6))}
 .grain{position:fixed;inset:0;z-index:3;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>")}
 .mono{font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;font-size:12px}
-main{position:relative;z-index:4;overflow-x:clip}
-#gl{position:fixed;inset:0;width:100%;height:100%;z-index:1;mix-blend-mode:screen;pointer-events:none;opacity:.95}
-section{padding:0 clamp(16px,4vw,48px)}
 
-/* 1. l'entrée : une barre, un nom énorme */
-.hero{min-height:100svh;display:flex;flex-direction:column;justify-content:space-between;padding-block:18px 28px}
-.bar{display:flex;justify-content:space-between;gap:16px;color:var(--ink)}
+.stage{position:relative;z-index:4;height:100svh;display:grid;grid-template-rows:auto 1fr auto;gap:clamp(8px,2svh,20px);padding:max(14px,env(safe-area-inset-top)) clamp(14px,4vw,40px) max(16px,env(safe-area-inset-bottom));
+  grid-template-areas:"bar" "name" "info"}
+.bar{grid-area:bar;display:flex;justify-content:space-between;gap:16px}
 .bar span:last-child{color:var(--dim);text-align:right}
-.name{transform:translate(calc(var(--px,0)*-12px),calc(var(--py,0)*-8px));transition:transform .25s ease-out;margin:0;font-weight:900;line-height:.84;letter-spacing:-.045em;text-transform:uppercase;font-size:clamp(54px,20.5vw,230px);overflow-wrap:anywhere}
+
+.name{grid-area:name;align-self:center;margin:0;font-weight:900;line-height:.84;letter-spacing:-.045em;text-transform:uppercase;font-size:clamp(44px,min(21vw,16svh),210px);
+  transform:translate(calc(var(--px,0)*-12px),calc(var(--py,0)*-8px));transition:transform .25s ease-out}
 .name .l2{display:block;color:transparent;-webkit-text-stroke:1.5px var(--ink);animation:fill 8s ease-in-out infinite}
 @keyframes fill{0%,100%{color:transparent}50%{color:rgba(246,246,255,.9)}}
-.sub{display:grid;gap:14px;max-width:34em}
-.sub p{margin:0;font-size:clamp(17px,4.6vw,22px);color:#e3e6ff}
-.sub b{color:var(--acc)}
-.hint{display:flex;align-items:center;gap:10px;color:var(--dim)}
-.hint i{display:block;width:44px;height:1px;background:var(--dim);transform-origin:left;animation:grow 2.4s ease-in-out infinite}
-@keyframes grow{0%{transform:scaleX(0)}60%,100%{transform:scaleX(1)}}
+
+.info{grid-area:info;display:grid;gap:clamp(8px,1.6svh,14px)}
+.say{margin:0;max-width:30em;font-size:clamp(14px,3.6vw,19px);color:#e3e6ff}
+.say b{color:var(--acc)}
+/* les fichiers : six cellules taillées comme celles du widget, à portée du pouce */
+.dock{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.cell{--c:var(--blue);position:relative;display:grid;gap:1px;align-content:center;min-height:clamp(46px,8svh,64px);padding:8px 12px 8px 16px;text-decoration:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.04));backdrop-filter:blur(8px) saturate(1.3);clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);transition:filter .2s,transform .2s}
+.cell::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 62%,transparent),transparent 92%)}
+.cell::after{content:"";position:absolute;inset:0;padding:1px;background:conic-gradient(from var(--a),transparent 0 72%,var(--c) 90%,#fff);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 7s linear infinite;animation-delay:calc(var(--i)*-1.2s)}
+@keyframes spin{to{--a:360deg}}
+.cell b{font-size:clamp(13px,3.7vw,17px);letter-spacing:-.01em;text-transform:uppercase;line-height:1.1}
+.cell span{font-size:10.5px;color:#d6d9ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell:hover,.cell:focus-visible{filter:brightness(1.3);transform:translateY(-2px);outline:none}
+.cell:active{filter:brightness(1.5)}
+.g{--c:var(--acc)}.v{--c:var(--violet)}.o{--c:#e09a7c}.y{--c:#e8c14a}
+.me{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--dim)}
+.me a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--acc)}
+
+/* un écran large : le nom à gauche, les fichiers à droite */
+@media (min-aspect-ratio:5/4){
+  .stage{grid-template-columns:1.25fr 1fr;grid-template-rows:auto 1fr;grid-template-areas:"bar bar" "name info";column-gap:5vw}
+  .name{font-size:clamp(60px,min(13vw,25svh),260px)}
+  .info{align-self:end;padding-bottom:2svh}
+  .dock{grid-template-columns:repeat(2,1fr)}
+  .cell{min-height:clamp(52px,9svh,78px)}
+  .say{font-size:clamp(16px,1.6vw,22px)}
+}
+/* un écran très bas (un téléphone couché) : on garde le nom et les fichiers */
+@media (max-height:430px){.say,.me{display:none}.name{font-size:clamp(40px,26svh,120px)}}
 
 /* l'entrée en scène (le script ne fait qu'ajouter des classes et découper le nom en lettres) */
 .curtain{position:fixed;inset:0;z-index:20;background:#02030a;pointer-events:none;display:none}
@@ -46,55 +70,10 @@ section{padding:0 clamp(16px,4vw,48px)}
 @keyframes curtain{0%,45%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 0 100% 0)}}
 .js .ch{display:inline-block;opacity:0;transform:translateY(55%) skewX(-10deg);filter:blur(8px);text-shadow:-14px 0 #6b9bf5,14px 0 #e56ac0}
 .go .ch{opacity:1;transform:none;filter:none;text-shadow:0 0 0 transparent;transition:opacity .5s ease-out var(--d),transform .7s cubic-bezier(.2,.9,.2,1) var(--d),filter .6s ease-out var(--d),text-shadow .9s ease-out var(--d)}
-.js .name .ch{animation-delay:calc(var(--d) + 1.2s)}
-.js .bar,.js .sub{opacity:0}
-.go .bar,.go .sub{opacity:1;transition:opacity .8s ease-out 1.5s}
-
-/* 2. l'énoncé */
-.say{padding-block:12vh}
-.say p{margin:0;max-width:20em;font-size:clamp(28px,7.4vw,64px);font-weight:700;line-height:1.08;letter-spacing:-.02em}
-.say em{font-style:normal;color:var(--acc)}
-
-/* 3. l'index : une ligne par fichier */
-.index{padding-block:6vh 10vh}
-.index h2{margin:0 0 14px;font-weight:400;color:var(--dim)}
-.row{display:grid;grid-template-columns:2.2em 1fr auto;gap:12px;align-items:baseline;padding:16px 0;border-top:1px solid var(--line);text-decoration:none;position:relative;transition:padding .25s,background .25s}
-.row:last-of-type{border-bottom:1px solid var(--line)}
-.row b{font-size:clamp(22px,6vw,40px);font-weight:700;letter-spacing:-.02em;text-transform:uppercase}
-.row .mono{color:var(--dim)}
-.row .go{color:var(--acc)}
-.row:hover,.row:focus-visible{background:rgba(255,255,255,.07);padding-left:14px;outline:none}
-.row:active{background:rgba(82,214,160,.18)}
-.row small{display:block;font-size:13px;color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0;margin-top:2px}
-
-/* le bandeau géant entre deux parties */
-.big{overflow:hidden;white-space:nowrap;padding-block:2vh;border-block:1px solid var(--line);transform:rotate(-1.5deg);margin-inline:-4vw}
-.big span{display:inline-block;font-weight:900;text-transform:uppercase;font-size:clamp(40px,12vw,120px);letter-spacing:-.03em;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.6);animation:run 26s linear infinite}
-@keyframes run{to{transform:translateX(-100%)}}
-
-/* 4. Aiwa en quatre morceaux, taillés comme le widget */
-.parts{padding-block:12vh}
-.parts h2{margin:0 0 16px;font-weight:400;color:var(--dim)}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
-.cell{--c:var(--blue);position:relative;padding:22px 26px 24px;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.03));backdrop-filter:blur(10px) saturate(1.3);clip-path:polygon(18px 0,100% 0,calc(100% - 18px) 100%,0 100%)}
-.cell::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 60%,transparent),transparent 90%)}
-.cell::after{content:"";position:absolute;inset:0;padding:1px;background:conic-gradient(from var(--a),transparent 0 72%,var(--c) 90%,#fff);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 7s linear infinite;animation-delay:calc(var(--i)*-1.7s)}
-@keyframes spin{to{--a:360deg}}
-.cell b{display:block;font-size:22px;letter-spacing:-.01em;text-transform:uppercase}
-.cell span{font-size:14px;color:#dde0ff}
-.g{--c:var(--acc)}.v{--c:var(--violet)}.o{--c:#e09a7c}
-
-/* 5. me trouver */
-.find{padding-block:8vh 14vh;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
-.find a.btn{padding:16px 30px;text-decoration:none;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#05110c;background:var(--acc);clip-path:polygon(14px 0,100% 0,calc(100% - 14px) 100%,0 100%)}
-.find p{margin:0;color:var(--dim);font-size:13px;max-width:24em}
-.find code{color:var(--ink)}
-
-/* apparitions liées au défilement : seulement là où le navigateur sait le faire, la page est complète sans */
-@supports (animation-timeline:view()){
-  .say p,.row,.cell,.index h2,.parts h2{animation:rise both linear;animation-timeline:view();animation-range:entry 0% entry 55%}
-  @keyframes rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
-}
+.js .bar,.js .info{opacity:0}
+.go .bar,.go .info{opacity:1;transition:opacity .8s ease-out 1.5s}
+.js .cell{opacity:0;transform:translateY(14px)}
+.go .cell{opacity:1;transform:none;transition:opacity .5s ease-out calc(1.7s + var(--i)*.09s),transform .6s cubic-bezier(.2,.9,.2,1) calc(1.7s + var(--i)*.09s),filter .2s}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}.name .l2{color:transparent}}
 </style>
 </head>
@@ -102,46 +81,21 @@ section{padding:0 clamp(16px,4vw,48px)}
 <video class="bg" src="media/loop.mp4" poster="media/poster.jpg" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>
 <canvas id="gl" aria-hidden="true"></canvas>
 <div class="veil"></div><div class="grain"></div><div class="curtain" aria-hidden="true"></div>
-<main>
-  <section class="hero">
-    <div class="bar mono"><span>Aiwa · profil</span><span>2026 · en ligne</span></div>
-    <h1 class="name" aria-label="theodoreyong9"><span data-split data-delay="1500">theo</span><br><span data-split data-delay="1700">dore</span><span class="l2" data-split data-delay="1900">yong9</span></h1>
-    <div class="sub">
-      <p>Je construis <b>Aiwa</b> : un assistant qui vit sur le téléphone, parle à Claude, et produit des documents, des vidéos, des pages et des apps, à la voix.</p>
-      <div class="hint mono"><i></i>Défile</div>
-    </div>
-  </section>
-
-  <section class="say">
-    <p>Un téléphone, une voix, <em>un dépôt</em>. Tout ce que je dis devient un fichier que je peux ouvrir.</p>
-  </section>
-
-  <div class="big" aria-hidden="true"><span>Files · Build · Voir · Domaine · Files · Build · Voir · Domaine ·&nbsp;</span><span>Files · Build · Voir · Domaine · Files · Build · Voir · Domaine ·&nbsp;</span></div>
-
-  <section class="index">
-    <h2 class="mono">Mes fichiers</h2>
-    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store"><span class="mono">01</span><b>Source<small>le dépôt d'Aiwa</small></b><span class="mono go">GitHub ↗</span></a>
-    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs"><span class="mono">02</span><b>Documents<small>le plan, le business, la vision</small></b><span class="mono go">Lire ↗</span></a>
-    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/YELLOWPAPER.md"><span class="mono">03</span><b>Yellow paper<small>comment Aiwa fonctionne</small></b><span class="mono go">Lire ↗</span></a>
-    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs/videos"><span class="mono">04</span><b>Films<small>ce que je montre</small></b><span class="mono go">Voir ↗</span></a>
-    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store/releases"><span class="mono">05</span><b>App<small>l'APK Android</small></b><span class="mono go">Installer ↗</span></a>
-    <a class="row" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/EXPLAINED.md"><span class="mono">06</span><b>En mots simples<small>Aiwa expliqué</small></b><span class="mono go">Lire ↗</span></a>
-  </section>
-
-  <section class="parts">
-    <h2 class="mono">Aiwa, en quatre morceaux</h2>
-    <div class="grid">
-      <div class="cell" style="--i:0"><b>Domaine</b><span>les boucles, le wallet, les agents externes, la télé</span></div>
-      <div class="cell g" style="--i:1"><b>Files</b><span>ce que mon dépôt produit : documents, films, page, app, contrat</span></div>
-      <div class="cell o" style="--i:2"><b>Build</b><span>le super agent, Claude, l'écoute, les scénarios</span></div>
-      <div class="cell v" style="--i:3"><b>Voir</b><span>les gens autour de moi, leurs profils, un glissement pour passer au suivant</span></div>
-    </div>
-  </section>
-
-  <section class="find">
-    <a class="btn" href="https://github.com/theodoreyong9">Me trouver sur GitHub</a>
-    <p>Cette page est un fichier de mon dépôt, <code>Profile/index.html</code>. Le super agent la réécrit quand je le lui demande.</p>
-  </section>
+<main class="stage">
+  <div class="bar mono"><span>Aiwa · profil</span><span>2026 · en ligne</span></div>
+  <h1 class="name" aria-label="theodoreyong9"><span data-split data-delay="1500">theo</span><br><span data-split data-delay="1700">dore</span><span class="l2" data-split data-delay="1900">yong9</span></h1>
+  <div class="info">
+    <p class="say">Je construis <b>Aiwa</b> : un assistant qui vit sur le téléphone, parle à Claude, et fait des sites, des vidéos, des pages et des apps, à la voix.</p>
+    <nav class="dock" aria-label="Mes fichiers">
+      <a class="cell g" style="--i:0" href="https://github.com/theodoreyong9/Aiwa_store"><b>Source</b><span>le dépôt d'Aiwa</span></a>
+      <a class="cell" style="--i:1" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs"><b>Documents</b><span>plan, business, vision</span></a>
+      <a class="cell v" style="--i:2" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/YELLOWPAPER.md"><b>Yellow paper</b><span>comment ça marche</span></a>
+      <a class="cell o" style="--i:3" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs/videos"><b>Films</b><span>ce que je montre</span></a>
+      <a class="cell y" style="--i:4" href="https://github.com/theodoreyong9/Aiwa_store/releases"><b>App</b><span>l'APK Android</span></a>
+      <a class="cell" style="--i:5" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/EXPLAINED.md"><b>En mots simples</b><span>Aiwa expliqué</span></a>
+    </nav>
+    <div class="me mono"><span>Fichier du dépôt : Profile/index.html</span><a href="https://github.com/theodoreyong9">GitHub ↗</a></div>
+  </div>
 </main>
 <script>
 /* Le seul script de la page : il découpe le nom en lettres, ajoute des classes, et dessine un champ de lignes qui coule (WebGL) par-dessus la vidéo ; il suit le doigt et l'inclinaison.

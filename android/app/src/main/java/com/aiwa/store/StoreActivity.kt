@@ -244,7 +244,8 @@ class StoreActivity : ComponentActivity() {
                 }
             }
         }
-        frame.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        // the profile is ONE screen with no scrolling: it lives above the button of the widget, which has its own strip at the bottom
+        frame.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply { bottomMargin = (72 * dp).toInt() })
         ProfileView.load(view, ProfileSettings.repo(this))
         val button = android.widget.Button(this).apply {
             text = "Mettre le widget"
