@@ -748,10 +748,18 @@ class WakeWordService : Service() {
         if (command.instruction.isNotBlank()) VoiceDictation(context = this, startInInstructions = true, onFinished = {}).applyInstruction(command.instruction)
         command.cast?.let { applyCast(it) }
         command.open?.let { openProduction(applicationContext, it) }
+        command.profile?.let { applyProfile(it) }
         connector?.let { if (!runConnector(applicationContext, it)) toastOnMain(applicationContext, "${ConnectorSettings.label(it.kind)} : aucune application n'a pu s'ouvrir.") }
         agentCall("cancel", mapOf("id" to command.id))   // applied: it must not be applied twice
         if (!auto) Speaker.speakNatural(applicationContext, "C'est fait.")
         try { withContext(Dispatchers.IO) { BackendSync.refresh(LocalClaudeBridge()) } } catch (err: Exception) { }
+    }
+
+    /** The change of the profile asked by the super agent (the background, the text, the name, a contact): applied, then the page is written again in the repository chosen for the profile. */
+    private suspend fun applyProfile(patch: String) {
+        val answer = try { withContext(Dispatchers.IO) { LocalClaudeBridge().profileApply(patch, true) } } catch (err: Exception) { toastOnMain(applicationContext, "Profil : ${err.message ?: "?"}"); return }
+        val json = try { org.json.JSONObject(answer) } catch (err: Exception) { null }
+        toastOnMain(applicationContext, if (json?.optBoolean("ok") == true) (json.optString("url").takeIf { it.isNotBlank() }?.let { "Profil publié : $it" } ?: "Profil modifié.") else "Profil : ${json?.optString("error")?.takeIf { it.isNotBlank() } ?: "pas publié"}")
     }
 
     /** The cast asked by the super agent: the latest video goes to the TV now, or the wish waits at the brain for the video that is about to be made (it starts when the video exists). */

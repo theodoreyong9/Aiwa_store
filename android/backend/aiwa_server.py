@@ -56,6 +56,7 @@ import aiwa_scenarios as scen_lib
 import aiwa_style as style_lib
 import aiwa_ci as ci_lib
 import aiwa_live as live_lib
+import aiwa_profile as profile_lib
 
 
 def _ts():
@@ -66,7 +67,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 178
+BACKEND_VERSION = 179
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -3211,6 +3212,20 @@ def cast_register(tv):
     return {"ok": True}
 
 
+def profile_state():
+    profile = profile_lib.load()
+    return {"ok": True, "repo": profile.get("repo"), "nom": profile.get("nom") or "", "texte": profile.get("texte") or "", "fond": profile.get("fond") or "ville", "contacts": profile.get("contacts") or {},
+            "published": profile.get("published"), "url": profile_lib.page_url(profile["repo"]) if profile.get("repo") else None}
+
+
+def profile_apply(data):
+    """A change of the profile (the phone's settings, or what the super agent asked once the person agreed), then, with `publish`, the page written in the repository chosen for it."""
+    profile = profile_lib.update(data.get("patch") if isinstance(data.get("patch"), dict) else {})
+    if data.get("publish") is True:
+        return profile_lib.publish(github, profile)
+    return {"ok": True}
+
+
 def cast_clear():
     with lock:
         cast_pending.update(on=False)
@@ -3916,7 +3931,7 @@ def agent_snapshot():
         command = dict(agent["command"]) if agent["command"] else None
     if command:
         spoken, instruction = agent_lib.command_phrases(command["items"], lambda sid: (_session_entry(sid) or {}).get("title") or sid)
-        command = {"id": command["id"], "read_back": spoken, "instruction": instruction, "cast": command["items"].get("cast"), "open": command["items"].get("open"), "connector": command["items"].get("connector"), "auto": command.get("auto") is True}
+        command = {"id": command["id"], "read_back": spoken, "instruction": instruction, "cast": command["items"].get("cast"), "open": command["items"].get("open"), "connector": command["items"].get("connector"), "profile": command["items"].get("profile"), "auto": command.get("auto") is True}
     out["command"] = command
     return out
 
@@ -5264,6 +5279,9 @@ class Handler(BaseHTTPRequestHandler):
                 left -= len(chunk)
 
     def do_GET(self):
+        if self.path == "/api/profile":
+            self.reply_json(profile_state())
+            return
         if self.path == "/api/status":
             with lock:
                 model, cloud_session = current_model, current_cloud
@@ -5536,6 +5554,12 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/waiting/clear":
             _clear_waiting()
             self.reply_json({"accepted": True})
+        elif self.path == "/api/profile":
+            try:
+                data = json.loads(body) if body.strip() else {}
+            except ValueError:
+                data = {}
+            self.reply_json(profile_apply(data if isinstance(data, dict) else {}))
         elif self.path == "/api/cast/pending":
             try:
                 data = json.loads(body) if body.strip() else {}

@@ -917,6 +917,9 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Scénarios : un mot lance un double de moi, ou le rapport", false, lines = 2, chevron = true) { open(ScenariosActivity::class.java) })
                 add(PickerEntry("Ma façon de parler : l'agent me répond comme je parle", false, lines = 2, chevron = true) { open(StyleActivity::class.java) })
                 add(PickerEntry("Mes mots", false, lines = 1, chevron = true) { open(RecognitionsActivity::class.java) })
+                add(PickerEntry("Profil", false, header = true) { })
+                add(PickerEntry("Dépôt du profil : ${ProfileSettings.repo(applicationContext) ?: "pas choisi"} (toucher : prendre le projet en cours)", false, lines = 2) { ProfileSettings.publish(applicationContext, takeCurrent = true); finish() })
+                add(PickerEntry("Publier mon profil (la page Profile/ du dépôt) ; le fond, le texte et les contacts se changent à la voix", false, lines = 3, chevron = true) { ProfileSettings.publish(applicationContext, takeCurrent = false); finish() })
                 add(PickerEntry("Papers", false, header = true) { })
                 listOf("Film" to "tree/main/docs/videos", "Source" to "", "Yellow paper" to "blob/main/docs/YELLOWPAPER.md", "Explication simple" to "blob/main/docs/EXPLAINED.md", "Valeur" to "raw/main/docs/value-ontology.pdf",
                     "Carrousel" to "raw/main/docs/AIWA_carousel_16_pages_square_final.pdf", "Plan" to "blob/main/docs/PLAN.md", "Business" to "blob/main/docs/BUSINESS.md", "Société augmentée" to "blob/main/docs/VISION-SOCIETE-AUGMENTEE.md").forEach { (name, path) ->

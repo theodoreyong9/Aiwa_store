@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
+import com.aiwa.bridge.LocalClaudeBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -191,7 +192,7 @@ object FastWidget {
     }
 
     /** The public links of the Files that exist (found = something is there, seen without any token, so public): docs, media, app, page, contract. */
-    private fun voirLinks(repo: String, kinds: List<LightKind>): List<Pair<String, String>> {
+    internal fun voirLinks(repo: String, kinds: List<LightKind>): List<Pair<String, String>> {
         val owner = repo.substringBefore('/'); val name = repo.substringAfter('/')
         val page = if (name.equals("$owner.github.io", ignoreCase = true)) "https://$owner.github.io/" else "https://$owner.github.io/$name/"
         return kinds.filter { it.found }.mapNotNull {
@@ -266,5 +267,29 @@ object WidgetBackground {
         val i = CHOICES.indexOfFirst { it.first == key(context) }
         try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString("bg", CHOICES[(i + 1) % CHOICES.size].first).apply() } catch (err: Exception) { }
         FastWidget.render(context, force = true)
+    }
+}
+
+
+/** The profile page: the repository that holds its `Profile/` folder (the phone keeps it too, to show it in the settings), and the publishing. */
+object ProfileSettings {
+    private const val FILE = "aiwa_profile"
+    fun repo(context: Context): String? = try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("repo", null) } catch (err: Exception) { null }
+    fun setRepo(context: Context, repo: String) { try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString("repo", repo).apply() } catch (err: Exception) { } }
+
+    /** Takes the repository in use as the one of the profile, then writes the page there with the links of the files it holds. Reports in a toast. */
+    fun publish(context: Context, takeCurrent: Boolean) {
+        val app = context.applicationContext
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            val state = AiwaRepository.state.value
+            if (takeCurrent) state.repo?.let { setRepo(app, it) }
+            val repo = repo(app)
+            if (repo == null) { toastOnMain(app, "Choisis d'abord un projet, puis « Dépôt du profil »."); return@launch }
+            val links = FastWidget.voirLinks(repo, lightKinds(state, app))
+            val patch = org.json.JSONObject().put("repo", repo).put("liens", org.json.JSONArray().also { a -> links.forEach { (k, u) -> a.put(org.json.JSONObject().put("kind", k).put("url", u)) } })
+            val answer = try { LocalClaudeBridge().profileApply(patch.toString(), !takeCurrent) } catch (err: Exception) { toastOnMain(app, "Profil : ${err.message ?: "?"}"); return@launch }
+            val json = try { org.json.JSONObject(answer) } catch (err: Exception) { null }
+            toastOnMain(app, if (takeCurrent) "Dépôt du profil : $repo" else if (json?.optBoolean("ok") == true) "Profil publié : ${json.optString("url")}" else "Profil : ${json?.optString("error")?.takeIf { it.isNotBlank() } ?: "pas publié"}")
+        }
     }
 }
