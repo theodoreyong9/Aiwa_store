@@ -134,7 +134,7 @@ object FastWidget {
         val earOk = !permanentOn && !agentOn
         val buildPage = listOf(
             listOf(Cell(robot, 3f, robotTap),
-                Cell(WidgetArt.Btn(R.drawable.fw_i_claude, "Claude", if (state.waiting || state.silenceMinutes > 0) "red" else "grey", enabled = hasClaude), 1f, if (hasClaude) activity(context, 71, OpenClaudeActivity::class.java) else null)),
+                Cell(WidgetArt.Btn(R.drawable.fw_i_claude, "Claude", if (state.waiting || state.silenceMinutes > 0) "red" else "grey", enabled = hasClaude, iconOnly = true), 1f, if (hasClaude) activity(context, 71, OpenClaudeActivity::class.java) else null)),
             listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_ear, if (state.listening) "Écoute active" else "Écoute", if (state.listening) "green" else "grey", enabled = earOk, iconOnly = true), 1f, if (earOk) activity(context, 72, ListenToggleActivity::class.java) else null),
                 Cell(WidgetArt.Btn(R.drawable.fw_i_plus, if (state.attachments > 0) "${state.attachments} jointe(s)" else "Ajouter", if (state.attachments > 0) "green" else "grey", iconOnly = true), 1f, activity(context, 73, PlusMenuActivity::class.java)),
                 Cell(WidgetArt.Btn(R.drawable.fw_i_scenario, "Scénario", iconOnly = true), 1f, activity(context, 74, ScenariosActivity::class.java))))

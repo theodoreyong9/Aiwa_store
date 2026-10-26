@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Widget: the Claude button is the icon alone (no word).
+
 - Profile: redone from zero as an avatar. The one screen is now a LIVE object: a liquid chrome blob and ring, ray-marched in a fragment shader (no library), reflecting a neon city drawn by the same shader, with a film of iridescence; it grows from nothing at the opening, turns under the finger and with the tilt of the phone, and a touch makes it flash. The name is huge over it (blended as a difference), the six files are cells cut like the widget. A phone that renders it slowly gets a smaller picture, never a slower page. Without WebGL (or without the script, in the profiles of the others) the Blender film of the same scene stays behind. Seen in a desktop browser, not on the phone. The script needs the version of the application that lets her own profile run scripts.
 
 - Profile (brain 186): a profile is a FORMAT, like an avatar: everything in ONE screen, no scrolling (the name, one sentence, six files within reach of the thumb, a living background). The page of the owner is redone that way (one screen at 360x640, 390x844, 844x390, 1024x1366 and 1440x900, no overflow, no console error; a wide screen puts the name on the left and the files on the right), the instruction of the profile asks the same of every session, and the application leaves a strip of 72 dp under the profile for the button of the widget. Seen in a desktop browser, not on the phone.
