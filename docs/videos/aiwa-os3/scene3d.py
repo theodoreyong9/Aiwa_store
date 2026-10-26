@@ -442,7 +442,19 @@ def frame_path(d, t):
 
 def stage(t, a, b): return seg(t, a, a + .5) * (1 - seg(t, b - .5, b))
 
+KEEP_DARK = {'dot', 'dotglow', 'dotlight', 'cam'}
+ORIG_HIDE = {o.name: o.hide_render for o in bpy.data.objects}
+DARK_STATE = [False]
+
 def update(t, f):
+    # the first seconds are black: nothing of the room is there, only the dot
+    dark_now = t < 4.8
+    if dark_now:
+        for o in bpy.data.objects:
+            if o.name.split('.')[0] not in KEEP_DARK: o.hide_render = True
+    elif DARK_STATE[0]:
+        for o in bpy.data.objects: o.hide_render = ORIG_HIDE.get(o.name, o.hide_render)
+    DARK_STATE[0] = dark_now
     c = cam_at(t); pos = c['pos'] + V((math.sin(t * .9) * .003, math.sin(t * .6 + 2) * .002, math.sin(t * 1.3 + 1) * .0025)); tgt = c['tgt']
     CAM.location = pos; CAM.rotation_euler = (tgt - pos).to_track_quat('-Z', 'Y').to_euler(); cam_data.lens = 12 / math.tan(math.radians(c['fov']) / 2)
     cam_data.dof.focus_distance = max(.08, (tgt - pos).length)
