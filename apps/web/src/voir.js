@@ -8,7 +8,7 @@ import { session, connected, onSession } from './session.js';
 import { $ } from './ui.js';
 import { hostAvailable, hostPost } from './host.js';
 import { drawQr, scanQr } from './qr.js';
-import { cellsAround, cleanLinks, checkEntry, messageOf, parseCard, cardText, parseRepo, repoLinks, readBlocked, writeBlocked, utf8, PERIOD_MS } from './voir-core.js';
+import { cellsAround, cleanLinks, checkEntry, messageOf, parseCard, cardText, parseRepo, repoLinks, LEVELS, roomName, filterRows, scoreRange, readBlocked, writeBlocked, utf8, PERIOD_MS } from './voir-core.js';
 
 const kindName = { docs: 'Docs', media: 'Média', app: 'App', page: 'Page', contract: 'Contrat' };
 const FAVS = 'aiwa-voir-favs';
@@ -61,12 +61,28 @@ function renderFavourites() {
   for (const fav of list) ul.append(cardItem(fav, [...profileButton(favRepos, fav.repo), ['Retirer', () => { writeFavs(readFavs().filter((f) => f.at !== fav.at)); renderFavourites(); }]]));
 }
 
-function renderNear(entries, blocked, mode = 'proche') {
+/** The list of the people detected, kept by the two sliders: the reach (50 m to the world) and the lowest score. `view` holds `here`, `level` and `minScore`; the slider of the score runs between the lowest and the highest score detected. */
+function renderNear(entries, blocked, mode, view) {
   const ul = $('voir-list'); ul.textContent = '';
-  const rows = [...entries.values()].filter((e) => !blocked.has(e.pub)).sort((a, b) => (b.score / Math.max(1, b.laps)) - (a.score / Math.max(1, a.laps)));
-  $('voir-empty').hidden = rows.length > 0; $('voir-empty').textContent = 'Personne pour l\'instant : la liste se remplit quand d\'autres personnes à moins de 50 m ouvrent « Voir ».';
+  const detected = [...entries.values()].filter((e) => !blocked.has(e.pub));
+  const inReach = filterRows(detected, { here: view.here, maxMeters: LEVELS[view.level].meters });
+  const range = scoreRange(inReach);
+  const slider = $('voir-score');
+  if (range && range.max > range.min) {
+    slider.disabled = false; slider.min = String(range.min); slider.max = String(range.max); slider.step = 'any';
+    if (view.minScore === null || view.minScore < range.min) view.minScore = range.min;
+    if (view.minScore > range.max) view.minScore = range.max;
+    slider.value = String(view.minScore);
+    $('voir-score-label').textContent = `${view.minScore.toPrecision(3)} (de ${range.min.toPrecision(3)} à ${range.max.toPrecision(3)})`;
+  } else {
+    slider.disabled = true; view.minScore = null;
+    $('voir-score-label').textContent = range ? `${range.min.toPrecision(3)} (le seul score détecté)` : 'personne détecté';
+  }
+  const rows = filterRows(inReach, { minScore: view.minScore ?? -Infinity }).sort((a, b) => (b.score / Math.max(1, b.laps)) - (a.score / Math.max(1, a.laps)));
+  $('voir-empty').hidden = rows.length > 0;
+  $('voir-empty').textContent = detected.length === 0 ? 'Personne pour l\'instant : la liste se remplit quand d\'autres personnes ouvrent « Voir » (plus la portée est large, plus il faut qu\'ils aient regardé aussi loin).' : 'Personne ne passe les deux curseurs : élargis la portée ou baisse le score.';
   const repos = rows.map((e) => e.repo).filter(Boolean);
-  for (const e of rows) ul.append(cardItem(e, [...profileButton(repos, e.repo), ['Garder en favori', () => addFavourite({ repo: e.repo, links: e.links })], ['Bloquer', () => { const set = readBlocked(); set.add(e.pub); writeBlocked(set); renderNear(entries, set, mode); }]]));
+  for (const e of rows) ul.append(cardItem(e, [...profileButton(repos, e.repo), ['Garder en favori', () => addFavourite({ repo: e.repo, links: e.links })], ['Bloquer', () => { const set = readBlocked(); set.add(e.pub); writeBlocked(set); renderNear(entries, set, mode, view); }]]));
 }
 
 export function initVoirPage(params) {
@@ -76,7 +92,7 @@ export function initVoirPage(params) {
   let mine = [];
   try { mine = cleanLinks(JSON.parse(params.get('links') ?? '[]')); } catch { mine = []; }
   const status = (text) => { $('voir-status').textContent = text; };
-  $('voir-title').textContent = { lien: 'Voir un dépôt', proche: 'Voir à proximité (50 m)', qr: 'Voir par QR code', favoris: 'Mes favoris' }[mode];
+  $('voir-title').textContent = { lien: 'Voir un dépôt', proche: 'Voir à proximité', qr: 'Voir par QR code', favoris: 'Mes favoris' }[mode];
   $('voir-mine').textContent = mine.length ? `Tes liens (${repo || 'ton dépôt'}) : ${mine.map((l) => kindName[l.kind]).join(', ')}.` : 'Ton dépôt n\'a encore rien à montrer (ou il est privé).';
 
   if (mode === 'favoris') { status('Gardés sur ce téléphone.'); renderFavourites(); return; }
@@ -114,24 +130,16 @@ export function initVoirPage(params) {
     return;
   }
 
-  // near (about 50 m) or the world: the same rooms, a different place to meet
-  $('voir-list-card').hidden = false; $('voir-list-title').textContent = 'À moins de 50 m, classés par score Aiwa';
-  $('voir-empty').textContent = '';
-  const meet = (cells) => {
-    const own = cells[0];
-    status(publish ? `Tu es visible dans la zone ${own}.` : 'Tu regardes sans te montrer. Active « Visible » dans le widget pour publier tes liens.');
+  // near or far: the same rooms, a wider cell for a wider reach (a room per level: 50 m, 150 m, 1 km, 5 km, 40 km, 150 km, 1 250 km, the world)
+  $('voir-list-card').hidden = false; $('voir-list-title').textContent = 'Les profils détectés, classés par score Aiwa';
+  $('voir-filters').hidden = false; $('voir-empty').textContent = '';
+  const meet = (here) => {
+    const cells = cellsAround(here.lat, here.lon), own = cells[0];
     const entries = new Map(), blocked = readBlocked(), decoder = new TextDecoder();
+    const view = { here, level: 0, minScore: null };
     const iceServers = config.nearby?.iceServers ?? [{ urls: 'stun:stun.l.google.com:19302' }];
-    const actions = cells.map((cell) => {
-      const room = joinRoom({ appId: 'aiwa-voir-v1', rtcConfig: { iceServers } }, `voir:${cell}`);
-      const action = room.makeAction('entry');
-      action.onMessage = (data) => {
-        let entry; try { entry = JSON.parse(decoder.decode(data instanceof Uint8Array ? data : new Uint8Array(data))); } catch { return; }
-        const ok = checkEntry(entry, cells);
-        if (ok && ok.pub !== session.aiwa?.identity?.publicKey) { entries.set(ok.pub, ok); renderNear(entries, blocked, mode); }
-      };
-      return { room, action };
-    });
+    const rooms = new Map();          // level -> { room, action }
+    const status2 = () => status(publish ? `Tu es visible (zone ${own}), portée ${LEVELS[view.level].label}.` : 'Tu regardes sans te montrer. Active « Visible » dans le widget pour publier tes liens.');
     const mineEntry = async () => {
       if (!publish || !connected() || mine.length === 0) return null;
       let figure = { score: 0, laps: 0 };
@@ -141,13 +149,38 @@ export function initVoirPage(params) {
       return e;
     };
     const announce = async (action, peerId) => { const e = await mineEntry(); if (e) await action.send(utf8.encode(JSON.stringify(e)), peerId ? { target: peerId } : {}); };
-    for (const { room, action } of actions) room.onPeerJoin = (peerId) => { announce(action, peerId).catch(() => {}); };
-    const all = () => Promise.all(actions.map(({ action }) => announce(action).catch(() => {})));
+    const join = (level) => {
+      if (rooms.has(level)) return;
+      // the nearest level is the cell of the person and its neighbours; a wider level is ONE room named by a shorter prefix (or the whole world)
+      const names = level === 0 ? cells.map((c) => `voir:${c}`) : [roomName(own, level)];
+      const prefixes = level === 0 ? cells : [LEVELS[level].len === 0 ? '' : own.slice(0, LEVELS[level].len)];
+      const made = names.map((name) => {
+        const room = joinRoom({ appId: 'aiwa-voir-v1', rtcConfig: { iceServers } }, name);
+        const action = room.makeAction('entry');
+        action.onMessage = (data) => {
+          let entry; try { entry = JSON.parse(decoder.decode(data instanceof Uint8Array ? data : new Uint8Array(data))); } catch { return; }
+          const ok = checkEntry(entry, prefixes);
+          if (ok && ok.pub !== session.aiwa?.identity?.publicKey) { entries.set(ok.pub, ok); renderNear(entries, blocked, mode, view); }
+        };
+        room.onPeerJoin = (peerId) => { announce(action, peerId).catch(() => {}); };
+        return { room, action };
+      });
+      rooms.set(level, made);
+    };
+    const all = () => Promise.all([...rooms.values()].flat().map(({ action }) => announce(action).catch(() => {})));
+    join(0); status2();
+    $('voir-dist').addEventListener('input', () => {
+      view.level = Number($('voir-dist').value);
+      for (let l = 1; l <= view.level; l++) join(l);       // the rooms of every wider level up to the one chosen: seen, and seen by those who look as wide
+      $('voir-dist-label').textContent = LEVELS[view.level].label; status2(); all();
+      renderNear(entries, blocked, mode, view);
+    });
+    $('voir-score').addEventListener('input', () => { view.minScore = Number($('voir-score').value); renderNear(entries, blocked, mode, view); });
     setInterval(all, PERIOD_MS); onSession(() => { all(); }); all();
-    renderNear(entries, blocked, mode);
+    renderNear(entries, blocked, mode, view);
   };
   if (!navigator.geolocation) { status('Ce téléphone ne donne pas la position : « Voir » ne peut pas trouver les personnes proches.'); return; }
   status('Recherche de ta zone…');
-  navigator.geolocation.getCurrentPosition((pos) => meet(cellsAround(pos.coords.latitude, pos.coords.longitude)),
+  navigator.geolocation.getCurrentPosition((pos) => meet({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
     (err) => status(err.code === 1 ? 'Sans l\'autorisation de position, « Voir » ne peut pas trouver les personnes proches.' : `Position indisponible (${err.message}).`), { enableHighAccuracy: true, maximumAge: 60_000, timeout: 20_000 });
 }

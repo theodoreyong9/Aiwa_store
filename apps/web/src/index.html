@@ -326,6 +326,14 @@
   </section>
   <section class="card" id="voir-list-card" hidden>
     <h3 id="voir-list-title">Autour de toi, classés par score Aiwa</h3>
+    <div id="voir-filters" class="voir-filters" hidden>
+      <label>Portée : <b id="voir-dist-label">50 m</b>
+        <input id="voir-dist" type="range" min="0" max="7" step="1" value="0" aria-label="Distance, de 50 mètres au monde">
+      </label>
+      <label>Score minimum : <b id="voir-score-label">personne détecté</b>
+        <input id="voir-score" type="range" min="0" max="1" step="any" value="0" disabled aria-label="Score minimum, entre le plus bas et le plus haut détectés">
+      </label>
+    </div>
     <ul id="voir-list" class="voir-list"></ul>
     <p class="muted" id="voir-empty"></p>
   </section>

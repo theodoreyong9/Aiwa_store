@@ -63,10 +63,38 @@ export function cleanLinks(raw) {
 /** The bytes that are signed: a fixed order of fields, so that the sender and the receiver read the same message. */
 export const messageOf = (e) => utf8.encode(JSON.stringify({ v: 1, cell: e.cell, repo: e.repo, links: e.links, score: e.score, laps: e.laps, ts: e.ts, pub: e.pub }));
 
-/** An entry received: valid, signed by the key it names, fresh, links cleaned; or null. */
+/** The reach of « Voir », from the nearest to the whole world: the length of the geohash that names the room (8 = a cell of 38 x 19 m) and the distance it stands for. A wider reach is a wider room: only the people who joined it are seen. */
+export const LEVELS = [
+  { len: 8, meters: 50, label: '50 m' }, { len: 7, meters: 150, label: '150 m' }, { len: 6, meters: 1_200, label: '1 km' }, { len: 5, meters: 5_000, label: '5 km' },
+  { len: 4, meters: 40_000, label: '40 km' }, { len: 3, meters: 156_000, label: '150 km' }, { len: 2, meters: 1_250_000, label: '1 250 km' }, { len: 0, meters: Infinity, label: 'Monde' },
+];
+/** The name of the room of a cell at a level (`world` for the whole world). */
+export const roomName = (cell, level) => `voir:${LEVELS[level].len === 0 ? 'world' : cell.slice(0, LEVELS[level].len)}`;
+
+/** The distance in metres between a position and the centre of a cell (a haversine: good to a few metres, the cell is 38 m wide). */
+export function distanceTo(lat, lon, cell) {
+  const b = bounds(cell), cLat = (b.latLo + b.latHi) / 2, cLon = (b.lonLo + b.lonHi) / 2, rad = Math.PI / 180;
+  const dLat = (cLat - lat) * rad, dLon = (cLon - lon) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat * rad) * Math.cos(cLat * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/** What the two sliders keep: people within `maxMeters` (the nearest level also keeps the people of the neighbouring cells, about 50 m) and with a score of at least `minScore`. */
+export function filterRows(rows, { here, maxMeters = Infinity, minScore = -Infinity }) {
+  return rows.filter((e) => e.score >= minScore && (!here || maxMeters === Infinity || distanceTo(here.lat, here.lon, e.cell) <= Math.max(maxMeters, 60)));
+}
+
+/** The lowest and the highest score among the people detected (null when there is nobody). */
+export function scoreRange(rows) {
+  if (rows.length === 0) return null;
+  const scores = rows.map((e) => e.score);
+  return { min: Math.min(...scores), max: Math.max(...scores) };
+}
+
+/** An entry received: valid, signed by the key it names, fresh, links cleaned; or null. `cells` are the cells or the prefixes of the room it came from. */
 export function checkEntry(entry, cells, now = Date.now()) {
   const allowed = Array.isArray(cells) ? cells : [cells];
-  if (!entry || entry.v !== 1 || !allowed.includes(entry.cell) || typeof entry.pub !== 'string' || typeof entry.sig !== 'string') return null;
+  if (!entry || entry.v !== 1 || typeof entry.cell !== 'string' || !/^[0-9b-hjkmnp-z]{8}$/.test(entry.cell) || !allowed.some((c) => entry.cell.startsWith(c)) || typeof entry.pub !== 'string' || typeof entry.sig !== 'string') return null;
   if (typeof entry.ts !== 'number' || Math.abs(now - entry.ts) > FRESH_MS) return null;
   const links = cleanLinks(entry.links);
   const repo = typeof entry.repo === 'string' && /^[\w.-]{1,60}\/[\w.-]{1,100}$/.test(entry.repo) ? entry.repo : '';

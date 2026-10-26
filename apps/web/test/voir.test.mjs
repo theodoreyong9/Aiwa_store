@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ed25519 } from '@noble/curves/ed25519.js';
-import { geohash, bounds, cellsAround, cleanLinks, checkEntry, parseCard, cardText, parseRepo, repoLinks } from '../src/voir-core.js';
+import { geohash, bounds, cellsAround, cleanLinks, checkEntry, parseCard, cardText, parseRepo, repoLinks, LEVELS, roomName, distanceTo, filterRows, scoreRange } from '../src/voir-core.js';
 
 // voir-core.js: the parts of « Voir » that need no page
 const utf8 = new TextEncoder();
@@ -25,14 +25,15 @@ test('only https links of a known kind are kept, short and few', () => {
 test('an entry is accepted only if it is signed by the key it names, fresh, for this cell', () => {
   const secret = ed25519.utils.randomSecretKey(); const pub = hex(ed25519.getPublicKey(secret));
   const now = Date.now();
-  const entry = { v: 1, cell: 'u09t', repo: 'a/b', links: [{ kind: 'page', url: 'https://a.github.io/b/' }], score: 12.5, laps: 3, ts: now, pub };
+  const entry = { v: 1, cell: 'u09tvw0q', repo: 'a/b', links: [{ kind: 'page', url: 'https://a.github.io/b/' }], score: 12.5, laps: 3, ts: now, pub };
   entry.sig = sign(entry, secret);
-  assert.equal(checkEntry(entry, 'u09t', now)?.score, 12.5);
-  assert.equal(checkEntry({ ...entry, score: 999 }, 'u09t', now), null, 'a changed score breaks the signature');
-  assert.equal(checkEntry(entry, 'u09u', now), null, 'another cell');
-  assert.equal(checkEntry(entry, 'u09t', now + 11 * 60_000), null, 'too old');
-  assert.equal(checkEntry({ ...entry, links: [{ kind: 'page', url: 'https://evil.example/' }] }, 'u09t', now), null, 'links are signed too');
-  assert.equal(checkEntry(null, 'u09t', now), null);
+  assert.equal(checkEntry(entry, 'u09tvw0q', now)?.score, 12.5);
+  assert.equal(checkEntry(entry, ['u09t'], now)?.score, 12.5, 'a wider room names a prefix of the cell');
+  assert.equal(checkEntry({ ...entry, score: 999 }, 'u09tvw0q', now), null, 'a changed score breaks the signature');
+  assert.equal(checkEntry(entry, 'u09uvw0q', now), null, 'another cell');
+  assert.equal(checkEntry(entry, 'u09tvw0q', now + 11 * 60_000), null, 'too old');
+  assert.equal(checkEntry({ ...entry, links: [{ kind: 'page', url: 'https://evil.example/' }] }, 'u09tvw0q', now), null, 'links are signed too');
+  assert.equal(checkEntry(null, 'u09tvw0q', now), null);
 });
 
 test('the cells around a position: its own and the neighbours toward the nearest edges, 8 characters (about 38 x 19 m)', () => {
@@ -74,4 +75,17 @@ test('the links of the Files of a repository are the five public ones, all https
   assert.equal(links[3].url, 'https://a.github.io/b/');
   assert.equal(repoLinks('a/a.github.io')[3].url, 'https://a.github.io/');
   assert.deepEqual(cleanLinks(links), links);
+});
+
+test('the two sliders: the reach from 50 m to the world, and the score between the lowest and the highest detected', () => {
+  assert.equal(LEVELS[0].meters, 50); assert.equal(LEVELS.at(-1).label, 'Monde'); assert.equal(LEVELS.at(-1).meters, Infinity);
+  assert.deepEqual(LEVELS.map((l) => l.len), [8, 7, 6, 5, 4, 3, 2, 0], 'each level is a coarser room');
+  assert.equal(roomName('u09tvw0q', 2), 'voir:u09tvw'); assert.equal(roomName('u09tvw0q', 7), 'voir:world');
+  const here = { lat: 46.5197, lon: 6.6323 }, near = geohash(46.5197, 6.6323, 8), far = geohash(46.5197 + 0.2, 6.6323, 8);   // 0.2 degree of latitude: about 22 km
+  assert.ok(distanceTo(here.lat, here.lon, near) < 40); assert.ok(distanceTo(here.lat, here.lon, far) > 20_000 && distanceTo(here.lat, here.lon, far) < 24_000);
+  const rows = [{ cell: near, score: 5 }, { cell: far, score: 20 }, { cell: far, score: 2 }];
+  assert.deepEqual(scoreRange(rows), { min: 2, max: 20 }); assert.equal(scoreRange([]), null);
+  assert.equal(filterRows(rows, { here, maxMeters: 50 }).length, 1, 'the nearest reach keeps the person next to me');
+  assert.equal(filterRows(rows, { here, maxMeters: 40_000 }).length, 3);
+  assert.deepEqual(filterRows(rows, { here, maxMeters: Infinity, minScore: 5 }).map((r) => r.score), [5, 20], 'the score slider keeps the scores from its value up');
 });

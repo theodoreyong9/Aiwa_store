@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Voir › Proximité detects profiles with two sliders: the reach (50 m, 150 m, 1 km, 5 km, 40 km, 150 km, 1 250 km, the world; each wider step joins one wider room named by a shorter geohash, or the world room) and the minimum score (it runs between the lowest and the highest score detected). Limits, said plainly: a person is seen by those who look at least as wide as she is seen from; the rooms are a WebRTC mesh, so a very wide reach works while few people are in it: the world needs a directory (a relay index), not done yet. Looked at in the tests, not on a phone with other people.
+
 - Widget: the Claude button is the icon alone (no word).
 
 - Profile: redone from zero as an avatar. The one screen is now a LIVE object: a liquid chrome blob and ring, ray-marched in a fragment shader (no library), reflecting a neon city drawn by the same shader, with a film of iridescence; it grows from nothing at the opening, turns under the finger and with the tilt of the phone, and a touch makes it flash. The name is huge over it (blended as a difference), the six files are cells cut like the widget. A phone that renders it slowly gets a smaller picture, never a slower page. Without WebGL (or without the script, in the profiles of the others) the Blender film of the same scene stays behind. Seen in a desktop browser, not on the phone. The script needs the version of the application that lets her own profile run scripts.
