@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Aiwa OS 3</title>
+<style>
+@font-face{font-family:SG;src:url(fonts/SpaceGrotesk.ttf);font-weight:300 700}
+@font-face{font-family:JB;src:url(fonts/JetBrainsMono.ttf);font-weight:100 800}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
+canvas{position:absolute;inset:0}
+#ov{position:absolute;inset:0;pointer-events:none;font-family:SG,sans-serif;color:#f4f6ff}
+.lbl{position:absolute;white-space:nowrap;font:500 22px JB,monospace;letter-spacing:.14em;text-transform:uppercase;opacity:0;transform:translate(14px,-50%);text-shadow:0 0 18px #000}
+.lbl::before{content:"";position:absolute;left:-14px;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--c,#7cf);box-shadow:0 0 14px var(--c,#7cf)}
+.lbl::after{content:"";position:absolute;left:-10px;top:50%;width:var(--l,34px);height:1px;background:var(--c,#7cf);opacity:.7;transform-origin:left;transform:rotate(var(--r,0deg))}
+.lbl span{display:block;font:400 17px JB,monospace;opacity:.6;letter-spacing:.08em;margin-top:4px;text-transform:none}
+#big{position:absolute;left:0;right:0;text-align:center;opacity:0;font-weight:700}
+</style></head><body>
+<div id="ov"></div>
+<script type="importmap">{"imports":{"three":"./three/build/three.module.js","three/addons/":"./three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+
+const Q=new URLSearchParams(location.search),W=+(Q.get('w')||1920),H=+(Q.get('h')||1080),FPS=30;
+let DF;const TL=await (await fetch('timeline.json')).json(),T=TL.T;
+DF=[6.0,7.4];const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x)),ramp=(t,a,b)=>clamp((t-a)/(b-a)),sm=x=>x*x*(3-2*x),sm5=x=>x*x*x*(x*(x*6-15)+10);
+const seg=(t,a,b)=>sm(ramp(t,a,b)),mix=(a,b,k)=>a+(b-a)*k;
+const rnd=(i)=>{const s=Math.sin(i*127.1+311.7)*43758.5453;return s-Math.floor(s)};
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(1);renderer.setSize(W,H);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+document.body.prepend(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x020308);scene.fog=new THREE.FogExp2(0x04060d,.16);
+const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),.04).texture;scene.environmentIntensity=.16;
+const camera=new THREE.PerspectiveCamera(35,W/H,.01,40);
+const composer=new EffectComposer(renderer);composer.setSize(W,H);
+composer.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(W/2,H/2),.5,.8,.82);composer.addPass(bloom);composer.addPass(new OutputPass());
+
+// ---------- room ----------
+const M=(o)=>new THREE.MeshStandardMaterial(o);
+const desk=new THREE.Mesh(new THREE.BoxGeometry(7,.12,5),M({color:0x0a0c10,roughness:.28,metalness:.3}));desk.position.set(0,-.06,-1);desk.receiveShadow=true;scene.add(desk);
+const wall=new THREE.Mesh(new THREE.PlaneGeometry(9,4),M({color:0x0c0e15,roughness:.9}));wall.position.set(0,1.6,-2.5);scene.add(wall);
+// strips of ambient light on the wall (the "zone d'ambiance")
+const strips=[],wlights=[];
+[[-2.3,0,0x7a5cff,3.2],[2.0,0,0x22d6a0,3.0],[2.7,0,0x3f8cff,3.0]].forEach(([x,y,c,h],i)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(.035,h,.03),new THREE.MeshBasicMaterial({color:new THREE.Color(c).multiplyScalar(2.2),toneMapped:false}));m.position.set(x,y+h/2,-2.46);scene.add(m);strips.push(m);
+  const l=new THREE.PointLight(c,.9,4,2);l.position.set(x,y+.4,-2.1);scene.add(l);wlights.push(l)});
+// shelf with books
+const shelf=new THREE.Mesh(new THREE.BoxGeometry(1.4,.04,.28),M({color:0x14161d,roughness:.6}));shelf.position.set(1.0,1.15,-2.3);scene.add(shelf);
+for(let i=0;i<9;i++){const h=.16+rnd(i)*.1;const b=new THREE.Mesh(new THREE.BoxGeometry(.04+rnd(i+9)*.03,h,.2),M({color:new THREE.Color().setHSL(rnd(i+3),.35,.22),roughness:.7}));b.position.set(.45+i*.075,1.17+h/2,-2.3);scene.add(b)}
+// TV on a low unit
+const tv=new THREE.Group();tv.position.set(-.12,0,-1.55);scene.add(tv);
+const tvBody=new THREE.Mesh(new RoundedBoxGeometry(1.34,.78,.045,3,.01),M({color:0x07080b,roughness:.4,metalness:.5}));tvBody.position.y=.78;tvBody.castShadow=true;tv.add(tvBody);
+const unit=new THREE.Mesh(new THREE.BoxGeometry(1.7,.34,.38),M({color:0x0d0f14,roughness:.5}));unit.position.set(0,.17,0);unit.castShadow=unit.receiveShadow=true;tv.add(unit);
+const foot=new THREE.Mesh(new THREE.BoxGeometry(.5,.05,.2),M({color:0x090a0d,metalness:.6,roughness:.3}));foot.position.set(0,.37,0);tv.add(foot);
+const tvMat=new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false});
+const tvScr=new THREE.Mesh(new THREE.PlaneGeometry(1.3,.731),tvMat);tvScr.position.set(0,.78,.0235);tv.add(tvScr);
+// phone
+const phone=new THREE.Group();scene.add(phone);
+const PW=.072,PH=.152;
+const body=new THREE.Mesh(new RoundedBoxGeometry(PW,PH,.0082,4,.011),M({color:0x0d0e12,roughness:.28,metalness:.75}));body.castShadow=true;phone.add(body);
+function rr(w,h,r){const s=new THREE.Shape();s.moveTo(-w/2+r,-h/2);s.lineTo(w/2-r,-h/2);s.quadraticCurveTo(w/2,-h/2,w/2,-h/2+r);s.lineTo(w/2,h/2-r);s.quadraticCurveTo(w/2,h/2,w/2-r,h/2);s.lineTo(-w/2+r,h/2);s.quadraticCurveTo(-w/2,h/2,-w/2,h/2-r);s.lineTo(-w/2,-h/2+r);s.quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2);const g=new THREE.ShapeGeometry(s,6);const p=g.attributes.position,uv=g.attributes.uv;for(let i=0;i<p.count;i++)uv.setXY(i,p.getX(i)/w+.5,p.getY(i)/h+.5);return g}
+const phMat=new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false});
+const phScr=new THREE.Mesh(rr(PW-.005,PH-.005,.0085),phMat);phScr.position.z=.00425;phone.add(phScr);
+// status dot (the green point): lives in the world first, then on the phone's top-right corner
+const GREEN=new THREE.Color(0x35f08a);
+const dot=new THREE.Mesh(new THREE.SphereGeometry(.0042,24,16),new THREE.MeshBasicMaterial({color:GREEN.clone().multiplyScalar(3),toneMapped:false}));scene.add(dot);
+function glowTex(){const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),r=g.createRadialGradient(64,64,0,64,64,64);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.25,'rgba(255,255,255,.35)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,128,128);return new THREE.CanvasTexture(c)}
+const GT=glowTex();
+const dotGlow=new THREE.Sprite(new THREE.SpriteMaterial({map:GT,color:GREEN,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false}));scene.add(dotGlow);
+// lights
+scene.add(new THREE.AmbientLight(0x8890b8,.12));
+const key=new THREE.SpotLight(0xffd9a8,0,7,.55,.9,1.4);key.position.set(1.2,2.0,1.0);key.target.position.set(.1,0,-.2);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.bias=-.0004;scene.add(key,key.target);
+const tvLight=new THREE.PointLight(0x6a8cff,0,4.5,1.6);tvLight.position.set(-.12,.82,-1.0);scene.add(tvLight);
+const phLight=new THREE.PointLight(0xbfd0ff,0,.7,2);scene.add(phLight);
+const rimL=new THREE.PointLight(0x7a5cff,0,5,2);rimL.position.set(-1.6,.9,.6);scene.add(rimL);
+// light cone from the lamp (haze)
+const cone=new THREE.Mesh(new THREE.ConeGeometry(.9,2.3,40,1,true),new THREE.MeshBasicMaterial({color:0xffd9a8,transparent:true,opacity:.0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+cone.position.copy(key.position).lerp(key.target.position,.5);cone.lookAt(key.target.position);cone.rotateX(Math.PI/2);scene.add(cone);
+
+// decor models
+const gl=new GLTFLoader();
+const load=(p,s,pos,ry=0)=>new Promise(res=>gl.load(p,g=>{const o=g.scene;o.scale.setScalar(s);o.position.set(...pos);o.rotation.y=ry;o.traverse(m=>{if(m.isMesh){m.castShadow=m.receiveShadow=true}});scene.add(o);res(o)},undefined,()=>res(null)));
+await Promise.all([
+ load('ass/ph-industrial_pipe_lamp/industrial_pipe_lamp_2k.gltf',1,[-1.25,0,-1.0],.6),
+ load('ass/ph-potted_plant_04/potted_plant_04_2k.gltf',1,[1.15,0,-1.2],0),
+ load('ass/ph-round_spectacles/round_spectacles_2k.gltf',1,[-.38,0,.28],.7),
+]);
+
+// dust motes: the ambience
+const ND=700,dpos=new Float32Array(ND*3),dbase=[];
+for(let i=0;i<ND;i++)dbase.push(V((rnd(i)-.5)*5,rnd(i+1000)*2.6,(rnd(i+2000)-.5)*4.4-.8));
+const dg=new THREE.BufferGeometry();dg.setAttribute('position',new THREE.BufferAttribute(dpos,3));
+const dust=new THREE.Points(dg,new THREE.PointsMaterial({map:GT,size:.011,transparent:true,opacity:.5,color:0xcfd8ff,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true,fog:false}));scene.add(dust);
+
+// ---------- 3D system 1: the node / morph object (connect, campaigns) ----------
+const NODE=new THREE.Group();NODE.position.set(.78,.34,.1);scene.add(NODE);
+const ico=new THREE.IcosahedronGeometry(1,5),ip=ico.attributes.position,dirs=[];
+for(let i=0;i<ip.count;i++)dirs.push(V(ip.getX(i),ip.getY(i),ip.getZ(i)).normalize());
+const radii=(d)=>[1,1/Math.max(Math.abs(d.x),Math.abs(d.y),Math.abs(d.z))*.8,1/(Math.abs(d.x)+Math.abs(d.y)+Math.abs(d.z))*1.15,.8+.25*Math.cos(d.y*6)];
+const coreMat=new THREE.MeshPhysicalMaterial({color:0x8fb8ff,metalness:1,roughness:.18,iridescence:1,iridescenceIOR:1.6,clearcoat:1,envMapIntensity:1.1});
+const core=new THREE.Mesh(ico,coreMat);core.scale.setScalar(.06);NODE.add(core);
+function morphCore(w){const p=ico.attributes.position;for(let i=0;i<p.count;i++){const r=radii(dirs[i]);const v=r[0]*w[0]+r[1]*w[1]+r[2]*w[2]+r[3]*w[3];p.setXYZ(i,dirs[i].x*v,dirs[i].y*v,dirs[i].z*v)}p.needsUpdate=true;ico.computeVertexNormals()}
+const nodes=[ // 3 Claude Code sessions then external agents
+ {c:0xff9a5c,a:0,r:.17,k:'Claude Code',s:'session 1',t0:29.0},{c:0xff9a5c,a:2.1,r:.17,k:'Claude Code',s:'session 2',t0:29.6},{c:0xff9a5c,a:4.2,r:.17,k:'Claude Code',s:'session 3',t0:30.2},
+ {c:0x6ff0b8,a:1.0,r:.26,k:'ChatGPT',s:'agent externe',t0:32.2,shape:1},{c:0xb48cff,a:3.3,r:.27,k:'IA locale',s:'sur ton appareil',t0:33.4,shape:2}].map(n=>{
+  const g=new THREE.Mesh(n.shape===1?new THREE.OctahedronGeometry(.025):n.shape===2?new THREE.BoxGeometry(.035,.035,.035):new THREE.TorusGeometry(.022,.007,12,32),new THREE.MeshBasicMaterial({color:new THREE.Color(n.c).multiplyScalar(1.1),toneMapped:false}));
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:GT,color:n.c,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false}));s.scale.setScalar(.14);g.add(s);g.visible=false;NODE.add(g);n.m=g;n.s=s;return n});
+const linkGeo=new THREE.BufferGeometry();linkGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(3*2*40),3));
+const links=new THREE.LineSegments(linkGeo,new THREE.LineBasicMaterial({color:0xcfe0ff,transparent:true,opacity:.7,blending:THREE.AdditiveBlending,fog:false}));links.frustumCulled=false;NODE.add(links);
+const rings=[];for(let i=0;i<8;i++){const r=new THREE.Mesh(new THREE.TorusGeometry(1,.012,8,96),new THREE.MeshBasicMaterial({color:0x8fb8ff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));r.rotation.x=Math.PI/2;NODE.add(r);rings.push(r)}
+const scen=[];const scenPts=[V(-.34,-.1,.1),V(-.2,.08,-.05),V(-.02,-.06,.14),V(.16,.1,0),V(.34,-.02,.1)];
+scenPts.forEach((p,i)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(.011,12,8),new THREE.MeshBasicMaterial({color:new THREE.Color(0xffe27a).multiplyScalar(2),toneMapped:false}));m.position.copy(p);m.visible=false;NODE.add(m);scen.push(m)});
+const scenLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(scenPts),new THREE.LineBasicMaterial({color:0xffe27a,transparent:true,opacity:.7,blending:THREE.AdditiveBlending,fog:false}));scenLine.visible=false;NODE.add(scenLine);
+const pulse=new THREE.Mesh(new THREE.SphereGeometry(.016,12,8),new THREE.MeshBasicMaterial({color:new THREE.Color(0xffffff).multiplyScalar(3),toneMapped:false}));pulse.visible=false;NODE.add(pulse);
+
+// ---------- 3D system 2: the world (discover) ----------
+const WORLD=new THREE.Group();WORLD.position.set(-.62,.33,.0);scene.add(WORLD);
+const NG=1500,gp=new Float32Array(NG*3),gc=new Float32Array(NG*3);
+for(let i=0;i<NG;i++){const y=1-2*(i+.5)/NG,rr_=Math.sqrt(1-y*y),th=i*2.399963;const x=Math.cos(th)*rr_,z=Math.sin(th)*rr_;gp[i*3]=x;gp[i*3+1]=y;gp[i*3+2]=z;
+ const land=Math.sin(x*3.1+1)*Math.cos(y*2.7)+Math.sin(z*4.2+y*1.7)*.6+Math.cos(x*5+z*3)*.3;const b=land>.15?1:.25;gc[i*3]=.35*b;gc[i*3+1]=.6*b;gc[i*3+2]=1*b}
+const gg=new THREE.BufferGeometry();gg.setAttribute('position',new THREE.BufferAttribute(gp,3));gg.setAttribute('color',new THREE.BufferAttribute(gc,3));
+const globe=new THREE.Points(gg,new THREE.PointsMaterial({size:.011,vertexColors:true,transparent:true,opacity:.95,blending:THREE.AdditiveBlending,depthWrite:false,map:GT,fog:false}));globe.scale.setScalar(.15);WORLD.add(globe);
+const pins=[];const pinPos=[[.5,.3,.8],[-.7,.4,.6],[.2,-.5,.84],[-.3,.7,-.65],[.8,.1,-.6],[-.85,-.2,-.5]].map(a=>V(...a).normalize());
+pinPos.forEach((p,i)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(.008,10,8),new THREE.MeshBasicMaterial({color:new THREE.Color(0xffd05a).multiplyScalar(2.5),toneMapped:false}));m.position.copy(p).multiplyScalar(.155);m.visible=false;WORLD.add(m);pins.push(m)});
+const arcs=[];[[0,1],[1,2],[2,4],[0,3],[3,5],[4,1]].forEach(([a,b],i)=>{const A=pinPos[a],B=pinPos[b];const mid=A.clone().add(B).normalize().multiplyScalar(.27);const c=new THREE.QuadraticBezierCurve3(A.clone().multiplyScalar(.155),mid,B.clone().multiplyScalar(.155));const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(c.getPoints(40)),new THREE.LineBasicMaterial({color:0x8fb8ff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,fog:false}));l.userData.curve=c;WORLD.add(l);arcs.push(l)});
+const arcDot=new THREE.Mesh(new THREE.SphereGeometry(.006,8,6),new THREE.MeshBasicMaterial({color:new THREE.Color(0xffffff).multiplyScalar(3),toneMapped:false}));WORLD.add(arcDot);
+// "autour de toi": radar rings on the desk around the phone
+const radar=[0,1,2].map(i=>{const m=new THREE.Mesh(new THREE.RingGeometry(.98,1,96),new THREE.MeshBasicMaterial({color:0x6a8cff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));m.rotation.x=-Math.PI/2;m.position.y=.003;scene.add(m);return m});
+const nearPins=[V(-.35,0,.55),V(.55,0,.6),V(.15,0,-.45)].map((p,i)=>{const g=new THREE.Group();g.position.copy(p);const b=new THREE.Mesh(new THREE.CylinderGeometry(.002,.002,.22,6),new THREE.MeshBasicMaterial({color:new THREE.Color(0xffd05a).multiplyScalar(2),transparent:true,opacity:.7,toneMapped:false,blending:THREE.AdditiveBlending,fog:false}));b.position.y=.11;const h=new THREE.Mesh(new THREE.SphereGeometry(.01,12,8),new THREE.MeshBasicMaterial({color:new THREE.Color(0xffd05a).multiplyScalar(3),toneMapped:false}));h.position.y=.225;g.add(b,h);g.visible=false;scene.add(g);return g});
+
+// cast stream (phone -> tv)
+const NC=140,cpos=new Float32Array(NC*3),cg=new THREE.BufferGeometry();cg.setAttribute('position',new THREE.BufferAttribute(cpos,3));
+const castPts=new THREE.Points(cg,new THREE.PointsMaterial({map:GT,size:.026,color:0x7fd4ff,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));castPts.frustumCulled=false;scene.add(castPts);
+// listening rings around the phone
+const lring=[0,1,2].map(()=>{const m=new THREE.Mesh(new THREE.RingGeometry(.97,1,64),new THREE.MeshBasicMaterial({color:GREEN,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));scene.add(m);return m});
+const halo=new THREE.Mesh(new THREE.CircleGeometry(.1,48),new THREE.MeshBasicMaterial({map:GT,color:0x6a8cff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));halo.rotation.x=-Math.PI/2;halo.position.y=.004;scene.add(halo);
+
+// ---------- camera path ----------
+const K=[ // t, position, target, fov
+ [0,[.30,.20,.62],[.30,.12,.1],34],[5.6,[.29,.17,.58],[.28,.1,.1],34],[6.4,[.27,.14,.5],[.27,.1,.1],32],
+ [9.2,[.30,.16,.62],[.25,.1,.05],34],[11.5,[.42,.27,1.1],[.08,.34,-.5],38],[14.0,[.52,.34,1.55],[-.02,.45,-.7],40],
+ [16.5,[.46,.36,1.34],[.1,.5,-.5],40],[18.5,[.22,.32,.80],[.27,.31,.0],36],[20.7,[.18,.32,.78],[.27,.31,.0],36],
+ [23.0,[.26,.42,1.2],[.04,.55,-.55],40],[26.0,[.18,.52,1.0],[-.08,.65,-.9],38],[28.4,[.55,.38,1.05],[.35,.34,.0],38],
+ [31.0,[.72,.36,.82],[.76,.34,.1],34],[34.5,[.9,.40,.78],[.76,.34,.1],34],[37.5,[.62,.5,.96],[.74,.33,.1],37],
+ [40.2,[.25,.46,1.2],[.1,.34,.1],42],[42.5,[-.26,.40,.78],[-.56,.33,.0],38],[45.0,[-.2,.55,1.0],[-.2,.55,-.5],40],
+ [47.5,[-.1,.76,.30],[-.12,.78,-1.5],40],[50.0,[-.12,.77,-.15],[-.12,.78,-1.5],37],[53.0,[-.1,.8,.9],[-.12,.78,-1.5],40],
+ [57.0,[0,.9,2.4],[-.12,.8,-1.5],42],[67,[0,.9,3.4],[-.12,.8,-1.5],44]];
+function hermite(p0,p1,m0,m1,s){const s2=s*s,s3=s2*s;return p0*(2*s3-3*s2+1)+m0*(s3-2*s2+s)+p1*(-2*s3+3*s2)+m1*(s3-s2)}
+function camAt(t){let i=0;while(i<K.length-2&&t>K[i+1][0])i++;const a=K[i],b=K[i+1],p=K[Math.max(0,i-1)],n=K[Math.min(K.length-1,i+2)];const dt=b[0]-a[0];let s=clamp((t-a[0])/dt);
+ const e=mix(s,sm(s),.45);const out={};
+ for(const [name,idx] of [['pos',1],['tgt',2]]){out[name]=[0,1,2].map(k=>{const m0=(b[idx][k]-p[idx][k])/Math.max(1e-3,b[0]-p[0])*dt,m1=(n[idx][k]-a[idx][k])/Math.max(1e-3,n[0]-a[0])*dt;return hermite(a[idx][k],b[idx][k],m0,m1,e)})}
+ out.fov=mix(a[3],b[3],e);return out}
+
+// ---------- phone / dot choreography ----------
+const PH0=V(.27,.078,.06); // phone resting centre (leaning)
+const rise=seg(T.rise?0:0,0,1); // placeholder, not used
+function phonePose(t){
+ const up=sm5(ramp(t,16.6,19.6)),down=sm5(ramp(t,28.2,30.4));
+ const lev=up*(1-down);
+ const y=PH0.y+lev*.22+Math.sin(t*1.7)*.004*lev;
+ const lean=mix(-.24,-.05,lev);
+ const spin=lev*(.35*Math.sin((t-16.6)*.55));
+ return {pos:V(PH0.x-lev*.04,y,PH0.z+lev*.08),rx:lean,ry:-.16+spin*.8,lev}}
+const IN_PH=new THREE.Matrix4();
+function frameUrl(dir,t){return `${dir}/${String(clamp(Math.round(t*FPS),0,Math.round(T.total*FPS)-1)).padStart(5,'0')}.jpg`}
+let curTex={ph:null,tv:null};
+async function setTex(mat,url,key){let bm;for(let k=0;;k++){try{const r=await fetch(url);if(!r.ok)throw 0;bm=await createImageBitmap(await r.blob());break}catch(e){if(k>20)throw new Error('frame '+url);await new Promise(r=>setTimeout(r,500))}}const tx=new THREE.Texture(bm);tx.flipY=false;tx.colorSpace=THREE.SRGBColorSpace;tx.minFilter=THREE.LinearMipmapLinearFilter;tx.generateMipmaps=true;tx.anisotropy=8;tx.needsUpdate=true;
+ // ImageBitmap textures need flipY handling: bitmaps are not flipped by the loader, so the uv is flipped instead
+ tx.flipY=false;tx.repeat.set(1,-1);tx.offset.set(0,1);tx.wrapS=tx.wrapT=THREE.ClampToEdgeWrapping;
+ const old=curTex[key];mat.map=tx;mat.needsUpdate=true;curTex[key]=tx;if(old)old.dispose()}
+
+// ---------- DOM overlay ----------
+const ov=document.getElementById('ov');
+const big=document.createElement('div');big.id='big';ov.appendChild(big);
+const labels={};
+function lbl(id,k,s,color,rot=0,len=34){const d=document.createElement('div');d.className='lbl';d.style.setProperty('--c',color);d.style.setProperty('--r',rot+'deg');d.style.setProperty('--l',len+'px');d.innerHTML=`${k}<span>${s||''}</span>`;ov.appendChild(d);labels[id]=d;return d}
+lbl('cc1','Claude Code','session 1','#ff9a5c',-20);lbl('cc2','Claude Code','session 2','#ff9a5c',20);lbl('cc3','Claude Code','session 3','#ff9a5c',0);
+lbl('gpt','ChatGPT','agent externe','#6ff0b8',-30,46);lbl('loc','IA locale','sur ton appareil','#b48cff',30,46);
+lbl('camp','Campagnes','diffusion','#8fb8ff',-25,50);lbl('scn','Scénarios','étapes enchaînées','#ffe27a',25,50);
+lbl('p1','Anna','120 m','#ffd05a',-20);lbl('p2','Théo','340 m','#ffd05a',20);lbl('p3','Lina','580 m','#ffd05a',0);
+lbl('w1','Tokyo','12 builders','#ffd05a',-30,40);lbl('w2','Lagos','8 builders','#ffd05a',30,40);lbl('w3','Lisbonne','21 builders','#ffd05a',0,40);
+lbl('doc','Docs','','#52d6a0',-20,30);lbl('med','Médias','','#6b9bf5',-20,30);lbl('app','App','','#e09a7c',-20,30);lbl('pag','Page','','#e8c14a',-20,30);
+lbl('sc','Smart contract','','#ffe27a',-25,40);lbl('listen','J’écoute','','#35f08a',-10,40);
+const proj=(v)=>{const p=v.clone().project(camera);return {x:(p.x*.5+.5)*W,y:(1-(p.y*.5+.5))*H,z:p.z}};
+function place(id,world,alpha,dx=0,dy=0){const d=labels[id];if(!d)return;if(alpha<.01){d.style.opacity=0;return}const p=proj(world);d.style.opacity=alpha*(p.z<1?1:0);d.style.left=Math.min(p.x+dx,W-330)+'px';d.style.top=(p.y+dy)+'px'}
+const tvW=(x,y)=>tv.localToWorld(V(x,.78+y,.03));
+
+function bigText(t){ // title cards, in the film's own voice
+ const rows=[ [.2,5.4,'1<sup style="font-size:.5em">er</sup> réseau social de builders','sur Android',H*.62],
+  [50.0,54.6,'Fini de coder dans des sites fermés,','des sessions fermées, des codes fermés.',H*.14],
+  [55.6,58.6,'Découvre une nouvelle idée d’internet.','',H*.42],[59.2,60.4,'Aiwa.','',H*.4],[60.6,64.4,'Ton univers.','Ta volonté.',H*.34]];
+ let on=null;for(const r of rows)if(t>=r[0]&&t<=r[1]){on=r;break}
+ if(!on){big.style.opacity=0;return}
+ const [a,b,l1,l2,y]=on;const k=ramp(t,a,a+.5)*(1-ramp(t,b-.5,b)),isAiwa=l1==='Aiwa.';
+ big.style.opacity=k;big.style.top=y+'px';
+ const fs=isAiwa?220:(l1==='Ton univers.'?110:l1.startsWith('Fini')?52:(l1.startsWith('1')?58:70));
+ big.style.fontSize=fs+'px';big.style.letterSpacing=isAiwa?'.06em':'-.01em';big.style.lineHeight=1.15;
+ big.style.transform=`translateY(${(1-sm(ramp(t,a,a+.8)))*24}px)`;
+ big.innerHTML=l1+(l2?`<div style="font-weight:400;opacity:.78;font-size:${fs*.82}px">${l2}</div>`:'');
+ if(l1==='Ton univers.')big.innerHTML=`Ton univers.<div style="color:#35f08a;text-shadow:0 0 40px #35f08a88">Ta volonté.</div>`}
+
+// ---------- the render ----------
+const RAD=THREE.MathUtils;
+async function render(t){
+ await Promise.all([setTex(phMat,frameUrl('ph',t),'ph'),setTex(tvMat,frameUrl('tv',t),'tv')]);
+ // camera, with a breath of handheld
+ const c=camAt(t);camera.position.set(c.pos[0]+Math.sin(t*.9)*.004,c.pos[1]+Math.sin(t*1.3+1)*.003,c.pos[2]);camera.lookAt(c.tgt[0],c.tgt[1],c.tgt[2]);camera.fov=c.fov;camera.updateProjectionMatrix();
+ // light: black until the phone arrives
+ const lit=seg(t,4.8,6.6),worldLit=lit;
+ key.intensity=26*lit;tvLight.intensity=3.2*lit*(0.5+.5*Math.min(1,t/12));phLight.intensity=.5*lit*(seg(t,20.6,20.9)>0&&t<23.6?.02:1);rimL.intensity=2*lit;cone.visible=false;
+ scene.getObjectByProperty('type','AmbientLight').intensity=.18*lit;
+ strips.forEach((s,i)=>s.material.color.setScalar(0).add(new THREE.Color([0x7a5cff,0x22d6a0,0x3f8cff][i]).multiplyScalar((.4+lit*1.8)*(.8+.2*Math.sin(t*1.5+i*2)))).multiplyScalar(lit+.0001));
+ wlights.forEach(l=>l.intensity=.9*lit);
+ // closing: the room dims, only the TV and a few lights stay
+ const dark=seg(t,50.5,54.5)*(1-seg(t,57.5,58.5)*0)*1;
+ key.intensity*=1-dark*.85;rimL.intensity*=1-dark*.9;scene.fog.density=.16+dark*.2;
+ const endDark=seg(t,56.0,58.5);
+ scene.traverse(o=>{});
+ // phone
+ const pp=phonePose(t);phone.position.copy(pp.pos);phone.rotation.set(pp.rx,pp.ry,0);phone.visible=t>=5.2;
+ const appear=seg(t,5.2,6.4);phone.scale.setScalar(mix(.98,1,appear));
+ phLight.position.copy(pp.pos).add(V(0,.04,.12));phLight.color.set(t<20.6?0xbfd0ff:(t<23.6?0x000000:0x9fc0ff));
+ phMat.color.setScalar(t<5.2?0:1);
+ // dot
+ const blink=T.dotBlink.some(b=>t>=b&&t<b+.4)?1:(t>2&&t<5.6?.0:0);
+ const start=V(.30,.20,.62-.35).add(V(0,0,0));
+ const corner=phone.localToWorld(V(PW/2-.004,PH/2-.004,.006));
+ let dp,da;
+ if(t<DF[0]){dp=start;da=(t<5.6?blink:1)}
+ else{const f=sm5(ramp(t,DF[0],DF[1]));dp=start.clone().lerp(corner,f);da=1;if(f>=1)dp=corner}
+ if(t<DF[0]){const wob=t>4.8?seg(t,4.8,6.4):0;dp=dp.clone().lerp(corner,0)}
+ // keep the dot ahead of the (static) camera before the move starts
+ dot.position.copy(dp);dotGlow.position.copy(dp);
+ const listenPulse=.7+.3*Math.sin(t*5);
+ const breathe=t>9.2&&t<23.6?listenPulse:.9;
+ const dv=(t<DF[1]&&t<5.6)?blink:1;
+ const hide=t>=DF[1]?1:dv;
+ dot.visible=hide>0.01;dotGlow.visible=hide>0.01;dotGlow.scale.setScalar(.05+.03*breathe);dotGlow.material.opacity=.9*hide;
+ dot.material.color.copy(GREEN).multiplyScalar(3*(t>=DF[1]?breathe:1));
+ // listening rings around the phone
+ lring.forEach((r,i)=>{const k=((t-9.2-i*.5)/1.5);const on=t>=9.2&&t<12.4&&k>0;const f=on?k%1:0;r.visible=on;if(on){r.position.copy(pp.pos);r.quaternion.copy(phone.quaternion);r.scale.set(.05+f*.2,.05+f*.2,1);r.material.opacity=.5*(1-f)*(1-ramp(t,11.4,12.4))}else r.visible=false});
+ // taps (voice command): small ripple in the phone's widget is in the screen frames. Halo under the levitating phone
+ halo.position.x=pp.pos.x;halo.position.z=pp.pos.z;halo.material.opacity=.55*pp.lev;halo.scale.setScalar(1+pp.lev*.4+Math.sin(t*2)*.05);
+ // cast: stream of points phone -> tv
+ const castOn=seg(t,T.cast[0]-.4,T.cast[0]+.3)*(1-seg(t,T.cast[1]-.2,T.cast[1]+.8));
+ const from=phone.localToWorld(V(0,.02,.01)),to=tvW(0,0);const mid=from.clone().lerp(to,.5).add(V(0,.25,.1));
+ for(let i=0;i<NC;i++){const u=(((i/NC)+t*.55)%1);const p=from.clone().multiplyScalar((1-u)*(1-u)).addScaledVector(mid,2*u*(1-u)).addScaledVector(to,u*u);const j=rnd(i)*.03;cpos[i*3]=p.x+Math.sin(t*3+i)*j;cpos[i*3+1]=p.y+Math.cos(t*2+i)*j;cpos[i*3+2]=p.z}
+ cg.attributes.position.needsUpdate=true;castPts.material.opacity=.95*castOn;castPts.visible=castOn>.01;
+ // tv light follows its content: blue by default, warm when profile
+ tvLight.color.set(t>45.5&&t<50?0xb89cff:(t>23?0x8fd0ff:0x6a8cff));tvLight.intensity*=1-endDark*.0;
+ // node system
+ const nOn=seg(t,28.6,29.4)*(1-seg(t,40.0,40.8));NODE.visible=nOn>.01;NODE.scale.setScalar(nOn+.001);
+ const w=[0,0,0,0];const ph=((t-28.6)/11.8);const shapeT=ph*3.2;const si=Math.floor(clamp(shapeT,0,3.0)),sf=sm(clamp(shapeT-si,0,1));w[Math.min(3,si)]+=1-sf;w[Math.min(3,si+1)]+=sf;morphCore(w);
+ core.rotation.set(t*.5,t*.7,0);core.scale.setScalar(.055+.008*Math.sin(t*2));coreMat.color.setHSL((.58+ph*.4)%1,.7,.5);
+ const lp=linkGeo.attributes.position;let ln=0;const vis=[];
+ nodes.forEach((n,i)=>{const k=seg(t,n.t0,n.t0+.8);n.m.visible=k>.01;const ang=n.a+t*(i<3?.35:-.28);const r=n.r*k;n.m.position.set(Math.cos(ang)*r,Math.sin(t*.8+i)*.03+(i<3?0:(i===3?.07:-.07)),Math.sin(ang)*r);n.m.scale.setScalar(k);n.m.rotation.set(t,t*.8,0);n.s.scale.setScalar(.08);if(i===3||i===4)n.m.rotation.y=t*1.6;vis.push(k>.5?n.m.position.clone():null)});
+ const setSeg=(a,b)=>{if(!a||!b)return;lp.setXYZ(ln*2,a.x,a.y,a.z);lp.setXYZ(ln*2+1,b.x,b.y,b.z);ln++};
+ const ccs=vis.slice(0,3);setSeg(ccs[0],ccs[1]);setSeg(ccs[1],ccs[2]);setSeg(ccs[2],ccs[0]);
+ const O=V(0,0,0);vis.forEach((v,i)=>{if(v&&(i<3?t>31:true))setSeg(O,v)});
+ if(vis[3]){setSeg(vis[3],ccs[0]);}if(vis[4]){setSeg(vis[4],ccs[1]);}
+ linkGeo.setDrawRange(0,ln*2);lp.needsUpdate=true;
+ // campaigns: rings emitted from the core
+ const cOn=seg(t,T.campaigns[0],T.campaigns[0]+.6);
+ rings.forEach((r,i)=>{const k=((t-T.campaigns[0]-i*.45)/2.2);const on=cOn>0&&k>0;const f=on?k%1:0;r.visible=on;if(on){r.scale.setScalar(.06+f*.4);r.material.opacity=.7*(1-f)*cOn;r.material.color.setHSL(.58+f*.2,.7,.65)}});
+ // scenarios: a chain that lights up step by step, with a pulse running along it
+ const sOn=seg(t,T.campaigns[0]+1.4,T.campaigns[0]+2.0);
+ scen.forEach((m,i)=>{m.visible=sOn>.01&&(t>T.campaigns[0]+1.4+i*.25);m.scale.setScalar(1+.4*Math.sin(t*6-i))});scenLine.visible=sOn>.01;scenLine.material.opacity=.7*sOn;scenLine.position.set(0,-.14,0);scen.forEach(m=>m.position.y=m.position.y);
+ const pu=((t-T.campaigns[0]-1.6)*.5)%1;pulse.visible=sOn>.5;if(pulse.visible){const f=pu*(scenPts.length-1),i=Math.min(scenPts.length-2,Math.floor(f));pulse.position.copy(scenPts[i]).lerp(scenPts[i+1],f-i);pulse.position.y-=.14}
+ scen.forEach((m,i)=>{m.position.copy(scenPts[i]);m.position.y-=.14});
+ // world
+ const wOn=seg(t,T.world[0]-.2,T.world[0]+.8)*(1-seg(t,45.2,46));WORLD.visible=wOn>.01;WORLD.scale.setScalar(wOn+.001);globe.rotation.y=t*.35;
+ pins.forEach((p,i)=>{p.visible=wOn>.5&&t>T.world[0]+1.0+i*.2;p.parent===WORLD&&(p.position.copy(pinPos[i]).multiplyScalar(.155).applyAxisAngle(V(0,1,0),globe.rotation.y))});
+ arcs.forEach((a,i)=>{const k=seg(t,T.world[0]+1.4+i*.3,T.world[0]+2.0+i*.3);a.material.opacity=.55*k*wOn;a.rotation.y=globe.rotation.y});
+ {const a=arcs[Math.floor(t*1.2)%arcs.length],u=(t*1.2)%1;const p=a.userData.curve.getPoint(u).applyAxisAngle(V(0,1,0),globe.rotation.y);arcDot.position.copy(p);arcDot.visible=wOn>.5}
+ radar.forEach((r,i)=>{const k=((t-T.world[0]-i*.9)/2.7);const on=t>=T.world[0]&&t<46&&k>0;const f=on?k%1:0;r.visible=on;if(on){r.position.x=PH0.x;r.position.z=PH0.z;r.scale.setScalar(.15+f*.9);r.material.opacity=.6*(1-f)*(1-seg(t,45.2,46))}});
+ nearPins.forEach((g,i)=>{const k=seg(t,T.world[0]+.9+i*.35,T.world[0]+1.4+i*.35)*(1-seg(t,45.2,46));g.visible=k>.01;g.scale.setScalar(k+.001)});
+ // dust
+ for(let i=0;i<ND;i++){const b=dbase[i];dpos[i*3]=b.x+Math.sin(t*.18+i)*.12;dpos[i*3+1]=b.y+Math.sin(t*.12+i*1.7)*.1+((t*.012*(1+rnd(i)))%2.6)*0;dpos[i*3+2]=b.z+Math.cos(t*.15+i*.7)*.12}
+ dg.attributes.position.needsUpdate=true;dust.material.opacity=.7*lit*(1-dark*.6);
+ bloom.strength=.45+.25*seg(t,50,54)*0;bloom.threshold=.82;
+ renderer.toneMappingExposure=1.0*(1-endDark*.6);
+ // labels (tracked)
+ for(const k in labels)labels[k].style.opacity=0;
+ const lv=(id,pos,a,dx,dy)=>place(id,pos,a,dx,dy);
+ const stage=(a,b)=>seg(t,a,a+.5)*(1-seg(t,b-.5,b));
+ lv('listen',phone.localToWorld(V(PW/2,PH/2,0)),stage(9.2,12)*1,40,-12);
+ lv('doc',tvW(-.42,.12),stage(11.2,14.4),0,0);lv('med',tvW(-.14,.12),stage(11.6,14.4),0,0);lv('app',tvW(.14,.12),stage(12,14.4),0,0);lv('pag',tvW(.42,.12),stage(12.4,14.4),0,0);
+ lv('sc',tvW(.28,-.06),stage(15.0,17.0),0,0);
+ const NP=(n)=>NODE.localToWorld(n.m.position.clone());
+ [['cc1',0],['cc2',1],['cc3',2],['gpt',3],['loc',4]].forEach(([id,i])=>lv(id,NP(nodes[i]),stage(nodes[i].t0+.4,i<3?36.5:39.8)*(NODE.visible?1:0),[40,-30,-10,30,-40][i]+10,[-60,70,-90,-70,60][i]));
+ lv('camp',NODE.localToWorld(V(.0,.0,.2)),stage(T.campaigns[0]+.2,40.2),60,-60);lv('scn',NODE.localToWorld(V(.34,-.16,.1)),stage(T.campaigns[0]+1.6,40.2),20,40);
+ nearPins.forEach((g,i)=>lv('p'+(i+1),g.localToWorld(V(0,.225,0)),stage(T.world[0]+1.2+i*.35,45),0,0));
+ [['w1',0],['w2',2],['w3',4]].forEach(([id,i])=>{const wp=pins[i].parent.localToWorld(pins[i].position.clone());lv(id,wp,stage(T.world[0]+2.4+i*.2,45)*(wp.z>WORLD.position.z-.02?1:.35),0,0)});
+ bigText(t);
+ composer.render();
+ await new Promise(r=>requestAnimationFrame(()=>r()));
+}
+window.render=render;window.READY=true;
+</script></body></html>

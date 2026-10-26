@@ -1,0 +1,7 @@
+"""Builds the pages of the film from the timeline: screens.html -> screens.built.html (the timeline put inside).   python3 docs/videos/aiwa-os3/build.py"""
+import json, os
+D = os.path.dirname(os.path.abspath(__file__))
+tl = json.load(open(os.path.join(D, 'timeline.json')))
+src = open(os.path.join(D, 'screens.html'), encoding='utf-8').read().replace('__TIMELINE__', json.dumps(tl, ensure_ascii=False))
+open(os.path.join(D, 'screens.built.html'), 'w', encoding='utf-8').write(src)
+print('built')

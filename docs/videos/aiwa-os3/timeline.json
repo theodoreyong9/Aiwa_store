@@ -1,0 +1,155 @@
+{
+ "T": {
+  "total": 67.0,
+  "dotBlink": [
+   0.4,
+   1.1,
+   1.8
+  ],
+  "phoneIn": 5.6,
+  "dotFix": 6.4,
+  "pullBack": [
+   6.0,
+   14.0
+  ],
+  "unlock": 9.2,
+  "tvShapes": [
+   11.0,
+   14.4
+  ],
+  "tvContract": [
+   14.6,
+   17.0
+  ],
+  "rise": [
+   16.6,
+   20.4
+  ],
+  "taps": [
+   18.2,
+   20.4
+  ],
+  "screenOff": 20.7,
+  "screenOn": 23.6,
+  "cast": [
+   23.6,
+   28.0
+  ],
+  "net": [
+   28.6,
+   36.4
+  ],
+  "campaigns": [
+   36.6,
+   40.2
+  ],
+  "world": [
+   40.6,
+   45.2
+  ],
+  "profileTV": [
+   45.6,
+   50.0
+  ],
+  "closed": [
+   50.0,
+   55.0
+  ],
+  "end": [
+   59.2,
+   64.0
+  ]
+ },
+ "voice": [
+  {
+   "key": "title",
+   "say": 2.0,
+   "dur": 3.51,
+   "text": "Le premier réseau social de bildeurs. Sur Android."
+  },
+  {
+   "key": "listen",
+   "say": 9.2,
+   "dur": 0.94,
+   "text": "J'écoute."
+  },
+  {
+   "key": "create",
+   "say": 11.0,
+   "dur": 2.76,
+   "text": "Crée et organise, dans ton propre environnement."
+  },
+  {
+   "key": "contracts",
+   "say": 14.6,
+   "dur": 1.73,
+   "text": "Même des smart contrats."
+  },
+  {
+   "key": "voice",
+   "say": 18.2,
+   "dur": 1.46,
+   "text": "Simplement par la voix."
+  },
+  {
+   "key": "off",
+   "say": 20.6,
+   "dur": 1.23,
+   "text": "Même écran éteint."
+  },
+  {
+   "key": "cast",
+   "say": 23.0,
+   "dur": 1.65,
+   "text": "Et même depuis la télévision."
+  },
+  {
+   "key": "connect",
+   "say": 28.6,
+   "dur": 7.2,
+   "text": "Connecte tes conversations Claude Code entre elles. Et même des agents externes. ChatGPT, ou des IA locales."
+  },
+  {
+   "key": "campaigns",
+   "say": 36.6,
+   "dur": 2.59,
+   "text": "Puis crée des campagnes de diffusion, et des scénarios."
+  },
+  {
+   "key": "discover",
+   "say": 40.6,
+   "dur": 3.87,
+   "text": "Découvre ce que les autres construisent, autour de toi, et dans le monde."
+  },
+  {
+   "key": "profile",
+   "say": 45.6,
+   "dur": 2.6,
+   "text": "Et personnalise totalement ton profil."
+  },
+  {
+   "key": "closed",
+   "say": 50.0,
+   "dur": 3.98,
+   "text": "Fini de coder dans des sites fermés, des sessions fermées, des codes fermés."
+  },
+  {
+   "key": "newnet",
+   "say": 55.6,
+   "dur": 2.12,
+   "text": "Découvre une nouvelle idée d'internet."
+  },
+  {
+   "key": "aiwa",
+   "say": 59.2,
+   "dur": 0.64,
+   "text": "Aiwa."
+  },
+  {
+   "key": "univers",
+   "say": 60.6,
+   "dur": 1.96,
+   "text": "Ton univers. Ta volonté."
+  }
+ ]
+}
