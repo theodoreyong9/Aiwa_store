@@ -293,7 +293,7 @@ async function render(t){
  lv('doc',tvW(-.42,.12),stage(11.2,14.4),0,0);lv('med',tvW(-.14,.12),stage(11.6,14.4),0,0);lv('app',tvW(.14,.12),stage(12,14.4),0,0);lv('pag',tvW(.42,.12),stage(12.4,14.4),0,0);
  lv('sc',tvW(.28,-.06),stage(15.0,17.0),0,0);
  const NP=(n)=>NODE.localToWorld(n.m.position.clone());
- [['cc1',0],['cc2',1],['cc3',2],['gpt',3],['loc',4]].forEach(([id,i])=>lv(id,NP(nodes[i]),stage(nodes[i].t0+.4,i<3?36.5:39.8)*(NODE.visible?1:0),[40,-30,-10,30,-40][i]+10,[-60,70,-90,-70,60][i]));
+ [['cc1',0],['cc2',1],['cc3',2],['gpt',3],['loc',4]].forEach(([id,i])=>lv(id,NP(nodes[i]),stage(nodes[i].t0+.4,i<3?36.5:39.8)*(NODE.visible?1:0),[-330,60,-120,140,-300][i],[-90,110,-170,-110,100][i]));
  lv('camp',NODE.localToWorld(V(.0,.0,.2)),stage(T.campaigns[0]+.2,40.2),60,-60);lv('scn',NODE.localToWorld(V(.34,-.16,.1)),stage(T.campaigns[0]+1.6,40.2),20,40);
  nearPins.forEach((g,i)=>lv('p'+(i+1),g.localToWorld(V(0,.225,0)),stage(T.world[0]+1.2+i*.35,45),0,0));
  [['w1',0],['w2',2],['w3',4]].forEach(([id,i])=>{const wp=pins[i].parent.localToWorld(pins[i].position.clone());lv(id,wp,stage(T.world[0]+2.4+i*.2,45)*(wp.z>WORLD.position.z-.02?1:.35),0,0)});
