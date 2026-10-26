@@ -12,7 +12,7 @@ body{font-family:SG,sans-serif;color:#f4f4ff;position:relative}
 i{font-family:FR;font-weight:400;color:#9db8ff}
 .k{position:absolute;font-family:JB,monospace;font-size:22px;letter-spacing:.3em;text-transform:uppercase;color:#9db8ff}
 .big{position:absolute;font-weight:700;letter-spacing:-.025em;line-height:1.02;left:0;right:0;text-align:center}
-.world{position:absolute;left:0;top:0;width:2560px;height:1440px;transform-origin:0 0}
+.world{position:absolute;left:0;top:0;width:2560px;height:1440px;transform-origin:0 0;-webkit-mask-image:radial-gradient(ellipse 64% 72% at 50% 50%,#000 58%,transparent 100%);mask-image:radial-gradient(ellipse 64% 72% at 50% 50%,#000 58%,transparent 100%)}
 .world img.plate{position:absolute;left:0;top:0;width:2560px;height:1440px}
 .proj{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden;background:#000;mix-blend-mode:screen}
 .pscr{position:relative;width:715px;height:1470px;border-radius:104px;overflow:hidden;background:#06070f}
@@ -38,10 +38,10 @@ i{font-family:FR;font-weight:400;color:#9db8ff}
 
 <div class="sc" id="s1"><svg id="rg1" style="position:absolute;left:0;top:0" width="1920" height="1080"></svg>
  <div class="big" id="vc" style="top:330px;font-size:300px;color:transparent;-webkit-text-stroke:3px #ffffff40;letter-spacing:-.04em">builders</div>
- <div class="world" id="wd1"><img class="plate" src="file:///tmp/os/prev/plate-P.png"><div class="proj" id="pj1"></div></div>
+ <div class="world" id="wd1"><img class="plate" src="file:///tmp/os/plates/plate-P.png"><div class="proj" id="pj1"></div></div>
  <div id="dot" style="position:absolute;left:945px;top:525px;width:30px;height:30px;border-radius:50%;background:#52d6a0;box-shadow:0 0 60px 24px #52d6a0aa"></div></div>
 
-<div class="sc" id="s2"><div class="world" id="wd2"><img class="plate" src="file:///tmp/os/prev/plate-P.png"><div class="proj" id="pj2"></div></div>
+<div class="sc" id="s2"><div class="world" id="wd2"><img class="plate" src="file:///tmp/os/plates/plate-P.png"><div class="proj" id="pj2"></div></div>
  <svg id="sv2" style="position:absolute;left:0;top:0" width="1920" height="1080"></svg><div id="gt2"></div>
  <div class="k" style="left:700px;top:90px">Git</div><div class="k" style="left:700px;top:560px">Claude Code</div><div id="tm2"></div></div>
 
@@ -49,9 +49,9 @@ i{font-family:FR;font-weight:400;color:#9db8ff}
 
 <div class="sc" id="s4"><div class="big" id="f4" style="top:300px;font-size:260px;letter-spacing:-.04em">Gratuitement<i>.</i></div><div class="big" id="z4" style="top:620px;font-size:230px;color:#52d6a0">0 €</div></div>
 
-<div class="sc" id="s5"><div class="world" id="wd5a"><img class="plate" src="file:///tmp/os/prev/plate-P.png"><div class="proj" id="pj5a" style="background:#04050a"></div><div id="rr5"></div></div>
- <div class="world" id="wd5b"><img class="plate" src="file:///tmp/os/prev/plate-T.png"><div class="proj" id="pj5b"><div style="position:absolute;inset:0" id="tvc"></div></div></div>
- <div class="world" id="wd5c"><img class="plate" src="file:///tmp/os/prev/plate-G.png"><div id="hg5" style="position:absolute;left:0;top:0;width:1000px;height:290px;transform-origin:0 0"></div></div>
+<div class="sc" id="s5"><div class="world" id="wd5a"><img class="plate" src="file:///tmp/os/plates/plate-P.png"><div class="proj" id="pj5a" style="background:#04050a"></div><div id="rr5"></div></div>
+ <div class="world" id="wd5b"><img class="plate" src="file:///tmp/os/plates/plate-T.png"><div class="proj" id="pj5b"><div style="position:absolute;inset:0" id="tvc"></div></div></div>
+ <div class="world" id="wd5c"><img class="plate" src="file:///tmp/os/plates/plate-G.png"><div id="hg5" style="position:absolute;left:0;top:0;width:1000px;height:290px;transform-origin:0 0"></div></div>
  <div class="big" id="l5" style="top:790px;font-size:96px"></div></div>
 
 <div class="sc" id="s6"><svg id="sv6" style="position:absolute;left:0;top:0" width="1920" height="1080"></svg><div id="nd6"></div>
@@ -163,7 +163,7 @@ function render(t){
   cam($('wd5a'),t,1.1+loc*.02,pm[0],pm[1],960,500);cam($('wd5b'),t,.95+loc*.015,tm[0],tm[1],960,430);cam($('wd5c'),t,1.0+loc*.02,.55,.5,960,480);
   $('rr5').innerHTML=[0,1,2].map(i=>{const q=((loc*.7+i/3)%1),R=120+q*1600;return `<div style="position:absolute;left:${pm[0]*PW-R/2}px;top:${pm[1]*PH-R/2}px;width:${R}px;height:${R}px;border-radius:50%;border:12px solid #9db8ff;opacity:${(1-q)*.7}"></div>`}).join('');
   $('tvc').innerHTML=`<div style="position:absolute;inset:0;background:linear-gradient(${110+loc*40}deg,#1c2a63,#6a2c8a ${40+loc*10}%,#e09a7c)"></div><div class="big" style="top:400px;font-size:230px;color:#fff;opacity:.92">▶ le film</div>`;
-  const hg=$('hg5');putW(hg,'voir',{key:'g5'});hg.style.opacity=eo(ramp(loc,.5,1.2));hg.style.transform=`translate(${.30*PW}px,${(.27+Math.sin(loc*2)*.004)*PH}px) scale(.62)`;hg.style.filter='drop-shadow(0 0 40px #9db8ffaa)';
+  const hg=$('hg5');putW(hg,'voir',{key:'g5'});hg.style.opacity=eo(ramp(loc,.5,1.2));hg.style.transform=`translate(${.40*PW}px,${(.17+Math.sin(loc*2)*.004)*PH}px) scale(.62)`;hg.style.filter='drop-shadow(0 0 40px #9db8ffaa)';
   $('l5').innerHTML=['Par la voix, même écran <i>éteint</i>','Depuis ta <i>télé</i>','Ou tes <i>lunettes</i> connectées'][w];$('l5').style.opacity=eo(ramp(loc,.2,.8))*(1-ramp(loc,d-.5,d-.1))}
  // 6: Claude Code, ChatGPT, local AIs: all connected
  {const u=t-K.connect.at,C=[960,470],N=[['Claude Code','robot','#e09a7c',[420,300]],['ChatGPT','page','#52d6a0',[1500,300]],['IA locale','chip','#a77bd6',[960,790]]];let s='',h='';
@@ -192,7 +192,7 @@ function render(t){
  {const u=t-K.end.at,a=eo(ramp(u,1.8,2.6));$('e1').style.opacity=a;$('e1').style.transform=`scale(${1.12-a*.12})`;$('e2').style.opacity=eo(ramp(u,3.5,4.4));$('e2').style.transform=`translateY(${(1-eo(ramp(u,3.5,4.4)))*30}px)`;
   if(on('end',t)&&!blobDone)blob(t,.05+eio(ramp(u,.2,2.4))*.95,[.5+Math.sin(u)*.2,.5],1+eo(ramp(u,1.6,2.4))*1.2*(1-ramp(u,2.6,4)),[0,-200,1920,1000],.55*(1-ramp(u,5,8))+.15)}
  $('blk').style.opacity=Math.max(1-ramp(t,0,.3),ramp(t,TOTAL-1.6,TOTAL-.3));
- {const c=SCHED.find(s=>t>=s.say-.1&&t<s.say+s.dur+.7);$('cap').textContent=c&&c.text.length>8?c.text:'';$('cap').style.opacity=c?Math.min(ramp(t,c.say-.1,c.say+.3),1-ramp(t,c.say+c.dur+.2,c.say+c.dur+.7)):0}
+ {const c=SCHED.find(s=>t>=s.say-.1&&t<s.say+s.dur+.7&&s.key!=='everywhere');$('cap').textContent=c&&c.text.length>8?c.text:'';$('cap').style.opacity=c?Math.min(ramp(t,c.say-.1,c.say+.3),1-ramp(t,c.say+c.dur+.2,c.say+c.dur+.7)):0}
 }
 window.render=render;window.READY=true;
 </script></body></html>
