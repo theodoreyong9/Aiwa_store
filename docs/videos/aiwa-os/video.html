@@ -12,6 +12,10 @@ body{font-family:SG,sans-serif;color:#f4f4ff;position:relative}
 i{font-family:FR;font-weight:400;color:#9db8ff}
 .k{position:absolute;font-family:JB,monospace;font-size:22px;letter-spacing:.3em;text-transform:uppercase;color:#9db8ff}
 .big{position:absolute;font-weight:700;letter-spacing:-.025em;line-height:1.02;left:0;right:0;text-align:center}
+.world{position:absolute;left:0;top:0;width:2560px;height:1440px;transform-origin:0 0}
+.world img.plate{position:absolute;left:0;top:0;width:2560px;height:1440px}
+.proj{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden;background:#000;mix-blend-mode:screen}
+.pscr{position:relative;width:715px;height:1470px;border-radius:104px;overflow:hidden;background:#06070f}
 .cap{position:absolute;left:0;right:0;bottom:40px;text-align:center;font-size:36px;color:#eef0ff;text-shadow:0 2px 18px #000e;padding:0 220px;opacity:0}
 .glass{position:absolute;border-radius:34px;background:linear-gradient(#ffffff2e,#ffffff0a);border:2px solid #ffffff50;box-shadow:0 30px 80px #0008;backdrop-filter:blur(6px)}
 .cell{position:absolute;display:flex;align-items:center;gap:18px;padding:0 26px;font-weight:600;font-size:34px;color:#fff;clip-path:polygon(var(--s) 0,100% 0,calc(100% - var(--s)) 100%,0 100%)}
@@ -34,10 +38,10 @@ i{font-family:FR;font-weight:400;color:#9db8ff}
 
 <div class="sc" id="s1"><svg id="rg1" style="position:absolute;left:0;top:0" width="1920" height="1080"></svg>
  <div class="big" id="vc" style="top:330px;font-size:300px;color:transparent;-webkit-text-stroke:3px #ffffff40;letter-spacing:-.04em">builders</div>
- <div id="ph1" style="position:absolute;left:730px;top:50px;width:460px;height:820px;border-radius:80px;background:linear-gradient(160deg,#3b4a8c,#14183a);border:3px solid #ffffff70;box-shadow:0 60px 140px #000c,inset 0 0 0 10px #0a0c1e"><div style="position:absolute;inset:14px;border-radius:68px;overflow:hidden;background:radial-gradient(500px 500px at 30% 20%,#2a2f6a,transparent 70%),#070914"><div style="position:absolute;left:0;right:0;top:120px;text-align:center;font-size:150px;font-weight:300;letter-spacing:-.04em;color:#fff">08:55</div><div style="position:absolute;left:0;right:0;top:300px;text-align:center;font-size:30px;color:#cfd3ff">dimanche 25 octobre</div><div id="ph1w" style="position:absolute;left:0;bottom:120px"></div></div></div>
+ <div class="world" id="wd1"><img class="plate" src="file:///tmp/os/prev/plate-P.png"><div class="proj" id="pj1"></div></div>
  <div id="dot" style="position:absolute;left:945px;top:525px;width:30px;height:30px;border-radius:50%;background:#52d6a0;box-shadow:0 0 60px 24px #52d6a0aa"></div></div>
 
-<div class="sc" id="s2"><div id="ph2" style="position:absolute;left:170px;top:70px;width:400px;height:800px;border-radius:74px;background:linear-gradient(160deg,#3b4a8c,#14183a);border:3px solid #ffffff70;box-shadow:0 60px 140px #000c,inset 0 0 0 10px #0a0c1e"><div style="position:absolute;inset:14px;border-radius:62px;overflow:hidden;background:radial-gradient(500px 500px at 30% 20%,#2a2f6a,transparent 70%),#070914"><div id="ph2w" style="position:absolute;left:0;bottom:120px"></div></div></div>
+<div class="sc" id="s2"><div class="world" id="wd2"><img class="plate" src="file:///tmp/os/prev/plate-P.png"><div class="proj" id="pj2"></div></div>
  <svg id="sv2" style="position:absolute;left:0;top:0" width="1920" height="1080"></svg><div id="gt2"></div>
  <div class="k" style="left:700px;top:90px">Git</div><div class="k" style="left:700px;top:560px">Claude Code</div><div id="tm2"></div></div>
 
@@ -45,7 +49,9 @@ i{font-family:FR;font-weight:400;color:#9db8ff}
 
 <div class="sc" id="s4"><div class="big" id="f4" style="top:300px;font-size:260px;letter-spacing:-.04em">Gratuitement<i>.</i></div><div class="big" id="z4" style="top:620px;font-size:230px;color:#52d6a0">0 €</div></div>
 
-<div class="sc" id="s5"><div id="a5" style="position:absolute;inset:0"></div><div id="b5" style="position:absolute;inset:0"></div><div id="c5" style="position:absolute;inset:0"></div>
+<div class="sc" id="s5"><div class="world" id="wd5a"><img class="plate" src="file:///tmp/os/prev/plate-P.png"><div class="proj" id="pj5a" style="background:#04050a"></div><div id="rr5"></div></div>
+ <div class="world" id="wd5b"><img class="plate" src="file:///tmp/os/prev/plate-T.png"><div class="proj" id="pj5b"><div style="position:absolute;inset:0" id="tvc"></div></div></div>
+ <div class="world" id="wd5c"><img class="plate" src="file:///tmp/os/prev/plate-G.png"><div id="hg5" style="position:absolute;left:0;top:0;width:1000px;height:290px;transform-origin:0 0"></div></div>
  <div class="big" id="l5" style="top:790px;font-size:96px"></div></div>
 
 <div class="sc" id="s6"><svg id="sv6" style="position:absolute;left:0;top:0" width="1920" height="1080"></svg><div id="nd6"></div>
@@ -65,7 +71,7 @@ i{font-family:FR;font-weight:400;color:#9db8ff}
 <div class="cap" id="cap"></div>
 
 <script>
-const SCHED=[{"key": "listen", "at": 0, "end": 7.6, "say": 3.4, "text": "Le premier réseau social de builders. Sur Android.", "dur": 3.19}, {"key": "control", "at": 7.6, "end": 14.2, "say": 8.0, "text": "Contrôle ton Git, et tes sessions Claude Code, comme jamais.", "dur": 3.23}, {"key": "create", "at": 14.2, "end": 23.6, "say": 14.6, "text": "Crée et organise documents, médias, apps, jeux, sites, et même des contrats intelligents.", "dur": 5.54}, {"key": "free", "at": 23.6, "end": 27.6, "say": 24.0, "text": "Gratuitement.", "dur": 1.0}, {"key": "everywhere", "at": 27.6, "end": 38.0, "say": 28.0, "text": "Par la voix, même écran éteint. Depuis ta télé, ou tes lunettes connectées.", "dur": 4.03}, {"key": "connect", "at": 38.0, "end": 47.8, "say": 38.4, "text": "Connecte tes conversations Claude Code. Connecte tes sessions ChatGPT, ou des IA locales.", "dur": 5.1}, {"key": "campaigns", "at": 47.8, "end": 56.8, "say": 48.2, "text": "Lance des campagnes personnalisées et des scénarios, et optimise ton travail.", "dur": 4.52}, {"key": "discover", "at": 56.8, "end": 63.6, "say": 57.2, "text": "Découvre autour de toi ce que créent les utilisateurs.", "dur": 2.84}, {"key": "profile", "at": 63.6, "end": 69.6, "say": 64.0, "text": "Et personnalise totalement ton profil.", "dur": 2.43}, {"key": "end", "at": 69.6, "end": 79.5, "say": 71.5, "text": "Aiwa. Ton univers. Ta volonté.", "dur": 4.42}],TOTAL=80;
+const SCHED=[{"key": "listen", "at": 0, "end": 7.6, "say": 3.4, "text": "Le premier réseau social de builders. Sur Android.", "dur": 3.19}, {"key": "control", "at": 7.6, "end": 14.2, "say": 8.0, "text": "Contrôle ton Git, et tes sessions Claude Code, comme jamais.", "dur": 3.23}, {"key": "create", "at": 14.2, "end": 23.6, "say": 14.6, "text": "Crée et organise documents, médias, apps, jeux, sites, et même des contrats intelligents.", "dur": 5.54}, {"key": "free", "at": 23.6, "end": 27.6, "say": 24.0, "text": "Gratuitement.", "dur": 1.0}, {"key": "everywhere", "at": 27.6, "end": 38.0, "say": 28.0, "text": "Par la voix, même écran éteint. Depuis ta télé, ou tes lunettes connectées.", "dur": 4.03}, {"key": "connect", "at": 38.0, "end": 47.8, "say": 38.4, "text": "Connecte tes conversations Claude Code. Connecte tes sessions ChatGPT, ou des IA locales.", "dur": 5.1}, {"key": "campaigns", "at": 47.8, "end": 56.8, "say": 48.2, "text": "Lance des campagnes personnalisées et des scénarios, et optimise ton travail.", "dur": 4.52}, {"key": "discover", "at": 56.8, "end": 63.6, "say": 57.2, "text": "Découvre autour de toi ce que créent les utilisateurs.", "dur": 2.84}, {"key": "profile", "at": 63.6, "end": 69.6, "say": 64.0, "text": "Et personnalise totalement ton profil.", "dur": 2.43}, {"key": "end", "at": 69.6, "end": 79.5, "say": 71.5, "text": "Aiwa. Ton univers. Ta volonté.", "dur": 4.42}],TOTAL=80,CORNERS={"P": {"screen": [[0.40727, 0.18289], [0.56489, 0.17394], [0.58467, 0.82765], [0.42932, 0.81399]]}, "T": {"screen": [[0.23134, 0.22906], [0.78848, 0.21523], [0.78426, 0.79167], [0.23497, 0.7603]]}, "G": {"box": [0.24758, 0.26761, 1.03478, 0.69742]}};
 const K=Object.fromEntries(SCHED.map(s=>[s.key,s]));
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),ramp=(t,a,b)=>clamp((t-a)/(b-a)),eo=x=>1-Math.pow(1-x,3),eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
 const $=id=>document.getElementById(id);
@@ -115,20 +121,32 @@ function blob(t,k,m,f,box,op=1){if(!gl||blobDone){return}blobDone=true;glc.style
 
 const typed=(txt,u,a,cps)=>txt.slice(0,Math.max(0,Math.floor((u-a)*cps)));
 const fadeIn=(el,u,a,d=.6,rise=40)=>{const v=eo(ramp(u,a,a+d));el.style.opacity=v;el.style.transform=`translateY(${(1-v)*rise}px)`};
+const PW=2560,PH=1440;
+function solve(A,b){const n=b.length;for(let i=0;i<n;i++){let m=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[m][i]))m=r;[A[i],A[m]]=[A[m],A[i]];[b[i],b[m]]=[b[m],b[i]];for(let r=i+1;r<n;r++){const f=A[r][i]/A[i][i];for(let c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i]}}const x=Array(n).fill(0);for(let i=n-1;i>=0;i--){let s=b[i];for(let c=i+1;c<n;c++)s-=A[i][c]*x[c];x[i]=s/A[i][i]}return x}
+function matrix3d(W,H,c){const S=[[0,0],[W,0],[W,H],[0,H]],D=c.map(p=>[p[0]*PW,p[1]*PH]);const A=[],b=[];for(let i=0;i<4;i++){const[x,y]=S[i],[X,Y]=D[i];A.push([x,y,1,0,0,0,-X*x,-X*y]);b.push(X);A.push([0,0,0,x,y,1,-Y*x,-Y*y]);b.push(Y)}const h=solve(A,b);return `matrix3d(${h[0]},${h[3]},0,${h[6]},${h[1]},${h[4]},0,${h[7]},0,0,1,0,${h[2]},${h[5]},0,1)`}
+function project(el,W,H,corners){el.style.width=W+'px';el.style.height=H+'px';el.style.transform=matrix3d(W,H,corners)}
+const mid=c=>[(c[0][0]+c[2][0])/2,(c[0][1]+c[2][1])/2];
+// the camera: a shift and a scale of the whole plate (nothing moves in 3D: a screen never slides on its phone)
+function cam(world,t,z,fx,fy,sx=960,sy=540,drift=1){const s=.75*z,dx=drift*(5*Math.sin(t*.55)+2*Math.sin(t*1.7)),dy=drift*(4*Math.cos(t*.47)+1.5*Math.sin(t*1.3));world.style.transform=`translate(${sx-fx*PW*s+dx}px,${sy-fy*PH*s+dy}px) scale(${s})`}
+function phoneUI(tab,key,clock){return `<div class="pscr"><div style="position:absolute;inset:0;background:radial-gradient(900px 700px at 20% 15%,#2b3f8f,transparent 60%),radial-gradient(800px 700px at 90% 95%,#6a2c8a,transparent 60%),#070914"></div><div style="position:absolute;left:0;right:0;top:34px;text-align:center;font-size:30px;font-weight:600;color:#fff">${clock}</div><div style="position:absolute;left:0;right:0;top:250px;text-align:center;font-size:190px;font-weight:300;letter-spacing:-.04em">08:55</div><div style="position:absolute;left:0;right:0;top:470px;text-align:center;font-size:36px;color:#cfd3ff">dimanche 25 octobre</div><div style="position:absolute;left:30px;bottom:200px;width:1000px;height:290px;transform:scale(.66);transform-origin:0 100%">${widget(tab,{key})}</div></div>`}
+let projOK=false;
+function initPlates(){if(projOK)return;projOK=true;const C=CORNERS;['pj1','pj2','pj5a'].forEach(id=>project($(id),715,1470,C.P.screen));project($('pj5b'),1920,1080,C.T.screen)}
+let screens={};
+function setScreen(id,tab,key){const k=tab+key;if(screens[id]!==k){$(id).innerHTML=phoneUI(tab,key,'');screens[id]=k}}
 const SC=['s1','s2','s3','s4','s5','s6','s7','s8','s9','s10'];
 const on=(k,t,pad=.4)=>t>=K[k].at-pad&&t<K[k].end+pad;
 function phoneWidget(id,tab,key,scale){putW($(id),tab,{key});$(id).style.transform=`scale(${scale})`;$(id).style.transformOrigin='0 100%';$(id).style.left='14px'}
 function render(t){
  drawBg(t);glc.style.opacity=0;blobDone=false;
  SC.forEach((id,i)=>{const s=SCHED[i],v=Math.min(ramp(t,s.at-.4,s.at+.3),1-ramp(t,s.end-.3,s.end+.4));$(id).style.opacity=i===0?Math.min(1,1-ramp(t,s.end-.3,s.end+.4)):i===9?ramp(t,s.at-.4,s.at+.3):v});
- // 1: a green point in the black: it listens. Then the phone, "builders"
- {const u=t,beat=Math.pow(Math.max(0,Math.sin(u*Math.PI*1.6)),6),big=u<3.4;$('dot').style.opacity=ramp(u,.15,.7)*(1-ramp(u,5,6.2));$('dot').style.transform=`scale(${1+beat*.55+eo(ramp(u,2.4,3.4))*.6})`;
+ // 1: a green point in the black: it listens. Then the phone (a 3D plate), "builders"
+ {initPlates();const u=t,beat=Math.pow(Math.max(0,Math.sin(u*Math.PI*1.6)),6);$('dot').style.opacity=ramp(u,.15,.7)*(1-ramp(u,5,6.2));$('dot').style.transform=`scale(${1+beat*.55+eo(ramp(u,2.4,3.4))*.6})`;
   let r='';for(let i=0;i<3;i++){const q=((u*.8+i/3)%1),a=ramp(u,.5,1.2)*(1-q)*.55*(1-ramp(u,5,6));r+=`<circle cx="960" cy="540" r="${20+q*420}" fill="none" stroke="#52d6a0" stroke-width="3" opacity="${a}"/>`}$('rg1').innerHTML=r;
-  const up=eio(ramp(u,4.2,6.6));$('ph1').style.transform=`translateY(${(1-up)*480}px) rotateY(${(1-up)*-30+Math.sin(u*.6)*4}deg)`;$('ph1').style.opacity=up;phoneWidget('ph1w',['domain','files','build','voir'][Math.floor(Math.max(0,u-5.6)/.8)%4],'p1',.42);
+  const up=eio(ramp(u,4.0,6.6));$('wd1').style.opacity=up;cam($('wd1'),u,1.55-up*.35,.5,.5,960,540+(1-up)*60);setScreen('pj1',['domain','files','build','voir'][Math.floor(Math.max(0,u-5.6)/.8)%4],'p1');
   $('vc').style.opacity=eo(ramp(u,4.4,6.4))*.9;$('vc').style.transform=`translateY(${(1-eo(ramp(u,4.4,6.4)))*60}px)`}
  // 2: your Git and your Claude Code sessions, held
- {const u=t-K.control.at,ph=$('ph2');ph.style.transform=`translateX(${(1-eo(ramp(u,0,1)))*-200}px) rotateY(${Math.sin(u*.5)*5}deg)`;ph.style.opacity=eo(ramp(u,0,.7));phoneWidget('ph2w','build','p2',.36);
-  let s='',h='';const nodes=[[760,200],[900,200],[1040,200],[1180,200],[1320,200],[1460,200],[1600,200]],br=[[1040,300],[1180,330],[1320,300]];
+ {const u=t-K.control.at,pm=mid(CORNERS.P.screen);$('wd2').style.opacity=eo(ramp(u,0,.7));cam($('wd2'),t,1.05,pm[0],pm[1],440+(1-eo(ramp(u,0,1)))*-160,520);setScreen('pj2','build','p2');
+  let s='',h='';const nodes=[[760,200],[900,200],[1040,200],[1180,200],[1320,200],[1460,200],[1600,200]];
   for(let i=0;i<6;i++){const v=eo(ramp(u,.5+i*.25,1+i*.25));s+=`<line x1="${nodes[i][0]}" y1="200" x2="${nodes[i][0]+(nodes[i+1][0]-nodes[i][0])*v}" y2="200" stroke="#9db8ff" stroke-width="5"/>`}
   s+=`<path d="M1040 200 C1060 300 1100 300 1180 300 L1260 300 C1330 300 1340 230 1320 200" fill="none" stroke="#a77bd6" stroke-width="5" stroke-dasharray="620" stroke-dashoffset="${620*(1-eo(ramp(u,1.4,2.8)))}"/>`;
   nodes.forEach((n,i)=>{const v=eo(ramp(u,.4+i*.25,.9+i*.25));s+=`<circle cx="${n[0]}" cy="200" r="${14*v}" fill="${i===6?'#52d6a0':'#fff'}"/>`});s+=`<circle cx="1180" cy="300" r="${12*eo(ramp(u,2.2,2.8))}" fill="#a77bd6"/>`;
@@ -139,11 +157,13 @@ function render(t){
   $('ob3').innerHTML=O.map((o,i)=>{const col=i%3,row=Math.floor(i/3),tx=190+col*540,ty=170+row*300,v=eo(ramp(u,.3+i*.5,1.1+i*.5)),a=i/6*6.283,sx=960+Math.cos(a)*900,sy=540+Math.sin(a)*700,x=sx+(tx-sx)*v,y=sy+(ty-sy)*v,fl=Math.sin(u*1.3+i)*6;return `<div style="position:absolute;left:${x}px;top:${y+fl}px;width:500px;height:250px;opacity:${Math.min(1,v*1.5)};transform:scale(${.9+v*.1}) rotate(${(1-v)*-8}deg)">${cellH(0,0,500,250,o[2],o[0],o[1],{fs:44,big:1,skew:56})}${o[0]==='contract'?`<div style="position:absolute;left:190px;top:170px;font-family:JB,monospace;font-size:28px;color:#ffffffb0">intelligents · js</div>`:''}</div>`}).join('')}
  // 4: free
  {const u=t-K.free.at;const v=eo(ramp(u,.1,.9));$('f4').style.opacity=v;$('f4').style.transform=`scale(${.9+v*.1})`;const z=eo(ramp(u,1.2,2));$('z4').style.opacity=z;$('z4').style.transform=`scale(${.6+z*.4})`}
- // 5: by the voice: the screen off, the television, the connected glasses
- {const u=t-K.everywhere.at,d=(K.everywhere.end-K.everywhere.at)/3,w=Math.min(2,Math.floor(u/d)),loc=u-w*d;$('a5').style.opacity=w===0?1:0;$('b5').style.opacity=w===1?1:0;$('c5').style.opacity=w===2?1:0;
-  $('a5').innerHTML=`<div style="position:absolute;left:750px;top:90px;width:420px;height:700px;border-radius:78px;background:#05060b;border:3px solid #ffffff55;box-shadow:0 60px 140px #000c"></div>`+[0,1,2].map(i=>{const q=((loc*.7+i/3)%1);return `<div style="position:absolute;left:${960-60-q*500}px;top:${440-60-q*500}px;width:${120+q*1000}px;height:${120+q*1000}px;border-radius:50%;border:5px solid #9db8ff;opacity:${(1-q)*.7}"></div>`}).join('');
-  $('b5').innerHTML=`<div style="position:absolute;left:310px;top:90px;width:1300px;height:600px;border-radius:24px;border:10px solid #1a1d2e;background:linear-gradient(${110+loc*40}deg,#1c2a63,#6a2c8a ${40+loc*10}%,#e09a7c);box-shadow:0 60px 140px #000c;overflow:hidden"><div class="big" style="top:230px;font-size:110px;color:#fff;opacity:.9">▶ le film</div></div><div style="position:absolute;left:760px;top:706px;width:400px;height:26px;background:#1a1d2e;border-radius:6px"></div>`;
-  $('c5').innerHTML=`<svg style="position:absolute;left:360px;top:120px" width="1200" height="520" viewBox="0 0 1200 520"><rect x="70" y="90" width="500" height="340" rx="130" fill="#ffffff10" stroke="#fff" stroke-width="12"/><rect x="630" y="90" width="500" height="340" rx="130" fill="#ffffff10" stroke="#fff" stroke-width="12"/><circle cx="90" cy="120" r="12" fill="#52d6a0"/><path d="M570 230 q30 -30 60 0" fill="none" stroke="#fff" stroke-width="12"/><path d="M60 230 L-60 190 M1140 230 L1260 190" stroke="#fff" stroke-width="12"/></svg><div style="position:absolute;left:760px;top:260px;width:600px;opacity:${eo(ramp(loc,.5,1.2))};transform:translateY(${Math.sin(loc*2)*8}px) scale(.55);transform-origin:0 0">${widget('voir',{key:'g5'}).replace('filter:drop-shadow(0 20px 40px #0009)','')}</div>`;
+ // 5: by the voice: the screen off, the television, the connected glasses (three 3D plates)
+ {initPlates();const u=t-K.everywhere.at,d=(K.everywhere.end-K.everywhere.at)/3,w=Math.min(2,Math.floor(u/d)),loc=u-w*d,pm=mid(CORNERS.P.screen),tm=mid(CORNERS.T.screen);
+  ['wd5a','wd5b','wd5c'].forEach((id,i)=>{$(id).style.opacity=i===w?Math.min(ramp(loc,0,.4),1-ramp(loc,d-.4,d)*(w<2?1:0)):0});
+  cam($('wd5a'),t,1.1+loc*.02,pm[0],pm[1],960,500);cam($('wd5b'),t,.95+loc*.015,tm[0],tm[1],960,430);cam($('wd5c'),t,1.0+loc*.02,.55,.5,960,480);
+  $('rr5').innerHTML=[0,1,2].map(i=>{const q=((loc*.7+i/3)%1),R=120+q*1600;return `<div style="position:absolute;left:${pm[0]*PW-R/2}px;top:${pm[1]*PH-R/2}px;width:${R}px;height:${R}px;border-radius:50%;border:12px solid #9db8ff;opacity:${(1-q)*.7}"></div>`}).join('');
+  $('tvc').innerHTML=`<div style="position:absolute;inset:0;background:linear-gradient(${110+loc*40}deg,#1c2a63,#6a2c8a ${40+loc*10}%,#e09a7c)"></div><div class="big" style="top:400px;font-size:230px;color:#fff;opacity:.92">▶ le film</div>`;
+  const hg=$('hg5');putW(hg,'voir',{key:'g5'});hg.style.opacity=eo(ramp(loc,.5,1.2));hg.style.transform=`translate(${.30*PW}px,${(.27+Math.sin(loc*2)*.004)*PH}px) scale(.62)`;hg.style.filter='drop-shadow(0 0 40px #9db8ffaa)';
   $('l5').innerHTML=['Par la voix, même écran <i>éteint</i>','Depuis ta <i>télé</i>','Ou tes <i>lunettes</i> connectées'][w];$('l5').style.opacity=eo(ramp(loc,.2,.8))*(1-ramp(loc,d-.5,d-.1))}
  // 6: Claude Code, ChatGPT, local AIs: all connected
  {const u=t-K.connect.at,C=[960,470],N=[['Claude Code','robot','#e09a7c',[420,300]],['ChatGPT','page','#52d6a0',[1500,300]],['IA locale','chip','#a77bd6',[960,790]]];let s='',h='';

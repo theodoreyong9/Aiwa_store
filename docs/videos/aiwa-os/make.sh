@@ -4,10 +4,14 @@
 set -e
 W=${1:?work dir}; MODE=${2:-final}; D=docs/videos/aiwa-os
 mkdir -p $W
+PL=${PLATES:-/tmp/os/plates}
 python3 - <<PY
-import json
+import json, os
 sched = json.load(open('$D/sched.json'))
-open('$D/video.html', 'w').write(open('$D/page.html').read().replace('__SCHED__', json.dumps(sched, ensure_ascii=False)))
+corners = {k: json.load(open('$PL/corners-%s.json' % k)) if os.path.exists('$PL/corners-%s.json' % k) else {'screen': [[.4, .3], [.6, .3], [.6, .7], [.4, .7]], 'box': [.3, .3, .7, .6]} for k in 'PTG'}
+src = open('$D/page.html').read().replace('__SCHED__', json.dumps(sched, ensure_ascii=False)).replace('__CORNERS__', json.dumps(corners))
+for k in 'PTG': src = src.replace('PLATE_%s' % k, 'file://$PL/plate-%s.png' % k)
+open('$D/video.html', 'w').write(src)
 PY
 TOTAL=80
 if [ "$MODE" = fast ]; then Q=72; CRF=24; else Q=94; CRF=16; fi
