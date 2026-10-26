@@ -97,7 +97,7 @@ function renderTV(t){const root=$('root');root.style.width='1920px';root.style.h
  else if(t<T.cast[0]){const u=t-T.tvContract[0],code=['export default {','  init: () => ({ total: 0 }),','  apply(state, event) {','    state.total += event.amount','    return state','  }','}'];const nn=Math.floor(Math.max(0,u-.2)*34);let used=0,o='';code.forEach((l,i)=>{const take=Math.max(0,Math.min(l.length,nn-used));used+=l.length+1;o+=`<span class="dm">${i+1}</span>  ${l.slice(0,take).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/(export|default|return)/g,'<span class="am">$1</span>').replace(/(total)/g,'<span class="ok">$1</span>')}\n`});
   const tv=T.tvContract[1],show=1-ramp(t,T.rise[0]+1,T.rise[0]+2);extra+=`<div class="term" style="left:260px;top:140px;width:1400px;height:640px;font-size:42px;opacity:${eo(ramp(u,0,.4))*show}">${o}</div><div style="position:absolute;left:1180px;top:700px;padding:16px 36px;border-radius:70px;background:linear-gradient(#ffffff38,#ffffff10);border:2px solid #ffffff60;font-size:44px;font-weight:600;color:#52e0a0;opacity:${eo(ramp(u,1.5,2.0))*show}">signé ✓ · rejoué = même état</div>`}
  // the cast: the screen of the phone comes to the television
- if(t>=T.cast[0]-.2&&t<T.net[0]+8){const v=eo(ramp(t,T.cast[0]+.4,T.cast[0]+1.6));extra+=`<div style="position:absolute;left:${960-715*.62/2}px;top:${40}px;width:715px;height:1470px;transform:scale(${.62*v+.3*(1-v)});transform-origin:50% 0;opacity:${v};border-radius:104px;overflow:hidden;box-shadow:0 0 120px #6b9bf588">${phoneScreen(t)}</div>`;
+ if(t>=T.cast[0]-.2&&t<T.net[0]+8){const v=eo(ramp(t,T.cast[0]+.4,T.cast[0]+1.6));extra+=`<div style="position:absolute;left:${960-662*.62/2}px;top:${40}px;width:662px;height:1470px;transform:scale(${.62*v+.3*(1-v)});transform-origin:50% 0;opacity:${v};border-radius:104px;overflow:hidden;box-shadow:0 0 120px #6b9bf588"><img src="file://${PHDIR}/${String(Math.min(1607,Math.round(t*24))).padStart(5,'0')}.jpg" style="width:662px;height:1470px;display:block"></div>`;
   extra+=`<div style="position:absolute;left:0;top:0;right:0;bottom:0;background:radial-gradient(circle at 50% 50%,transparent ${(1-v)*60}%,#04050a${Math.round((1-v)*255).toString(16).padStart(2,'0')} 100%)"></div>`}
  // a profile found nearby
  if(t>=T.profileTV[0]-.4&&t<T.closed[1]){const u=t-T.profileTV[0],v=eo(ramp(u,-.4,.5))*(1-ramp(t,T.closed[0]+1,T.closed[0]+2.5));const b=blobCanvas(t,.05+.95*eo(ramp(u,0,1.4)),[.5+Math.sin(u*.8)*.25,.5]);if(b){ctx.save();ctx.globalAlpha=v;ctx.globalCompositeOperation='lighter';ctx.drawImage(b,960,0,960,1080);ctx.restore()}
@@ -107,6 +107,7 @@ function renderTV(t){const root=$('root');root.style.width='1920px';root.style.h
 function renderPhone(t){const root=$('root');root.style.width='715px';root.style.height='1470px';root.innerHTML=`<div style="position:absolute;inset:0;overflow:hidden;background:#05060c">${phoneScreen(t)}</div>`}
 function setup(){const root=$('root');root.style.zoom=K}
 let inited=false;
-window.render=function(t){if(!inited){setup();inited=true}if(MODE==='tv')renderTV(t);else renderPhone(t)};
+const PHDIR=Q.get('ph')||'/tmp/os3/ph2';
+window.render=async function(t){if(!inited){setup();inited=true}if(MODE==='tv')renderTV(t);else renderPhone(t);await Promise.all([...document.images].map(i=>i.decode().catch(()=>{})))};
 window.READY=true;
 </script></body></html>
