@@ -30,20 +30,22 @@ def lp(x, k):                                    # a one-pole low-pass, to take 
     for i, v in enumerate(x): s += k * (v - s); y[i] = s
     return y
 
-# the dot in the dark: three soft blips, rising
-for i, b in enumerate(T['dotBlink']): put(blip(880 * 2 ** (i * 7 / 12), .3), b, 0, .35)
-put(sub(48, 3.5, .1), 4.6, 0, .35)                                           # the room warms up under the phone's arrival
-put(bell(1318, 1.6), T['phoneIn'] + .1, .3, .22)
-put(blip(1760, .2), T['dotFix'] + .3, .6, .25)                          # the dot docks on the phone
-for k in range(2): put(lp(noise_sweep(2.2, 200, 1800), .12), 6.2 + k * .2, -.2, .5)  # the camera pulls back
-put(bell(987, 1.4), T['unlock'], 0, .3); put(bell(1480, 1.2), T['unlock'] + .14, .2, .2)    # "j'écoute"
-for t0, f in zip(np.arange(T['tvShapes'][0], T['tvShapes'][1], (T['tvShapes'][1] - T['tvShapes'][0]) / 4), (523, 659, 784, 988)):
-    put(blip(f, .5), t0 + .55, -.3, .22); put(lp(noise_sweep(.7, 300, 2600), .2), t0 + .35, -.3, .25)   # each shape that becomes the next one
-for i in range(14): put(tick(), T['tvContract'][0] + .2 + i * .15 + rng.random() * .03, -.2, .1)       # the code typed
-put(sub(70, 1.2), T['tvContract'][0] + 1.9, -.2, .3)                       # the contract is sealed
-put(lp(noise_sweep(3.6, 150, 1400), .1), T['rise'][0], .2, .55); put(sub(90, 3, .2), T['rise'][0], 0, .25)   # the phone rises
-for t0 in np.linspace(T['taps'][0] + .2, T['taps'][1] - .3, 5): put(tick(.06, 3200), t0, .3, .22); put(blip(1100, .08), t0, .3, .12)  # the widget buttons
-put(blip(520, .6) * np.linspace(1, 0, int(.6 * SR)), T['screenOff'], 0, .4); put(sub(55, .8, .6), T['screenOff'], 0, .35)  # the screen goes dark
+# the dot in the dark: ONE blip, then the room is there, with a low hit
+put(blip(1040, .35), T['dotBlink'][0], 0, .4)
+put(sub(52, 2.6, .25), T['reveal'][0] - .04, 0, .9); put(bell(1318, 1.8), T['reveal'][0] + .02, .3, .3)
+put(lp(noise_sweep(.9, 200, 4200), .2), T['reveal'][0] - .5, 0, .35)
+put(bell(987, 1.4), T['unlock'], 0, .3); put(bell(1480, 1.2), T['unlock'] + .14, .2, .2)             # "j'écoute"
+c0, c1 = T['create']
+for k, f in enumerate((523, 659, 784, 988)):                                                         # each shape that becomes the next one
+    t0 = c0 + k * (c1 - c0) / 4
+    put(blip(f, .5), t0 + .5, -.2, .26); put(lp(noise_sweep(.7, 300, 2600), .2), t0 + .2, -.2, .3)
+k0 = T['contract'][0]
+for i in range(16): put(tick(), k0 + .4 + i * .11 + rng.random() * .03, -.1, .12)                    # the contract is typed
+put(sub(70, 1.2), k0 + 2.2, 0, .45); put(bell(1568, 1.4), k0 + 2.2, .2, .25)                         # and sealed
+put(lp(noise_sweep(2.8, 150, 1600), .1), T['rise'][0], .2, .55); put(sub(90, 2.6, .2), T['rise'][0], 0, .4)   # the phone rises
+for t0 in T['tapTimes']: put(tick(.06, 3200), t0, .3, .24); put(blip(1100, .08), t0, .3, .14)         # the buttons of the widget
+put(blip(740, .18), 14.6, .2, .22); put(blip(988, .18), 14.78, .2, .22)                              # "il parle avec toi"
+put(blip(520, .6) * np.linspace(1, 0, int(.6 * SR)), T['screenOff'], 0, .4); put(sub(55, .8, .6), T['screenOff'], 0, .4)   # the screen goes dark
 put(bell(1760, 1.5), T['cast'][0], 0, .25)
 for k in range(3): put(lp(noise_sweep(1.6, 400, 4200), .25), T['cast'][0] + .1 + k * .3, .1 + k * .1, .22)   # the stream goes to the television
 put(sub(60, 1.6, .3), T['cast'][0] + 1.0, -.3, .3)

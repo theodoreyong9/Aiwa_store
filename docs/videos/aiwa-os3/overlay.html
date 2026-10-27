@@ -24,16 +24,16 @@ const labels={},ln=document.getElementById('ln');
 // [id, title, subtitle, colour, leader angle, leader length, dx, dy]
 [['cc1','Claude Code','session 1','#ff9a5c',-25,50,70,-80],['cc2','Claude Code','session 2','#ff9a5c',25,50,70,80],['cc3','Claude Code','session 3','#ff9a5c',200,50,-330,-60],
  ['gpt','ChatGPT','agent externe','#6ff0b8',-30,50,70,-90],['loc','IA locale','sur ton appareil','#b48cff',30,50,-340,80],
- ['camp','Campagnes','diffusion','#8fb8ff',-25,60,90,-90],['scn','Scénarios','étapes enchaînées','#ffe27a',25,60,60,60],
+ 
  ['p1','Anna','120 m','#ffd05a',-20,34,40,-20],['p2','Théo','340 m','#ffd05a',20,34,40,-20],['p3','Lina','580 m','#ffd05a',0,34,40,-20],
  ['w1','Tokyo','12 builders','#ffd05a',-30,46,50,-50],['w2','Lagos','8 builders','#ffd05a',30,46,50,50],['w3','Lisbonne','21 builders','#ffd05a',0,46,-320,0],
- ['doc','Docs','','#52d6a0',-20,30,0,-60],['med','Médias','','#6b9bf5',-20,30,0,-60],['app','App','','#e09a7c',-20,30,0,-60],['pag','Page','','#e8c14a',-20,30,0,-60],
- ['sc','Smart contract','','#ffe27a',-25,40,40,60],['listen','J’écoute','','#35f08a',-10,40,30,-30]].forEach(([id,k,s,c,r,l,dx,dy])=>{
+ ['doc','Docs','','#52d6a0',-20,30,110,-50],['med','Médias','','#6b9bf5',-20,30,110,-50],['app','App','','#e09a7c',-20,30,110,-50],['pag','Page','','#e8c14a',-20,30,110,-50],
+ ['sc','Contrat intelligent','','#ffe27a',-25,40,60,-30],['listen','J’écoute','','#35f08a',-10,40,30,-30]].forEach(([id,k,s,c,r,l,dx,dy])=>{
  const d=document.createElement('div');d.className='lbl';d.style.setProperty('--c',c);d.style.setProperty('--r',r+'deg');d.style.setProperty('--l',l+'px');d.innerHTML=`${k}<span>${s||''}</span>`;ov.appendChild(d);const sv=document.createElementNS('http://www.w3.org/2000/svg','g');sv.innerHTML=`<line stroke="${c}" stroke-width="1.5" stroke-opacity=".75"/><circle r="7" fill="none" stroke="${c}" stroke-width="2"/><circle r="2.5" fill="${c}"/>`;ln.appendChild(sv);labels[id]={d,dx,dy,sv}});
 function bigText(t){ // title cards, in the film's own voice
- const rows=[ [.2,5.4,'1<sup style="font-size:.5em">er</sup> réseau social de builders','sur Android',H*.62],
-  [50.0,54.6,'Fini de coder dans des sites fermés,','des sessions fermées, des codes fermés.',H*.14],
-  [55.6,58.6,'Découvre une nouvelle idée d’internet.','',H*.42],[59.2,60.4,'Aiwa.','',H*.4],[60.6,64.4,'Ton univers.','Ta volonté.',H*.34]];
+ const rows=[ [0.15,2.9,'1<sup style="font-size:.5em">er</sup> réseau social de builders','sur Android',H*.80],
+  [50.0,54.6,'Fini de coder dans des sites fermés,','des plateformes fermées, des sessions fermées.',H*.14],
+  [55.6,58.6,'Vivez une nouvelle expérience du web.','',H*.42],[59.2,60.4,'Aiwa.','',H*.4],[60.6,64.4,'Ton univers.','Ta volonté.',H*.34]];
  let on=null;for(const r of rows)if(t>=r[0]&&t<=r[1]){on=r;break}
  if(!on){big.style.opacity=0;return}
  const [a,b,l1,l2,y]=on;const k=ramp(t,a,a+.5)*(1-ramp(t,b-.5,b)),isAiwa=l1==='Aiwa.';
