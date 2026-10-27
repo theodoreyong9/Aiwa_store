@@ -397,11 +397,42 @@ for r in LRINGS: r.hide_render = True
 HALO = glow('halo', '#6a8cff', .5); HALO.hide_render = True
 HALO.constraints.clear(); HALO.rotation_euler = (0, 0, 0)
 
+
+# ------------------------------------------------------------------ what is made above the phone: a chrome shape that becomes Docs, Médias, App, Page; then the smart contract
+CT_DIR, IC_DIR = A('ctdir', '/tmp/os3/ct'), A('icdir', '/tmp/os3/ic')
+SH_C = V(.27, -.04, .125)
+sh_bm = bmesh.new(); bmesh.ops.create_icosphere(sh_bm, subdivisions=6, radius=1.0)
+sh_me = bpy.data.meshes.new('shape'); sh_bm.to_mesh(sh_me); sh_bm.free()
+for p_ in sh_me.polygons: p_.use_smooth = True
+sh_m = node_mat('shape', '#9fc4ff', rough=.1, metal=1.0, coat=1.0)
+SHAPE = bpy.data.objects.new('shape', sh_me); SHAPE.data.materials.append(sh_m); SHAPE.location = SH_C; bpy.context.scene.collection.objects.link(SHAPE); SHAPE.hide_render = True
+sh_dirs = np.array([v.co[:] for v in sh_me.vertices]); sh_dirs /= np.linalg.norm(sh_dirs, axis=1)[:, None]
+def box_r(d, ex): return 1 / (np.sum((np.abs(d) / np.array(ex)) ** 4, axis=1) ** .25)   # a rounded box: a smooth shape, not a jagged one
+SH_R = [box_r(sh_dirs, (.62, .1, .8)), box_r(sh_dirs, (.95, .1, .56)), box_r(sh_dirs, (.42, .09, .8)), np.ones(len(sh_dirs)) * .78]   # a page, a film frame, a phone, a globe
+SH_TINT = ['#52d6a0', '#6b9bf5', '#e09a7c', '#e8c14a']
+def morph_shape(w):
+    r = sum(wi * ri for wi, ri in zip(w, SH_R)); sh_me.vertices.foreach_set('co', (sh_dirs * r[:, None]).ravel()); sh_me.update()
+# the contract: a card that rises from the phone
+ct_m = screen_mat('contract', rough=.35, es=1.5)
+CARD = quad('card', .18, .1125, ct_m, (.27, -.03, .15), rot=(math.radians(-14), 0, math.radians(-5))); CARD.hide_render = True
+# the connectors: a ring of tiles around the node object
+CONN = ['github', 'anthropic', 'openai', 'gmail', 'whatsapp', 'telegram', 'linkedin', 'slack']
+TILES = []
+for i, n_ in enumerate(CONN):
+    tm = bpy.data.materials.new('tile_' + n_); tm.use_nodes = True; tm.cycles.emission_sampling = 'NONE'; nt = tm.node_tree
+    for nd in list(nt.nodes): nt.nodes.remove(nd)
+    tx = nt.nodes.new('ShaderNodeTexImage'); tx.image = bpy.data.images.load(f'{IC_DIR}/{n_}.png'); tx.image.alpha_mode = 'STRAIGHT'
+    em_ = nt.nodes.new('ShaderNodeEmission'); em_.inputs['Strength'].default_value = 1.6; tr_ = nt.nodes.new('ShaderNodeBsdfTransparent'); mx_ = nt.nodes.new('ShaderNodeMixShader'); ou_ = nt.nodes.new('ShaderNodeOutputMaterial')
+    nt.links.new(tx.outputs['Color'], em_.inputs['Color']); nt.links.new(tx.outputs['Alpha'], mx_.inputs['Fac']); nt.links.new(tr_.outputs[0], mx_.inputs[1]); nt.links.new(em_.outputs[0], mx_.inputs[2]); nt.links.new(mx_.outputs[0], ou_.inputs['Surface'])
+    q = quad('tile', .07, .07, tm, (0, 0, 0)); q.parent = NODE; q.hide_render = True
+    c_ = q.constraints.new('TRACK_TO'); c_.target = CAM; c_.track_axis = 'TRACK_NEGATIVE_Y'; c_.up_axis = 'UP_Z'; q.visible_shadow = False
+    TILES.append(q)
+
 # ------------------------------------------------------------------ the camera path (x, y, z metres)
 K = [  # t, camera, target, fov (vertical)
- [0, (.30, -.62, .20), (.30, -.10, .12), 34], [5.6, (.29, -.58, .17), (.28, -.10, .10), 34], [6.4, (.27, -.50, .14), (.27, -.10, .10), 32],
- [9.2, (.30, -.62, .16), (.25, -.05, .10), 34], [11.5, (.42, -1.10, .27), (.08, .50, .34), 38], [14.0, (.50, -1.55, .36), (-.02, .80, .42), 40],
- [16.5, (.46, -1.30, .30), (.10, .60, .38), 40], [18.5, (.24, -.82, .31), (.27, -.06, .30), 36], [20.7, (.20, -.80, .31), (.27, -.06, .30), 36],
+ [0, (.34, -.42, .30), (.28, -.04, .0), 30], [1.0, (.33, -.40, .29), (.28, -.04, .0), 30], [3.2, (.31, -.52, .29), (.27, -.05, .08), 32],
+ [6.2, (.37, -.52, .29), (.27, -.04, .10), 32], [9.0, (.33, -.56, .30), (.27, -.03, .12), 32], [11.6, (.30, -.70, .30), (.26, -.06, .27), 34],
+ [14.4, (.24, -.80, .31), (.27, -.06, .30), 36], [17.3, (.21, -.80, .31), (.27, -.06, .30), 36], [20.7, (.20, -.80, .31), (.27, -.06, .30), 36],
  [23.0, (.26, -1.2, .42), (.04, .90, .44), 40], [26.0, (.16, -1.0, .50), (-.06, 1.10, .47), 38], [28.4, (.55, -1.05, .38), (.38, -.05, .34), 38],
  [31.0, (.74, -.86, .36), (.78, -.10, .34), 34], [34.5, (.92, -.82, .40), (.78, -.10, .34), 34], [37.5, (.62, -.98, .50), (.76, -.10, .33), 37],
  [40.2, (.28, -1.15, .46), (.10, -.10, .34), 42], [42.5, (-.30, -.84, .40), (-.62, -.12, .35), 38], [45.0, (-.20, -1.0, .55), (-.15, .9, .50), 40],
@@ -420,9 +451,12 @@ def cam_at(t):
 
 PH0 = V(.27, -.06, .081)
 def phone_pose(t):
-    up = sm5(ramp(t, 16.6, 19.6)); down = sm5(ramp(t, 28.2, 30.4)); lev = up * (1 - down)
+    up = sm5(ramp(t, 9.0, 11.6)); down = sm5(ramp(t, 28.2, 30.4)); lev = up * (1 - down)
+    lay = sm5(ramp(t, 9.0, 10.8))                                         # 0: lying on the table, 1: upright
     pos = V(PH0.x - lev * .04, PH0.y - lev * .08, PH0.z + lev * .22 + math.sin(t * 1.7) * .004 * lev)
-    return pos, mix(math.radians(14), math.radians(4), lev), (math.radians(-9) + lev * .28 * math.sin((t - 16.6) * .55)), lev
+    pos.z = mix(.0046, pos.z, lay)
+    lean = mix(math.radians(-90), mix(math.radians(14), math.radians(4), lev), lay)
+    return pos, lean, (math.radians(-9) + lev * .28 * math.sin((t - 16.6) * .55)), lev
 
 # ------------------------------------------------------------------ labels: tracked anchors, written for the overlay
 ANCH = {}
@@ -448,7 +482,7 @@ DARK_STATE = [False]
 
 def update(t, f):
     # the first seconds are black: nothing of the room is there, only the dot
-    dark_now = t < 4.8
+    dark_now = t < T['reveal'][0] - .05
     if dark_now:
         for o in bpy.data.objects:
             if o.name.split('.')[0] not in KEEP_DARK: o.hide_render = True
@@ -458,7 +492,7 @@ def update(t, f):
     c = cam_at(t); pos = c['pos'] + V((math.sin(t * .9) * .003, math.sin(t * .6 + 2) * .002, math.sin(t * 1.3 + 1) * .0025)); tgt = c['tgt']
     CAM.location = pos; CAM.rotation_euler = (tgt - pos).to_track_quat('-Z', 'Y').to_euler(); cam_data.lens = 12 / math.tan(math.radians(c['fov']) / 2)
     cam_data.dof.focus_distance = max(.08, (tgt - pos).length)
-    lit = seg(t, 4.8, 6.6); dark = seg(t, 50.5, 54.5); end_dark = seg(t, 56.0, 58.5)
+    lit = seg(t, T['reveal'][0], T['reveal'][1]); dark = seg(t, 50.5, 54.5); end_dark = seg(t, 56.0, 58.5)
     # light follows the story: black until the phone arrives, the room dims for the end
     S.view_settings.exposure = -.6 * end_dark
     KEY.data.energy = 520 * lit * (1 - dark * .85); RIM1.data.energy = 260 * lit * (1 - dark * .9); RIM2.data.energy = 200 * lit * (1 - dark * .9); TOP.data.energy = 90 * lit * (1 - dark * .8)
@@ -470,26 +504,23 @@ def update(t, f):
     set_image(tv_m, frame_path(TV_DIR, t)); set_image(ph_m, frame_path(PH_DIR, t))
     tv_m.node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = 1.7
     # phone
-    pp, lean, yaw, lev = phone_pose(t); phone.location = pp; phone.rotation_euler = (lean, 0, yaw); phone.hide_render = t < 5.2
-    ph_m.node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = 1.35 if t >= 5.2 else 0.0
+    pp, lean, yaw, lev = phone_pose(t); phone.location = pp; phone.rotation_euler = (lean, 0, yaw); phone.hide_render = t < T['reveal'][0]
+    ph_m.node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = 1.35 if t >= T['reveal'][0] else 0.0
     PHL.location = pp + V(0, -.12, .04); PHL.data.energy = 0.6 * lit
     bpy.context.view_layer.update()
     # the dot
-    blink = 1.0 if any(b <= t < b + .4 for b in T['dotBlink']) else 0.0
-    start = V(.30, -.27, .20)                                             # straight ahead of the (still) camera
+    blink = 1.0 if any(b <= t < b + .45 for b in T['dotBlink']) else 0.0
     corner = phone.matrix_world @ V(PW / 2 - .004, -PD / 2 - .0005, PH_ / 2 - .004)
-    if t < DF[0]: dp, vis = start, (blink if t < 5.6 else 1.0)
-    else: f_ = sm5(ramp(t, DF[0], DF[1])); dp = start.lerp(corner, f_); vis = 1.0
-    if t >= DF[1]: dp = corner
-    breathe = (.7 + .3 * math.sin(t * 5)) if 9.2 < t < 23.6 else .9
+    dp = corner; vis = blink if t < T['reveal'][0] else 1.0
+    breathe = (.7 + .3 * math.sin(t * 5)) if 1.0 < t < 23.6 else .9
     dot.location = dp; dot_glow.location = dp; dot.hide_render = vis < .01; dot_glow.hide_render = vis < .01
-    set_emit(dot_m, 90.0 * (breathe if t >= DF[1] else 1)); glow_set(dot_glow, 2.2 * vis * (breathe if t >= DF[1] else 1)); dot_glow.scale = (1 + .2 * breathe,) * 3
-    dot_light.location = dp; dot_light.data.energy = .5 * vis * (breathe if t >= DF[1] else 1) * lit + (.5 * vis if t < 5.6 else 0)
+    set_emit(dot_m, 90.0 * breathe); glow_set(dot_glow, 2.2 * vis * breathe); dot_glow.scale = (1 + .2 * breathe,) * 3
+    dot_light.location = dp; dot_light.data.energy = .5 * vis * breathe * lit + (.5 * vis if t < T['reveal'][0] else 0)
     # listening rings round the phone
     for i, r in enumerate(LRINGS):
-        k = (t - 9.2 - i * .5) / 1.5; on = 9.2 <= t < 12.4 and k > 0; ff = (k % 1) if on else 0
+        k = (t - T['unlock'] - i * .5) / 1.5; on = T['unlock'] <= t < T['unlock'] + 3.2 and k > 0; ff = (k % 1) if on else 0
         r.hide_render = not on
-        if on: r.location = pp; r.rotation_euler = (lean + math.pi / 2, 0, yaw); r.scale = (.05 + ff * .2,) * 3; set_emit(LRINGM, 6.0 * (1 - ff) * (1 - ramp(t, 11.4, 12.4)))
+        if on: r.location = pp; r.rotation_euler = (lean + math.pi / 2, 0, yaw); r.scale = (.05 + ff * .2,) * 3; set_emit(LRINGM, 6.0 * (1 - ff) * (1 - ramp(t, T['unlock'] + 2.2, T['unlock'] + 3.2)))
     # halo under the levitating phone
     HALO.hide_render = lev < .02; HALO.location = (pp.x, pp.y, .004); HALO.rotation_euler = (0, 0, 0); HALO.scale = ((1 + lev * .4),) * 3; glow_set(HALO, 2.4 * lev)
     # the stream to the television
@@ -530,20 +561,9 @@ def update(t, f):
     for j in range(li, len(LINKS)): LINKS[j].hide_render = True
     if not vis_n:
         for l in LINKS: l.hide_render = True
-    c_on = seg(t, T['campaigns'][0], T['campaigns'][0] + .6)
-    for i, r in enumerate(RINGS):
-        k = (t - T['campaigns'][0] - i * .45) / 2.2; on = vis_n and c_on > 0 and k > 0; ff = (k % 1) if on else 0
-        r.hide_render = not on
-        if on: r.scale = (.06 + ff * .4,) * 3; set_emit(RINGM[i], 4.0 * (1 - ff) * c_on)
-    s_on = seg(t, T['campaigns'][0] + 1.4, T['campaigns'][0] + 2.0)
-    for i, o in enumerate(SCEN_O): o.hide_render = not (vis_n and s_on > .01 and t > T['campaigns'][0] + 1.4 + i * .25); o.scale = (1 + .4 * math.sin(t * 6 - i),) * 3
-    for i, l in enumerate(SCEN_L):
-        a_, b_ = SCEN[i] - V(0, 0, .14), SCEN[i + 1] - V(0, 0, .14)
-        if vis_n and s_on > .01: place_cyl(l, a_, b_, .0007)
-        else: l.hide_render = True
-    PULSE.hide_render = not (vis_n and s_on > .5)
-    if not PULSE.hide_render:
-        u_ = ((t - T['campaigns'][0] - 1.6) * .5) % 1; f2 = u_ * (len(SCEN) - 1); i2 = min(len(SCEN) - 2, int(f2)); PULSE.location = (SCEN[i2] - V(0, 0, .14)).lerp(SCEN[i2 + 1] - V(0, 0, .14), f2 - i2)
+    for r in RINGS: r.hide_render = True
+    for o in SCEN_O + SCEN_L: o.hide_render = True
+    PULSE.hide_render = True
     # world
     w_on = seg(t, T['world'][0] - .2, T['world'][0] + .8) * (1 - seg(t, 45.2, 46.0)); vw = w_on > .01
     WORLD.scale = (w_on + .001,) * 3; GLOBE.hide_render = not vw; CORE.hide_render = not vw; GLOBE.rotation_euler = (0, 0, t * .35)
@@ -560,20 +580,37 @@ def update(t, f):
         if on: r.location = (PH0.x, PH0.y, .004); r.scale = (.15 + ff * .9,) * 3; set_emit(RADAR_M[i], 3.0 * (1 - ff) * (1 - seg(t, 45.2, 46)))
     for i, (top, stem) in enumerate(NEARS):
         k = seg(t, T['world'][0] + .9 + i * .35, T['world'][0] + 1.4 + i * .35) * (1 - seg(t, 45.2, 46)); top.hide_render = stem.hide_render = k < .01; top.scale = (k + .001,) * 3
+    # the chrome shape above the phone: a page, a film frame, an app, a page of the web
+    c0, c1 = T['create']; sh_on = seg(t, c0 - .2, c0 + .5) * (1 - seg(t, c1, c1 + .5)); SHAPE.hide_render = sh_on < .01
+    if sh_on >= .01:
+        st_ = clamp((t - c0) / (c1 - c0), 0, .9999) * 4; si_ = int(st_); sf_ = sm(clamp((st_ - si_ - .35) / .5, 0, 1)); w4 = [0, 0, 0, 0]; w4[si_] += 1 - sf_; w4[min(3, si_ + 1)] += sf_
+        morph_shape(w4); SHAPE.scale = (.05 * sh_on,) * 3; SHAPE.rotation_euler = (t * .25, 0, t * .6); SHAPE.location = SH_C + V(0, 0, math.sin(t * 1.4) * .006)
+        tcol = SH_TINT[min(3, si_ + (1 if sf_ > .5 else 0))]; sh_m.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = hexc(tcol)
+    # the smart contract: a card that rises and signs itself
+    k0, k1 = T['contract']; card_on = seg(t, k0, k0 + .6) * (1 - seg(t, k1 - .4, k1)); CARD.hide_render = card_on < .01
+    if card_on >= .01:
+        CARD.location = (.27, -.03, .09 + .07 * card_on + math.sin(t * 1.2) * .004); CARD.scale = (card_on,) * 3
+        set_image(ct_m, os.path.join(CT_DIR, '%05d.jpg' % int(clamp(round(t * 24), 0, 335))))
+    # the connectors around the node object
+    cc0 = T['campaigns'][0]
+    for i, q in enumerate(TILES):
+        k = seg(t, cc0 + .15 * i, cc0 + .15 * i + .6) * (1 - seg(t, 39.6, 40.2)); q.hide_render = not (vis_n and k > .01)
+        if not q.hide_render:
+            a_ = i * 2 * math.pi / len(TILES) + t * .35; rr_ = .2 * (.4 + .6 * k)
+            q.location = (math.cos(a_) * rr_, math.sin(a_) * rr_ * .55 - .02, .02 + math.sin(t * 1.3 + i) * .02); q.scale = (k + .001,) * 3
     # dust
     mv = np.stack([np.sin(t * .18 + np.arange(ND)) * .12, np.cos(t * .15 + np.arange(ND) * .7) * .12, np.sin(t * .12 + np.arange(ND) * 1.7) * .08 + ((t * .01 * (1 + np.array([rnd(i) for i in range(ND)]))) % 1.6) * 0], axis=1)
     cen = dust_base + mv; verts = (cen[:, None, :] + oct_[None] * dust_sz[:, None, None]).reshape(-1, 3); dme.vertices.foreach_set('co', verts.ravel()); dme.update()
     set_emit(dust_m, 3.0 * lit * (1 - dark * .6))
     # anchors for the labels
     for i, k_ in enumerate(('cc1', 'cc2', 'cc3', 'gpt', 'loc')): anchor(f, k_, NODE.matrix_world @ NODES[i]['o'].location, stage(t, NODES[i]['t0'] + .4, 36.5 if i < 3 else 39.8) * (1 if vis_n else 0))
-    anchor(f, 'camp', NODE.matrix_world @ V(0, .2, 0), stage(t, T['campaigns'][0] + .2, 40.2)); anchor(f, 'scn', NODE.matrix_world @ V(.34, .1, -.16), stage(t, T['campaigns'][0] + 1.6, 40.2))
     for i, (top, stem) in enumerate(NEARS): anchor(f, 'p%d' % (i + 1), top.location, stage(t, T['world'][0] + 1.2 + i * .35, 45))
     for k_, i in (('w1', 0), ('w2', 2), ('w3', 4)):
         wp = WORLD.matrix_world @ PINS[i].location; front = (wp - WORLD.location).dot(CAM.location - WORLD.location) > 0
         anchor(f, k_, wp, stage(t, T['world'][0] + 2.4 + i * .2, 45) * (1 if front else .35))
-    anchor(f, 'listen', phone.matrix_world @ V(PW / 2, -PD / 2, PH_ / 2), stage(t, 9.2, 12))
-    for k_, dx, a0, a1 in (('doc', -.42, 11.2, 14.4), ('med', -.14, 11.6, 14.4), ('app', .14, 12, 14.4), ('pag', .42, 12.4, 14.4)): anchor(f, k_, (TVC.x + dx, TVC.y - .02, TVC.z + .12), stage(t, a0, a1))
-    anchor(f, 'sc', (TVC.x + .28, TVC.y - .02, TVC.z - .06), stage(t, 15.0, 17.0))
+    anchor(f, 'listen', phone.matrix_world @ V(PW / 2, -PD / 2, PH_ / 2), stage(t, 1.3, 4.6))
+    for k_, a0, a1 in (('doc', 3.2, 4.0), ('med', 3.95, 4.75), ('app', 4.7, 5.5), ('pag', 5.45, 6.25)): anchor(f, k_, SHAPE.location + V(0, 0, .055), stage(t, a0, a1))
+    anchor(f, 'sc', CARD.location + V(.1, 0, .0), stage(t, 7.4, 10.0))
 
 def main():
     os.makedirs(OUT, exist_ok=True)

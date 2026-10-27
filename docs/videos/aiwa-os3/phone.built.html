@@ -8,7 +8,7 @@ canvas{display:block}
 // The screen of the phone, frame by frame. The picture of the desktop is the real one (a screenshot of the author's phone, passed as ?img=path: it is not in the repository);
 // the lock screen is built from it (the same wallpaper, no widget, no icons), the widget is cut into its pieces so that its buttons can move.
 const Q=new URLSearchParams(location.search),IMG=Q.get('img')||'/tmp/os3/src/home.jpg';
-const TL={"T": {"total": 67.0, "dotBlink": [0.4, 1.1, 1.8], "phoneIn": 5.6, "dotFix": 6.4, "pullBack": [6.0, 14.0], "unlock": 9.2, "tvShapes": [11.0, 14.4], "tvContract": [14.6, 17.0], "rise": [16.6, 20.4], "taps": [18.2, 20.4], "screenOff": 20.7, "screenOn": 23.6, "cast": [23.6, 28.0], "net": [28.6, 36.4], "campaigns": [36.6, 40.2], "world": [40.6, 45.2], "profileTV": [45.6, 50.0], "closed": [50.0, 55.0], "end": [59.2, 64.0]}, "voice": [{"key": "title", "say": 2.0, "dur": 3.51, "text": "Le premier réseau social de bildeurs. Sur Android."}, {"key": "listen", "say": 9.2, "dur": 0.94, "text": "J'écoute."}, {"key": "create", "say": 11.0, "dur": 2.76, "text": "Crée et organise, dans ton propre environnement."}, {"key": "contracts", "say": 14.6, "dur": 1.73, "text": "Même des smart contrats."}, {"key": "voice", "say": 18.2, "dur": 1.46, "text": "Simplement par la voix."}, {"key": "off", "say": 20.6, "dur": 1.23, "text": "Même écran éteint."}, {"key": "cast", "say": 23.0, "dur": 1.65, "text": "Et même depuis la télévision."}, {"key": "connect", "say": 28.6, "dur": 7.2, "text": "Connecte tes conversations Claude Code entre elles. Et même des agents externes. ChatGPT, ou des IA locales."}, {"key": "campaigns", "say": 36.6, "dur": 2.59, "text": "Puis crée des campagnes de diffusion, et des scénarios."}, {"key": "discover", "say": 40.6, "dur": 3.87, "text": "Découvre ce que les autres construisent, autour de toi, et dans le monde."}, {"key": "profile", "say": 45.6, "dur": 2.6, "text": "Et personnalise totalement ton profil."}, {"key": "closed", "say": 50.0, "dur": 3.98, "text": "Fini de coder dans des sites fermés, des sessions fermées, des codes fermés."}, {"key": "newnet", "say": 55.6, "dur": 2.12, "text": "Découvre une nouvelle idée d'internet."}, {"key": "aiwa", "say": 59.2, "dur": 0.64, "text": "Aiwa."}, {"key": "univers", "say": 60.6, "dur": 1.96, "text": "Ton univers. Ta volonté."}]},T=TL.T;
+const TL={"T": {"total": 67.0, "dotBlink": [0.3], "phoneIn": 0.95, "unlock": 1.9, "rise": [9.0, 11.6], "taps": [12.0, 14.2], "screenOff": 17.3, "screenOn": 23.6, "cast": [23.6, 28.0], "net": [28.6, 36.4], "campaigns": [36.6, 40.2], "world": [40.6, 45.2], "profileTV": [45.6, 50.0], "closed": [50.0, 55.0], "end": [59.2, 64.0], "reveal": [0.95, 1.5], "create": [3.2, 6.2], "contract": [7.2, 10.2], "tapTimes": [12.1, 12.75, 13.3, 13.85], "tvShapes": [1.6, 2.0], "tvContract": [100, 101]}, "voice": []},T=TL.T;
 const c=document.getElementById('c'),g=c.getContext('2d');
 const BG='#0e0c0d';
 const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x)),ramp=(t,a,b)=>clamp((t-a)/(b-a)),eo=x=>1-Math.pow(1-x,3),eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2,sm=x=>x*x*(3-2*x);
@@ -30,9 +30,9 @@ function poly(k,grow=0){const p=P[k].poly;g.beginPath();p.forEach((q,i)=>{const 
 const pulse=(t,a,d=.55)=>{const u=ramp(t,a,a+d);return u<=0||u>=1?0:Math.sin(Math.PI*Math.pow(u,.8))};
 function state(t){ // what each piece does
  const s={};for(const k in P)s[k]={dx:0,dy:0,sc:1,fl:0,dim:0};
- const sel=sm(ramp(t,18.35,18.75));                       // the selected tab goes from the eye to the </>
+ const TT=T.tapTimes,sel=sm(ramp(t,TT[0]-.05,TT[0]+.35));                       // the selected tab goes from the eye to the </>
  s.t3.dy=-13*sel;s.t3.fl=.35*sel;s.t4.dy=13*sel;s.t4.dim=.45*sel;
- const pr=pulse(t,19.0),ca=pulse(t,19.55),st=pulse(t,20.05);
+ const pr=pulse(t,TT[1]),ca=pulse(t,TT[2]),st=pulse(t,TT[3]);
  s.prox.sc=1-.05*pr;s.prox.fl=.55*pr;s.cache.sc=1-.05*ca;s.cache.fl=.5*ca;s.b3.dy=5*st;s.b3.fl=.5*st;
  return s}
 function drawBase(){g.drawImage(img,0,0)}
@@ -49,7 +49,7 @@ function drawPieces(t,alpha=1){
   g.restore()}
  // ripples where the finger lands
  const rip=(a,x,y)=>{const u=ramp(t,a,a+.7);if(u>0&&u<1){g.save();g.strokeStyle=`rgba(210,190,255,${.7*(1-u)})`;g.lineWidth=3;g.beginPath();g.arc(x,y,12+u*70,0,7);g.stroke();g.restore()}};
- rip(18.3,P.t3.cx,P.t3.cy);rip(19.0,P.prox.cx+60,P.prox.cy);rip(19.55,P.cache.cx,P.cache.cy);rip(20.05,P.b3.cx,P.b3.cy);
+ rip(T.tapTimes[0]-.05,P.t3.cx,P.t3.cy);rip(T.tapTimes[1],P.prox.cx+60,P.prox.cy);rip(T.tapTimes[2],P.cache.cx,P.cache.cy);rip(T.tapTimes[3],P.b3.cx,P.b3.cy);
 }
 function drawLock(t,a){
  g.save();g.globalAlpha=a;g.fillStyle=BG;g.fillRect(0,0,720,1600);
@@ -64,7 +64,7 @@ function lockText(t,a){
  g.restore()}
 function statusBar(a){g.save();g.globalAlpha=a;g.fillStyle=BG;g.fillRect(0,0,720,62);g.drawImage(img,0,0,720,62,0,0,720,62);g.restore()}
 function wave(t){ // "j'écoute": the voice, as bars over the dark band under the status bar
- const on=ramp(t,T.unlock,T.unlock+.4)*(1-ramp(t,12.2,12.9));if(on<=0)return;
+ const on=ramp(t,T.unlock,T.unlock+.4)*(1-ramp(t,T.unlock+2.6,T.unlock+3.3));if(on<=0)return;
  g.save();g.globalAlpha=on;const n=44;
  for(let i=0;i<n;i++){const a=(Math.sin(i*.7+t*9)*.5+Math.sin(i*1.3-t*6)*.5)*.5+.5,h=10+a*92*Math.sin(i/(n-1)*Math.PI),x=90+i*13.2;
   const gr=g.createLinearGradient(0,95-h/2,0,95+h/2);gr.addColorStop(0,'#57e0ff');gr.addColorStop(1,'#b48cff');g.fillStyle=gr;g.shadowColor='#7fb0ff';g.shadowBlur=16;
@@ -76,8 +76,8 @@ window.render=async function(t){
  const off=1-ramp(t,T.screenOff,T.screenOff+.22),on=ramp(t,T.screenOn,T.screenOn+.5);
  const bright=t<T.screenOff?1:(t<T.screenOn?off*(t<T.screenOff+.22?1:0):on);       // the screen goes dark, then comes back
  const unlock=ramp(t,T.unlock-.1,T.unlock+.5);
- if(t<5.2){g.fillStyle='#000';g.fillRect(0,0,720,1600);return}
- const appear=ramp(t,5.2,6.0);
+ if(t<T.reveal[0]){g.fillStyle='#000';g.fillRect(0,0,720,1600);return}
+ const appear=ramp(t,T.reveal[0],T.reveal[1]);
  if(unlock<1){drawLock(t,1);statusBar(1);g.save();g.translate(0,-unlock*140);lockText(t,1-unlock);g.restore()}
  if(unlock>0){g.save();g.globalAlpha=sm(unlock);g.translate(0,(1-unlock)*60);drawBase();g.restore();if(unlock>=1){drawPieces(t)}}
  wave(t);
