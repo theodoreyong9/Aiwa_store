@@ -14,6 +14,14 @@ set -euo pipefail
 
 REPO_DIR="$HOME/aiwa_store"
 
+# The phone's storage is asked for FIRST, before anything long runs: Android shows its permission box at once instead of in the middle of the install
+# (where it was missed on a fresh phone), and the APK can then be left in Downloads. Without it the rest still installs; the APK step says what is missing.
+if [ ! -d "$HOME/storage/downloads" ]; then
+  echo "== Storage: accept the Android permission box that opens now (Allow) =="
+  termux-setup-storage >/dev/null 2>&1 || true
+  for _ in $(seq 1 45); do [ -d "$HOME/storage/downloads" ] && break; sleep 1; done
+fi
+
 # What a phone installs comes from this repository. An install made from another address is replaced by a fresh one (its data lives in $HOME).
 SOURCE="${AIWA_SOURCE:-https://github.com/theodoreyong9/Aiwa_store}"
 if [ -d "$REPO_DIR/.git" ] && [ "$(git -C "$REPO_DIR" remote get-url origin 2>/dev/null)" = "$SOURCE" ]; then

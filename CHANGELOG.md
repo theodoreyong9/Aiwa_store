@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Install on a fresh phone: `bootstrap.sh` now asks for the storage permission (`termux-setup-storage`) FIRST, before the long steps, and waits for the answer, so the Android box is not missed in the middle of the install and the APK reaches Downloads. Run in the tests of the scripts, not on a second phone.
+
 - Voir › Proximité detects profiles with two sliders: the reach (50 m, 150 m, 1 km, 5 km, 40 km, 150 km, 1 250 km, the world; each wider step joins one wider room named by a shorter geohash, or the world room) and the minimum score (it runs between the lowest and the highest score detected). Limits, said plainly: a person is seen by those who look at least as wide as she is seen from; the rooms are a WebRTC mesh, so a very wide reach works while few people are in it: the world needs a directory (a relay index), not done yet. Looked at in the tests, not on a phone with other people.
 
 - Widget: the Claude button is the icon alone (no word).
