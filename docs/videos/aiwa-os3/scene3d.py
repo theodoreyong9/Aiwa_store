@@ -415,24 +415,42 @@ def morph_shape(w):
 # the contract: a card that rises from the phone
 ct_m = screen_mat('contract', rough=.35, es=1.5)
 CARD = quad('card', .18, .1125, ct_m, (.27, -.03, .15), rot=(math.radians(-14), 0, math.radians(-5))); CARD.hide_render = True
-# the connectors: a ring of tiles around the node object
-CONN = ['github', 'anthropic', 'openai', 'gmail', 'whatsapp', 'telegram', 'linkedin', 'slack']
-TILES = []
-for i, n_ in enumerate(CONN):
+# the campaign: files, people and channels, in three columns that slide past each other; chains of light join one of each
+G2 = A('ic2dir', '/tmp/os3/ic2')
+GRAPH = bpy.data.objects.new('GRAPH', None); GRAPH.location = NODE_C; bpy.context.scene.collection.objects.link(GRAPH)
+COLS = {'f': ['file_docs', 'file_media', 'file_app', 'file_page', 'file_contract'], 'r': ['who_anna', 'who_theo', 'who_lina', 'who_max', 'who_sam'], 'c': ['ch_gmail', 'ch_whatsapp', 'ch_telegram', 'ch_linkedin', 'ch_x']}
+COLX = {'f': -.36, 'r': 0.0, 'c': .36}; COLSPEED = {'f': .30, 'r': -.24, 'c': .20}; ROW = .098; GTILE = .086
+def tile_mat(n_):
     tm = bpy.data.materials.new('tile_' + n_); tm.use_nodes = True; tm.cycles.emission_sampling = 'NONE'; nt = tm.node_tree
     for nd in list(nt.nodes): nt.nodes.remove(nd)
-    tx = nt.nodes.new('ShaderNodeTexImage'); tx.image = bpy.data.images.load(f'{IC_DIR}/{n_}.png'); tx.image.alpha_mode = 'STRAIGHT'
-    em_ = nt.nodes.new('ShaderNodeEmission'); em_.inputs['Strength'].default_value = 1.6; tr_ = nt.nodes.new('ShaderNodeBsdfTransparent'); mx_ = nt.nodes.new('ShaderNodeMixShader'); ou_ = nt.nodes.new('ShaderNodeOutputMaterial')
+    tx = nt.nodes.new('ShaderNodeTexImage'); tx.image = bpy.data.images.load(f'{G2}/{n_}.png'); tx.image.alpha_mode = 'STRAIGHT'
+    em_ = nt.nodes.new('ShaderNodeEmission'); em_.inputs['Strength'].default_value = 1.5; tr_ = nt.nodes.new('ShaderNodeBsdfTransparent'); mx_ = nt.nodes.new('ShaderNodeMixShader'); ou_ = nt.nodes.new('ShaderNodeOutputMaterial')
     nt.links.new(tx.outputs['Color'], em_.inputs['Color']); nt.links.new(tx.outputs['Alpha'], mx_.inputs['Fac']); nt.links.new(tr_.outputs[0], mx_.inputs[1]); nt.links.new(em_.outputs[0], mx_.inputs[2]); nt.links.new(mx_.outputs[0], ou_.inputs['Surface'])
-    q = quad('tile', .07, .07, tm, (0, 0, 0)); q.parent = NODE; q.hide_render = True
-    c_ = q.constraints.new('TRACK_TO'); c_.target = CAM; c_.track_axis = 'TRACK_NEGATIVE_Y'; c_.up_axis = 'UP_Z'; q.visible_shadow = False
-    TILES.append(q)
+    return tm
+G_TILES = {}
+for col, names in COLS.items():
+    G_TILES[col] = []
+    for i, n_ in enumerate(names):
+        q = quad('gt', GTILE, GTILE, tile_mat(n_), (0, 0, 0)); q.parent = GRAPH; q.hide_render = True; q.visible_shadow = False
+        c_ = q.constraints.new('TRACK_TO'); c_.target = CAM; c_.track_axis = 'TRACK_NEGATIVE_Y'; c_.up_axis = 'UP_Z'; G_TILES[col].append(q)
+NSEG = 14
+G_LINE_M = [emissive('gline%d' % k, ['#52d6a0', '#6b9bf5', '#e8c14a', '#ff9a5c'][k], 5.0) for k in range(4)]
+G_LINES = [[cyl('gl', G_LINE_M[k], .0016) for _ in range(2 * NSEG)] for k in range(4)]
+for ls in G_LINES:
+    for l in ls: l.parent = GRAPH; l.hide_render = True
+G_PULSE = [sphere('gp', .011, (0, 0, 0), emissive('gpulse%d' % k, '#ffffff', 45.0)) for k in range(4)]
+for o in G_PULSE: o.parent = GRAPH; o.hide_render = True
+def tile_pos(col, i, t):
+    row = ((i + t * COLSPEED[col]) % 5) - 2.5
+    return V(COLX[col], -.012 * i, -row * ROW), 1 - ramp(abs(row), 1.7, 2.45)
+def qbez(a, b, c, u): return a * (1 - u) ** 2 + c * 2 * u * (1 - u) + b * u * u
 
 # ------------------------------------------------------------------ the camera path (x, y, z metres)
 K = [  # t, camera, target, fov (vertical)
- [0, (.34, -.42, .30), (.28, -.04, .0), 30], [1.0, (.33, -.40, .29), (.28, -.04, .0), 30], [3.2, (.31, -.52, .29), (.27, -.05, .08), 32],
- [6.2, (.37, -.52, .29), (.27, -.04, .10), 32], [9.0, (.33, -.56, .30), (.27, -.03, .12), 32], [11.6, (.30, -.70, .30), (.26, -.06, .27), 34],
- [14.4, (.24, -.80, .31), (.27, -.06, .30), 36], [17.3, (.21, -.80, .31), (.27, -.06, .30), 36], [20.7, (.20, -.80, .31), (.27, -.06, .30), 36],
+ [0, (.34, -.42, .30), (.28, -.04, .0), 30], [1.0, (.33, -.40, .29), (.28, -.04, .0), 30], [3.7, (.32, -.43, .29), (.28, -.04, .0), 30],
+ [5.8, (.42, -1.10, .27), (.08, .50, .34), 38], [11.0, (.44, -1.12, .28), (.07, .52, .34), 38], [14.4, (.24, -.80, .31), (.27, -.06, .30), 36],
+ [17.3, (.21, -.80, .31), (.27, -.06, .30), 36],
+ [20.7, (.20, -.80, .31), (.27, -.06, .30), 36],
  [23.0, (.26, -1.2, .42), (.04, .90, .44), 40], [26.0, (.16, -1.0, .50), (-.06, 1.10, .47), 38], [28.4, (.55, -1.05, .38), (.38, -.05, .34), 38],
  [31.0, (.74, -.86, .36), (.78, -.10, .34), 34], [34.5, (.92, -.82, .40), (.78, -.10, .34), 34], [37.5, (.62, -.98, .50), (.76, -.10, .33), 37],
  [40.2, (.28, -1.15, .46), (.10, -.10, .34), 42], [42.5, (-.30, -.84, .40), (-.62, -.12, .35), 38], [45.0, (-.20, -1.0, .55), (-.15, .9, .50), 40],
@@ -451,8 +469,8 @@ def cam_at(t):
 
 PH0 = V(.27, -.06, .081)
 def phone_pose(t):
-    up = sm5(ramp(t, 9.0, 11.6)); down = sm5(ramp(t, 28.2, 30.4)); lev = up * (1 - down)
-    lay = sm5(ramp(t, 9.0, 10.8))                                         # 0: lying on the table, 1: upright
+    up = sm5(ramp(t, 11.3, 14.3)); down = sm5(ramp(t, 28.2, 30.4)); lev = up * (1 - down)
+    lay = sm5(ramp(t, 11.3, 13.1))                                         # 0: lying on the table, 1: upright
     pos = V(PH0.x - lev * .04, PH0.y - lev * .08, PH0.z + lev * .22 + math.sin(t * 1.7) * .004 * lev)
     pos.z = mix(.0046, pos.z, lay)
     lean = mix(math.radians(-90), mix(math.radians(14), math.radians(4), lev), lay)
@@ -533,7 +551,7 @@ def update(t, f):
             arr[i] = (p_.x + math.sin(t * 3 + i) * j, p_.y, p_.z + math.cos(t * 2 + i) * j)
         verts = (arr[:, None, :] + oct_[None] * .0035 * cast_on).reshape(-1, 3); cme.vertices.foreach_set('co', verts.ravel()); cme.update()
     # node system
-    n_on = seg(t, 28.6, 29.4) * (1 - seg(t, 40.0, 40.8)); NODE.hide_viewport = False
+    n_on = seg(t, 28.6, 29.4) * (1 - seg(t, 36.0, 36.7)); NODE.hide_viewport = False
     vis_n = n_on > .01
     for o in (core,): o.hide_render = not vis_n
     NODE.scale = (n_on + .001,) * 3
@@ -591,13 +609,34 @@ def update(t, f):
     if card_on >= .01:
         CARD.location = (.27, -.03, .09 + .07 * card_on + math.sin(t * 1.2) * .004); CARD.scale = (card_on,) * 3
         set_image(ct_m, os.path.join(CT_DIR, '%05d.jpg' % int(clamp(round(t * 24), 0, 335))))
-    # the connectors around the node object
-    cc0 = T['campaigns'][0]
-    for i, q in enumerate(TILES):
-        k = seg(t, cc0 + .15 * i, cc0 + .15 * i + .6) * (1 - seg(t, 39.6, 40.2)); q.hide_render = not (vis_n and k > .01)
-        if not q.hide_render:
-            a_ = i * 2 * math.pi / len(TILES) + t * .35; rr_ = .2 * (.4 + .6 * k)
-            q.location = (math.cos(a_) * rr_, math.sin(a_) * rr_ * .55 - .02, .02 + math.sin(t * 1.3 + i) * .02); q.scale = (k + .001,) * 3
+    # the campaign: three columns slide, chains of light join a file, a person and a channel
+    g0, g1 = T['campaigns'][0] - .2, T['campaigns'][1] - .1; g_on = seg(t, g0, g0 + .7) * (1 - seg(t, g1, g1 + .6))
+    boost = {}
+    for col in COLS:
+        for i, q in enumerate(G_TILES[col]):
+            ps, fd = tile_pos(col, i, t); q.location = ps; q.scale = (max(.001, fd * g_on),) * 3; q.hide_render = g_on * fd < .02
+    for k in range(4):
+        for l in G_LINES[k]: l.hide_render = True
+        G_PULSE[k].hide_render = True
+    if g_on > .02:
+        base = g0 + .6
+        for kk in range(5):
+            n = int(math.floor((t - base) / .5)) - kk; st = base + n * .5; u = (t - st) / 2.0
+            if n < 0 or not (0 <= u < 1): continue
+            sl = n % 4; fi, ri, ci = (n * 7 + 3) % 5, (n * 3 + 1) % 5, (n * 11 + 2) % 5
+            pf, fdf = tile_pos('f', fi, t); pr, fdr = tile_pos('r', ri, t); pc, fdc = tile_pos('c', ci, t)
+            A_, B_, C_ = V(pf), V(pr), V(pc); m1 = (A_ + B_) / 2 + V(0, -.07, .03); m2 = (B_ + C_) / 2 + V(0, -.07, -.03)
+            strength = 14.0 * ramp(u, 0, .08) * (1 - ramp(u, .78, 1.0)) * g_on; set_emit(G_LINE_M[sl], strength)
+            for j in range(NSEG):
+                place_cyl(G_LINES[sl][j], qbez(A_, B_, m1, j / NSEG), qbez(A_, B_, m1, (j + 1) / NSEG), 1.0)
+                place_cyl(G_LINES[sl][NSEG + j], qbez(B_, C_, m2, j / NSEG), qbez(B_, C_, m2, (j + 1) / NSEG), 1.0)
+            if u < .38: pp_ = qbez(A_, B_, m1, ramp(u, .04, .38))
+            elif u < .72: pp_ = qbez(B_, C_, m2, ramp(u, .4, .72))
+            else: pp_ = C_
+            G_PULSE[sl].hide_render = not (.04 < u < .9); G_PULSE[sl].location = pp_; G_PULSE[sl].scale = (1 + 1.2 * max(0, 1 - abs(u - .74) * 9),) * 3
+            for col, idx, a0, a1 in (('f', fi, 0, .4), ('r', ri, .3, .76), ('c', ci, .68, 1.0)):
+                k_ = math.sin(math.pi * ramp(u, a0, a1)) if a0 <= u <= a1 else 0; boost[(col, idx)] = max(boost.get((col, idx), 0), k_)
+        for (col, idx), k_ in boost.items(): G_TILES[col][idx].scale = tuple(x * (1 + .3 * k_) for x in G_TILES[col][idx].scale)
     # dust
     mv = np.stack([np.sin(t * .18 + np.arange(ND)) * .12, np.cos(t * .15 + np.arange(ND) * .7) * .12, np.sin(t * .12 + np.arange(ND) * 1.7) * .08 + ((t * .01 * (1 + np.array([rnd(i) for i in range(ND)]))) % 1.6) * 0], axis=1)
     cen = dust_base + mv; verts = (cen[:, None, :] + oct_[None] * dust_sz[:, None, None]).reshape(-1, 3); dme.vertices.foreach_set('co', verts.ravel()); dme.update()
@@ -608,9 +647,10 @@ def update(t, f):
     for k_, i in (('w1', 0), ('w2', 2), ('w3', 4)):
         wp = WORLD.matrix_world @ PINS[i].location; front = (wp - WORLD.location).dot(CAM.location - WORLD.location) > 0
         anchor(f, k_, wp, stage(t, T['world'][0] + 2.4 + i * .2, 45) * (1 if front else .35))
-    anchor(f, 'listen', phone.matrix_world @ V(PW / 2, -PD / 2, PH_ / 2), stage(t, 1.3, 4.6))
-    for k_, a0, a1 in (('doc', 3.2, 4.0), ('med', 3.95, 4.75), ('app', 4.7, 5.5), ('pag', 5.45, 6.25)): anchor(f, k_, SHAPE.location + V(0, 0, .055), stage(t, a0, a1))
-    anchor(f, 'sc', CARD.location + V(.1, 0, .0), stage(t, 7.4, 10.0))
+    anchor(f, 'listen', phone.matrix_world @ V(PW / 2, -PD / 2, PH_ / 2), stage(t, 3.8, 7.2))
+    for k_, dx, a0, a1 in (('doc', -.42, 5.6, 8.8), ('med', -.14, 6.0, 8.8), ('app', .14, 6.4, 8.8), ('pag', .42, 6.8, 8.8)): anchor(f, k_, (TVC.x + dx, TVC.y - .02, TVC.z + .12), stage(t, a0, a1))
+    anchor(f, 'sc', (TVC.x + .28, TVC.y - .02, TVC.z - .06), stage(t, 9.4, 11.4))
+    for k_, col in (('colf', 'f'), ('colr', 'r'), ('colc', 'c')): anchor(f, k_, GRAPH.location + V(COLX[col], 0, .19), stage(t, T['campaigns'][0] + .2, T['campaigns'][1] - .2))
 
 def main():
     os.makedirs(OUT, exist_ok=True)
