@@ -31,7 +31,7 @@ const labels={},ln=document.getElementById('ln');
  ['sc','Contrat intelligent','','#ffe27a',-25,40,60,-30],['listen','J’écoute','','#35f08a',-10,40,30,-30]].forEach(([id,k,s,c,r,l,dx,dy])=>{
  const d=document.createElement('div');d.className='lbl';d.style.setProperty('--c',c);d.style.setProperty('--r',r+'deg');d.style.setProperty('--l',l+'px');d.innerHTML=`${k}<span>${s||''}</span>`;ov.appendChild(d);const sv=document.createElementNS('http://www.w3.org/2000/svg','g');sv.innerHTML=`<line stroke="${c}" stroke-width="1.5" stroke-opacity=".75"/><circle r="7" fill="none" stroke="${c}" stroke-width="2"/><circle r="2.5" fill="${c}"/>`;ln.appendChild(sv);labels[id]={d,dx,dy,sv}});
 function bigText(t){ // title cards, in the film's own voice
- const rows=[ [0.15,2.9,'1<sup style="font-size:.5em">er</sup> réseau social de builders','sur Android',H*.80],
+ const rows=[ [0.15,2.9,'1<sup style="font-size:.5em">er</sup> réseau social de builders','sur Android',H*.07],
   [50.0,54.6,'Fini de coder dans des sites fermés,','des plateformes fermées, des sessions fermées.',H*.14],
   [55.6,58.6,'Vivez une nouvelle expérience du web.','',H*.42],[59.2,60.4,'Aiwa.','',H*.4],[60.6,64.4,'Ton univers.','Ta volonté.',H*.34]];
  let on=null;for(const r of rows)if(t>=r[0]&&t<=r[1]){on=r;break}
