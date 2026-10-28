@@ -35,7 +35,6 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.aiwa.bridge.GitHubDeviceFlow
 import com.aiwa.bridge.HttpSiteFetcher
-import com.aiwa.bridge.LocalClaudeBridge
 import com.aiwa.bridge.STORE_APP_URL
 import com.aiwa.bridge.SiteRelease
 import com.aiwa.bridge.SiteStore
@@ -146,8 +145,6 @@ class StoreActivity : ComponentActivity() {
             pageIsDownloaded = false
         }
         val loader = loaderBuilder.build()
-        assetLoader = loader
-        rootFrame = root
         with(web.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true          // IndexedDB: the wallet's journal
@@ -216,58 +213,7 @@ class StoreActivity : ComponentActivity() {
                 }
             }
         })
-        ChamberHost.runner = { cmd -> runOnUiThread { chamberCommand(cmd) } }
-        ChamberHost.drain().forEach { chamberCommand(it) }
         openPage(intent.getStringExtra(EXTRA_URL) ?: STORE_APP_URL)
-    }
-
-    /** An order for the chamber (open, visit, close, begin, end, danger, ear): it waits for the page of the connection to be loaded. */
-    private fun chamberCommand(cmd: JSONObject) {
-        ensureChamberWeb()
-        if (chamberReady) chamberWeb?.evaluateJavascript("(window.aiwaChamber&&window.aiwaChamber.cmd($cmd))", null) else chamberQueue.add(cmd)
-    }
-
-    private fun ensureChamberWeb() {
-        if (chamberWeb != null) return
-        val loader = assetLoader ?: return
-        val view = WebView(this)
-        with(view.settings) { javaScriptEnabled = true; domStorageEnabled = true; allowFileAccess = false; allowContentAccess = false; mediaPlaybackRequiresUserGesture = false }
-        view.webViewClient = object : WebViewClientCompat() {
-            override fun shouldInterceptRequest(v: WebView, request: WebResourceRequest): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
-            override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean = request.url.host != "appassets.androidplatform.net"
-            override fun onPageFinished(v: WebView, url: String?) {
-                chamberReady = true
-                chamberQueue.forEach { v.evaluateJavascript("(window.aiwaChamber&&window.aiwaChamber.cmd($it))", null) }
-                chamberQueue.clear()
-            }
-        }
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
-            WebViewCompat.addWebMessageListener(view, "AiwaHost", setOf("https://appassets.androidplatform.net")) { _, message, _, isMainFrame, replyProxy -> if (isMainFrame) handle(message, replyProxy) }
-        }
-        rootFrame?.addView(view, FrameLayout.LayoutParams(2, 2))
-        chamberWeb = view
-        val repo = ProfileSettings.repo(this) ?: ""
-        val name = repo.substringBefore('/')
-        view.loadUrl(servedAddress("$STORE_APP_URL?page=chambre&me=${Uri.encode(repo)}&name=${Uri.encode(name)}", pageIsDownloaded))
-    }
-
-    // The words of the chamber: the brain makes what our agent says; if the person listens, both sides are said aloud (the other's voice lower).
-    private fun chamberTurn(json: JSONObject, reply: JavaScriptReplyProxy, id: Int) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val heard = json.optJSONObject("incoming")?.optString("text").orEmpty()
-                if (ChamberState.ear && heard.isNotBlank()) Speaker.speakAndWait(this@StoreActivity, heard, 0.8f)
-                val state = AiwaRepository.state.value
-                val files = org.json.JSONArray().also { list -> lightKinds(state, this@StoreActivity).filter { it.found }.forEach { list.put(it.word) } }
-                val body = JSONObject(json.toString()).put("project", Projects.nameOf(this@StoreActivity, state.repo, state.cloudSessionId) ?: "").put("files", files)
-                val answer = LocalClaudeBridge().chamberCall("/api/chamber/turn", body)
-                val say = answer.optString("say")
-                if (ChamberState.ear && answer.optBoolean("ok", false) && say.isNotBlank()) Speaker.speakAndWait(this@StoreActivity, say, 1.05f)
-                post(reply, id, "result", answer)
-            } catch (err: Exception) {
-                post(reply, id, "result", JSONObject().put("ok", false).put("error", err.message ?: "?"))
-            }
-        }
     }
 
     // Opens the page from the copy in use, and remembers the address and the moment (see applyUpdateNow).
@@ -277,11 +223,6 @@ class StoreActivity : ComponentActivity() {
         web.loadUrl(servedAddress(address, pageIsDownloaded))
     }
 
-    private var assetLoader: WebViewAssetLoader? = null
-    private var rootFrame: FrameLayout? = null
-    private var chamberWeb: WebView? = null                 // the connection of the chamber: a page of the Store without a screen (2 pixels), made when the first order comes
-    private var chamberReady = false
-    private val chamberQueue = ArrayList<JSONObject>()
     private var cover: android.view.View? = null
     private var homeWeb: WebView? = null                 // the home: the page of the person (her `Profile/`), under the Store
     private var homeWatch: ProfileWatch? = null           // follows her Profile/ on GitHub: a new commit replaces the page on the screen
@@ -409,8 +350,6 @@ class StoreActivity : ComponentActivity() {
 
     override fun onDestroy() {
         homeWatch?.stop()
-        ChamberHost.runner = null
-        chamberWeb?.let { it.destroy() }
         homeWeb?.let { HomeRuntime.release(it); it.destroy() }
         web.destroy()
         super.onDestroy()
@@ -430,12 +369,6 @@ class StoreActivity : ComponentActivity() {
             "secret-get" -> respond(reply, id) { JSONObject().put("value", secrets.get(secretName(json)) ?: JSONObject.NULL) }
             "secret-set" -> respond(reply, id) { secrets.set(secretName(json), json.getString("value")); JSONObject() }
             "secret-delete" -> respond(reply, id) { secrets.delete(secretName(json)); JSONObject() }
-            "chamber-status" -> json.optJSONObject("status")?.let { ChamberState.update(this, it) }
-            "chamber-active", "chamber-deliver" -> CoroutineScope(Dispatchers.IO).launch {
-                val path = if (json.optString("cmd") == "chamber-active") "/api/chamber/active" else "/api/chamber/deliver"
-                post(reply, id, "result", LocalClaudeBridge().chamberCall(path, JSONObject(json.toString())))
-            }
-            "chamber-turn" -> chamberTurn(json, reply, id)
             "github-login" -> githubLogin(reply, id, json.optString("clientId"), json.optString("scope"))
         }
     }

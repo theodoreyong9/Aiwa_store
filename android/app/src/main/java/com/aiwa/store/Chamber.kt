@@ -28,15 +28,16 @@ object ChamberState {
 }
 
 object ChamberHost {
-    /** The Store's page that holds the connection (set while the Store is open); the orders wait here when it is not. */
+    /** The service that holds the connection (set while it runs); the orders wait here until it does. */
     @Volatile var runner: ((JSONObject) -> Unit)? = null
     private val waiting = ArrayList<JSONObject>()
 
+    /** An order for the chamber. The connection is held by a service of the phone, so it goes on with the application closed and the screen off; the first order starts it. */
     fun send(context: Context, cmd: JSONObject) {
         val run = runner
         if (run != null) { run(cmd); return }
         synchronized(waiting) { waiting.add(cmd) }
-        context.startActivity(Intent(context, StoreActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        androidx.core.content.ContextCompat.startForegroundService(context.applicationContext, Intent(context.applicationContext, ChamberService::class.java))
     }
 
     fun drain(): List<JSONObject> = synchronized(waiting) { val out = ArrayList(waiting); waiting.clear(); out }
