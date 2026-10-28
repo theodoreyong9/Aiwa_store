@@ -35,23 +35,23 @@ put(blip(1040, .35), T['dotBlink'][0], 0, .4)
 put(sub(52, 2.6, .25), T['reveal'][0] - .04, 0, .9); put(bell(1318, 1.8), T['reveal'][0] + .02, .3, .3)
 put(lp(noise_sweep(.9, 200, 4200), .2), T['reveal'][0] - .5, 0, .35)
 put(bell(987, 1.4), T['unlock'], 0, .3); put(bell(1480, 1.2), T['unlock'] + .14, .2, .2)             # "j'écoute"
-c0, c1 = T['create']
+put(lp(noise_sweep(2.4, 150, 1500), .1), T['pullBack'][0], 0, .45)                                    # the camera goes back to the room
+s0, s1 = T['tvShapes']
 for k, f in enumerate((523, 659, 784, 988)):                                                         # each shape that becomes the next one
-    t0 = c0 + k * (c1 - c0) / 4
+    t0 = s0 + k * (s1 - s0) / 4
     put(blip(f, .5), t0 + .5, -.2, .26); put(lp(noise_sweep(.7, 300, 2600), .2), t0 + .2, -.2, .3)
-k0 = T['contract'][0]
+k0 = T['tvContract'][0]
 for i in range(16): put(tick(), k0 + .4 + i * .11 + rng.random() * .03, -.1, .12)                    # the contract is typed
 put(sub(70, 1.2), k0 + 2.2, 0, .45); put(bell(1568, 1.4), k0 + 2.2, .2, .25)                         # and sealed
 put(lp(noise_sweep(2.8, 150, 1600), .1), T['rise'][0], .2, .55); put(sub(90, 2.6, .2), T['rise'][0], 0, .4)   # the phone rises
 for t0 in T['tapTimes']: put(tick(.06, 3200), t0, .3, .24); put(blip(1100, .08), t0, .3, .14)         # the buttons of the widget
-put(blip(740, .18), 14.6, .2, .22); put(blip(988, .18), 14.78, .2, .22)                              # "il parle avec toi"
+put(blip(740, .18), 15.8, .2, .22); put(blip(988, .18), 15.98, .2, .22)                              # "il parle avec toi"
 put(blip(520, .6) * np.linspace(1, 0, int(.6 * SR)), T['screenOff'], 0, .4); put(sub(55, .8, .6), T['screenOff'], 0, .4)   # the screen goes dark
 put(bell(1760, 1.5), T['cast'][0], 0, .25)
 for k in range(3): put(lp(noise_sweep(1.6, 400, 4200), .25), T['cast'][0] + .1 + k * .3, .1 + k * .1, .22)   # the stream goes to the television
 put(sub(60, 1.6, .3), T['cast'][0] + 1.0, -.3, .3)
 for i, t0 in enumerate((29.0, 29.6, 30.2, 32.2, 33.4)): put(bell(660 * 2 ** (i * 3 / 12), .8), t0 + .3, .5 - i * .25, .18)   # the nodes arrive
-for t0 in np.arange(T['campaigns'][0], T['campaigns'][0] + 3.4, .45): put(blip(300, .5) * .8 + sub(110, .5, .3) * .4, t0, .3, .2)   # the campaign rings leave
-for i in range(5): put(blip(740 * 2 ** (i * 2 / 12), .25), T['campaigns'][0] + 1.5 + i * .25, .4, .18)    # the scenario steps
+for i, t0 in enumerate(np.arange(T['campaigns'][0] + .6, T['campaigns'][0] + 3.8, .5)): put(blip(660 * 2 ** ((i % 5) * 3 / 12), .3), t0 + .9, .3 - (i % 3) * .3, .2); put(tick(.05, 2600), t0 + .2, 0, .14)   # a chain of the campaign: a file, a person, a channel
 put(lp(noise_sweep(3.5, 150, 2500), .1), T['world'][0] - .2, -.3, .5)   # the view travels to the world
 for i, t0 in enumerate(np.arange(T['world'][0] + 1.0, T['world'][0] + 3.0, .35)): put(bell(1175 * (1 + (i % 3) * .25), .9), t0, -.5 + (i % 4) * .3, .14)  # the pins
 put(sub(46, 2.5, .2), T['profileTV'][0] - .2, 0, .3); put(bell(784, 1.8), T['profileTV'][0] + .1, 0, .22)

@@ -658,6 +658,9 @@ def main():
     a, b = A('from', 0, int), A('to', NFR, int)
     if still is not None:
         f = int(round(still * FPS)); update(still, f); S.render.filepath = os.path.join(OUT, 'still_%s.jpg' % str(still).replace('.', '_')); bpy.ops.render.render(write_still=True); return
+    if A('anchorsonly', 0, int):                                         # only where the tracked points are, without drawing (to rebuild the labels of a render that was cut and resumed)
+        for f in range(a, min(b, NFR)): update(f / FPS, f)
+        json.dump(ANCH, open(os.path.join(OUT, 'anchors.only.%05d.json' % a), 'w')); print('anchors', a, b); return
     for f in range(a, min(b, NFR)):
         path = os.path.join(OUT, '%05d.jpg' % f)
         if os.path.exists(path) and os.path.getsize(path) > 2000 and not os.path.exists(path + '.part'): continue
