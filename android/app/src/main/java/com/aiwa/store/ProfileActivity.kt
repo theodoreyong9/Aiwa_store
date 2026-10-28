@@ -23,7 +23,17 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.statusBarsPadding
+import com.aiwa.bridge.LocalClaudeBridge
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,6 +70,13 @@ class ProfileActivity : ComponentActivity() {
 private fun ProfileScreen(urls: List<String>, start: Int, onClose: () -> Unit) {
     val pager = rememberPagerState(initialPage = start) { urls.size }
     val scope = rememberCoroutineScope()
+    // The score of the profile on the screen for the person who looks, made by her own super agent from the public page (the brain keeps it): « Pro 72 · Perso 40 ». Nothing is sent to the other person.
+    val shown = urls[pager.currentPage]
+    var score by remember(shown) { mutableStateOf<Pair<Int, Int>?>(null) }
+    LaunchedEffect(shown) {
+        val answer = withContext(Dispatchers.IO) { try { LocalClaudeBridge().chamberCall("/api/match", JSONObject().put("repo", shown)) } catch (err: Exception) { null } }
+        if (answer != null && answer.optBoolean("ok", false)) score = answer.optInt("pro") to answer.optInt("perso")
+    }
     Box(Modifier.fillMaxSize().background(Color(0xFF10132E))) {
         HorizontalPager(pager, Modifier.fillMaxSize(), beyondViewportPageCount = 1) { page ->
             AndroidView(factory = { context ->
@@ -78,6 +95,10 @@ private fun ProfileScreen(urls: List<String>, start: Int, onClose: () -> Unit) {
                     ProfileView.load(this, urls[page])
                 }
             }, modifier = Modifier.fillMaxSize(), onRelease = { HomeRuntime.release(it); it.destroy() })
+        }
+        score?.let { (pro, perso) ->
+            Text("Pro $pro · Perso $perso", color = Color.White, fontSize = 13.sp,
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 8.dp).background(Color(0x99000000), androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 6.dp))
         }
         // the slim bar at the bottom: previous, where we are, next, close (in the cut of the widget's cells)
         Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(12.dp).fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {

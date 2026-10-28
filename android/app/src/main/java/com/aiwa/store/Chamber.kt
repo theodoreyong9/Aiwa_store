@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import com.aiwa.bridge.LocalClaudeBridge
 import org.json.JSONObject
 
 /**
@@ -17,9 +18,11 @@ object ChamberState {
     /** What the page says now; a visitor who arrives or leaves is told on the screen. */
     fun update(context: Context, next: JSONObject) {
         val before = status.optJSONObject("partner")?.optString("name")
+        val before0 = status.optString("mode", "closed").ifBlank { "closed" }
         val after = next.optJSONObject("partner")?.optString("name")
         status = next
         ear = next.optBoolean("ear", false)
+        if (next.optString("mode", "closed") != before0) { try { FastWidget.render(context, force = true) } catch (err: Exception) { /* the widget is not there */ } }
         if (after != before) {
             if (after != null) toastOnMain(context, "$after est dans la chambre.")
             else if (before != null) toastOnMain(context, "$before a quitté la chambre.")
@@ -65,6 +68,23 @@ object ChamberActions {
                 partnered() -> ChamberHost.send(context, JSONObject().put("cmd", "begin"))
                 else -> toastOnMain(context, "Personne dans la chambre pour l'instant.")
             }
+            "roomnote" -> {
+                val activity = context as? Activity
+                if (activity == null) { toastOnMain(context, "Ouvre Aiwa pour écrire ta description."); return }
+                Thread {
+                    val current = LocalClaudeBridge().chamberCall("/api/chamber/note", JSONObject()).optString("text")
+                    activity.runOnUiThread {
+                        val field = android.widget.EditText(activity).apply { setText(current); hint = "Ce que ton super agent peut savoir de toi"; setLines(4); filters = arrayOf(android.text.InputFilter.LengthFilter(400)) }
+                        AlertDialog.Builder(activity)
+                            .setTitle("Description pour la chambre")
+                            .setMessage("Seul le super agent de l'autre la lit, pour mieux t'aider. Il n'est pas autorisé à la répéter, et l'autre personne ne la voit pas.")
+                            .setView(field)
+                            .setPositiveButton("Enregistrer") { _, _ -> Thread { LocalClaudeBridge().chamberCall("/api/chamber/note", JSONObject().put("text", field.text.toString())) }.start() }
+                            .setNegativeButton("Annuler", null)
+                            .show()
+                    }
+                }.start()
+            }
             "roomear" -> ChamberHost.send(context, JSONObject().put("cmd", "ear"))
             "roomdanger" -> {
                 if (ChamberState.status.optBoolean("dangerMe", false)) { ChamberHost.send(context, JSONObject().put("cmd", "danger").put("on", false)); return }
@@ -102,6 +122,7 @@ object ChamberActions {
             else -> entry("En attente", "violet", true)
         })
         out.put("roomtalk", entry(if (conversing()) "Couper" else "Converser", if (conversing()) "red" else "green", conversing(), partnered()))
+        out.put("roomnote", entry("Description", "grey", false))
         out.put("roomear", entry("Écouter", "violet", ChamberState.ear))
         val both = s.optBoolean("dangerMe", false) && s.optBoolean("dangerThem", false)
         out.put("roomdanger", entry(if (both) "Danger actif" else "Danger", "red", s.optBoolean("dangerMe", false)))

@@ -23,7 +23,7 @@ function room() {
 const tick = (n = 8) => new Promise((r) => { let i = 0; const go = () => (++i >= n ? r() : setTimeout(go, 1)); go(); });
 
 // a phone: its brain answers with the words it is given; it keeps what was said, what was delivered and who is in a chamber
-function phone(net, id, repo, name, { words = [], busy = false } = {}) {
+function phone(net, id, repo, name, { words = [], busy = false, note = '' } = {}) {
   const log = { lines: [], statuses: [], delivered: [], active: [], turns: [] };
   let n = 0;
   const call = async (cmd, args) => {
@@ -34,6 +34,7 @@ function phone(net, id, repo, name, { words = [], busy = false } = {}) {
       const w = words[n++ % words.length];
       return { ok: true, ...(typeof w === 'string' ? { say: w } : w) };
     }
+    if (cmd === 'chamber-note') return { ok: true, text: note };
     if (cmd === 'chamber-deliver') { log.delivered.push(args); return { ok: true }; }
     throw new Error('?');
   };
@@ -176,4 +177,21 @@ test('a brain that refuses a turn (no key, no quota) ends the conversation inste
   assert.equal(jean.status().conversing, false);
   assert.match(jean.status().refused, /clé/);
   assert.equal(anna.chamber.status().conversing, false, 'the other is told it ended');
+});
+
+test('the note of one person goes to the agent of the other and to no screen: it is in no status and no line', async () => {
+  const net = room();
+  const anna = phone(net, 'A', 'anna/site', 'Anna', { words: ['Bonjour.'], note: 'cherche un associé pour un site' });
+  const jean = phone(net, 'J', 'jean/aiwa', 'Jean', { words: ['Salut.', 'Merci.'], note: 'budget limité' });
+  await anna.chamber.cmd({ cmd: 'open' });
+  await jean.chamber.cmd({ cmd: 'visit', repo: 'anna/site' });
+  await tick();
+  await jean.chamber.cmd({ cmd: 'begin' });
+  await tick(30);
+  assert.equal(jean.log.turns[0].peer_note, 'cherche un associé pour un site', "Jean's agent knows what Anna wrote");
+  assert.equal(anna.log.turns[0].peer_note, 'budget limité', "Anna's agent knows what Jean wrote");
+  for (const p of [anna, jean]) assert.ok(!JSON.stringify(p.chamber.status()).match(/associé|budget/), 'the note is in no status the buttons show');
+  await jean.chamber.cmd({ cmd: 'end' });
+  await anna.chamber.cmd({ cmd: 'close' });
+  await jean.chamber.cmd({ cmd: 'close' });
 });

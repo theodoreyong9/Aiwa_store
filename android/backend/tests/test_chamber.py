@@ -1,5 +1,6 @@
 """The chamber: the rules of the room (pure), and the brain's routes with a Claude that is a stand-in."""
 import json
+import tempfile
 import sys
 import unittest
 import unittest.mock
@@ -54,6 +55,23 @@ class Rules(unittest.TestCase):
         self.assertIsNone(C.parse('{"say": ""}', True))
 
 
+class Note(unittest.TestCase):
+    def test_the_note_of_the_other_goes_to_the_agent_with_the_order_to_keep_it_private(self):
+        text = C.charter("Jean", "Anna", "ctx", False, "cherche un associé")
+        self.assertIn("cherche un associé", text)
+        self.assertIn("PRIVÉ", text)
+        self.assertNotIn("PRIVÉ", C.charter("Jean", "Anna", "ctx", False))
+
+    def test_the_score_is_two_whole_numbers_or_nothing(self):
+        self.assertEqual(C.parse_match('{"pro": 71.6, "perso": "40"}'), {"pro": 72, "perso": 40})
+        self.assertEqual(C.parse_match('{"pro": 250, "perso": -3}'), {"pro": 100, "perso": 0})
+        self.assertIsNone(C.parse_match("je ne sais pas"))
+        self.assertIsNone(C.parse_match('{"pro": 10}'))
+
+    def test_the_words_of_a_page_without_its_code(self):
+        self.assertEqual(C.page_text("<style>a{}</style><script>x()</script><p>Salut &amp; bonjour</p>"), "Salut & bonjour")
+
+
 class Routes(unittest.TestCase):
     def setUp(self):
         server.chamber.update(active=False, peer=None, name=None, lines=[])
@@ -61,6 +79,16 @@ class Routes(unittest.TestCase):
 
     def post(self, path, **body):
         return server.chamber_api(path, json.dumps(body))
+
+    def test_the_note_is_kept_and_read_back(self):
+        with unittest.mock.patch.object(server.profile_lib, "PROFILE_FILE", server.Path(tempfile.mkdtemp()) / "p.json"):
+            self.assertEqual(self.post("/api/chamber/note", text="  je cherche   un associé ")["text"], "je cherche un associé")
+            self.assertEqual(self.post("/api/chamber/note")["text"], "je cherche un associé")
+
+    def test_a_score_needs_the_key_and_a_real_repository(self):
+        self.assertFalse(self.post("/api/match", repo="../x")["ok"])
+        with unittest.mock.patch.object(server.llm, "_key", return_value=None):
+            self.assertIn("clé", self.post("/api/match", repo="anna/site")["error"])
 
     def test_one_chamber_at_a_time(self):
         self.assertTrue(self.post("/api/chamber/active", on=True, peer="anna/site", name="Anna")["active"])

@@ -140,7 +140,7 @@ object HomeActions {
             "link" -> context.startActivity(FastWidget.voirIntent(context, state, kinds, "lien"))
             "qr" -> context.startActivity(FastWidget.voirIntent(context, state, kinds, "qr"))
             "favorites" -> context.startActivity(FastWidget.voirIntent(context, state, kinds, "favoris"))
-            "room", "roomtalk", "roomear", "roomdanger" -> ChamberActions.press(context, id, source, own)
+            "room", "roomtalk", "roomear", "roomdanger", "roomnote" -> ChamberActions.press(context, id, source, own)
         }
     }
 

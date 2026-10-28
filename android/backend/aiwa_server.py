@@ -68,7 +68,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 189
+BACKEND_VERSION = 190
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4762,6 +4762,42 @@ def _chamber_view(after=0):
         return {"ok": True, "active": chamber["active"], "peer": chamber["peer"], "name": chamber["name"], "lines": [dict(l) for l in chamber["lines"] if l["n"] > after][-chamber_lib.KEEP:]}
 
 
+match_cache = {}
+
+
+def _match(repo):
+    """The score of a visited profile for the person (pro, perso), made by her own super agent from the public page; nothing leaves for the other person. Kept while the page and she do not change."""
+    if not chamber_lib.REPO_RE.fullmatch(repo):
+        return {"ok": False, "error": "profil ?"}
+    if repo == profile_lib.repo():
+        return {"ok": False, "error": "c'est ton profil"}
+    if llm.state != "ready":
+        return {"ok": False, "error": "il faut ta clé Anthropic pour noter un profil"}
+    try:
+        request = urllib.request.Request(f"https://raw.githubusercontent.com/{repo}/HEAD/Profile/index.html", headers={"User-Agent": "aiwa", "Cache-Control": "no-cache"})
+        with urllib.request.urlopen(request, timeout=15) as reply:
+            theirs = chamber_lib.page_text(reply.read(profile_lib.READ_MAX).decode("utf-8", "replace"))
+    except Exception:
+        return {"ok": False, "error": "page illisible"}
+    mine_repo = profile_lib.repo()
+    mine = profile_lib.note()
+    if mine_repo:
+        try:
+            request = urllib.request.Request(f"https://raw.githubusercontent.com/{mine_repo}/HEAD/Profile/index.html", headers={"User-Agent": "aiwa"})
+            with urllib.request.urlopen(request, timeout=15) as reply:
+                mine = (mine + " " + chamber_lib.page_text(reply.read(profile_lib.READ_MAX).decode("utf-8", "replace"), 1500)).strip()
+        except Exception:
+            pass
+    key = (repo, hash(theirs), hash(mine))
+    if key in match_cache:
+        return {"ok": True, **match_cache[key]}
+    score = chamber_lib.parse_match(llm.ask(chamber_lib.match_system(), [{"role": "user", "content": chamber_lib.match_user(mine, theirs)}], max_tokens=60))
+    if score is None:
+        return {"ok": False, "error": "pas de note"}
+    match_cache[key] = score
+    return {"ok": True, **score}
+
+
 def chamber_api(path, body):
     try:
         data = json.loads(body) if body.strip() else {}
@@ -4770,6 +4806,12 @@ def chamber_api(path, body):
     data = data if isinstance(data, dict) else {}
     if path == "/api/chamber":
         return _chamber_view(int(data.get("after") or 0) if str(data.get("after") or "0").isdigit() else 0)
+    if path == "/api/chamber/note":
+        if "text" in data:
+            profile_lib.set_note(data.get("text"))
+        return {"ok": True, "text": profile_lib.note()}
+    if path == "/api/match":
+        return _match(str(data.get("repo") or ""))
     peer = str(data.get("peer") or "")
     if path == "/api/chamber/active":
         with chamber_lock:
@@ -4817,7 +4859,7 @@ def chamber_api(path, body):
         titles = [str(e.get("title") or "") for e in _load_cloud_sessions()[:chamber_lib.TITLES]]
         files = [str(f) for f in (data.get("files") if isinstance(data.get("files"), list) else [])][:6]
         context = chamber_lib.context_of(data.get("project"), titles, files, profile_lib.repo())
-        system = chamber_lib.charter(data.get("me"), their, context, danger)
+        system = chamber_lib.charter(data.get("me"), their, context, danger, data.get("peer_note") or "")
         answer = llm.ask(system, chamber_lib.messages(lines), max_tokens=400)
         parsed = chamber_lib.parse(answer, danger)
         if parsed is None:
@@ -5542,7 +5584,7 @@ class Handler(BaseHTTPRequestHandler):
             elif isinstance(data, dict) and isinstance(data.get("enabled"), bool):
                 style.set_enabled(data["enabled"])
             self.reply_json({"ok": True, **style.status()})
-        elif self.path in ("/api/chamber", "/api/chamber/active", "/api/chamber/turn", "/api/chamber/deliver"):
+        elif self.path in ("/api/chamber", "/api/chamber/active", "/api/chamber/turn", "/api/chamber/deliver", "/api/chamber/note", "/api/match"):
             self.reply_json(chamber_api(self.path, body))
         elif self.path in ("/api/scenarios/save", "/api/scenarios/delete", "/api/scenarios/create", "/api/scenarios/use", "/api/scenarios/launch", "/api/scenarios/say", "/api/scenarios/said"):
             self.reply_json(scenario_api(self.path, body))

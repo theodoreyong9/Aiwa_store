@@ -124,8 +124,8 @@ class ChamberService : Service() {
                 ChamberState.update(this, status)
                 if (status.optString("mode") == "closed") main.postDelayed({ if (ChamberState.status.optString("mode") == "closed") stopSelf() }, 1500)
             }
-            "chamber-active", "chamber-deliver" -> CoroutineScope(Dispatchers.IO).launch {
-                val path = if (json.optString("cmd") == "chamber-active") "/api/chamber/active" else "/api/chamber/deliver"
+            "chamber-active", "chamber-deliver", "chamber-note" -> CoroutineScope(Dispatchers.IO).launch {
+                val path = when (json.optString("cmd")) { "chamber-active" -> "/api/chamber/active"; "chamber-note" -> "/api/chamber/note"; else -> "/api/chamber/deliver" }
                 post(reply, id, LocalClaudeBridge().chamberCall(path, JSONObject(json.toString())))
             }
             "chamber-turn" -> turn(json, reply, id)

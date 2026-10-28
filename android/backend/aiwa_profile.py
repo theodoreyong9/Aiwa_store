@@ -34,6 +34,18 @@ def set_repo(value):
     return True
 
 
+def note():
+    """What the person wrote for the super agents she meets in a chamber (never shown to the other person)."""
+    value = load().get("chamber_note")
+    return value if isinstance(value, str) else ""
+
+
+def set_note(value):
+    data = load()
+    data["chamber_note"] = " ".join(str(value or "").split())[:400]
+    PROFILE_FILE.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
 TEMPLATE_URL = "https://raw.githubusercontent.com/theodoreyong9/Aiwa_store/main/Profile/index.html"
 READ_MAX = 2_000_000        # bytes of the page the brain reads to check it (a limit of reading, not of making)
 

@@ -16,6 +16,7 @@ export function createChamber({ join, call, post, me }) {
   let conversing = false;
   let dangerMe = false, dangerThem = false;
   let ear = false;
+  let myNote = '';                     // what the person wrote for the agent of the other (never shown to the other person; it goes to the other's brain only)
   let refused = null;                  // why a conversation did not start ("busy": the other is already in one)
   let turning = false, waiting = null; // one turn at a time; the latest words that came meanwhile wait
   let starting = null;                 // the entry into the conversation being made when the other starts it (its first words may arrive before we are in)
@@ -42,7 +43,7 @@ export function createChamber({ join, call, post, me }) {
       do {
         const text = incoming;
         waiting = null;
-        const answer = await call('chamber-turn', { peer: partner.repo, name: partner.name, me: me.name, incoming: text ? { kind: 'say', text } : null, danger: dangerMe && dangerThem });
+        const answer = await call('chamber-turn', { peer: partner.repo, name: partner.name, me: me.name, incoming: text ? { kind: 'say', text } : null, danger: dangerMe && dangerThem, peer_note: partner.note || '' });
         if (answer?.ok === false) throw new Error(answer.error || 'refusé');
         if (!conversing) break;
         if (answer?.say) send({ t: 'say', text: clip(answer.say) });
@@ -58,7 +59,12 @@ export function createChamber({ join, call, post, me }) {
     } finally { turning = false; emit(); }
   };
 
-  const hello = (id) => (partner && partner.id !== id ? send({ t: 'busy' }, id) : send({ t: 'hello', repo: me.repo, name: me.name, danger: dangerMe }, id));
+  // the note is read from the brain when the room opens and again when a conversation begins (she may have changed it); the other is told when it arrives
+  const loadNote = async () => {
+    try { const r = await call('chamber-note', {}); const text = clip(r?.text, 400); if (text !== myNote) { myNote = text; if (partner) send({ t: 'note', text: myNote }); } } catch { /* no note */ }
+  };
+
+  const hello = (id) => (partner && partner.id !== id ? send({ t: 'busy' }, id) : send({ t: 'hello', repo: me.repo, name: me.name, danger: dangerMe, note: myNote }, id));
 
   const onMessage = async (message, id) => {
     if (!message || typeof message !== 'object') return;
@@ -69,11 +75,12 @@ export function createChamber({ join, call, post, me }) {
         // the visitor joins the room of the person he visits: the host must really claim that room; the host takes one visitor only
         if (mode === 'visit' && repo !== roomRepo) return;
         if (partner && partner.id !== id) { send({ t: 'busy' }, id); return; }
-        partner = { id, repo, name: clip(message.name, 60) || nameOf(repo) };
+        partner = { id, repo, name: clip(message.name, 60) || nameOf(repo), note: clip(message.note, 400) };
         dangerThem = message.danger === true;
         emit();
         return;
       }
+      case 'note': if (partner && partner.id === id) partner.note = clip(message.text, 400); return;
       case 'busy': {
         // the other is in a chamber already (or its super agent is): nothing starts, and a conversation we had begun stops
         if (partner && partner.id === id) { await stop(false); partner = null; dangerThem = false; }
@@ -83,6 +90,7 @@ export function createChamber({ join, call, post, me }) {
       }
       case 'begin': {
         if (!partner || partner.id !== id || conversing) return;
+        if (typeof message.note === 'string') partner.note = clip(message.note, 400);
         starting = (async () => {
           try { const out = await call('chamber-active', { on: true, peer: partner.repo, name: partner.name }); if (out?.busy || out?.ok === false) throw new Error(out?.busy ? 'busy' : (out.error || 'refusé')); }
           catch (err) { send({ t: 'busy' }, id); refused = 'busy'; emit(); return false; }
@@ -119,6 +127,7 @@ export function createChamber({ join, call, post, me }) {
   const enter = (repo, asMode) => {
     if (room) return;
     mode = asMode; roomRepo = repo; partner = null; refused = null;
+    loadNote();
     room = join(`chambre:${repo}`);
     room.onMessage(onMessage);
     room.onPeerJoin((id) => hello(id));
@@ -142,9 +151,10 @@ export function createChamber({ join, call, post, me }) {
       case 'close': await leave(); break;
       case 'begin': {
         if (!partner || conversing) break;
+        await loadNote();
         try { const out = await call('chamber-active', { on: true, peer: partner.repo, name: partner.name }); if (out?.busy || out?.ok === false) throw new Error(out?.busy ? 'busy' : (out.error || 'refusé')); }
         catch (err) { refused = String(err?.message || 'busy').slice(0, 160); emit(); break; }
-        conversing = true; refused = null; send({ t: 'begin' }); emit();
+        conversing = true; refused = null; send({ t: 'begin', note: myNote }); emit();
         takeTurn(null);                                                                                       // the one who starts opens the conversation
         break;
       }
