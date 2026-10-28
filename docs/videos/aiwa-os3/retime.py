@@ -34,11 +34,15 @@ for n in range(TOTAL):
         k = n - W0; src = os.path.join(WINDIR, '%05d.jpg' % k); anchors[str(n)] = {}
     else:
         anchors[str(n)] = anchors_old.get(str(int(round(p))), {})
-        rate = 1.0 if n + 1 >= TOTAL else ((old_pos(n + 1) or p) - p)
+        nxt = old_pos(n + 1) if n + 1 < TOTAL else None
+        rate = (nxt - p) if nxt is not None else 1.0
         if abs(rate - 1.0) < .05: src = old_src(p)
         else:                                                # played faster: a short shutter, the frames around the position are mixed
             if os.path.exists(dst) and not os.path.islink(dst) and os.path.getsize(dst) > 2000: continue
-            h = max(1, int(round(rate / 2))); ps = sorted({p - rate / 4 * 1.0, p, p + rate / 4 * 1.0}); files = [old_src(x) for x in ps]
+            h = max(1, int(round(rate / 2))); ps = sorted({p - rate / 4 * 1.0, p, p + rate / 4 * 1.0}); files = list(dict.fromkeys(old_src(x) for x in ps))
+            if len(files) == 1:
+                if os.path.lexists(dst): os.remove(dst)
+                os.symlink(files[0], dst); continue
             subprocess.run(['ffmpeg', '-loglevel', 'error', '-y'] + sum((['-i', f] for f in files), []) + ['-filter_complex', f'mix=inputs={len(files)}', '-q:v', '2', dst], check=True)
             continue
     if os.path.lexists(dst): os.remove(dst)
