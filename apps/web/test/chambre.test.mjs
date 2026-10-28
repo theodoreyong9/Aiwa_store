@@ -195,3 +195,21 @@ test('the note of one person goes to the agent of the other and to no screen: it
   await anna.chamber.cmd({ cmd: 'close' });
   await jean.chamber.cmd({ cmd: 'close' });
 });
+
+test('a proposal carries what the agent made: a kind, a title and an address, only with Create on both sides', async () => {
+  const net = room();
+  const attach = { kind: 'docs', title: 'Diapo pour Anna', url: 'https://example.com/d' };
+  const anna = phone(net, 'A', 'anna/site', 'Anna', { words: ['Bonjour.'] });
+  const jean = phone(net, 'J', 'jean/aiwa', 'Jean', { words: [{ say: 'Voilà.', proposal: 'Une diapo pour toi', attach }, 'Merci.'] });
+  await anna.chamber.cmd({ cmd: 'open' });
+  await jean.chamber.cmd({ cmd: 'visit', repo: 'anna/site' });
+  await tick();
+  await anna.chamber.cmd({ cmd: 'danger', on: true }); await jean.chamber.cmd({ cmd: 'danger', on: true });
+  await tick();
+  await jean.chamber.cmd({ cmd: 'begin' });
+  await tick(30);
+  const got = anna.log.delivered.find((d) => d.kind === 'proposal');
+  assert.ok(got, 'the proposal arrives');
+  assert.deepEqual(got.attach, attach);
+  await jean.chamber.cmd({ cmd: 'end' }); await anna.chamber.cmd({ cmd: 'close' }); await jean.chamber.cmd({ cmd: 'close' });
+});

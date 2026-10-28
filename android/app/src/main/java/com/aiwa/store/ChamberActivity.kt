@@ -23,6 +23,7 @@ class ChamberActivity : ComponentActivity() {
     private lateinit var status: TextView
     private lateinit var talk: TextView
     private lateinit var scroll: ScrollView
+    private lateinit var offersBox: LinearLayout
     private val buttons = LinkedHashMap<String, Button>()
     private var running = true
 
@@ -33,6 +34,8 @@ class ChamberActivity : ComponentActivity() {
         root.addView(TextView(this).apply { text = "Chambre"; setTextColor(Color.WHITE); textSize = 26f; setTypeface(null, Typeface.BOLD) })
         status = TextView(this).apply { setTextColor(Color.parseColor("#9DB8FF")); textSize = 16f; setPadding(0, 8, 0, 16) }
         root.addView(status)
+        offersBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(offersBox)
         scroll = ScrollView(this)
         talk = TextView(this).apply { setTextColor(Color.WHITE); textSize = 17f; setLineSpacing(6f, 1f) }
         scroll.addView(talk)
@@ -70,6 +73,8 @@ class ChamberActivity : ComponentActivity() {
         for ((id, b) in buttons) { val e = shown.optJSONObject(id); b.text = e?.optString("label") ?: id; b.alpha = if (e?.optBoolean("on") == true) 1f else .6f }
         Thread {
             val view = try { LocalClaudeBridge().chamberCall("/api/chamber", JSONObject()) } catch (err: Exception) { null }
+            val offers = view?.optJSONArray("offers")
+            if (offers != null) runOnUiThread { showOffers(offers) }
             val lines = view?.optJSONArray("lines")
             if (lines != null) {
                 val sb = StringBuilder()
@@ -77,5 +82,28 @@ class ChamberActivity : ComponentActivity() {
                 runOnUiThread { if (talk.text.toString() != sb.toString()) { talk.text = sb.toString(); scroll.post { scroll.fullScroll(android.view.View.FOCUS_DOWN) } } }
             }
         }.start()
+    }
+
+    /** What the other agent made and proposed: shown with its kind and its address, opened only when the person says so (https only), or dismissed. */
+    private fun showOffers(offers: org.json.JSONArray) {
+        offersBox.removeAllViews()
+        val kinds = mapOf("docs" to "Document", "media" to "Vidéo", "page" to "Page", "app" to "App")
+        for (i in 0 until offers.length()) {
+            val o = offers.getJSONObject(i); val a = o.optJSONObject("attach") ?: continue
+            val url = a.optString("url")
+            if (!url.startsWith("https://")) continue
+            val id = o.optString("id")
+            offersBox.addView(TextView(this).apply { setTextColor(Color.parseColor("#E8C14A")); textSize = 16f; setPadding(0, 12, 0, 4)
+                text = "${o.optString("from")} te propose : ${o.optString("text")}\n${kinds[a.optString("kind")] ?: "Fichier"} · ${a.optString("title")}\n$url" })
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            row.addView(Button(this).apply { isAllCaps = false; text = "Ouvrir"; setOnClickListener {
+                Thread { LocalClaudeBridge().chamberCall("/api/chamber/offer", JSONObject().put("id", id).put("do", "open")) }.start()
+                try { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))) } catch (err: Exception) { }
+                main.postDelayed({ refresh() }, 400) } }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            row.addView(Button(this).apply { isAllCaps = false; text = "Ignorer"; setOnClickListener {
+                Thread { LocalClaudeBridge().chamberCall("/api/chamber/offer", JSONObject().put("id", id).put("do", "dismiss")) }.start()
+                main.postDelayed({ refresh() }, 400) } }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            offersBox.addView(row)
+        }
     }
 }

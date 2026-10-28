@@ -1,6 +1,8 @@
 // The chamber without a page: the rules and the manners (see chambre.js for what it is). All that it touches is given to it, so that two phones can be tried in a test with a stand-in room.
 export const REPO = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
 const TEXT_MAX = 700;
+/** What comes with a proposal, as plain bounded text (the brain checks it again before anything is kept): a kind, a short title, a https address. */
+export const attachOf = (a) => ({ kind: clip(a?.kind, 10), title: clip(a?.title, 60), url: clip(a?.url, 300) });
 export const clip = (text, max = TEXT_MAX) => String(text ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, ' ').split(/\s+/).filter(Boolean).join(' ').slice(0, max);
 export const nameOf = (repo) => String(repo || '').split('/')[0] || 'quelqu\'un';
 
@@ -49,7 +51,7 @@ export function createChamber({ join, call, post, me }) {
         if (answer?.say) send({ t: 'say', text: clip(answer.say) });
         if (dangerMe && dangerThem) {
           if (answer?.message) send({ t: 'dm', kind: 'message', text: clip(answer.message) });
-          if (answer?.proposal) send({ t: 'dm', kind: 'proposal', text: clip(answer.proposal) });
+          if (answer?.proposal) send({ t: 'dm', kind: 'proposal', text: clip(answer.proposal), ...(answer.attach ? { attach: attachOf(answer.attach) } : {}) });
         }
         incoming = waiting;
       } while (incoming && conversing);
@@ -111,7 +113,7 @@ export function createChamber({ join, call, post, me }) {
         if (!partner || partner.id !== id || !conversing || !(dangerMe && dangerThem)) return;
         const kind = message.kind === 'proposal' ? 'proposal' : 'message';
         const text = clip(message.text);
-        if (text) call('chamber-deliver', { peer: partner.repo, kind, text, danger: true }).catch(() => {});
+        if (text) call('chamber-deliver', { peer: partner.repo, kind, text, danger: true, ...(kind === 'proposal' && message.attach ? { attach: attachOf(message.attach) } : {}) }).catch(() => {});
         return;
       }
       case 'danger': if (partner && partner.id === id) { dangerThem = message.on === true; emit(); } return;

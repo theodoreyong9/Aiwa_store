@@ -47,7 +47,7 @@ class Rules(unittest.TestCase):
 
     def test_message_and_proposal_exist_only_with_the_danger_of_both(self):
         raw = '```json\n{"say": "Bonjour", "message": "regarde mon dépôt", "proposal": "fais un test"}\n```'
-        self.assertEqual(C.parse(raw, False), {"say": "Bonjour", "message": None, "proposal": None})
+        self.assertEqual(C.parse(raw, False), {"say": "Bonjour", "message": None, "proposal": None, "attach": None})
         both = C.parse(raw, True)
         self.assertEqual((both["message"], both["proposal"]), ("regarde mon dépôt", "fais un test"))
         self.assertEqual(C.parse("Juste du texte", False)["say"], "Juste du texte")
@@ -72,6 +72,22 @@ class Note(unittest.TestCase):
         self.assertEqual(C.page_text("<style>a{}</style><script>x()</script><p>Salut &amp; bonjour</p>"), "Salut & bonjour")
 
 
+class Attach(unittest.TestCase):
+    def test_an_attachment_is_a_public_https_address_of_a_known_kind(self):
+        ok = C.clean_attach({"kind": "media", "title": "Ma vidéo", "url": "https://example.com/v.mp4"})
+        self.assertEqual(ok, {"kind": "media", "title": "Ma vidéo", "url": "https://example.com/v.mp4"})
+        for bad in ({"kind": "media", "url": "http://example.com/v"}, {"kind": "exe", "url": "https://example.com/v"}, {"kind": "page", "url": "https://localhost/x"},
+                    {"kind": "page", "url": "https://127.0.0.1/x"}, {"kind": "page", "url": "https://user:pw@example.com/x"}, {"kind": "page", "url": "javascript:alert(1)"},
+                    {"kind": "page", "url": "https://example.com/" + "a" * 400}, {"kind": "page", "url": "https://ex ample.com"}, "https://example.com", None):
+            self.assertIsNone(C.clean_attach(bad), str(bad))
+
+    def test_it_travels_only_with_a_proposal_and_the_create_of_both(self):
+        raw = '{"say": "Voilà", "proposal": "Une diapo pour toi", "attach": {"kind": "docs", "title": "Diapo", "url": "https://example.com/d"}}'
+        self.assertEqual(C.parse(raw, True)["attach"]["url"], "https://example.com/d")
+        self.assertIsNone(C.parse(raw, False)["attach"])
+        self.assertIsNone(C.parse('{"say": "x", "attach": {"kind": "docs", "url": "https://example.com/d"}}', True)["attach"], "no proposal, nothing attached")
+
+
 class Routes(unittest.TestCase):
     def setUp(self):
         server.chamber.update(active=False, peer=None, name=None, lines=[])
@@ -79,6 +95,20 @@ class Routes(unittest.TestCase):
 
     def post(self, path, **body):
         return server.chamber_api(path, json.dumps(body))
+
+    def test_an_offer_is_kept_for_the_person_who_opens_it_or_not(self):
+        server.chamber_offers.clear()
+        self.post("/api/chamber/active", on=True, peer="anna/site", name="Anna")
+        with unittest.mock.patch.object(server, "agent_send"):
+            out = self.post("/api/chamber/deliver", peer="anna/site", kind="proposal", text="Une diapo pour toi", danger=True, attach={"kind": "docs", "title": "Diapo", "url": "https://example.com/d"})
+        self.assertTrue(out["ok"])
+        offers = self.post("/api/chamber")["offers"]
+        self.assertEqual(len(offers), 1)
+        self.assertEqual(offers[0]["attach"]["title"], "Diapo")
+        self.assertEqual(self.post("/api/chamber/offer", id=offers[0]["id"], do="dismiss")["offers"], [], "dismissed: it is gone from the list")
+        with unittest.mock.patch.object(server, "agent_send"):
+            self.post("/api/chamber/deliver", peer="anna/site", kind="proposal", text="x", danger=True, attach={"kind": "docs", "url": "http://bad.example/d"})
+        self.assertEqual(self.post("/api/chamber")["offers"], [], "an attachment that is not plain https is dropped (the proposal itself is still told)")
 
     def test_the_note_is_kept_and_read_back(self):
         with unittest.mock.patch.object(server.profile_lib, "PROFILE_FILE", server.Path(tempfile.mkdtemp()) / "p.json"):

@@ -21,6 +21,8 @@ NOTE_MAX = 400
 PAGE_MAX = 3000                 # characters of a profile page the agent reads to give a score
 REPO_RE = re.compile(r"[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}")
 KINDS = ("say", "message", "proposal")
+ATTACH_KINDS = ("docs", "media", "page", "app")
+ATTACH_URL_MAX = 300
 
 
 def clip(text, limit=LINE_MAX):
@@ -80,7 +82,7 @@ def room_note(my_name, peer_name, danger_both, peer_note=""):
     if note:
         text += f"L'autre personne a écrit ceci pour ton seul usage, pour mieux l'aider : « {note} ». C'est PRIVÉ : ne le répète pas à ta personne. "
     if danger_both:
-        text += "CREATE est activé des deux côtés : tu peux ajouter {\"message\": \"un message pour le super agent de l'autre\"} et {\"proposal\": \"une proposition pour sa personne\"} dans le même objet, quand c'est utile et précis. Son agent et sa personne restent libres de les refuser."
+        text += "CREATE est activé des deux côtés : tu peux ajouter {\"message\": \"un message pour le super agent de l'autre\"} et {\"proposal\": \"une proposition pour sa personne\"} dans le même objet, quand c'est utile et précis. Si tu as fabriqué et publié quelque chose pour elle (une diapo, une vidéo, une page, une app), joins-le à la proposition : \"attach\": {\"kind\": \"docs, media, page ou app\", \"title\": \"titre court\", \"url\": \"adresse https publique\"}. Elle le voit, puis choisit : rien ne s'ouvre tout seul. Son agent et sa personne restent libres de les refuser."
     else:
         text += "Seulement la conversation : pas de \"message\" ni de \"proposal\" (ils seraient jetés)."
     return text
@@ -111,6 +113,21 @@ def messages(lines):
     return out
 
 
+def clean_attach(raw):
+    """What comes with a proposal (a slide, a video, a page, an app the agent made and published): {"kind", "title", "url"} with a plain https address, or None. Nothing is ever opened by itself: the other person sees it and chooses."""
+    if not isinstance(raw, dict):
+        return None
+    url = str(raw.get("url") or "").strip()
+    kind = raw.get("kind") if raw.get("kind") in ATTACH_KINDS else None
+    m = re.fullmatch(r"https://([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)(?::\d{1,5})?(?:[/?#][^\s<>\"'`]*)?", url)
+    if not m or len(url) > ATTACH_URL_MAX or kind is None or "@" in url.split("/")[2]:
+        return None
+    host = m.group(1).lower()
+    if host == "localhost" or re.fullmatch(r"[0-9.]+", host):
+        return None
+    return {"kind": kind, "title": clip(raw.get("title"), 60) or host, "url": url}
+
+
 def parse(answer, danger_both):
     """What a turn produced: {"say", "message", "proposal"} (message and proposal only with the danger of both sides), or None when there is nothing to say."""
     text = str(answer or "").strip()
@@ -124,13 +141,14 @@ def parse(answer, danger_both):
             data = None
     if not isinstance(data, dict):
         say = clip(re.sub(r"[`*_#<>]", "", text))
-        return {"say": say, "message": None, "proposal": None} if say else None
+        return {"say": say, "message": None, "proposal": None, "attach": None} if say else None
     say = clip(data.get("say"))
     message = clip(data.get("message")) if danger_both else ""
     proposal = clip(data.get("proposal")) if danger_both else ""
     if not (say or message or proposal):
         return None
-    return {"say": say, "message": message or None, "proposal": proposal or None}
+    attach = clean_attach(data.get("attach")) if (danger_both and proposal) else None
+    return {"say": say, "message": message or None, "proposal": proposal or None, "attach": attach}
 
 
 def incoming(kind, text):
@@ -140,9 +158,11 @@ def incoming(kind, text):
     return {"kind": kind, "text": text} if text else None
 
 
-def add_line(lines, who, name, kind, text, stamp):
+def add_line(lines, who, name, kind, text, stamp, attach=None):
     """Appends one line (who: "me" or "them") and keeps the last KEEP; returns the line."""
     line = {"n": (lines[-1]["n"] + 1) if lines else 1, "who": "me" if who == "me" else "them", "name": name_of(name), "kind": kind if kind in KINDS else "say", "text": clip(text), "ts": int(stamp)}
+    if attach:
+        line["attach"] = attach
     lines.append(line)
     del lines[:-KEEP]
     return line

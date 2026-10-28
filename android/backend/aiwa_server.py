@@ -68,7 +68,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 191
+BACKEND_VERSION = 192
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4746,6 +4746,7 @@ def _external_line(entry):
 
 # ---------- the chamber: the super agent meets the one of someone else, in a room they both pressed the button of (aiwa_chamber.py has the rules) ---------
 chamber_lock = threading.Lock()
+chamber_offers = []        # what the others proposed with something attached (a slide, a video…): the person sees it and opens it or not (kept while the brain runs)
 chamber = {"active": False, "peer": None, "name": None, "lines": []}      # a super agent is in ONE chamber at a time; the lines are what was said (kept for the phone to say and show)
 
 
@@ -4757,7 +4758,7 @@ def chamber_active():
 
 def _chamber_view(after=0):
     with chamber_lock:
-        return {"ok": True, "active": chamber["active"], "peer": chamber["peer"], "name": chamber["name"], "lines": [dict(l) for l in chamber["lines"] if l["n"] > after][-chamber_lib.KEEP:]}
+        return {"ok": True, "active": chamber["active"], "peer": chamber["peer"], "name": chamber["name"], "lines": [dict(l) for l in chamber["lines"] if l["n"] > after][-chamber_lib.KEEP:], "offers": [dict(o) for o in chamber_offers if o["state"] == "new"]}
 
 
 match_cache = {}
@@ -4808,6 +4809,12 @@ def chamber_api(path, body):
         if "text" in data:
             profile_lib.set_note(data.get("text"))
         return {"ok": True, "text": profile_lib.note()}
+    if path == "/api/chamber/offer":
+        with chamber_lock:
+            for o in chamber_offers:
+                if o["id"] == str(data.get("id")):
+                    o["state"] = "opened" if data.get("do") == "open" else "dismissed"
+        return _chamber_view()
     if path == "/api/match":
         return _match(str(data.get("repo") or ""))
     peer = str(data.get("peer") or "")
@@ -4834,8 +4841,12 @@ def chamber_api(path, body):
             return {"ok": False, "error": "rien à remettre"}
         if not danger:
             return {"ok": False, "error": "le danger n'est pas activé des deux côtés"}
+        attach = chamber_lib.clean_attach(data.get("attach")) if item["kind"] == "proposal" else None
         with chamber_lock:
-            chamber_lib.add_line(chamber["lines"], "them", their, item["kind"], item["text"], time.time())
+            chamber_lib.add_line(chamber["lines"], "them", their, item["kind"], item["text"], time.time(), attach)
+            if attach:
+                chamber_offers.append({"id": f"o{int(time.time() * 1000)}", "from": their, "text": item["text"], "attach": attach, "ts": int(time.time()), "state": "new"})
+                del chamber_offers[:-20]
         if item["kind"] == "message":
             agent_send(spoken=f"[Aiwa · chambre] Le super agent de {their} te dit : « {item['text']} »")
         else:
@@ -4844,7 +4855,7 @@ def chamber_api(path, body):
                 if own:
                     stamp = time.time()
                     agent["proposal"] = {"id": f"p{int(stamp * 1000)}", "ts": int(stamp), "session": own, "message": f"[Chambre · {their}] {item['text']}", "more": []}
-                    agent["say"] = {"id": f"s{int(stamp * 1000)}", "text": f"{their} te propose : {item['text']}", "ts": int(stamp), "spoken": False}
+                    agent["say"] = {"id": f"s{int(stamp * 1000)}", "text": f"{their} te propose : {item['text']}" + (f" ({attach['title']}, à voir dans la chambre)" if attach else ""), "ts": int(stamp), "spoken": False}
         return {"ok": True}
     if path == "/api/chamber/turn":
         if llm.state != "ready":
@@ -4867,7 +4878,7 @@ def chamber_api(path, body):
                 chamber_lib.add_line(chamber["lines"], "me", data.get("me"), "say", parsed["say"], time.time())
             for kind in ("message", "proposal"):
                 if parsed[kind]:
-                    chamber_lib.add_line(chamber["lines"], "me", data.get("me"), kind, parsed[kind], time.time())
+                    chamber_lib.add_line(chamber["lines"], "me", data.get("me"), kind, parsed[kind], time.time(), parsed.get("attach") if kind == "proposal" else None)
         return {"ok": True, **parsed}
     return {"ok": False, "error": "?"}
 
@@ -5582,7 +5593,7 @@ class Handler(BaseHTTPRequestHandler):
             elif isinstance(data, dict) and isinstance(data.get("enabled"), bool):
                 style.set_enabled(data["enabled"])
             self.reply_json({"ok": True, **style.status()})
-        elif self.path in ("/api/chamber", "/api/chamber/active", "/api/chamber/turn", "/api/chamber/deliver", "/api/chamber/note", "/api/match"):
+        elif self.path in ("/api/chamber", "/api/chamber/active", "/api/chamber/turn", "/api/chamber/deliver", "/api/chamber/note", "/api/chamber/offer", "/api/match"):
             self.reply_json(chamber_api(self.path, body))
         elif self.path in ("/api/scenarios/save", "/api/scenarios/delete", "/api/scenarios/create", "/api/scenarios/use", "/api/scenarios/launch", "/api/scenarios/say", "/api/scenarios/said"):
             self.reply_json(scenario_api(self.path, body))
