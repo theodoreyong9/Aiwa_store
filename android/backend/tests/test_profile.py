@@ -43,6 +43,16 @@ class Profile(unittest.TestCase):
         self.assertGreaterEqual(len(bad), 4)
         self.assertTrue(any("http://" in b for b in bad))
 
+    def test_the_profile_is_also_the_home_with_slots_for_the_buttons_of_the_application(self):
+        text = P.instruction("jean/site")
+        for word in ("ACCUEIL", "data-aiwa-slot", "data-aiwa-button", "EMPLACEMENTS", "VISITEUR", "JAMAIS", "branche par défaut", "recharge toute seule", "bouton rond"):
+            self.assertIn(word, text)
+
+    def test_the_page_of_this_repository_uses_the_slots_it_asks_for(self):
+        html = (Path(__file__).resolve().parents[3] / "Profile" / "index.html").read_text(encoding="utf-8")
+        for group in ("build", "files", "domain voir"):
+            self.assertIn(f'data-aiwa-slot="{group}"', html)
+
     def test_the_profile_of_this_repository_reaches_the_minimum(self):
         root = Path(__file__).resolve().parents[3] / "Profile"
         media = {f"media/{f.name}": f.stat().st_size for f in (root / "media").glob("*") if f.is_file()}

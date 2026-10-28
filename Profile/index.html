@@ -4,9 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>theodoreyong9 · Aiwa</title>
+<meta name="theme-color" content="#06081a">
 <meta name="description" content="Je construis Aiwa. Mes fichiers, ce que je montre, où me trouver.">
 <style>
-/* Un profil est un FORMAT, pas une page : tout tient dans UN écran, sans défilement, comme un avatar. Un nom, une phrase, six fichiers à portée du pouce, un fond qui vit.
+/* Cette page est le BUREAU d'Aiwa et en même temps le profil : tout tient dans UN écran, sans défilement, comme un avatar. Un nom, une phrase, les boutons d'Aiwa à portée du pouce, un fond qui vit.
+   Les boutons ne sont pas dessinés ici : l'application les pose dans les EMPLACEMENTS (data-aiwa-slot) avec ce style. Chez quelqu'un qui visite ce profil, ce sont SES boutons à lui ; tout le reste (le nom, la phrase, mes liens) est à moi.
    Références retenues dans aiwa-design/references.md. Le fond est une boucle de 4 s rendue avec Blender (verre, chrome et lumière devant une ville la nuit), un champ WebGL coule par-dessus. */
 @property --a{syntax:"<angle>";inherits:false;initial-value:0deg}
 :root{color-scheme:dark;--ink:#f6f6ff;--dim:#aeb3e8;--acc:#52d6a0;--blue:#6b9bf5;--violet:#a77bd6;--line:rgba(255,255,255,.24);--mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
@@ -26,7 +28,7 @@ a{color:inherit}
 .bar{grid-area:bar;display:flex;justify-content:space-between;gap:16px}
 .bar span:last-child{color:var(--dim);text-align:right}
 
-.name{grid-area:name;align-self:center;margin:0;mix-blend-mode:difference;font-weight:900;line-height:.84;letter-spacing:-.045em;text-transform:uppercase;font-size:clamp(44px,min(21vw,16svh),210px);
+.name{grid-area:name;align-self:center;margin:0;mix-blend-mode:difference;font-weight:900;line-height:.84;letter-spacing:-.045em;text-transform:uppercase;font-size:clamp(40px,min(21vw,13.5svh),210px);
   transform:translate(calc(var(--px,0)*-12px),calc(var(--py,0)*-8px));transition:transform .25s ease-out}
 .name .l2{display:block;color:transparent;-webkit-text-stroke:1.5px var(--ink);animation:fill 8s ease-in-out infinite}
 @keyframes fill{0%,100%{color:transparent}50%{color:rgba(246,246,255,.9)}}
@@ -49,6 +51,32 @@ a{color:inherit}
 .me{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--dim)}
 .me a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--acc)}
 
+/* les boutons d'Aiwa : l'application les met dans les emplacements ; ici ils prennent la taille des cellules du widget */
+.desk{display:grid;gap:6px;min-width:0}
+.desk .row{display:grid;gap:6px;min-width:0}
+.desk .build{grid-template-columns:minmax(0,2.6fr) repeat(4,minmax(0,1fr))}
+.desk .files{grid-template-columns:repeat(3,minmax(0,1fr))}
+.desk .tools{grid-template-columns:repeat(11,minmax(0,1fr));gap:4px}
+.desk .aiwa-btn{--c:var(--blue);all:unset;box-sizing:border-box;position:relative;display:flex;align-items:center;justify-content:center;gap:8px;min-height:clamp(44px,7svh,58px);padding:6px 10px 6px 14px;cursor:pointer;color:var(--ink);font-size:clamp(12px,3.3vw,15px);font-weight:700;letter-spacing:-.01em;text-transform:uppercase;white-space:nowrap;
+  background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.04));backdrop-filter:blur(8px) saturate(1.3);clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);transition:filter .2s,transform .2s;-webkit-tap-highlight-color:transparent}
+.desk .aiwa-btn::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 58%,transparent),transparent 92%)}
+.desk .aiwa-btn svg{width:1.35em;height:1.35em;flex:none}
+.desk .aiwa-btn span{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.desk .aiwa-btn{min-width:0}
+.stage,.info{min-width:0}
+.desk .aiwa-btn:hover,.desk .aiwa-btn:focus-visible{filter:brightness(1.3);transform:translateY(-2px);outline:none}
+.desk .aiwa-btn:active{filter:brightness(1.5);transform:scale(.97)}
+.desk .aiwa-btn[data-tone=green]{--c:var(--acc)}.desk .aiwa-btn[data-tone=violet]{--c:var(--violet)}.desk .aiwa-btn[data-tone=orange]{--c:#e09a7c}.desk .aiwa-btn[data-tone=yellow]{--c:#e8c14a}.desk .aiwa-btn[data-tone=red]{--c:#ff6b6b}.desk .aiwa-btn[data-tone=grey]{--c:#9aa0d8}
+.desk .aiwa-btn[data-on="1"]{box-shadow:inset 0 -2px 0 var(--c)}
+.desk .aiwa-btn[data-found="0"]{opacity:.38}
+.desk .build .aiwa-btn:not([data-id=agent]) span,.desk .tools .aiwa-btn span{display:none}
+.desk .files .aiwa-btn{padding:6px 4px 6px 12px;font-size:clamp(10.5px,3vw,14px);gap:6px}
+.desk .tools .aiwa-btn{min-height:clamp(36px,5.4svh,44px);padding:4px;clip-path:none;border-radius:10px}
+.desk .tools .aiwa-btn::before{border-radius:10px}
+.desk .build .aiwa-btn[data-id=agent]{font-size:clamp(13px,3.7vw,17px)}
+.js .desk .row{opacity:0;transform:translateY(14px)}
+.go .desk .row{opacity:1;transform:none;transition:opacity .5s ease-out calc(1.7s + var(--i)*.12s),transform .6s cubic-bezier(.2,.9,.2,1) calc(1.7s + var(--i)*.12s)}
+
 /* un écran large : le nom à gauche, les fichiers à droite */
 @media (min-aspect-ratio:5/4){
   .stage{grid-template-columns:1.25fr 1fr;grid-template-rows:auto 1fr;grid-template-areas:"bar bar" "name info";column-gap:5vw}
@@ -59,7 +87,8 @@ a{color:inherit}
   .say{font-size:clamp(16px,1.6vw,22px)}
 }
 /* un écran très bas (un téléphone couché) : on garde le nom et les fichiers */
-@media (max-height:430px){.say,.me{display:none}.name{font-size:clamp(40px,26svh,120px)}}
+@media (max-height:760px){.say,.me{display:none}}
+@media (max-height:430px){.say,.me,.dock{display:none}.name{font-size:clamp(40px,26svh,120px)}.desk .files{grid-template-columns:repeat(6,minmax(0,1fr))}.desk .files .aiwa-btn span{display:none}.desk .aiwa-btn{min-height:34px;font-size:11px}.desk .tools .aiwa-btn{min-height:30px}}
 
 /* l'entrée en scène (le script ne fait qu'ajouter des classes et découper le nom en lettres) */
 .curtain{position:fixed;inset:0;z-index:20;background:#02030a;pointer-events:none;display:none}
@@ -83,17 +112,19 @@ a{color:inherit}
 <canvas id="gl" aria-hidden="true"></canvas>
 <div class="veil"></div><div class="grain"></div><div class="curtain" aria-hidden="true"></div>
 <main class="stage">
-  <div class="bar mono"><span>Aiwa · profil</span><span>2026 · en ligne</span></div>
+  <div class="bar mono"><span>Aiwa · bureau</span><span>2026 · en ligne</span></div>
   <h1 class="name" aria-label="theodoreyong9"><span data-split data-delay="1500">theo</span><br><span data-split data-delay="1700">dore</span><span class="l2" data-split data-delay="1900">yong9</span></h1>
   <div class="info">
-    <p class="say">Je construis <b>Aiwa</b> : un assistant qui vit sur le téléphone, parle à Claude, et fait des sites, des vidéos, des pages et des apps, à la voix.</p>
-    <nav class="dock" aria-label="Mes fichiers">
-      <a class="cell g" style="--i:0" href="https://github.com/theodoreyong9/Aiwa_store"><b>Source</b><span>le dépôt d'Aiwa</span></a>
-      <a class="cell" style="--i:1" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs"><b>Documents</b><span>plan, business, vision</span></a>
-      <a class="cell v" style="--i:2" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/YELLOWPAPER.md"><b>Yellow paper</b><span>comment ça marche</span></a>
-      <a class="cell o" style="--i:3" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs/videos"><b>Films</b><span>ce que je montre</span></a>
-      <a class="cell y" style="--i:4" href="https://github.com/theodoreyong9/Aiwa_store/releases"><b>App</b><span>l'APK Android</span></a>
-      <a class="cell" style="--i:5" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/EXPLAINED.md"><b>En mots simples</b><span>Aiwa expliqué</span></a>
+    <p class="say">Je construis <b>Aiwa</b> : un assistant qui vit sur le téléphone, parle à Claude, et fait des sites, des vidéos, des pages et des apps, à la voix. <b>Dis ce que tu veux changer ici : cette page change.</b></p>
+    <section class="desk" aria-label="Aiwa">
+      <div class="row build" style="--i:0" data-aiwa-slot="build"></div>
+      <div class="row files" style="--i:1" data-aiwa-slot="files"></div>
+      <div class="row tools" style="--i:2" data-aiwa-slot="domain voir" data-aiwa-look="icons"></div>
+    </section>
+    <nav class="dock" aria-label="Mes liens">
+      <a class="cell g" style="--i:3" href="https://github.com/theodoreyong9/Aiwa_store"><b>Source</b><span>le dépôt d'Aiwa</span></a>
+      <a class="cell v" style="--i:4" href="https://github.com/theodoreyong9/Aiwa_store/blob/main/docs/YELLOWPAPER.md"><b>Yellow paper</b><span>comment ça marche</span></a>
+      <a class="cell o" style="--i:5" href="https://github.com/theodoreyong9/Aiwa_store/tree/main/docs/videos"><b>Films</b><span>ce que je montre</span></a>
     </nav>
     <div class="me mono"><span>Fichier du dépôt : Profile/index.html</span><a href="https://github.com/theodoreyong9">GitHub ↗</a></div>
   </div>

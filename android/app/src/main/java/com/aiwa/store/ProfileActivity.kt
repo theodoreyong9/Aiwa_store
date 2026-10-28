@@ -34,8 +34,8 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 
 /**
- * A profile (the file `Profile/index.html` of a repository, read from GitHub as it is) in full screen, and the others of the same list one swipe away (the list comes from « Voir »: the people near, the favourites, a link). The pages are
- * plain html: the view runs no script, and what a page links (a mail, a number, a site) opens in the app that handles it. The widget of the home screen cannot be put inside an app: a slim bar at the bottom takes its place (previous, next, close).
+ * A profile (the file `Profile/index.html` of a repository, read from GitHub as it is) in full screen, and the others of the same list one swipe away (the list comes from « Voir »: the people near, the favourites, a link). The page
+ * shows ITS design and everything it says (its files, how to reach her); it runs no script of its own, and wherever it has a slot the application puts the buttons of the VISITOR (HomeBridge.kt). What a page links (a mail, a number, a site) opens in the app that handles it. The widget of the home screen cannot be put inside an app: a slim bar at the bottom takes its place (previous, next, close).
  */
 class ProfileActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
@@ -66,20 +66,18 @@ private fun ProfileScreen(urls: List<String>, start: Int, onClose: () -> Unit) {
                 WebView(context).apply {
                     layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
                     setBackgroundColor(0xFF10132E.toInt())
-                    settings.javaScriptEnabled = false          // the pages are plain html: nothing of a profile runs
+                    settings.javaScriptEnabled = true           // only for the runtime of the application (evaluateJavascript, not bound by the page's rules): the page's own scripts are forbidden by a policy put first in it (HomeRuntime.lockScripts)
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
                     settings.mediaPlaybackRequiresUserGesture = false      // the video behind a profile starts by itself (muted)
+                    HomeRuntime.attach(this)
                     webViewClient = object : WebViewClient() {
-                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                            val url = request.url
-                            if (url.scheme in setOf("https", "mailto", "tel", "sms")) try { context.startActivity(Intent(Intent.ACTION_VIEW, url).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (err: Exception) { }
-                            return true
-                        }
+                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = HomeRuntime.openExternal(context, request)
+                        override fun onPageFinished(view: WebView, url: String?) { HomeRuntime.inject(view) }
                     }
                     ProfileView.load(this, urls[page])
                 }
-            }, modifier = Modifier.fillMaxSize(), onRelease = { it.destroy() })
+            }, modifier = Modifier.fillMaxSize(), onRelease = { HomeRuntime.release(it); it.destroy() })
         }
         // the slim bar at the bottom: previous, where we are, next, close (in the cut of the widget's cells)
         Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(12.dp).fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {

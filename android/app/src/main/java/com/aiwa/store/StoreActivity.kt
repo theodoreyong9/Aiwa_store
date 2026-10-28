@@ -207,7 +207,9 @@ class StoreActivity : ComponentActivity() {
             override fun handleOnBackPressed() {
                 // The page closes what is open on top (an app) first; only then does the activity.
                 web.evaluateJavascript("(window.aiwaHostBack ? window.aiwaHostBack() : false)") { handled ->
-                    if (handled != "true") finish()
+                    if (handled == "true") return@evaluateJavascript
+                    val home = cover
+                    if (home != null && home.visibility != android.view.View.VISIBLE) { home.visibility = android.view.View.VISIBLE; startHomeWatch() } else finish()
                 }
             }
         })
@@ -222,6 +224,9 @@ class StoreActivity : ComponentActivity() {
     }
 
     private var cover: android.view.View? = null
+    private var homeWeb: WebView? = null                 // the home: the page of the person (her `Profile/`), under the Store
+    private var homeWatch: ProfileWatch? = null           // follows her Profile/ on GitHub: a new commit replaces the page on the screen
+    private var homeRepo: String? = null
     private fun isPage(address: String?) = address != null && address.contains("page=")
 
     private var widgetButton: android.widget.Button? = null
@@ -233,20 +238,20 @@ class StoreActivity : ComponentActivity() {
         val frame = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#10132E")); isClickable = true }
         val view = WebView(this).apply {
             setBackgroundColor(Color.parseColor("#10132E"))
-            settings.javaScriptEnabled = true           // her OWN profile may draw (WebGL): the page has no bridge to the app, no file access, and opens nothing but https / mail / tel links; the profiles of the others (ProfileActivity) run no script
+            settings.javaScriptEnabled = true           // her OWN page may run script (WebGL, her own design); it has no file access and opens nothing but https / mail / tel links; the buttons of its slots are the application's (HomeBridge.kt)
             settings.javaScriptCanOpenWindowsAutomatically = false
             settings.allowFileAccess = false
             settings.mediaPlaybackRequiresUserGesture = false      // the video behind a profile starts by itself (muted)
             webViewClient = object : android.webkit.WebViewClient() {
-                override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
-                    if (request.url.scheme in setOf("https", "mailto", "tel", "sms")) try { startActivity(Intent(Intent.ACTION_VIEW, request.url)) } catch (err: Exception) { }
-                    return true
-                }
+                override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean = HomeRuntime.openExternal(this@StoreActivity, request)
+                override fun onPageFinished(v: WebView, url: String?) { HomeRuntime.inject(v) }
             }
         }
+        HomeRuntime.attach(view)
+        homeWeb = view
         // the profile is ONE screen with no scrolling: it lives above the button of the widget, which has its own strip at the bottom
         frame.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply { bottomMargin = (72 * dp).toInt() })
-        ProfileView.load(view, ProfileSettings.repo(this))
+        ProfileView.load(view, ProfileSettings.repo(this), own = true)
         val button = android.widget.Button(this).apply {
             text = "Mettre le widget"
             setOnClickListener { WidgetPin.request(this@StoreActivity, explain = true) }
@@ -266,8 +271,25 @@ class StoreActivity : ComponentActivity() {
         if (!prefs.getBoolean("mic_asked", false)) { prefs.edit().putBoolean("mic_asked", true).apply(); micPermission.launch(Manifest.permission.RECORD_AUDIO) }
     }
 
+    /** The home follows the page of the person: while it is on the screen, a new commit of her `Profile/` replaces it (a change asked to the super agent shows within seconds). */
+    private fun startHomeWatch() {
+        val web = homeWeb ?: return
+        val repo = ProfileSettings.repo(this)
+        if (cover?.visibility != android.view.View.VISIBLE || !ProfileView.valid(repo)) { homeWatch?.stop(); homeWatch = null; return }
+        if (homeWatch != null && homeRepo == repo) { return }
+        homeWatch?.stop()
+        if (homeRepo != repo) { homeRepo = repo; ProfileView.load(web, repo, own = true) }       // another repository chosen in the settings
+        homeWatch = ProfileWatch(repo!!) { sha -> runOnUiThread { homeWeb?.let { ProfileView.load(it, repo, own = true, sha = sha) } } }.also { it.start() }
+    }
+
+    override fun onPause() {
+        homeWatch?.stop(); homeWatch = null
+        super.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
+        startHomeWatch()
         startWakeWord()
         // The widget is asked for at every opening while there is none (the system's window, one tap on « Ajouter »). Asked once the screen is really in front and has settled:
         // a request made while the window was still appearing (right after an installation) was lost without a word.
@@ -276,10 +298,11 @@ class StoreActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent.getStringExtra(EXTRA_URL)?.let {
-            if (isPage(it)) cover?.let { c -> (c.parent as? ViewGroup)?.removeView(c); cover = null }
-            openPage(it)
-        }
+        val asked = intent.getStringExtra(EXTRA_URL)
+        if (asked != null) {
+            if (isPage(asked)) cover?.visibility = android.view.View.GONE          // a page of the Store goes over the home; Back brings the home back
+            openPage(asked)
+        } else if (cover != null) { cover?.visibility = android.view.View.VISIBLE; startHomeWatch() }       // the icon of the application again: the home
         // Asked for by the widget's update button: the downloaded release becomes the page now.
         if (intent.getBooleanExtra(EXTRA_APPLY_UPDATE, false) && !applyUpdateNow()) openPage(loadedAddress)
     }
@@ -334,6 +357,8 @@ class StoreActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        homeWatch?.stop()
+        homeWeb?.let { HomeRuntime.release(it); it.destroy() }
         web.destroy()
         super.onDestroy()
     }

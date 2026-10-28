@@ -49,7 +49,12 @@ def instruction(repo_name=None):
         "Sers-toi de TOUT ce qu'Aiwa a pour produire : la recherche de design (consigne Design ci-dessus), la vidéo (rendus Blender, boucles de qualité maximale), les images, les musiques libres. "
         "Le minimum qui ne se négocie pas : son nom en titre (`<h1>`), un `<title>`, la balise viewport (la page se lit sur un téléphone), un fond qui bouge, des liens (les fichiers publics de la session en cours, et un moyen de la joindre que SEULE elle a donné, jamais inventé), aucune ressource en `http://` (le navigateur du téléphone la bloque). "
         "Comme pour tout site : références mesurées avec `--format=site`, rien de recopié, la page ouverte en 390 px et en 1440 px avec Playwright, les captures regardées, les débordements, contrastes faibles et erreurs de console corrigés, `aiwa-design/references.md` écrit dans le dépôt. "
-        "Garde la page belle même sans script (la vidéo et le CSS) : sur les profils des autres dans « Voir », les scripts ne tournent pas. "
+        "Cette page est AUSSI l'ACCUEIL de l'application de la personne, qu'elle change à la voix (« boutons en cercle »). Les boutons d'Aiwa ne s'écrivent pas : pose des EMPLACEMENTS, l'application y met les vrais boutons du widget. "
+        "`<div data-aiwa-slot=\"build\"></div>` (groupes `domain` `files` `build` `voir` ou `all` ; `data-aiwa-slot=\"build voir\"`), ou un seul `<span data-aiwa-button=\"docs\"></span>` (ids : project loops wallet settings mcp cast campaigns docs media app page contract agent claude listen plus scenario visible nearby link qr favorites) ; "
+        "`data-aiwa-only` / `data-aiwa-skip` / `data-aiwa-look=\"icons\"` choisissent. Chaque bouton est un `<button class=\"aiwa-btn\" data-id data-tone data-on data-found>` (un `<svg>`, un `<span>`) que tu habilles en CSS (`--aiwa-bg --aiwa-fg --aiwa-edge --aiwa-radius`) : c'est l'UX de son application. "
+        "Ne dessine JAMAIS un faux bouton d'Aiwa. Sur le profil d'un AUTRE, ces boutons sont ceux du VISITEUR ; ce que tu écris dans la page (nom, liens, fichiers, contacts) reste à toi. Sans emplacement : un bouton rond. "
+        "La page affichée est celle de la branche par défaut (HEAD) : pousse ou fusionne là ; l'application suit le dernier commit de `Profile/` et recharge toute seule en quelques secondes. "
+        "Garde la page belle sans script (vidéo, CSS) : sur le profil d'un autre, ses scripts ne tournent pas. "
         f"Pars du niveau de la page de référence ({TEMPLATE_URL}) et dépasse-la. Le fichier n'est pas publié : Aiwa le lit tel quel dans le dépôt (public)."
     )
     if repo_name:
