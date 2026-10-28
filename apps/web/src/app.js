@@ -2,7 +2,7 @@ import { startChambre } from './chambre.js';
 import { config } from './config.js';
 import { $, switchView } from './ui.js';
 import { initStore, initLibrary, initComments, showStoreTab } from './store-ui.js';
-import { initWallet, initWalletPage } from './wallet-ui.js';
+import { initWallet, initWalletPage, initCoffee } from './wallet-ui.js';
 import { initVoirPage } from './voir.js';
 import { initCommentsTab } from './comments-ui.js';
 import { initPublish, sheetIsOpen, closeSheet } from './publish-ui.js';
@@ -47,6 +47,7 @@ if (pageAlone) {
   switchView(pageAlone);
   if (pageAlone === 'store') showStoreTab('aiwa');
   else if (pageAlone === 'voir') initVoirPage(pageParams);
+  else if (pageAlone === 'wallet' && pageParams.get('coffee')) initCoffee(pageParams);
   else initWalletPage(pageParams.get('repo'));
 }
 

@@ -128,3 +128,10 @@ object ChamberActions {
         out.put("roomdanger", entry(if (both) "Create actif" else "Create", "red", s.optBoolean("dangerMe", false)))
     }
 }
+
+/** The coffee button on the profiles one visits (direct send of AIWA to the person, from the wallet): off until the person turns it on in the settings. */
+object CoffeeSettings {
+    private const val FILE = "aiwa_coffee"
+    fun on(context: Context): Boolean = try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("on", false) } catch (err: Exception) { false }
+    fun setOn(context: Context, value: Boolean) { try { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean("on", value).apply() } catch (err: Exception) { } }
+}

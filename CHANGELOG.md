@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Un café** (direct send of AIWA): on the profile of someone found in « Voir », a ☕ key appears in the bar at the bottom, once the person turned « Bouton café » on (Réglages › Profil; off by default). It opens the wallet with a card « Offrir un café » (an amount, two taps to send, final): the AIWA goes straight from the wallet, with `send()`, to the identity of the key the person signed in « Voir » (her key, bound to her repository). The profile has nothing to declare. The person must have been « Visible » in « Voir » with her wallet connected for her key to be known, and the sender needs a connected wallet. The signed offline bundle stays what it was (an option, in the wallet).
+
 - Chamber: the **Chambre** cell of the widget now SHOWS the chamber (a screen with who is in it, what the two super agents say, and the buttons) instead of opening or closing it; and the **Danger** button is renamed **Create**.
 
 - Chamber, next (brain 190): a **Description** button (5th of the Chambre tab) where the person writes a few lines for the super agent of the other; it is read only by that agent, which is told not to repeat it, and it is shown on no screen. A **Chambre** cell in the Voir page of the widget (open or close her own room). And a **score** on a visited profile: « Pro 72 · Perso 40 », made by the visitor's own super agent from the public page and what she shows (her profile and her description), kept by the brain, with her own Anthropic key; the score the other gives is not known and nothing is sent to the other person. Not tried on a phone yet.

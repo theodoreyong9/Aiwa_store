@@ -34,16 +34,16 @@ function cardItem({ repo, pub, score, laps, links }, buttons) {
 }
 
 /** Opens the profiles of a list full screen on the phone (the app reads each `Profile/index.html` from its repository and swipes from one to the next); in a browser, the folder of the one chosen opens on GitHub. */
-function openProfiles(repos, index) {
-  if (hostAvailable()) hostPost({ cmd: 'profile', repos, index });
+function openProfiles(repos, index, pubs = {}) {
+  if (hostAvailable()) hostPost({ cmd: 'profile', repos, index, pubs: repos.map((r) => (/^[0-9a-f]{64}$/.test(pubs[r] || '') ? pubs[r] : '')) });
   else window.open(`https://github.com/${repos[index]}/tree/HEAD/Profile`, '_blank', 'noopener');
 }
-const profileButton = (repos, repo) => (repo && repos.includes(repo) ? [['Profil', () => openProfiles(repos, repos.indexOf(repo))]] : []);
+const profileButton = (repos, repo, pubs = {}) => (repo && repos.includes(repo) ? [['Profil', () => openProfiles(repos, repos.indexOf(repo), pubs)]] : []);
 
 function addFavourite(card) {
   const list = readFavs();
   const key = card.links.map((l) => l.url).join('|');
-  if (!list.some((f) => f.links.map((l) => l.url).join('|') === key)) { list.unshift({ repo: card.repo ?? '', links: card.links, at: Date.now() }); writeFavs(list); }
+  if (!list.some((f) => f.links.map((l) => l.url).join('|') === key)) { list.unshift({ repo: card.repo ?? '', links: card.links, pub: card.pub ?? '', at: Date.now() }); writeFavs(list); }
 }
 
 function showResult(card, message = 'Ce n\'est ni un lien https ni la carte d\'une personne.') {
@@ -58,7 +58,8 @@ function renderFavourites() {
   const ul = $('voir-list'); ul.textContent = ''; const list = readFavs();
   $('voir-empty').hidden = list.length > 0; $('voir-empty').textContent = 'Aucun favori : garde un lien, une carte scannée ou une personne proche.';
   const favRepos = list.map((f) => f.repo).filter(Boolean);
-  for (const fav of list) ul.append(cardItem(fav, [...profileButton(favRepos, fav.repo), ['Retirer', () => { writeFavs(readFavs().filter((f) => f.at !== fav.at)); renderFavourites(); }]]));
+  const favPubs = Object.fromEntries(list.filter((f) => f.repo && f.pub).map((f) => [f.repo, f.pub]));
+  for (const fav of list) ul.append(cardItem(fav, [...profileButton(favRepos, fav.repo, favPubs), ['Retirer', () => { writeFavs(readFavs().filter((f) => f.at !== fav.at)); renderFavourites(); }]]));
 }
 
 /** The list of the people detected, kept by the two sliders: the reach (50 m to the world) and the lowest score. `view` holds `here`, `level` and `minScore`; the slider of the score runs between the lowest and the highest score detected. */
@@ -82,7 +83,8 @@ function renderNear(entries, blocked, mode, view) {
   $('voir-empty').hidden = rows.length > 0;
   $('voir-empty').textContent = detected.length === 0 ? 'Personne pour l\'instant : la liste se remplit quand d\'autres personnes ouvrent « Voir » (plus la portée est large, plus il faut qu\'ils aient regardé aussi loin).' : 'Personne ne passe les deux curseurs : élargis la portée ou baisse le score.';
   const repos = rows.map((e) => e.repo).filter(Boolean);
-  for (const e of rows) ul.append(cardItem(e, [...profileButton(repos, e.repo), ['Garder en favori', () => addFavourite({ repo: e.repo, links: e.links })], ['Bloquer', () => { const set = readBlocked(); set.add(e.pub); writeBlocked(set); renderNear(entries, set, mode, view); }]]));
+  const pubs = Object.fromEntries(rows.filter((e) => e.repo && e.pub).map((e) => [e.repo, e.pub]));
+  for (const e of rows) ul.append(cardItem(e, [...profileButton(repos, e.repo, pubs), ['Garder en favori', () => addFavourite({ repo: e.repo, links: e.links, pub: e.pub })], ['Bloquer', () => { const set = readBlocked(); set.add(e.pub); writeBlocked(set); renderNear(entries, set, mode, view); }]]));
 }
 
 export function initVoirPage(params) {

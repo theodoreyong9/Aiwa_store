@@ -55,19 +55,21 @@ class ProfileActivity : ComponentActivity() {
             .filter { ProfileView.valid(it) }.take(60)
         if (urls.isEmpty()) { finish(); return }
         val start = intent.getIntExtra(EXTRA_INDEX, 0).coerceIn(0, urls.size - 1)
-        setContent { ProfileScreen(urls, start, onClose = { finish() }) }
+        val pubs = try { JSONArray(intent.getStringExtra(EXTRA_PUBS) ?: "[]").let { a -> (0 until urls.size).map { a.optString(it) } } } catch (err: Exception) { urls.map { "" } }
+        setContent { ProfileScreen(urls, pubs, start, onClose = { finish() }) }
     }
 
     companion object {
         const val EXTRA_URLS = "urls"
         const val EXTRA_INDEX = "index"
-        fun open(context: android.content.Context, repos: List<String>, index: Int = 0) =
-            context.startActivity(Intent(context, ProfileActivity::class.java).putExtra(EXTRA_URLS, JSONArray(repos).toString()).putExtra(EXTRA_INDEX, index).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        const val EXTRA_PUBS = "pubs"
+        fun open(context: android.content.Context, repos: List<String>, index: Int = 0, pubs: List<String> = emptyList()) =
+            context.startActivity(Intent(context, ProfileActivity::class.java).putExtra(EXTRA_URLS, JSONArray(repos).toString()).putExtra(EXTRA_PUBS, JSONArray(pubs).toString()).putExtra(EXTRA_INDEX, index).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
 
 @Composable
-private fun ProfileScreen(urls: List<String>, start: Int, onClose: () -> Unit) {
+private fun ProfileScreen(urls: List<String>, pubs: List<String>, start: Int, onClose: () -> Unit) {
     val pager = rememberPagerState(initialPage = start) { urls.size }
     val scope = rememberCoroutineScope()
     // The score of the profile on the screen for the person who looks, made by her own super agent from the public page (the brain keeps it): « Pro 72 · Perso 40 ». Nothing is sent to the other person.
@@ -109,6 +111,12 @@ private fun ProfileScreen(urls: List<String>, start: Int, onClose: () -> Unit) {
             key("‹", 1f) { if (pager.currentPage > 0) scope.launch { pager.animateScrollToPage(pager.currentPage - 1) } }
             key("${pager.currentPage + 1} / ${urls.size}", 2f) { }
             key("›", 1f) { if (pager.currentPage < urls.size - 1) scope.launch { pager.animateScrollToPage(pager.currentPage + 1) } }
+            val pub = pubs.getOrNull(pager.currentPage).orEmpty()
+            val context = androidx.compose.ui.platform.LocalContext.current
+            if (pub.isNotEmpty() && CoffeeSettings.on(context)) key("☕", 1f) {
+                // the wallet page of the Store, with the card « Offrir un café » (two taps to send): the profile says nothing, the key comes from the signed card the person gave out in « Voir »
+                context.startActivity(storePageIntent(context, "wallet", urls[pager.currentPage]).also { it.putExtra(StoreActivity.EXTRA_URL, com.aiwa.bridge.STORE_APP_URL + "?page=wallet&coffee=" + pub + "&repo=" + android.net.Uri.encode(urls[pager.currentPage])) })
+            }
             key("✕", 1f) { onClose() }
         }
     }

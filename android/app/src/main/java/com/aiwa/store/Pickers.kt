@@ -919,6 +919,7 @@ class SettingsActivity : ComponentActivity() {
                 add(PickerEntry("Mes mots", false, lines = 1, chevron = true) { open(RecognitionsActivity::class.java) })
                 add(PickerEntry("Profil", false, header = true) { })
                 add(PickerEntry("Dépôt du profil : ${ProfileSettings.repo(applicationContext) ?: "pas choisi"} (toucher : prendre le projet en cours)", false, lines = 2) { ProfileSettings.takeCurrent(applicationContext); finish() })
+                add(PickerEntry("Bouton « café » sur les profils : ${if (CoffeeSettings.on(applicationContext)) "activé" else "éteint"} (toucher : changer). Il envoie de l'AIWA depuis ton wallet, après confirmation.", false, lines = 3) { CoffeeSettings.setOn(applicationContext, !CoffeeSettings.on(applicationContext)); finish() })
                 add(PickerEntry("Vérifier le niveau minimal de mon profil", false, lines = 1, chevron = true) { ProfileSettings.check(applicationContext); finish() })
                 add(PickerEntry("Papers", false, header = true) { })
                 listOf("Film" to "tree/main/docs/videos", "Source" to "", "Yellow paper" to "blob/main/docs/YELLOWPAPER.md", "Explication simple" to "blob/main/docs/EXPLAINED.md", "Valeur" to "raw/main/docs/value-ontology.pdf",

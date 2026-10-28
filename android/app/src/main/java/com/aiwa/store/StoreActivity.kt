@@ -364,7 +364,9 @@ class StoreActivity : ComponentActivity() {
             "profile" -> {
                 val list = json.optJSONArray("repos")
                 val repos = if (list == null) emptyList() else (0 until list.length()).map { list.optString(it) }.filter { ProfileView.valid(it) }
-                if (repos.isNotEmpty()) ProfileActivity.open(this, repos, json.optInt("index", 0))
+                val keys = json.optJSONArray("pubs")
+                val pubs = (0 until repos.size).map { keys?.optString(it).orEmpty().takeIf { k -> Regex("[0-9a-f]{64}").matches(k) } ?: "" }
+                if (repos.isNotEmpty()) ProfileActivity.open(this, repos, json.optInt("index", 0), pubs)
             }
             "secret-get" -> respond(reply, id) { JSONObject().put("value", secrets.get(secretName(json)) ?: JSONObject.NULL) }
             "secret-set" -> respond(reply, id) { secrets.set(secretName(json), json.getString("value")); JSONObject() }
