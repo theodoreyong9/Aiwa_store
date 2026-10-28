@@ -90,10 +90,10 @@ object ChamberActions {
                 if (ChamberState.status.optBoolean("dangerMe", false)) { ChamberHost.send(context, JSONObject().put("cmd", "danger").put("on", false)); return }
                 val activity = context as? Activity
                 val on = { ChamberHost.send(context, JSONObject().put("cmd", "danger").put("on", true)) }
-                if (activity == null) { toastOnMain(context, "Ouvre Aiwa pour activer le danger."); return }
+                if (activity == null) { toastOnMain(context, "Ouvre Aiwa pour activer Create."); return }
                 activity.runOnUiThread {
                     AlertDialog.Builder(activity)
-                        .setTitle("Activer le danger ?")
+                        .setTitle("Activer Create ?")
                         .setMessage("Si l'autre l'active aussi, vos super agents pourront s'envoyer des messages (à ton super agent) et des propositions (à toi, qui réponds toujours). Sans cela, ils ne font que parler.")
                         .setPositiveButton("Activer") { _, _ -> on() }
                         .setNegativeButton("Annuler", null)
@@ -125,6 +125,6 @@ object ChamberActions {
         out.put("roomnote", entry("Description", "grey", false))
         out.put("roomear", entry("Écouter", "violet", ChamberState.ear))
         val both = s.optBoolean("dangerMe", false) && s.optBoolean("dangerThem", false)
-        out.put("roomdanger", entry(if (both) "Danger actif" else "Danger", "red", s.optBoolean("dangerMe", false)))
+        out.put("roomdanger", entry(if (both) "Create actif" else "Create", "red", s.optBoolean("dangerMe", false)))
     }
 }

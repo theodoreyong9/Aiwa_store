@@ -16,7 +16,7 @@
     ['files', [['campaigns', 'Campagnes', 'green'], ['docs', 'Docs', 'green'], ['media', 'Médias', 'green'], ['app', 'App', 'green'], ['page', 'Page', 'yellow'], ['contract', 'Contrat', 'yellow']]],
     ['build', [['agent', 'Super agent', 'orange'], ['claude', 'Claude', 'grey'], ['listen', 'Écoute', 'grey'], ['plus', 'Ajouter', 'grey'], ['scenario', 'Scénario', 'grey']]],
     ['voir', [['visible', 'Caché', 'grey'], ['nearby', 'Proximité', 'violet'], ['link', 'Lien', 'grey'], ['qr', 'QR code', 'grey'], ['favorites', 'Favoris', 'grey']]],
-    ['chamber', [['room', 'Chambre', 'grey'], ['roomtalk', 'Converser', 'green'], ['roomear', 'Écouter', 'violet'], ['roomdanger', 'Danger', 'red'], ['roomnote', 'Description', 'grey']]]
+    ['chamber', [['room', 'Chambre', 'grey'], ['roomtalk', 'Converser', 'green'], ['roomear', 'Écouter', 'violet'], ['roomdanger', 'Create', 'red'], ['roomnote', 'Description', 'grey']]]
   ];
   var BY = { widget: { id: 'widget', group: 'widget', label: 'Widget', tone: 'violet' } }, GROUPS = {};
   var TABS = [['domain', 'Domaine'], ['files', 'Files'], ['build', 'Build'], ['voir', 'Voir'], ['chamber', 'Chambre']];

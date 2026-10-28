@@ -144,7 +144,7 @@ object FastWidget {
             listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_voir, if (voirOn) "Visible" else "Caché", if (voirOn) "violet" else "grey"), 1f, broadcast(context, 50, ACTION_VOIR, "do" to "toggle")),
                 Cell(WidgetArt.Btn(R.drawable.fw_i_pin, "Proximité", "violet"), 1f, voirTaps[1])),
             listOf(Cell(WidgetArt.Btn(R.drawable.fw_i_link, "Lien", iconOnly = true), 1f, voirTaps[0]), Cell(WidgetArt.Btn(R.drawable.fw_i_qr, "QR code", iconOnly = true), 1f, voirTaps[2]), Cell(WidgetArt.Btn(R.drawable.fw_i_star, "Favoris", iconOnly = true), 1f, voirTaps[3]),
-                Cell(WidgetArt.Btn(R.drawable.fw_i_room, "Chambre", if (ChamberState.status.optString("mode", "closed") == "closed") "grey" else "violet", iconOnly = true), 1f, activity(context, 55, ChamberToggleActivity::class.java))))
+                Cell(WidgetArt.Btn(R.drawable.fw_i_room, "Chambre", if (ChamberState.status.optString("mode", "closed") == "closed") "grey" else "violet", iconOnly = true), 1f, activity(context, 55, ChamberActivity::class.java))))
         val pages = listOf(domain, files, buildPage, voir)
         // ---- the pictures and the touch zones ----
         val (pw, ph) = sizePx(context)

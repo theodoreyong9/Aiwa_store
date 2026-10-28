@@ -230,10 +230,7 @@
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:windowSoftInputMode="adjustResize|stateVisible" />
-        <activity android:name=".ChamberToggleActivity" android:exported="false"
-            android:theme="@style/Theme.Dictate"
-            android:taskAffinity=""
-            android:excludeFromRecents="true" />
+        <activity android:name=".ChamberActivity" android:exported="false" android:theme="@style/Theme.Aiwa" />
         <activity android:name=".AgentToggleActivity" android:exported="false"
             android:theme="@style/Theme.Dictate"
             android:taskAffinity=""
