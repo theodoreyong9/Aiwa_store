@@ -39,7 +39,7 @@ object Speaker {
     fun resetInterrupt() { interrupted = false }
 
     /** Says the text and returns when it has been said: true if it was, false when the phone has no French voice, no engine, or it took too long. */
-    suspend fun speakAndWait(context: Context, text: String): Boolean = withContext(Dispatchers.Main) {
+    suspend fun speakAndWait(context: Context, text: String, pitch: Float = 1f): Boolean = withContext(Dispatchers.Main) {
         withTimeoutOrNull(20_000L) {
             suspendCancellableCoroutine<Boolean> { cont ->
                 var engine: TextToSpeech? = null
@@ -59,6 +59,7 @@ object Speaker {
                         if (language == TextToSpeech.LANG_MISSING_DATA || language == TextToSpeech.LANG_NOT_SUPPORTED) {
                             end(false)
                         } else {
+                            tts.setPitch(pitch)
                             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                                 override fun onStart(utteranceId: String?) {}
                                 override fun onDone(utteranceId: String?) { end(true) }

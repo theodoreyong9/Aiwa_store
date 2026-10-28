@@ -57,6 +57,7 @@ import aiwa_style as style_lib
 import aiwa_ci as ci_lib
 import aiwa_live as live_lib
 import aiwa_profile as profile_lib
+import aiwa_chamber as chamber_lib
 
 
 def _ts():
@@ -67,7 +68,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 188
+BACKEND_VERSION = 189
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4422,6 +4423,8 @@ def links_delete(link_id):
 
 def _link_signal(raw):
     """A critic of a link writes (title aiwa-link): the receiver's first answer (accept / refuse), or its message, carried to the other critic. Only inside an accepted link, on the right turn."""
+    if chamber_active():
+        return False        # a super agent in a chamber takes part in no other conversation
     try:
         data = json.loads(raw) if isinstance(raw, (str, bytes)) else raw
     except ValueError:
@@ -4624,6 +4627,8 @@ def _external_wrap(entry):
 
 def _external_deliver():
     """Writes into the agent's session each message that was not delivered yet (one at a time). A message that finds no agent session waits for the next look, an hour at most."""
+    if chamber_active():
+        return              # in a chamber: no other agent talks to it (what waits stays for later)
     with agent_lock:
         session = agent["session"]
     now = time.time()
@@ -4704,6 +4709,8 @@ def _external_save(url, key):
 
 def _external_fetch():
     """One look at the Worker's inbox: what waits there is taken (the Worker forgets it) and said. Returns how many were taken, or None when it could not be asked."""
+    if chamber_active():
+        return None         # in a chamber: the messages of the outside agents stay in the Worker's inbox
     config = _external_config()
     if not config:
         return None
@@ -4736,6 +4743,93 @@ def _external_line(entry):
     when = time.strftime("%H:%M", time.localtime(entry["ts"]))
     state = "remis à l'agent ✓" if entry.get("delivered") is True else ("pas encore remis" + (f" ({entry['note']})" if entry.get("note") else "") if entry.get("delivered") is False else "en cours de remise")
     return f"{when} · {state}"
+
+
+
+# ---------- the chamber: the super agent meets the one of someone else, in a room they both pressed the button of (aiwa_chamber.py has the rules) ---------
+chamber_lock = threading.Lock()
+chamber = {"active": False, "peer": None, "name": None, "lines": []}      # a super agent is in ONE chamber at a time; the lines are what was said (kept for the phone to say and show)
+
+
+def chamber_active():
+    """While a super agent is in a chamber it takes part in no other conversation (another chamber, an external agent, a link between critics)."""
+    with chamber_lock:
+        return chamber["active"]
+
+
+def _chamber_view(after=0):
+    with chamber_lock:
+        return {"ok": True, "active": chamber["active"], "peer": chamber["peer"], "name": chamber["name"], "lines": [dict(l) for l in chamber["lines"] if l["n"] > after][-chamber_lib.KEEP:]}
+
+
+def chamber_api(path, body):
+    try:
+        data = json.loads(body) if body.strip() else {}
+    except ValueError:
+        data = {}
+    data = data if isinstance(data, dict) else {}
+    if path == "/api/chamber":
+        return _chamber_view(int(data.get("after") or 0) if str(data.get("after") or "0").isdigit() else 0)
+    peer = str(data.get("peer") or "")
+    if path == "/api/chamber/active":
+        with chamber_lock:
+            if data.get("on") is True:
+                if not chamber_lib.REPO_RE.fullmatch(peer):
+                    return {"ok": False, "error": "chambre : il faut le dépôt du profil de l'autre (owner/nom)"}
+                if chamber["active"] and chamber["peer"] != peer:
+                    return {"ok": False, "busy": True, "error": "ce super agent est déjà dans une chambre"}
+                if not chamber["active"]:
+                    chamber.update(active=True, peer=peer, name=chamber_lib.name_of(data.get("name"), peer.split("/")[0]), lines=[])
+            else:
+                chamber.update(active=False, peer=None, name=None)
+        return _chamber_view()
+    with chamber_lock:
+        if not chamber["active"] or chamber["peer"] != peer:
+            return {"ok": False, "error": "pas de chambre avec cette personne"}
+        their = chamber["name"]
+    danger = data.get("danger") is True
+    if path == "/api/chamber/deliver":
+        item = chamber_lib.incoming(data.get("kind"), data.get("text"))
+        if item is None or item["kind"] == "say":
+            return {"ok": False, "error": "rien à remettre"}
+        if not danger:
+            return {"ok": False, "error": "le danger n'est pas activé des deux côtés"}
+        with chamber_lock:
+            chamber_lib.add_line(chamber["lines"], "them", their, item["kind"], item["text"], time.time())
+        if item["kind"] == "message":
+            agent_send(spoken=f"[Aiwa · chambre] Le super agent de {their} te dit : « {item['text']} »")
+        else:
+            with agent_lock:
+                own = agent["session"]
+                if own:
+                    stamp = time.time()
+                    agent["proposal"] = {"id": f"p{int(stamp * 1000)}", "ts": int(stamp), "session": own, "message": f"[Chambre · {their}] {item['text']}", "more": []}
+                    agent["say"] = {"id": f"s{int(stamp * 1000)}", "text": f"{their} te propose : {item['text']}", "ts": int(stamp), "spoken": False}
+        return {"ok": True}
+    if path == "/api/chamber/turn":
+        if llm.state != "ready":
+            return {"ok": False, "error": "il faut ta clé Anthropic (Réglages) pour que ton super agent parle dans la chambre"}
+        item = chamber_lib.incoming("say", (data.get("incoming") or {}).get("text") if isinstance(data.get("incoming"), dict) else "")
+        with chamber_lock:
+            if item:
+                chamber_lib.add_line(chamber["lines"], "them", their, "say", item["text"], time.time())
+            lines = [dict(l) for l in chamber["lines"]]
+        titles = [str(e.get("title") or "") for e in _load_cloud_sessions()[:chamber_lib.TITLES]]
+        files = [str(f) for f in (data.get("files") if isinstance(data.get("files"), list) else [])][:6]
+        context = chamber_lib.context_of(data.get("project"), titles, files, profile_lib.repo())
+        system = chamber_lib.charter(data.get("me"), their, context, danger)
+        answer = llm.ask(system, chamber_lib.messages(lines), max_tokens=400)
+        parsed = chamber_lib.parse(answer, danger)
+        if parsed is None:
+            return {"ok": False, "error": "Claude n'a pas répondu (clé, réseau ou quota)"}
+        with chamber_lock:
+            if parsed["say"]:
+                chamber_lib.add_line(chamber["lines"], "me", data.get("me"), "say", parsed["say"], time.time())
+            for kind in ("message", "proposal"):
+                if parsed[kind]:
+                    chamber_lib.add_line(chamber["lines"], "me", data.get("me"), kind, parsed[kind], time.time())
+        return {"ok": True, **parsed}
+    return {"ok": False, "error": "?"}
 
 
 # ---------- scenarios: a prompt under a launch word of the person's own. Each one is a super agent: a cloud session of its own (the double of the person), made the first time ----------
@@ -5350,6 +5444,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply_json(external_api("/api/external/status", ""))
         elif self.path == "/api/scenarios":
             self.reply_json(scenario_api("/api/scenarios", ""))
+        elif self.path == "/api/chamber":
+            self.reply_json(chamber_api("/api/chamber", ""))
         elif self.path == "/api/live/events":
             self.reply_json(live_api("/api/live/events", ""))
         elif self.path == "/api/style":
@@ -5446,6 +5542,8 @@ class Handler(BaseHTTPRequestHandler):
             elif isinstance(data, dict) and isinstance(data.get("enabled"), bool):
                 style.set_enabled(data["enabled"])
             self.reply_json({"ok": True, **style.status()})
+        elif self.path in ("/api/chamber", "/api/chamber/active", "/api/chamber/turn", "/api/chamber/deliver"):
+            self.reply_json(chamber_api(self.path, body))
         elif self.path in ("/api/scenarios/save", "/api/scenarios/delete", "/api/scenarios/create", "/api/scenarios/use", "/api/scenarios/launch", "/api/scenarios/say", "/api/scenarios/said"):
             self.reply_json(scenario_api(self.path, body))
         elif self.path == "/api/media_delete":

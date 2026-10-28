@@ -45,7 +45,7 @@ object HomeRuntime {
                 if (!isMainFrame) return@addWebMessageListener
                 val json = try { JSONObject(message.data ?: return@addWebMessageListener) } catch (err: Exception) { return@addWebMessageListener }
                 when (json.optString("cmd")) {
-                    "press" -> HomeActions.press(web.context, json.optString("id"))
+                    "press" -> HomeActions.press(web.context, json.optString("id"), source(), own)
                     "scenario" -> json.optJSONObject("scenario")?.let { HomeActions.scenario(web.context, it, source(), own) }
                 }
             }
@@ -111,7 +111,7 @@ object HomeActions {
 
     private fun kindMode(id: String): String? = when (id) { "docs" -> "documents"; "media" -> "video"; "app" -> "android"; "page" -> "pages"; "contract" -> "aiwa"; else -> null }
 
-    fun press(context: Context, id: String) {
+    fun press(context: Context, id: String, source: String? = null, own: Boolean = true) {
         val state = AiwaRepository.state.value
         val kinds = lightKinds(state, context)
         val needsSetup = !hasTermuxPermission(context)
@@ -140,6 +140,7 @@ object HomeActions {
             "link" -> context.startActivity(FastWidget.voirIntent(context, state, kinds, "lien"))
             "qr" -> context.startActivity(FastWidget.voirIntent(context, state, kinds, "qr"))
             "favorites" -> context.startActivity(FastWidget.voirIntent(context, state, kinds, "favoris"))
+            "room", "roomtalk", "roomear", "roomdanger" -> ChamberActions.press(context, id, source, own)
         }
     }
 
@@ -223,6 +224,7 @@ object HomeActions {
         out.put("listen", entry(label = if (state.listening) "Écoute active" else "Écoute", tone = if (state.listening) "green" else "grey", on = state.listening))
         out.put("plus", entry(label = if (state.attachments > 0) "${state.attachments} jointe(s)" else "Ajouter", tone = if (state.attachments > 0) "green" else "grey"))
         val voirOn = VoirSettings.on(context)
+        ChamberActions.fill(out)
         out.put("visible", entry(label = if (voirOn) "Visible" else "Caché", tone = if (voirOn) "violet" else "grey", on = voirOn, icon = if (voirOn) "visible" else "hidden"))
         return out
     }

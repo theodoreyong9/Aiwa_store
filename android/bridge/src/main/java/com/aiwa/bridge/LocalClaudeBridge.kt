@@ -558,6 +558,9 @@ class LocalClaudeBridge(private val baseUrl: String = "http://127.0.0.1:8787") :
 
     private fun filmPost(path: String, body: JSONObject): JSONObject = try { JSONObject(postText(path, body.toString())) } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: "?") }
 
+    /** The chamber's calls to the brain (/api/chamber/…): its answer as it is, or {ok:false,error} when it does not answer. */
+    fun chamberCall(path: String, body: JSONObject): JSONObject = filmPost(path, body)
+
     fun filmStatus(): FilmStatus? = try {
         val j = JSONObject(getText("/api/film/status"))
         FilmStatus(j.optBoolean("key"), j.optBoolean("voice"), j.optDouble("cap", 20.0), j.optString("sample_text"), j.optDouble("per_minute", 8.0))

@@ -58,7 +58,7 @@ let n = 0; const ok = (name) => console.log('ok', ++n, name);
   assert.equal(await page.locator('.aiwa-btn[data-id=widget]').count(), 1); ok('the Widget button is drawn');
   assert.equal(await page.locator('.aiwa-sheet').count(), 0); ok('the widget is closed at first');
   await page.locator('.aiwa-btn[data-id=widget]').click();
-  assert.equal(await page.locator('.aiwa-sheet .aiwa-tab').count(), 4); ok('it opens with the four tabs of the widget');
+  assert.equal(await page.locator('.aiwa-sheet .aiwa-tab').count(), 5); ok('it opens with the five tabs of the widget');
   assert.equal(await page.locator('.aiwa-sheet .aiwa-body .aiwa-btn').count(), 5); ok('the first tab shows the buttons of Build');
   await page.locator('.aiwa-sheet .aiwa-tab', { hasText: 'Files' }).click();
   assert.equal(await page.locator('.aiwa-sheet .aiwa-body .aiwa-btn').count(), 6); ok('another tab, other buttons');

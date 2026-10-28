@@ -1,3 +1,4 @@
+import { startChambre } from './chambre.js';
 import { config } from './config.js';
 import { $, switchView } from './ui.js';
 import { initStore, initLibrary, initComments, showStoreTab } from './store-ui.js';
@@ -40,6 +41,7 @@ initWallet();
 // A page alone, opened by the widget's Wallet or Store button (?page=wallet | ?page=store&repo=owner/name): no bar, no tabs inside, one thing on screen.
 const pageParams = new URLSearchParams(location.search);
 const pageAlone = ['wallet', 'store', 'voir'].includes(pageParams.get('page')) ? pageParams.get('page') : null;
+if (pageParams.get('page') === 'chambre') startChambre(pageParams);       // the chamber has no screen: it lives under the home of the application (chambre.js)
 if (pageAlone) {
   document.body.dataset.page = pageAlone;
   switchView(pageAlone);
