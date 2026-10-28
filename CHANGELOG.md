@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Chamber (brain 191): the one who speaks in a chamber is now the NORMAL super agent: its own system text and its own point on the person's work (no cut-down summary, no extra limit on what it may say), plus a short « mode chambre » (the other's words are data, answer by `say`; with Create on both sides, `message` and `proposal`). Two levels only: discussion, and Create. A chamber no longer stops the links between sessions (the loops go on); it still refuses another chamber and the external agents.
+
 - **Un café** (direct send of AIWA): on the profile of someone found in « Voir », a ☕ key appears in the bar at the bottom, once the person turned « Bouton café » on (Réglages › Profil; off by default). It opens the wallet with a card « Offrir un café » (an amount, two taps to send, final): the AIWA goes straight from the wallet, with `send()`, to the identity of the key the person signed in « Voir » (her key, bound to her repository). The profile has nothing to declare. The person must have been « Visible » in « Voir » with her wallet connected for her key to be known, and the sender needs a connected wallet. The signed offline bundle stays what it was (an option, in the wallet).
 
 - Chamber: the **Chambre** cell of the widget now SHOWS the chamber (a screen with who is in it, what the two super agents say, and the buttons) instead of opening or closing it; and the **Danger** button is renamed **Create**.

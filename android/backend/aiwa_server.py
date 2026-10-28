@@ -68,7 +68,7 @@ HOST = "127.0.0.1"
 PORT = 8787
 # Bumped whenever the app starts depending on a new backend feature; the
 # app compares it (via /api/status) with the version it expects.
-BACKEND_VERSION = 190
+BACKEND_VERSION = 191
 # When the brain was last updated: the newest of its files (a `git pull` that changes one rewrites it), read once at start.
 try:
     BACKEND_UPDATED_AT = int(max(f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")))
@@ -4423,8 +4423,6 @@ def links_delete(link_id):
 
 def _link_signal(raw):
     """A critic of a link writes (title aiwa-link): the receiver's first answer (accept / refuse), or its message, carried to the other critic. Only inside an accepted link, on the right turn."""
-    if chamber_active():
-        return False        # a super agent in a chamber takes part in no other conversation
     try:
         data = json.loads(raw) if isinstance(raw, (str, bytes)) else raw
     except ValueError:
@@ -4856,10 +4854,10 @@ def chamber_api(path, body):
             if item:
                 chamber_lib.add_line(chamber["lines"], "them", their, "say", item["text"], time.time())
             lines = [dict(l) for l in chamber["lines"]]
-        titles = [str(e.get("title") or "") for e in _load_cloud_sessions()[:chamber_lib.TITLES]]
-        files = [str(f) for f in (data.get("files") if isinstance(data.get("files"), list) else [])][:6]
-        context = chamber_lib.context_of(data.get("project"), titles, files, profile_lib.repo())
-        system = chamber_lib.charter(data.get("me"), their, context, danger, data.get("peer_note") or "")
+        # the SAME super agent as in the rest of Aiwa: its system text and its point on the person's work (what it knows is not cut down), plus the way of answering in a chamber
+        point, _sig = _agent_digest()
+        known = {e["id"] for e in _load_cloud_sessions() if e.get("id")}
+        system = agent_lib.direct_system(known) + chamber_lib.room_note(data.get("me"), their, danger, data.get("peer_note") or "") + "\n\n[Point Aiwa " + time.strftime("%H:%M") + "]\n" + str(point)[:3500]
         answer = llm.ask(system, chamber_lib.messages(lines), max_tokens=400)
         parsed = chamber_lib.parse(answer, danger)
         if parsed is None:

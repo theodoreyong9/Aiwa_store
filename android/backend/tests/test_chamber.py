@@ -116,7 +116,8 @@ class Routes(unittest.TestCase):
         self.assertTrue(out["ok"])
         self.assertEqual(out["say"], "Je travaille sur Aiwa.")
         self.assertIsNone(out["message"], "without the danger of both, no message")
-        self.assertIn("Projet en cours : Aiwa", seen["system"])
+        self.assertIn("MODE CHAMBRE", seen["system"])
+        self.assertIn("Tu es l'AGENT d'Aiwa", seen["system"], "the same super agent as everywhere else")
         self.assertEqual(seen["messages"][-1], {"role": "user", "content": "Salut, tu fais quoi ?"})
         lines = self.post("/api/chamber")["lines"]
         self.assertEqual([(l["who"], l["text"]) for l in lines], [("them", "Salut, tu fais quoi ?"), ("me", "Je travaille sur Aiwa.")])
@@ -131,10 +132,10 @@ class Routes(unittest.TestCase):
         self.assertFalse(self.post("/api/chamber/deliver", peer="anna/site", kind="say", text="x", danger=True)["ok"], "plain words are not delivered, they are the conversation")
         self.assertFalse(self.post("/api/chamber/deliver", peer="max/site", kind="message", text="x", danger=True)["ok"], "only the person of the chamber")
 
-    def test_in_a_chamber_the_outside_agents_and_the_links_wait(self):
+    def test_in_a_chamber_the_outside_agents_wait_but_the_loops_go_on(self):
         self.post("/api/chamber/active", on=True, peer="anna/site", name="Anna")
-        self.assertFalse(server._link_signal('{"link": "l1", "role": "receiver", "answer": "accept"}'))
-        self.assertIsNone(server._external_fetch())
+        self.assertIsNone(server._external_fetch(), "no other agent speaks to the super agent in a chamber")
+        self.assertFalse(server._link_signal('{"nothing": 1}'), "a loop between sessions is not stopped by the chamber (this one has no link, it only says nothing happened)")
 
 
 if __name__ == "__main__":
