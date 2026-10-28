@@ -1,3 +1,4 @@
+import re
 import sys
 import tempfile
 import unittest
@@ -33,7 +34,7 @@ class Profile(unittest.TestCase):
 
     def test_a_profile_is_the_showcase_with_no_limit_of_technique_and_a_short_minimum(self):
         text = P.instruction("jean/site")
-        for word in ("VITRINE", "10 secondes", "AUCUNE limite technique", "UN SEUL écran", "sans défilement", "360×640", "Three.js", "consigne Design", "390 px", "aiwa-design/references.md", "page de référence", "jean/site"):
+        for word in ("VITRINE", "10 secondes", "AUCUNE limite technique", "premier écran", "JAMAIS le défilement", "360×640", "Three.js", "consigne Design", "390 px", "aiwa-design/references.md", "page de référence", "jean/site"):
             self.assertIn(word, text)
         good = '<!doctype html><title>x</title><meta name="viewport" content="width=device-width"><h1>x</h1><video src="media/a.mp4"></video><a href="https://github.com/x">x</a>'
         self.assertEqual(P.check(good), [])
@@ -45,13 +46,21 @@ class Profile(unittest.TestCase):
 
     def test_the_profile_is_also_the_home_with_slots_for_the_buttons_of_the_application(self):
         text = P.instruction("jean/site")
-        for word in ("ACCUEIL", "data-aiwa-slot", "data-aiwa-button", "EMPLACEMENTS", "VISITEUR", "JAMAIS", "branche par défaut", "recharge toute seule", "bouton rond"):
+        for word in ("ACCUEIL", "data-aiwa-slot", "data-aiwa-button", "EMPLACEMENTS", "VISITEUR", "JAMAIS", "branche par défaut", "recharge toute seule", "data-aiwa-button=\"widget\"", "SCÉNARIOS", "scenarios.json", "data-aiwa-scenarios"):
             self.assertIn(word, text)
 
-    def test_the_page_of_this_repository_uses_the_slots_it_asks_for(self):
-        html = (Path(__file__).resolve().parents[3] / "Profile" / "index.html").read_text(encoding="utf-8")
-        for group in ("build", "files", "domain voir"):
-            self.assertIn(f'data-aiwa-slot="{group}"', html)
+    def test_the_page_of_this_repository_has_the_widget_button_its_scenarios_and_lets_the_page_scroll(self):
+        import json
+        import aiwa_scenarios as S
+        root = Path(__file__).resolve().parents[3] / "Profile"
+        html = (root / "index.html").read_text(encoding="utf-8")
+        self.assertIn('data-aiwa-button="widget"', html)
+        self.assertIn("data-aiwa-scenarios", html)
+        self.assertIsNone(re.search(r"html,\s*body\s*\{[^}]*overflow\s*:\s*hidden", html), "the page must never block the scroll")
+        scenarios = json.loads((root / "scenarios.json").read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(scenarios), 1)
+        for raw in scenarios:
+            self.assertIsNotNone(S.clean(raw), f"Aiwa would refuse the scenario {raw.get('name')}")
 
     def test_the_profile_of_this_repository_reaches_the_minimum(self):
         root = Path(__file__).resolve().parents[3] / "Profile"

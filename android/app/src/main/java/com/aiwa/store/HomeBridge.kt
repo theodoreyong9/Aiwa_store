@@ -1,5 +1,7 @@
 package com.aiwa.store
 
+import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.webkit.WebResourceRequest
@@ -7,6 +9,9 @@ import android.webkit.WebView
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.aiwa.bridge.LocalClaudeBridge
+import com.aiwa.bridge.Scenario
+import com.aiwa.bridge.ScenarioWord
 import org.json.JSONObject
 
 /**
@@ -29,14 +34,20 @@ object HomeRuntime {
     /** The home of the application, for the person who has no profile page yet: every button, and a word that says how to make her own (the page replaces __WORD__). */
     fun defaultPage(context: Context): String = try { context.assets.open("home/default.html").use { String(it.readBytes(), Charsets.UTF_8) } } catch (err: Exception) { "" }
 
-    /** The channel from the page to the phone: a message {"cmd":"press","id":"docs"}. */
-    fun attach(web: WebView) {
+    /**
+     * The channel from the page to the phone: a message {"cmd":"press","id":"docs"} or {"cmd":"scenario","scenario":{…}} (a scenario of the page, launched in the account of whoever looks).
+     * `own`: the page is the person's own; `source` says whose page it is (a repository « owner/name »).
+     */
+    fun attach(web: WebView, own: Boolean, source: () -> String?) {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return
         try {
             WebViewCompat.addWebMessageListener(web, "AiwaHomeHost", setOf("*")) { _, message: WebMessageCompat, _, isMainFrame, _ ->
                 if (!isMainFrame) return@addWebMessageListener
                 val json = try { JSONObject(message.data ?: return@addWebMessageListener) } catch (err: Exception) { return@addWebMessageListener }
-                if (json.optString("cmd") == "press") HomeActions.press(web.context, json.optString("id"))
+                when (json.optString("cmd")) {
+                    "press" -> HomeActions.press(web.context, json.optString("id"))
+                    "scenario" -> json.optJSONObject("scenario")?.let { HomeActions.scenario(web.context, it, source(), own) }
+                }
             }
         } catch (err: Exception) { /* a second attach on the same view */ }
     }
@@ -130,6 +141,46 @@ object HomeActions {
             "qr" -> context.startActivity(FastWidget.voirIntent(context, state, kinds, "qr"))
             "favorites" -> context.startActivity(FastWidget.voirIntent(context, state, kinds, "favoris"))
         }
+    }
+
+    /**
+     * A scenario of a profile page (`Profile/scenarios.json`), launched in OUR environment: it is saved among the scenarios of the person and started (the brain makes its session: a double of her). A scenario can write to her sessions and ask her phone
+     * for things, so the one that comes from someone else's page is shown whole and only runs after she says yes.
+     */
+    fun scenario(context: Context, raw: JSONObject, source: String?, own: Boolean) {
+        val name = raw.optString("name").trim().take(40)
+        val prompt = raw.optString("prompt").trim().take(1500)
+        if (name.isEmpty()) return
+        val run = { Thread { runScenario(context.applicationContext, raw, name, prompt, source, own) }.start() }
+        if (own) { run(); return }
+        val activity = context as? Activity
+        if (activity == null) { toastOnMain(context, "Ouvre le profil dans Aiwa pour lancer ce scénario."); return }
+        activity.runOnUiThread {
+            AlertDialog.Builder(activity)
+                .setTitle("Lancer « $name » ?")
+                .setMessage("Ce scénario vient du profil de ${source ?: "quelqu'un d'autre"}. Une fois lancé, il agit comme un double de toi : une session à lui, qui peut écrire à tes sessions et demander des choses à ton téléphone. Voici ce qu'on lui demande :\n\n$prompt")
+                .setPositiveButton("Lancer") { _, _ -> run() }
+                .setNegativeButton("Annuler", null)
+                .show()
+        }
+    }
+
+    private fun runScenario(app: Context, raw: JSONObject, name: String, prompt: String, source: String?, own: Boolean) {
+        val base = raw.optString("id").ifBlank { name }
+        val id = (if (own) base else "p-" + (source ?: "x") + "-" + base).lowercase().replace(Regex("[^a-z0-9-]"), "-").take(30)
+        val list = raw.optJSONArray("words")
+        val words = if (list == null) emptyList() else (0 until minOf(list.length(), 8)).mapNotNull {
+            val w = list.optJSONObject(it) ?: return@mapNotNull null
+            ScenarioWord(w.optString("word"), w.optString("does"))
+        }
+        val kind = if (raw.optString("kind") == "report") "report" else "double"
+        val scenario = Scenario(id, name, raw.optString("word").trim(), kind, prompt, raw.optString("speak").trim(), words)
+        val bridge = LocalClaudeBridge()
+        val saved = bridge.scenarioSave(scenario)
+        if (saved == null) { toastOnMain(app, "Le cerveau ne répond pas : le scénario n'est pas lancé."); return }
+        if (saved.error != null) { toastOnMain(app, saved.error ?: "Scénario refusé."); return }
+        val launched = bridge.scenarioLaunch(id = id)
+        toastOnMain(app, if (launched != null) "Scénario « $name » lancé." else "Scénario « $name » ajouté, mais il ne démarre pas.")
     }
 
     private fun entry(label: String? = null, tone: String? = null, on: Boolean? = null, found: Boolean? = null, icon: String? = null): JSONObject {

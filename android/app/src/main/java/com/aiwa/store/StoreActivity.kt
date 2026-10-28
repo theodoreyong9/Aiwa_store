@@ -229,12 +229,10 @@ class StoreActivity : ComponentActivity() {
     private var homeRepo: String? = null
     private fun isPage(address: String?) = address != null && address.contains("page=")
 
-    private var widgetButton: android.widget.Button? = null
 
-    /** What the application shows for now, outside of the widget: the person's own profile, as someone who discovers her would see it (the page `Profile/` of the repository chosen in the settings), and « Mettre le widget » at the bottom. */
+    /** What the application shows for now, outside of the widget: the person's own profile, as someone who discovers her would see it (the page `Profile/` of the repository chosen in the settings): her home. */
     @android.annotation.SuppressLint("SetJavaScriptEnabled")
     private fun constructionCover(): android.view.View {
-        val dp = resources.displayMetrics.density
         val frame = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#10132E")); isClickable = true }
         val view = WebView(this).apply {
             setBackgroundColor(Color.parseColor("#10132E"))
@@ -247,17 +245,11 @@ class StoreActivity : ComponentActivity() {
                 override fun onPageFinished(v: WebView, url: String?) { HomeRuntime.inject(v) }
             }
         }
-        HomeRuntime.attach(view)
+        HomeRuntime.attach(view, true) { ProfileSettings.repo(this) }
         homeWeb = view
-        // the profile is ONE screen with no scrolling: it lives above the button of the widget, which has its own strip at the bottom
-        frame.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply { bottomMargin = (72 * dp).toInt() })
+        // the page of the person fills the screen, and scrolls if she or her visitor wants it to (no button of the widget here: the Widget button is IN the page)
+        frame.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         ProfileView.load(view, ProfileSettings.repo(this), own = true)
-        val button = android.widget.Button(this).apply {
-            text = "Mettre le widget"
-            setOnClickListener { WidgetPin.request(this@StoreActivity, explain = true) }
-        }
-        widgetButton = button
-        frame.addView(button, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL).apply { bottomMargin = (16 * dp).toInt() })
         return frame
     }
 

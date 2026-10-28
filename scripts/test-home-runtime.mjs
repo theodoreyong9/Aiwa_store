@@ -54,4 +54,42 @@ let n = 0; const ok = (name) => console.log('ok', ++n, name);
 { const { page } = await run('<style>.aiwa-btn{background:rgb(1,2,3)!important}</style><body><div data-aiwa-slot="build"></div></body>');
   assert.equal(await page.locator('.aiwa-btn').first().evaluate((e) => getComputedStyle(e).backgroundColor), 'rgb(1, 2, 3)'); ok('a rule of the page beats the base look');
   await page.close(); }
+{ const { page } = await run('<body><span data-aiwa-button="widget"></span></body>');
+  assert.equal(await page.locator('.aiwa-btn[data-id=widget]').count(), 1); ok('the Widget button is drawn');
+  assert.equal(await page.locator('.aiwa-sheet').count(), 0); ok('the widget is closed at first');
+  await page.locator('.aiwa-btn[data-id=widget]').click();
+  assert.equal(await page.locator('.aiwa-sheet .aiwa-tab').count(), 4); ok('it opens with the four tabs of the widget');
+  assert.equal(await page.locator('.aiwa-sheet .aiwa-body .aiwa-btn').count(), 5); ok('the first tab shows the buttons of Build');
+  await page.locator('.aiwa-sheet .aiwa-tab', { hasText: 'Files' }).click();
+  assert.equal(await page.locator('.aiwa-sheet .aiwa-body .aiwa-btn').count(), 6); ok('another tab, other buttons');
+  await page.locator('.aiwa-sheet .aiwa-btn[data-id=docs]').click();
+  assert.deepEqual(await page.evaluate(() => window.__presses), ['docs']); ok('a press in the widget reaches the phone');
+  assert.equal(await page.locator('.aiwa-sheet').count(), 0); ok('and closes it');
+  await page.locator('.aiwa-btn[data-id=widget]').click(); await page.mouse.click(5, 5);
+  assert.equal(await page.locator('.aiwa-sheet').count(), 0); ok('a tap outside closes it');
+  assert.equal(await page.locator('[data-aiwa-slot]').count(), 0);
+  await page.close(); }
+
+{ const page = await browser.newPage(); const sent = [];
+  await page.route('http://home.test/**', (route) => {
+    const u = route.request().url();
+    if (u.endsWith('/scenarios.json')) return route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ id: 'demo', name: 'Démo Aiwa', word: 'démo aiwa', kind: 'double', prompt: 'Tu présentes Aiwa en trois phrases.' }, { id: 'veille', name: 'Veille', word: 'veille', prompt: 'x' }]) });
+    return route.fulfill({ contentType: 'text/html', body: '<body><div id=s data-aiwa-scenarios></div></body>' });
+  });
+  await page.goto('http://home.test/');
+  await page.evaluate(() => { window.AiwaHomeHost = { postMessage: (m) => (window.__sent = window.__sent || []).push(JSON.parse(m)) }; });
+  await page.addScriptTag({ content: js }); await page.waitForTimeout(300);
+  assert.equal(await page.locator('#s .aiwa-scn').count(), 2); ok('the scenarios of the page are drawn as cards');
+  assert.equal(await page.locator('.aiwa-dock').count(), 0); ok('a page with scenarios does not get the round button');
+  await page.locator('#s .aiwa-scn').first().locator('button').click();
+  const got = await page.evaluate(() => window.__sent);
+  assert.equal(got[0].cmd, 'scenario'); assert.equal(got[0].scenario.name, 'Démo Aiwa'); ok('Launch hands the scenario to the application');
+  await page.close(); }
+
+{ const page = await browser.newPage();
+  await page.route('http://home.test/**', (route) => route.request().url().endsWith('/scenarios.json') ? route.fulfill({ status: 404, body: '' }) : route.fulfill({ contentType: 'text/html', body: '<body><div id=s data-aiwa-scenarios></div></body>' }));
+  await page.goto('http://home.test/'); await page.addScriptTag({ content: js }); await page.waitForTimeout(300);
+  assert.equal(await page.locator('#s').isHidden(), true); ok('without scenarios.json the place stays empty and hidden');
+  await page.close(); }
+
 await browser.close(); console.log('all good:', n);

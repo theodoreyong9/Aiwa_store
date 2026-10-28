@@ -70,7 +70,7 @@ private fun ProfileScreen(urls: List<String>, start: Int, onClose: () -> Unit) {
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
                     settings.mediaPlaybackRequiresUserGesture = false      // the video behind a profile starts by itself (muted)
-                    HomeRuntime.attach(this)
+                    HomeRuntime.attach(this, false) { urls[page] }
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = HomeRuntime.openExternal(context, request)
                         override fun onPageFinished(view: WebView, url: String?) { HomeRuntime.inject(view) }
