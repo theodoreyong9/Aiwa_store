@@ -28,12 +28,10 @@ const labels={},ln=document.getElementById('ln');
  ['p1','Anna','120 m','#ffd05a',-20,34,40,-20],['p2','Théo','340 m','#ffd05a',20,34,40,-20],['p3','Lina','580 m','#ffd05a',0,34,40,-20],
  ['w1','Tokyo','12 builders','#ffd05a',-30,46,50,-50],['w2','Lagos','8 builders','#ffd05a',30,46,50,50],['w3','Lisbonne','21 builders','#ffd05a',0,46,-320,0],
  ['doc','Docs','','#52d6a0',-20,30,0,-60],['med','Médias','','#6b9bf5',-20,30,0,-60],['app','App','','#e09a7c',-20,30,0,-60],['pag','Page','','#e8c14a',-20,30,0,-60],['colf','Fichiers','Docs · Médias · App · Page · Contrat','#52d6a0',-20,30,-40,-70],['colr','Destinataires','','#ff8fb3',-20,30,-40,-70],['colc','Canaux','mail · réseaux','#4aa3ff',-20,30,-40,-70],
- ['sc','Contrat intelligent','','#ffe27a',-25,40,40,60],['listen','J’écoute','','#35f08a',-10,40,30,-30]].forEach(([id,k,s,c,r,l,dx,dy])=>{
+ ['agent','Super agent','reçoit · multiplie · diffuse','#35f08a',-25,40,70,-110],['sc','Contrat intelligent','','#ffe27a',-25,40,40,60],['listen','J’écoute','','#35f08a',-10,40,30,-30]].forEach(([id,k,s,c,r,l,dx,dy])=>{
  const d=document.createElement('div');d.className='lbl';d.style.setProperty('--c',c);d.style.setProperty('--r',r+'deg');d.style.setProperty('--l',l+'px');d.innerHTML=`${k}<span>${s||''}</span>`;ov.appendChild(d);const sv=document.createElementNS('http://www.w3.org/2000/svg','g');sv.innerHTML=`<line stroke="${c}" stroke-width="1.5" stroke-opacity=".75"/><circle r="7" fill="none" stroke="${c}" stroke-width="2"/><circle r="2.5" fill="${c}"/>`;ln.appendChild(sv);labels[id]={d,dx,dy,sv}});
 function bigText(t){ // title cards, in the film's own voice
- const rows=[ [0.15,3.5,'1<sup style="font-size:.5em">er</sup> réseau social de builders','sur Android',H*.07],
-  [50.0,54.6,'Fini de coder dans des sites fermés,','des plateformes fermées, des sessions fermées.',H*.14],
-  [55.6,58.6,'Vivez une nouvelle expérience du web.','',H*.42],[59.2,60.4,'Aiwa.','',H*.4],[60.6,64.4,'Ton univers.','Ta volonté.',H*.34]];
+ const rows=TL.E.rows.map(r=>[r[0],r[1],r[2],r[3],H*r[4]]);
  let on=null;for(const r of rows)if(t>=r[0]&&t<=r[1]){on=r;break}
  if(!on){big.style.opacity=0;return}
  const [a,b,l1,l2,y]=on;const k=ramp(t,a,a+.5)*(1-ramp(t,b-.5,b)),isAiwa=l1==='Aiwa.';

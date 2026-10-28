@@ -17,6 +17,8 @@ A = kit.args
 OUT, FPS = A('out', '/tmp/os3/b'), A('fps', 24, int)
 WIDTH, HEIGHT, SAMPLES = A('width', 1920, int), A('height', 1080, int), A('samples', 64, int)
 PH_DIR, TV_DIR = A('phdir', '/tmp/os3/ph2'), A('tvdir', '/tmp/os3/tv2')
+WIN = A('window', 0.0, float)                  # > 0: the PAUSE window (seconds): the room is held at t = 50 while the television shows something else (its own frames), the camera breathes and comes back
+TVX_DIR = A('tvxdir', '/tmp/os3/tvx')
 SRC_FPS = A('srcfps', 24, int)            # the rate the screen frames were drawn at
 ASSETS = A('assets', '/tmp/ph')
 TL = json.load(open(os.path.join(HERE, 'timeline.json'))); T = TL['T']
@@ -415,35 +417,45 @@ def morph_shape(w):
 # the contract: a card that rises from the phone
 ct_m = screen_mat('contract', rough=.35, es=1.5)
 CARD = quad('card', .18, .1125, ct_m, (.27, -.03, .15), rot=(math.radians(-14), 0, math.radians(-5))); CARD.hide_render = True
-# the campaign: files, people and channels, in three columns that slide past each other; chains of light join one of each
+# the campaign: pairs « a file + a connector » fall one by one onto the super agent; each landing sends a wave and the pair is multiplied into copies that ride the wave outward (campaign.py holds the schedule)
+sys.path.insert(0, HERE)
+import campaign as CP
 G2 = A('ic2dir', '/tmp/os3/ic2')
-GRAPH = bpy.data.objects.new('GRAPH', None); GRAPH.location = NODE_C; bpy.context.scene.collection.objects.link(GRAPH)
-COLS = {'f': ['file_docs', 'file_media', 'file_app', 'file_page', 'file_contract'], 'r': ['who_anna', 'who_theo', 'who_lina', 'who_max', 'who_sam'], 'c': ['ch_gmail', 'ch_whatsapp', 'ch_telegram', 'ch_linkedin', 'ch_x']}
-COLX = {'f': -.36, 'r': 0.0, 'c': .36}; COLSPEED = {'f': .30, 'r': -.24, 'c': .20}; ROW = .098; GTILE = .086
 def tile_mat(n_):
     tm = bpy.data.materials.new('tile_' + n_); tm.use_nodes = True; tm.cycles.emission_sampling = 'NONE'; nt = tm.node_tree
     for nd in list(nt.nodes): nt.nodes.remove(nd)
     tx = nt.nodes.new('ShaderNodeTexImage'); tx.image = bpy.data.images.load(f'{G2}/{n_}.png'); tx.image.alpha_mode = 'STRAIGHT'
-    em_ = nt.nodes.new('ShaderNodeEmission'); em_.inputs['Strength'].default_value = 1.5; tr_ = nt.nodes.new('ShaderNodeBsdfTransparent'); mx_ = nt.nodes.new('ShaderNodeMixShader'); ou_ = nt.nodes.new('ShaderNodeOutputMaterial')
+    em_ = nt.nodes.new('ShaderNodeEmission'); em_.inputs['Strength'].default_value = 2.2; tr_ = nt.nodes.new('ShaderNodeBsdfTransparent'); mx_ = nt.nodes.new('ShaderNodeMixShader'); ou_ = nt.nodes.new('ShaderNodeOutputMaterial')
     nt.links.new(tx.outputs['Color'], em_.inputs['Color']); nt.links.new(tx.outputs['Alpha'], mx_.inputs['Fac']); nt.links.new(tr_.outputs[0], mx_.inputs[1]); nt.links.new(em_.outputs[0], mx_.inputs[2]); nt.links.new(mx_.outputs[0], ou_.inputs['Surface'])
     return tm
-G_TILES = {}
-for col, names in COLS.items():
-    G_TILES[col] = []
-    for i, n_ in enumerate(names):
-        q = quad('gt', GTILE, GTILE, tile_mat(n_), (0, 0, 0)); q.parent = GRAPH; q.hide_render = True; q.visible_shadow = False
-        c_ = q.constraints.new('TRACK_TO'); c_.target = CAM; c_.track_axis = 'TRACK_NEGATIVE_Y'; c_.up_axis = 'UP_Z'; G_TILES[col].append(q)
-NSEG = 14
-G_LINE_M = [emissive('gline%d' % k, ['#52d6a0', '#6b9bf5', '#e8c14a', '#ff9a5c'][k], 5.0) for k in range(4)]
-G_LINES = [[cyl('gl', G_LINE_M[k], .0016) for _ in range(2 * NSEG)] for k in range(4)]
-for ls in G_LINES:
-    for l in ls: l.parent = GRAPH; l.hide_render = True
-G_PULSE = [sphere('gp', .011, (0, 0, 0), emissive('gpulse%d' % k, '#ffffff', 45.0)) for k in range(4)]
-for o in G_PULSE: o.parent = GRAPH; o.hide_render = True
-def tile_pos(col, i, t):
-    row = ((i + t * COLSPEED[col]) % 5) - 2.5
-    return V(COLX[col], -.012 * i, -row * ROW), 1 - ramp(abs(row), 1.7, 2.45)
-def qbez(a, b, c, u): return a * (1 - u) ** 2 + c * 2 * u * (1 - u) + b * u * u
+TILE_M = {n_: tile_mat(n_) for n_ in CP.FILES + CP.CHANNELS}
+def facing_quad(size, mat):
+    q = quad('cpt', size, size, mat, (0, 0, 0)); q.hide_render = True; q.visible_shadow = False
+    c_ = q.constraints.new('TRACK_TO'); c_.target = CAM; c_.track_axis = 'TRACK_NEGATIVE_Y'; c_.up_axis = 'UP_Z'; return q
+SCHED = CP.schedule()
+FALLERS = [(facing_quad(.07, TILE_M[CP.FILES[0]]), facing_quad(.07, TILE_M[CP.CHANNELS[0]])) for _ in range(8)]      # the pairs on their way down
+COPIES = [facing_quad(.048, TILE_M[CP.FILES[0]]) for _ in range(54)]                                                 # the copies that ride the waves
+BOND_M = emissive('bond', '#ffffff', 9.0); BONDS = [cyl('bond', BOND_M, .0013) for _ in range(8)]
+for o in BONDS: o.hide_render = True
+WAVE_M = [emissive('wave%d' % i, '#9fd0ff', 3.0) for i in range(8)]
+WAVES = [torus('wave%d' % i, 1.0, .0075, WAVE_M[i]) for i in range(8)]
+for o in WAVES: o.hide_render = True
+def set_tile(q, name):
+    if q.material_slots[0].material is not TILE_M[name]: q.material_slots[0].material = TILE_M[name]
+def eo3(x): return 1 - (1 - x) ** 3
+def campaign_state(t):
+    """What the campaign shows at t: the pairs falling, the waves, the copies riding them, and how much each wave lights a given radius."""
+    falling, waves, copies = [], [], []
+    for p in SCHED:
+        if p['t0'] <= t < p['t1']:
+            u = (t - p['t0']) / CP.FALL; falling.append((p, u))
+        w = (t - p['t1']) / CP.WAVE
+        if 0 <= w < 1:
+            waves.append((p, w))
+            for k in range(3):
+                ang = math.radians(p['a'] + k * 120); rad = .04 + .5 * eo3(w) * (.85 + .15 * ((p['n'] + k) % 3) / 2)
+                copies.append((p, k, ang, rad, w))
+    return falling, waves, copies
 
 # ------------------------------------------------------------------ the camera path (x, y, z metres)
 K = [  # t, camera, target, fov (vertical)
@@ -458,7 +470,7 @@ K = [  # t, camera, target, fov (vertical)
  [57.0, (0, -2.4, .62), (-.05, 1.9, .40), 42], [67, (0, -3.4, .65), (-.05, 1.9, .40), 44]]
 def hermite(p0, p1, m0, m1, s):
     s2, s3 = s * s, s * s * s; return p0 * (2 * s3 - 3 * s2 + 1) + m0 * (s3 - 2 * s2 + s) + p1 * (-2 * s3 + 3 * s2) + m1 * (s3 - s2)
-def cam_at(t):
+def cam_at_k(t, K):
     i = 0
     while i < len(K) - 2 and t > K[i + 1][0]: i += 1
     a, b, p, n = K[i], K[i + 1], K[max(0, i - 1)], K[min(len(K) - 1, i + 2)]
@@ -466,6 +478,13 @@ def cam_at(t):
     for name, idx in (('pos', 1), ('tgt', 2)):
         out[name] = V([hermite(a[idx][k], b[idx][k], (b[idx][k] - p[idx][k]) / max(1e-3, b[0] - p[0]) * dt, (n[idx][k] - a[idx][k]) / max(1e-3, n[0] - a[0]) * dt, e) for k in range(3)])
     out['fov'] = mix(a[3], b[3], e); return out
+
+# during the campaign the camera comes closer to the super agent (the old path before and after is kept exactly: the shots around it are rendered already)
+K_CAMP = [k_ if k_[0] != 37.5 else [37.5, (.70, -.78, .44), (.78, -.10, .36), 31] for k_ in K]
+K_CAMP.insert(K_CAMP.index([k_ for k_ in K_CAMP if k_[0] == 37.5][0]) + 1, [39.0, (.68, -.80, .43), (.78, -.10, .36), 31])
+def cam_at(t):
+    a_, b_ = cam_at_k(t, K), cam_at_k(t, K_CAMP); w = seg(t, 36.0, 38.0) * (1 - seg(t, 39.6, 41.2))
+    return {'pos': a_['pos'] * (1 - w) + b_['pos'] * w, 'tgt': a_['tgt'] * (1 - w) + b_['tgt'] * w, 'fov': mix(a_['fov'], b_['fov'], w)}
 
 PH0 = V(.27, -.06, .081)
 def phone_pose(t):
@@ -498,7 +517,7 @@ KEEP_DARK = {'dot', 'dotglow', 'dotlight', 'cam'}
 ORIG_HIDE = {o.name: o.hide_render for o in bpy.data.objects}
 DARK_STATE = [False]
 
-def update(t, f):
+def update(t, f, win=None):
     # the first seconds are black: nothing of the room is there, only the dot
     dark_now = t < T['reveal'][0] - .05
     if dark_now:
@@ -508,6 +527,10 @@ def update(t, f):
         for o in bpy.data.objects: o.hide_render = ORIG_HIDE.get(o.name, o.hide_render)
     DARK_STATE[0] = dark_now
     c = cam_at(t); pos = c['pos'] + V((math.sin(t * .9) * .003, math.sin(t * .6 + 2) * .002, math.sin(t * 1.3 + 1) * .0025)); tgt = c['tgt']
+    if win is not None:                                                  # the pause: the camera breathes in and comes back to exactly where it was
+        s_ = clamp(win / WIN); amt = math.sin(math.pi * s_) ** 2; tw = t + win
+        pos = pos + V((math.sin(tw * .9) - math.sin(t * .9)) * .003, (math.sin(tw * .6 + 2) - math.sin(t * .6 + 2)) * .002, (math.sin(tw * 1.3 + 1) - math.sin(t * 1.3 + 1)) * .0025) * amt
+        pos = pos + (tgt - pos).normalized() * .22 * amt + V(.05 * amt * math.sin(s_ * math.pi * 2), 0, .012 * amt)
     CAM.location = pos; CAM.rotation_euler = (tgt - pos).to_track_quat('-Z', 'Y').to_euler(); cam_data.lens = 12 / math.tan(math.radians(c['fov']) / 2)
     cam_data.dof.focus_distance = max(.08, (tgt - pos).length)
     lit = seg(t, T['reveal'][0], T['reveal'][1]); dark = seg(t, 50.5, 54.5); end_dark = seg(t, 56.0, 58.5)
@@ -519,7 +542,7 @@ def update(t, f):
     bpy.data.worlds[0].node_tree.nodes['Background'].inputs['Strength'].default_value = .55 * lit * (1 - dark * .8) + .0001
     pv.inputs['Density'].default_value = .012 * lit + .0002
     # screens
-    set_image(tv_m, frame_path(TV_DIR, t)); set_image(ph_m, frame_path(PH_DIR, t))
+    set_image(tv_m, frame_path(TV_DIR, t) if win is None else os.path.join(TVX_DIR, '%05d.jpg' % f)); set_image(ph_m, frame_path(PH_DIR, t))
     tv_m.node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = 1.7
     # phone
     pp, lean, yaw, lev = phone_pose(t); phone.location = pp; phone.rotation_euler = (lean, 0, yaw); phone.hide_render = t < T['reveal'][0]
@@ -551,7 +574,7 @@ def update(t, f):
             arr[i] = (p_.x + math.sin(t * 3 + i) * j, p_.y, p_.z + math.cos(t * 2 + i) * j)
         verts = (arr[:, None, :] + oct_[None] * .0035 * cast_on).reshape(-1, 3); cme.vertices.foreach_set('co', verts.ravel()); cme.update()
     # node system
-    n_on = seg(t, 28.6, 29.4) * (1 - seg(t, 36.0, 36.7)); NODE.hide_viewport = False
+    n_on = seg(t, 28.6, 29.4) * (1 - seg(t, 40.3, 41.0)); NODE.hide_viewport = False
     vis_n = n_on > .01
     for o in (core,): o.hide_render = not vis_n
     NODE.scale = (n_on + .001,) * 3
@@ -609,36 +632,31 @@ def update(t, f):
     if card_on >= .01:
         CARD.location = (.27, -.03, .09 + .07 * card_on + math.sin(t * 1.2) * .004); CARD.scale = (card_on,) * 3
         set_image(ct_m, os.path.join(CT_DIR, '%05d.jpg' % int(clamp(round(t * 24), 0, 335))))
-    # the campaign: three columns slide, chains of light join a file, a person and a channel
-    g0, g1 = T['campaigns'][0] - .2, T['campaigns'][1] - .1; g_on = seg(t, g0, g0 + .7) * (1 - seg(t, g1, g1 + .6))
-    boost = {}
-    for col in COLS:
-        for i, q in enumerate(G_TILES[col]):
-            ps, fd = tile_pos(col, i, t); q.location = ps; q.scale = (max(.001, fd * g_on),) * 3; q.hide_render = g_on * fd < .02
-    for k in range(4):
-        for l in G_LINES[k]: l.hide_render = True
-        G_PULSE[k].hide_render = True
-    if g_on > .02:
-        base = g0 + .6
-        for kk in range(5):
-            n = int(math.floor((t - base) / .5)) - kk; st = base + n * .5; u = (t - st) / 2.0
-            if n < 0 or not (0 <= u < 1): continue
-            sl = n % 4; fi, ri, ci = (n * 7 + 3) % 5, (n * 3 + 1) % 5, (n * 11 + 2) % 5
-            pf, fdf = tile_pos('f', fi, t); pr, fdr = tile_pos('r', ri, t); pc, fdc = tile_pos('c', ci, t)
-            A_, B_, C_ = V(pf), V(pr), V(pc); m1 = (A_ + B_) / 2 + V(0, -.07, .03); m2 = (B_ + C_) / 2 + V(0, -.07, -.03)
-            strength = 14.0 * ramp(u, 0, .08) * (1 - ramp(u, .78, 1.0)) * g_on; set_emit(G_LINE_M[sl], strength)
-            for j in range(NSEG):
-                place_cyl(G_LINES[sl][j], qbez(A_, B_, m1, j / NSEG), qbez(A_, B_, m1, (j + 1) / NSEG), 1.0)
-                place_cyl(G_LINES[sl][NSEG + j], qbez(B_, C_, m2, j / NSEG), qbez(B_, C_, m2, (j + 1) / NSEG), 1.0)
-            if u < .38: pp_ = qbez(A_, B_, m1, ramp(u, .04, .38))
-            elif u < .72: pp_ = qbez(B_, C_, m2, ramp(u, .4, .72))
-            else: pp_ = C_
-            G_PULSE[sl].hide_render = not (.04 < u < .9); G_PULSE[sl].location = pp_; G_PULSE[sl].scale = (1 + 1.2 * max(0, 1 - abs(u - .74) * 9),) * 3
-            for col, idx, a0, a1 in (('f', fi, 0, .4), ('r', ri, .3, .76), ('c', ci, .68, 1.0)):
-                k_ = math.sin(math.pi * ramp(u, a0, a1)) if a0 <= u <= a1 else 0; boost[(col, idx)] = max(boost.get((col, idx), 0), k_)
-        for (col, idx), k_ in boost.items(): G_TILES[col][idx].scale = tuple(x * (1 + .3 * k_) for x in G_TILES[col][idx].scale)
+    # the campaign: pairs fall onto the super agent, each landing sends a wave, the pair is multiplied into copies that ride it
+    falling, waves, copies = campaign_state(t)
+    base_c = NODE.matrix_world.translation
+    for i, (qa, qb) in enumerate(FALLERS):
+        mine = [x for x in falling if x[0]['n'] % 8 == i]
+        if not mine: qa.hide_render = qb.hide_render = BONDS[i].hide_render = True; continue
+        p, u = mine[0]; fall = u * u * (1.6 - .6 * u); top = .34; x = p['x'] * (1 - u) ** 2
+        c_ = V(base_c.x + x, base_c.y - .03, base_c.z + top * (1 - fall)); sc = n_on * (1 - ramp(u, .9, 1.0))
+        set_tile(qa, p['file']); set_tile(qb, p['chan'])
+        qa.location = c_ + V(-.048, 0, 0); qb.location = c_ + V(.048, 0, 0); qa.scale = qb.scale = (max(.001, sc),) * 3; qa.hide_render = qb.hide_render = sc < .02
+        BONDS[i].hide_render = sc < .02; place_cyl(BONDS[i], qa.location + V(.03, 0, 0), qb.location - V(.03, 0, 0), None)
+    for i, wv in enumerate(WAVES):
+        mine = [x for x in waves if x[0]['n'] % 8 == i]
+        if not mine: wv.hide_render = True; continue
+        p, w = mine[0]; r = .04 + .5 * eo3(w); wv.hide_render = False; wv.location = base_c + V(0, 0, -.015); wv.rotation_euler = (0, 0, 0); wv.scale = (r, r, r * .6)
+        set_emit(WAVE_M[i], 6.0 * (1 - w) ** 1.5 * n_on)
+    for j, q in enumerate(COPIES):
+        if j >= len(copies): q.hide_render = True; continue
+        p, k, ang, rad, w = copies[j]; set_tile(q, p['file'] if k % 2 == 0 else p['chan'])
+        q.location = base_c + V(math.cos(ang) * rad, math.sin(ang) * rad * .55, .02 + .04 * math.sin(w * math.pi)); sc = n_on * ramp(w, 0, .08) * (1 - ramp(w, .65, 1.0)); q.scale = (max(.001, sc),) * 3; q.hide_render = sc < .02
+    land = max([math.exp(-((t - p['t1']) / .09) ** 2) for p in SCHED] + [0])
+    if vis_n: core.scale = (core.scale[0] * (1 + .35 * land),) * 3
     # dust
-    mv = np.stack([np.sin(t * .18 + np.arange(ND)) * .12, np.cos(t * .15 + np.arange(ND) * .7) * .12, np.sin(t * .12 + np.arange(ND) * 1.7) * .08 + ((t * .01 * (1 + np.array([rnd(i) for i in range(ND)]))) % 1.6) * 0], axis=1)
+    td = t if win is None else t + 3.0 * math.sin(math.pi * clamp(win / WIN))
+    mv = np.stack([np.sin(td * .18 + np.arange(ND)) * .12, np.cos(td * .15 + np.arange(ND) * .7) * .12, np.sin(td * .12 + np.arange(ND) * 1.7) * .08 + ((td * .01 * (1 + np.array([rnd(i) for i in range(ND)]))) % 1.6) * 0], axis=1)
     cen = dust_base + mv; verts = (cen[:, None, :] + oct_[None] * dust_sz[:, None, None]).reshape(-1, 3); dme.vertices.foreach_set('co', verts.ravel()); dme.update()
     set_emit(dust_m, 3.0 * lit * (1 - dark * .6))
     # anchors for the labels
@@ -650,17 +668,24 @@ def update(t, f):
     anchor(f, 'listen', phone.matrix_world @ V(PW / 2, -PD / 2, PH_ / 2), stage(t, 3.8, 7.2))
     for k_, dx, a0, a1 in (('doc', -.42, 5.6, 8.8), ('med', -.14, 6.0, 8.8), ('app', .14, 6.4, 8.8), ('pag', .42, 6.8, 8.8)): anchor(f, k_, (TVC.x + dx, TVC.y - .02, TVC.z + .12), stage(t, a0, a1))
     anchor(f, 'sc', (TVC.x + .28, TVC.y - .02, TVC.z - .06), stage(t, 9.4, 11.4))
-    for k_, col in (('colf', 'f'), ('colr', 'r'), ('colc', 'c')): anchor(f, k_, GRAPH.location + V(COLX[col], 0, .19), stage(t, T['campaigns'][0] + .2, T['campaigns'][1] - .2))
+    anchor(f, 'agent', NODE.matrix_world.translation, stage(t, 36.4, 40.4) * (1 if vis_n else 0))
 
 def main():
     os.makedirs(OUT, exist_ok=True)
     still = A('still', None, float)
-    a, b = A('from', 0, int), A('to', NFR, int)
+    a, b = A('from', 0, int), A('to', NFR if WIN <= 0 else int(round(WIN * FPS)), int)
     if still is not None:
         f = int(round(still * FPS)); update(still, f); S.render.filepath = os.path.join(OUT, 'still_%s.jpg' % str(still).replace('.', '_')); bpy.ops.render.render(write_still=True); return
     if A('anchorsonly', 0, int):                                         # only where the tracked points are, without drawing (to rebuild the labels of a render that was cut and resumed)
         for f in range(a, min(b, NFR)): update(f / FPS, f)
         json.dump(ANCH, open(os.path.join(OUT, 'anchors.only.%05d.json' % a), 'w')); print('anchors', a, b); return
+    if WIN > 0:                                                          # the pause window: frame k is the room at t = 50, k / fps into the pause
+        for k in range(int(round(WIN * FPS))):
+            path = os.path.join(OUT, '%05d.jpg' % k)
+            if k < a or k >= b or (os.path.exists(path) and os.path.getsize(path) > 2000 and not os.path.exists(path + '.part')): continue
+            open(path + '.part', 'w').close(); update(T['closed'][0], k, win=k / FPS)
+            S.render.filepath = path; bpy.ops.render.render(write_still=True); os.remove(path + '.part'); print('FRAME', k, round(time.time() - T0, 1), flush=True)
+        print('done', a, b); return
     for f in range(a, min(b, NFR)):
         path = os.path.join(OUT, '%05d.jpg' % f)
         if os.path.exists(path) and os.path.getsize(path) > 2000 and not os.path.exists(path + '.part'): continue
